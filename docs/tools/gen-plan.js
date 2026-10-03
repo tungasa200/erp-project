@@ -3,7 +3,7 @@ const path = require('path');
 const { Packer, Paragraph, TextRun, AlignmentType, PageBreak } = require('docx');
 const { p, h1, h2, bullet, gap, code, table, makeDoc, ACCENT } = require('./lib');
 
-const VERSION = 'v1.4';
+const VERSION = 'v1.5';
 const TODAY = '2026-10-04';
 // WBS 표: ID, 작업, 산출물, 관련 요구사항, 화면 ID(화면정의서)
 const wbs = (rows) => table(['ID', '작업', '산출물', '관련 요구사항', '화면 ID'], rows, [9, 40, 14, 16, 21], [0]);
@@ -30,7 +30,7 @@ const children = [
   table(['항목', '내용'], [
     ['문서 버전', VERSION],
     ['작성일', TODAY],
-    ['근거 문서', '요구사항정의서_v1.2.docx, 화면정의서_v1.1.docx (동시 발행)'],
+    ['근거 문서', '요구사항정의서_v1.3.docx, 화면정의서_v1.1.docx'],
     ['진행 방식', '고정 일정 없이 단계 순서와 완료 기준으로 진행'],
   ], [30, 70]),
   new Paragraph({ children: [new PageBreak()] }),
@@ -42,6 +42,7 @@ const children = [
     ['v1.2', '2026-10-03', '일정을 영업일 작업량 기준으로 자동 계산 (주말·공휴일·대체공휴일 반영)'],
     ['v1.3', '2026-10-03', '고정 일정 제거. 시간 날 때 진행하는 방식에 맞춰 단계 순서·완료 기준·진행 상황 기록으로 관리'],
     ['v1.4', TODAY, '요구사항 v1.2·화면정의서 v1.1 반영: 인증 정책을 P0 작업에 구체화, P1-11~P1-14 신설(홈 대시보드, 이메일 인증, 비밀번호 재설정 이동, 로그인 보호), P4-08~P4-12 신설, U1-03 Google 로그인, WBS에 화면 ID 열 추가, 도메인 구매(P0 전)·메일 서비스 준비 시점 P1로, 인증·배포·공휴일 리스크 추가'],
+    ['v1.5', TODAY, '요구사항 v1.3(아키텍처 결정 D-27~D-36) 반영: P0-10 공통 기반·P0-11 서비스 간 연동·P4-13 오류 수집 신설, P0-01·04·07·09, P1-01, P2-03, P4-01·05·07 구체화, 싱가포르 리전·백업·운영 관측 반영, 연동·리전·감시·백업 리스크 추가'],
   ], [15, 20, 65], [0, 1]),
   gap(),
 
@@ -57,7 +58,10 @@ const children = [
     ['백엔드', 'Java 21, Spring Boot, MSA — 초기 서비스 3개 (api-gateway, identity-service, worklog-service)'],
     ['프론트엔드', 'React + Vite + TypeScript, 반응형 웹 → P4에서 PWA'],
     ['디자인', 'C안(친근한 플래너), 기본 화면은 홈 대시보드, 키 컬러·배경 사용자 설정, UI 글꼴 Pretendard'],
-    ['배포', '백엔드·DB: Railway / 프론트엔드: Vercel (rewrites로 /api/*를 Gateway에 프록시해 같은 사이트로 서비스)'],
+    ['배포', '백엔드·DB: Railway 싱가포르 리전 / 프론트엔드: Vercel (rewrites로 /api/*를 Gateway에 프록시해 같은 사이트로 서비스)'],
+    ['서비스 간 연동', 'identity가 공통 프로필 원본, 사용자 변경 피드(pull)로 모듈별 읽기 전용 사본 갱신·탈퇴 전파, 내부 호출은 client credentials 서비스 토큰'],
+    ['API 규약', 'UUIDv7, /api/{모듈}/ 접두사·버전 없음, cursor 페이지네이션, Problem Details, PATCH·version 잠금, OpenAPI'],
+    ['운영', '외부 오류 추적·가동 감시 도구 없이 JSON 로그·traceId·Railway 헬스체크로 시작, 출시 직전 재검토'],
     ['업무일지', '규칙 기반 자동 작성, 회사 제출용 (PDF·Excel·Word 내보내기 필수)'],
     ['기록 범위', '출퇴근·휴게 기록 제외(향후 근태 모듈). 업무별 시간 기록은 선택 기능, 기본 꺼짐'],
     ['차별화 기능', '계획 기반 기록, 한 줄 빠른 입력, 실시간 일지·하루 마감, 계획/실제 타임라인·빈 시간 메우기'],
@@ -75,7 +79,7 @@ const children = [
   p('P0 시작 전에 사용자가 직접 준비해야 하는 항목이다.'),
   table(['항목', '내용', '필요 시점'], [
     ['GitHub 계정·저장소', '원격 저장소 생성 (private 권장). CI(GitHub Actions)와 Railway·Vercel 배포 연동에 사용', 'P0'],
-    ['Railway 계정', '백엔드 서비스 3개와 PostgreSQL 배포. 상시 실행 서비스가 있어 유료 요금제 필요 — 가입 시 요금제 확인', 'P0'],
+    ['Railway 계정', '백엔드 서비스 3개와 PostgreSQL 배포. 상시 실행 서비스와 리전 선택(싱가포르) 때문에 Pro 요금제 필요', 'P0'],
     ['Vercel 계정', '프론트엔드 배포. GitHub 저장소 연결', 'P0'],
     ['로컬 개발 도구', 'JDK 21, Docker Desktop(로컬 PostgreSQL), Git. Node.js 24는 설치 확인됨', 'P0'],
     ['도메인', '서비스 도메인 구매. 메일 발송 도메인 인증(SPF·DKIM)에 필요 (D-11)', 'P0 전'],
@@ -112,6 +116,9 @@ const children = [
   table(['영역', '후보', '용도'], [
     ['인증', 'Spring Security OAuth2 Resource Server, Nimbus JOSE (확정)', 'JWT(RS256) 발급·검증, JWKS'],
     ['요청 제한', 'Bucket4j + Caffeine (인스턴스 확장 시 Redis로 전환)', 'AUTH-09'],
+    ['주기 작업', 'Spring @Scheduled + ShedLock (JDBC)', 'D-31'],
+    ['API 명세', 'springdoc-openapi, openapi-typescript (프론트 타입 생성)', 'D-30'],
+    ['추적·로그', 'Micrometer Tracing (W3C traceparent), JSON 로그 인코더', 'NFR-09'],
     ['DB', 'Spring Data JPA, Flyway, PostgreSQL', '영속성, 스키마 마이그레이션'],
     ['반복 일정', 'ical4j (백엔드), rrule.js (프론트)', 'RFC 5545 RRULE 처리'],
     ['빠른 입력 파싱', '자체 구현 (한국어 상대 날짜 지원 라이브러리가 마땅치 않음)', 'REC-04'],
@@ -129,21 +136,23 @@ const children = [
   h1('4. 단계별 작업 (WBS)'),
   heading('4.1', P0),
   wbs([
-    ['P0-01', '개발 환경 확정: JDK·Spring Boot·Spring Cloud 호환 버전 선정, 로컬 도구 설치 확인', 'README 버전 표', '-', '-'],
+    ['P0-01', '개발 환경 확정: JDK·Spring Boot·Spring Cloud 호환 버전 선정, UUIDv7 생성 방식 확정, 로컬 도구 설치 확인', 'README 버전 표', '-', '-'],
     ['P0-02', 'Git 저장소 초기화, 모노레포 구조 생성, GitHub 원격 연결, 진행현황 문서 생성', '저장소, docs/진행현황.md', '-', '-'],
     ['P0-03', '로컬 PostgreSQL (docker-compose), 서비스별 schema·DB 계정 생성 스크립트', 'docker-compose.yml', 'NFR-02', '-'],
-    ['P0-04', 'api-gateway: 라우팅, 쿠키의 access_token을 Authorization: Bearer로 옮겨 전달, JWKS로 JWT 검증, 외부에서 온 Authorization·X-User-* 헤더 제거, 쓰기 요청 Origin 검사', 'gateway 모듈', 'NFR-02, 03, 14', '-'],
+    ['P0-04', 'api-gateway: 라우팅, 쿠키의 access_token을 Authorization: Bearer로 옮겨 전달, JWKS로 JWT 검증, 외부에서 온 Authorization·X-User-* 헤더 제거, 쓰기 요청 Origin 검사, traceId 생성·전달, /internal/** 미라우팅', 'gateway 모듈', 'NFR-02, 03, 09, 14', '-'],
     ['P0-05', 'identity-service: 회원 가입(약관 동의), 로그인·로그아웃, RS256 키 로드와 JWKS 엔드포인트, 쿠키 토큰 발급, Refresh Token rotation·재사용 탐지·30초 유예, User·UserCredential·RefreshToken Flyway 스키마', 'identity 모듈', 'AUTH-01, 02, NFR-03', '-'],
     ['P0-06', 'worklog-service 골격: 헬스체크, JWT 검증(Resource Server)으로 사용자 식별, 테스트용 키·토큰 유틸(공통 모듈), Flyway 설정', 'worklog 모듈', 'NFR-03, 09', '-'],
-    ['P0-07', '프론트엔드 골격: 라우팅, API 클라이언트(401이면 refresh 1회 후 재시도, 탭 안 동시 갱신은 1회로), 가입·로그인 화면, 기본 예외 화면, 테마 색 토큰 구조, Pretendard 적용', 'frontend', 'AUTH-01, 02, NFR-13', 'SCR-COM-01, SCR-AUTH-02, 03, SCR-SYS-01, 02'],
+    ['P0-07', '프론트엔드 골격: 라우팅, API 클라이언트(401이면 refresh 1회 후 재시도, 탭 안 동시 갱신은 1회로), 가입(국외 보관 안내 문구 포함)·로그인 화면, 기본 예외 화면, 테마 색 토큰 구조, Pretendard 적용', 'frontend', 'AUTH-01, 02, NFR-13', 'SCR-COM-01, SCR-AUTH-02, 03, SCR-SYS-01, 02'],
     ['P0-08', 'CI: PR마다 백엔드 빌드·테스트, 프론트 빌드·린트 실행', 'GitHub Actions', 'NFR-08', '-'],
-    ['P0-09', '배포: Railway(서비스 3개 + PostgreSQL), Vercel(rewrites로 /api/* 프록시), 환경변수·서명 키 설정. 검증: 프록시의 응답 크기·시간 제한, Gateway 직접 접근 차단(Vercel이 붙이는 비밀 헤더) 가능 여부', '배포 URL, 검증 결과', 'NFR-14', '-'],
+    ['P0-09', '배포: Railway 싱가포르 리전(서비스 3개 + PostgreSQL), Vercel(rewrites로 /api/* 프록시), 환경변수·서명 키·서비스 클라이언트 비밀값 설정, 배포 헬스체크 경로·재시작 정책. 검증: 아시아 리전 배포 가능 여부, 프록시의 응답 크기·시간 제한, Gateway 직접 접근 차단(Vercel이 붙이는 비밀 헤더) 가능 여부, 로그 보관 기간, 크래시 알림, 백업 주기·7일 보관 설정', '배포 URL, 검증 결과', 'NFR-05, 09, 14', '-'],
+    ['P0-10', '공통 기반 모듈: Problem Details 오류 처리(code·errors[]·traceId), UUIDv7 ID, JSON 로그, springdoc-openapi와 프론트 타입 생성, ShedLock 설정', '공통 모듈', 'NFR-09', '-'],
+    ['P0-11', '서비스 간 연동: identity 사용자 변경 피드(기록 직렬화)·탈퇴 기록·전체 목록 API, client credentials 서비스 토큰 발급, worklog 피드 소비(멱등 갱신·커서)·사본 없을 때 즉시 조회·탈퇴 사용자 요청 거부, 정리 작업(만료 토큰·인증 코드·30일 지난 피드)', 'API, 주기 작업', 'AUTH-04, 05, 06, NFR-03', '-'],
   ]),
   p('완료 기준: 배포된 프론트엔드에서 가입 → 로그인 → 인증이 필요한 API 호출까지 성공하고, 새로고침·새 탭에서도 로그인이 유지됨.', { spacing: { before: 120, after: 120 }, run: { bold: true } }),
 
   heading('4.2', P1),
   wbs([
-    ['P1-01', '프로필·설정 API와 화면 (이름, 소속, 직책, 시간대, 주 시작 요일, 업무 요일)', 'API, 화면', 'AUTH-04, 05', 'SCR-SET-01, 02'],
+    ['P1-01', '프로필·설정 API와 화면: 공통 프로필(이름, 소속, 직책, 시간대, 주 시작 요일, 업무 요일 — identity)과 worklog 설정을 항목별 자동 저장, 저장 후 worklog 프로필 재조회', 'API, 화면', 'AUTH-04, 05', 'SCR-SET-01, 02'],
     ['P1-02', '프로젝트·태그 CRUD', 'API, 화면', 'TASK-04', 'SCR-SET-08'],
     ['P1-03', '업무 CRUD, 상태 전이, 우선순위, 마감일, 진행률, 소프트 삭제', 'API, 화면', 'TASK-01, 02, 03, 05', 'SCR-TASK-01, 02'],
     ['P1-04', '업무 목록 검색·필터', '화면', 'TASK-06', 'SCR-TASK-01'],
@@ -164,7 +173,7 @@ const children = [
   wbs([
     ['P2-01', '업무 기록 API: 시간 없는 기록, 상태(확인 대기/확정/하지 않음), 날짜 귀속', 'API', 'REC-01', 'SCR-REC-01'],
     ['P2-02', '업무 완료 시 결과 한 줄·칩 입력', '화면', 'REC-02', 'SCR-TASK-03'],
-    ['P2-03', '계획 기반 기록: 종료된 일정(반복 회차 포함)에서 확인 대기 기록 생성, 확인·수정·하지 않음 처리', 'API, 화면', 'REC-03', 'SCR-HOME-01, 02'],
+    ['P2-03', '계획 기반 기록: 보여줄 때 종료된 일정(반복 회차 포함)의 확인 대기 기록 생성((일정, 회차 시작) 유니크), 확인·수정·하지 않음 처리', 'API, 화면', 'REC-03', 'SCR-HOME-01, 02'],
     ['P2-04', '자주 하는 업무 제안 (요일·시간대별 빈도 집계)', 'API', 'REC-05', 'SCR-COM-02'],
     ['P2-05', '시간 기록 옵션 설정 (기본 꺼짐), 옵션에 따른 화면 요소 표시·숨김', 'API, 화면', 'TIME-09', 'SCR-SET-03'],
     ['P2-06', '[옵션] 타이머(동시 1개), 이어달리기, 시간 입력·수정, 겹침 검증', 'API, 화면', 'TIME-03, 04, 06, 10', 'SCR-COM-06, SCR-REC-01'],
@@ -191,24 +200,26 @@ const children = [
 
   heading('4.5', P4),
   wbs([
-    ['P4-01', '하루 마감 알림 (앱 내 알림 + PWA 웹 푸시), 알림 센터', 'API, 화면', 'NOTI-01', 'SCR-SET-05, SCR-COM-05'],
+    ['P4-01', '하루 마감 알림 (앱 내 알림 + PWA 웹 푸시, next_notify_at 기반 1분 주기 발송), 알림 센터', 'API, 화면', 'NOTI-01', 'SCR-SET-05, SCR-COM-05'],
     ['P4-02', '업무 통계 화면, [옵션] 예상 대비 실제 회고', '화면', 'STAT-01, UX-05', 'SCR-STAT-01'],
     ['P4-03', 'PWA: manifest, service worker, 홈 화면 바로가기, 모바일 빠른 기록 버튼', 'frontend', 'NFR-06, UX-02', 'SCR-MOB-01, 02, SCR-COM-01'],
     ['P4-04', '(P1-13으로 이동 — 비밀번호 재설정)', '-', '-', '-'],
-    ['P4-05', '회원 탈퇴(데이터 파기), 개인정보 처리방침·이용약관 페이지', 'API, 화면', 'AUTH-06, NFR-10', 'SCR-SET-06, 07, SCR-AUTH-06, 07'],
+    ['P4-05', '회원 탈퇴(탈퇴 기록·피드 전파·각 모듈 파기), 개인정보 처리방침(국외 이전 항목, 백업 7일 파기 고지)·이용약관 페이지', 'API, 화면', 'AUTH-06, NFR-10', 'SCR-SET-06, 07, SCR-AUTH-06, 07'],
     ['P4-06', 'E2E 테스트: 가입 → 빠른 입력 → 계획 기반 기록 확정 → 하루 마감 → 이메일 인증 → 내보내기 (Chromium·WebKit 엔진, 모바일 화면 크기 포함)', 'Playwright 테스트', 'NFR-07, 08', '-'],
-    ['P4-07', '운영 점검: DB 백업 확인, 로그, 헬스체크', '점검표', 'NFR-05, 09', '-'],
+    ['P4-07', '운영 점검: DB 백업 확인, 백업 복원 후 탈퇴 기록 재적용 절차 시험, 로그, 헬스체크', '점검표', 'NFR-05, 09', '-'],
     ['P4-08', '비밀번호 변경 (다른 기기 로그인 세션 폐기와 안내)', 'API, 화면', 'AUTH-07', 'SCR-SET-06'],
     ['P4-09', '테마 설정: 키 컬러 프리셋·직접 선택, 배경 4종, 대비 4.5:1 글자색 자동 선택', 'API, 화면', 'UX-07', 'SCR-SET-04'],
     ['P4-10', '보관함: 보관한 업무·프로젝트 조회와 복원', '화면', 'TASK-08', 'SCR-TASK-04'],
     ['P4-11', '서비스 소개(랜딩) 페이지', '화면', 'UX-08', 'SCR-AUTH-01'],
     ['P4-12', '예외 화면 다듬기: 점검, 네트워크 끊김 시 입력 비활성화, 세션 만료 후 원래 경로 복귀', '화면', 'NFR-13', 'SCR-SYS (화면정의서 참조)'],
+    ['P4-13', '오류 수집: 프론트엔드 오류 수집 엔드포인트(토큰·입력값 제외, 요청 제한), (선택) 서버 오류 요약 메일', 'API, frontend', 'NFR-09', '-'],
   ]),
   p('완료 기준: 휴대폰에서 기록부터 하루 마감·내보내기까지 전 과정을 수행할 수 있음.', { spacing: { before: 120, after: 120 }, run: { bold: true } }),
 
   h2('4.6 REL 안정화 및 출시'),
   bullet('남은 버그 수정, 성능 확인(NFR-01), 출시.'),
-  bullet('이용약관·개인정보 처리방침 게시와 가입 동의 확인 (NFR-10, 출시 전 필수).'),
+  bullet('이용약관·개인정보 처리방침 게시와 가입 동의 확인 (NFR-10, 출시 전 필수). 처리방침 빈칸(Vercel 처리 국가, 메일 발송 업체)을 채우고 전문가 검토를 받는다.'),
+  bullet('외부 오류 추적·가동 감시 도구 도입 여부를 다시 검토한다 (D-35). 도입하면 처리방침 국외 이전 대상에 추가한다.'),
   bullet('진행이 길어지면 P4의 권장 기능(통계, 알림, 보관함, 랜딩)을 출시 후로 미루고 필수 기능을 우선한다.'),
   h2('4.7 U1 출시 후 1차 업데이트'),
   wbs([
@@ -255,7 +266,7 @@ const children = [
   h1('7. 배포 계획'),
   table(['환경', '구성', '비고'], [
     ['로컬', 'docker-compose(PostgreSQL) + 각 서비스 로컬 실행 + Vite 개발 서버', '개발·테스트'],
-    ['운영', 'Railway: api-gateway, identity-service, worklog-service, PostgreSQL\nVercel: frontend (rewrites로 /api/* → api-gateway 프록시)', 'main 병합 시 자동 배포'],
+    ['운영', 'Railway 싱가포르: api-gateway, identity-service, worklog-service, PostgreSQL\nVercel: frontend (rewrites로 /api/* → api-gateway 프록시)', 'main 병합 시 자동 배포'],
   ], [12, 63, 25], [0]),
   bullet('외부에는 api-gateway만 공개하고, 내부 서비스는 Railway private network로만 통신한다. 내부 서비스에 공개 도메인을 만들지 않는다.'),
   bullet('프론트엔드와 API를 같은 사이트로 서비스한다. 인증 쿠키의 CSRF 방어가 이 구성을 전제로 하므로, 배포 환경을 바꿀 때는 같은 사이트가 유지되는지 먼저 확인한다 (NFR-14).'),
@@ -281,6 +292,10 @@ const children = [
     ['여러 탭의 동시 토큰 갱신', 'Refresh Token 재사용 탐지 오작동으로 로그아웃', '직전 Refresh Token 30초 유예 (AUTH-02)'],
     ['메일 발송 실패·스팸 분류', '이메일 인증·비밀번호 재설정 불가', '구매한 도메인으로 발송 도메인 인증(SPF·DKIM) 설정, 재발송 기능'],
     ['공휴일 데이터 갱신 누락', '캘린더 공휴일 표시 오류', '연 1회 갱신을 진행현황에 일정으로 두고, 대체·임시 공휴일 발표 시 즉시 갱신 (D-25)'],
+    ['사용자 변경 피드 이벤트 누락', '탈퇴자 데이터 잔존(법 위반), 프로필 불일치', '피드 기록 직렬화, 멱등 소비, 전체 목록 재동기화 (요구사항 5.4)'],
+    ['아시아 리전 수용량 부족', '배포 지연', 'P0-09에서 실제 배포로 확인, 막히면 리전 재검토'],
+    ['외부 가동 감시 부재', 'Railway 전체 장애를 사용자보다 늦게 인지', '출시 직전 재검토 (D-35)'],
+    ['백업 복원 시 탈퇴자 데이터 부활', '파기 의무 위반', '복원 직후 탈퇴 기록 재적용, P4-07에서 절차 시험 (NFR-05)'],
   ], [32, 18, 50]),
   gap(),
 
