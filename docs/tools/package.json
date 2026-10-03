@@ -1,0 +1,14 @@
+{
+  "name": "worklog-docs-tools",
+  "private": true,
+  "description": "요구사항정의서·작업계획서 docx 생성 도구",
+  "type": "commonjs",
+  "scripts": {
+    "srs": "node gen-srs.js",
+    "plan": "node gen-plan.js",
+    "build": "node gen-srs.js && node gen-plan.js"
+  },
+  "dependencies": {
+    "docx": "^9.8.1"
+  }
+}
