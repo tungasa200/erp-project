@@ -1,20 +1,12 @@
-// RFC 9457 Problem Details + 확장 필드 (contracts/identity.yaml Problem)
-export interface FieldError {
-  field: string
-  code: string
-  message?: string
-}
+import type { components } from './generated/identity'
 
-export interface Problem {
-  type: string
-  title: string
-  status: number
-  detail?: string
-  code: string
-  errors?: FieldError[]
-  traceId: string
+// RFC 9457 Problem Details + 확장 필드. 모든 서비스가 같은 Problem을 쓴다(명세 스냅샷 생성 타입).
+export type Problem = components['schemas']['Problem'] & {
+  // 429 RateLimitedProblem의 확장 필드(contracts/identity.yaml). 스냅샷에 429 응답이 들어오면 생성 타입으로 바꾼다.
   retryAfterSeconds?: number
 }
+
+export type FieldError = NonNullable<Problem['errors']>[number]
 
 export class ApiError extends Error {
   readonly status: number
