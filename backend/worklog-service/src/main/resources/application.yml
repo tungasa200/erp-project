@@ -7,7 +7,7 @@ spring:
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/erp}
     username: ${DB_USERNAME:worklog_app}
-    password: ${DB_PASSWORD:worklog_app}
+    password: ${DB_PASSWORD:worklog_app_local}
   jpa:
     open-in-view: false
     hibernate:
@@ -26,6 +26,10 @@ worklog:
     jwk-set-uri: ${IDENTITY_JWKS_URI:http://localhost:8081/.well-known/jwks.json}
     issuer: erp-identity
     audience: erp-api
+  identity:
+    base-uri: ${IDENTITY_URI:http://localhost:8081}
+    client-id: ${IDENTITY_CLIENT_ID:worklog}
+    client-secret: ${IDENTITY_CLIENT_SECRET:}
 
 management:
   endpoints:

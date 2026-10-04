@@ -5,6 +5,7 @@ import com.nimbusds.jose.JWSHeader;
 import com.nimbusds.jose.crypto.RSASSASigner;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
+import com.erp.worklog.user.DeletedUserRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -14,6 +15,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -43,6 +45,10 @@ class SecurityConfigTest {
 
 	@Autowired
 	MockMvc mvc;
+
+	/** WebConfig가 등록하는 탈퇴 사용자 인터셉터용. 여기서는 아무도 탈퇴하지 않았다. */
+	@MockitoBean
+	DeletedUserRepository deletedUsers;
 
 	@Test
 	void validUserTokenIdentifiesUser() throws Exception {
