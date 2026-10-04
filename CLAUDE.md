@@ -11,12 +11,28 @@ MSA ERP 프로젝트. 이 파일은 git으로 공유되는 작업 규칙이다. 
 | `erp-commit` | 커밋·버전관리 전담 |
 | `erp-search` | 사용자의 개인 질문·조사 전담 |
 | `erp-planner` | 기획·아키텍처 결정, 요구사항정의서·작업계획서 담당 |
-| `erp-design` | 디자인 작업, 화면정의서 담당 |
+| `erp-design` | 디자인 작업, 화면정의서 담당, 목업 렌더링 검증 |
+| `project-pm` | 개발 총괄: 작업 지시, 보고 취합, 중요 결정을 사용자에게 올림 |
+| `backend1` | identity-service, 공통 모듈(`backend/common`), `backend/` 루트 빌드, `infra/` |
+| `backend2` | worklog-service, api-gateway |
+| `frontend` | `frontend/` |
+| `browser-controller` | 브라우저 자동화: 구현 화면 검증, Railway·Vercel 콘솔 작업 |
 
 - 세션 간 메시지(`ListAgents`/`SendMessage`)는 같은 PC 안의 세션끼리만 오간다. 위 역할 구성은 PC마다 따로 띄운다.
 - 메시지를 보내기 전에는 매번 `ListAgents`로 대상 세션이 있는지 확인한다. 이전 확인 결과를 재사용하지 않는다.
 - 대상 세션이 없거나 어느 세션인지 불분명하면 짐작해서 보내지 말고 사용자에게 알린다. 다른 세션을 임의로 그 역할로 간주하지 않는다.
 - `/rename` 직후에는 다른 세션의 `ListAgents`에 예전 이름이 보일 수 있다. 이름을 바꾼 세션이 한 턴 응답한 뒤에 반영된다.
+
+## 개발 총괄과 보고
+
+개발 세션(`backend1`, `backend2`, `frontend`, `erp-design`, `browser-controller`)은 `project-pm`의 지시로 일한다.
+
+- 지시받지 않은 작업은 시작하지 않는다. 사용자가 세션에 직접 시킨 일은 따르되, 끝나면 `project-pm`에 한 줄로 공유한다.
+- 중요 결정은 혼자 정하지 않고 `project-pm`에 보고한다. `project-pm`이 사용자에게 묻고 회신한다. 중요 결정: 아키텍처, API 계약, DB 스키마, 보안, 외부 서비스, 라이브러리 추가, 문서와 다른 구현, 다른 세션에 영향을 주는 변경. 구현 세부는 알아서 정하고 보고서에 가정으로 적는다.
+- 보고 형식: `[완료]` 작업·바뀐 파일·실행한 검증 명령과 결과 / `[결정 요청]` 배경·선택지와 트레이드오프·추천안·막히는 작업 / `[차단]` 멈춘 이유·필요한 것. 결정을 기다리는 동안 무관한 작업은 계속한다.
+- 배정받은 디렉터리 밖은 수정하지 않는다. `backend1`·`backend2`는 공유 파일(루트 빌드 설정, docker-compose 등)을 고칠 때 서로 알리고, 서비스 간 계약과 프론트가 쓰는 계약은 확정 전에 `project-pm`에 보고한다.
+- API 계약 초안은 저장소 루트 `contracts/{모듈}.yaml`(OpenAPI)에 둔다. 구현 후에는 springdoc 출력이 기준이다.
+- `browser-controller`는 코드를 수정하지 않는다. 결제·삭제·실제 메일 발송처럼 외부에 영향을 주는 동작은 `project-pm`을 거쳐 사용자 승인을 받는다.
 
 ## 커밋
 
