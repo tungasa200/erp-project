@@ -1,0 +1,108 @@
+{
+  "components" : {
+    "schemas" : {
+      "ProfileSnapshot" : {
+        "properties" : {
+          "name" : {
+            "type" : [ "string", "null" ]
+          },
+          "organization" : {
+            "type" : [ "string", "null" ]
+          },
+          "position" : {
+            "type" : [ "string", "null" ]
+          },
+          "syncedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "timezone" : {
+            "example" : "Asia/Seoul",
+            "type" : "string"
+          },
+          "weekStart" : {
+            "enum" : [ "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY" ],
+            "type" : "string"
+          },
+          "workDays" : {
+            "description" : "비트마스크 월=1 … 일=64, 기본 31(월~금)",
+            "format" : "int32",
+            "maximum" : 127,
+            "minimum" : 0,
+            "type" : "integer"
+          }
+        },
+        "required" : [ "timezone", "weekStart", "workDays" ],
+        "type" : "object"
+      },
+      "WorklogMe" : {
+        "properties" : {
+          "profile" : {
+            "$ref" : "#/components/schemas/ProfileSnapshot"
+          },
+          "settings" : {
+            "$ref" : "#/components/schemas/WorklogSettings"
+          },
+          "userId" : {
+            "description" : "UUIDv7, JWT sub와 같음",
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "required" : [ "profile", "settings", "userId" ],
+        "type" : "object"
+      },
+      "WorklogSettings" : {
+        "properties" : {
+          "dailyCloseTime" : {
+            "pattern" : "^\\d{2}:\\d{2}$",
+            "type" : [ "string", "null" ]
+          },
+          "timeTrackingEnabled" : {
+            "type" : "boolean"
+          },
+          "workHoursEnd" : {
+            "pattern" : "^\\d{2}:\\d{2}$",
+            "type" : [ "string", "null" ]
+          },
+          "workHoursStart" : {
+            "pattern" : "^\\d{2}:\\d{2}$",
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "timeTrackingEnabled" ],
+        "type" : "object"
+      }
+    }
+  },
+  "info" : {
+    "title" : "OpenAPI definition",
+    "version" : "v0"
+  },
+  "openapi" : "3.1.0",
+  "paths" : {
+    "/api/worklog/me" : {
+      "get" : {
+        "operationId" : "getMe",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/WorklogMe"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "현재 사용자의 worklog 프로필 조회",
+        "tags" : [ "me" ]
+      }
+    }
+  },
+  "servers" : [ {
+    "description" : "Generated server url",
+    "url" : "http://localhost"
+  } ]
+}
