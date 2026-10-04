@@ -93,4 +93,16 @@ function makeDoc({ title, headerText, children }) {
   });
 }
 
-module.exports = { p, h1, h2, bullet, gap, code, table, makeDoc, ACCENT };
+// 이미 있는 버전 파일은 덮어쓰지 않는다 (발행된 버전 보호). 미발행 버전을 다시 만들 때만 --force
+function writeNew(out, buf) {
+  const fs = require('fs');
+  if (fs.existsSync(out) && !process.argv.includes('--force')) {
+    console.error(`skip: ${out} 이(가) 이미 있습니다. VERSION을 올렸는지 확인하세요. 미발행 버전을 다시 만들 때만 --force를 붙입니다.`);
+    process.exitCode = 1;
+    return;
+  }
+  fs.writeFileSync(out, buf);
+  console.log('wrote', out, buf.length, 'bytes');
+}
+
+module.exports = { p, h1, h2, bullet, gap, code, table, makeDoc, writeNew, ACCENT };

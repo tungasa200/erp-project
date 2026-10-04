@@ -1,7 +1,6 @@
-const fs = require('fs');
 const path = require('path');
 const { Packer, Paragraph, TextRun, AlignmentType, PageBreak } = require('docx');
-const { p, h1, h2, bullet, gap, table, makeDoc, ACCENT } = require('./lib');
+const { p, h1, h2, bullet, gap, table, makeDoc, writeNew, ACCENT } = require('./lib');
 
 const VERSION = 'v1.3';
 // 기능 요구사항 표: ID, 요구사항, 상세, 우선순위, 단계
@@ -397,6 +396,5 @@ const children = [
 const doc = makeDoc({ title: '요구사항 정의서 - worklog', headerText: `worklog 요구사항 정의서 ${VERSION}`, children });
 Packer.toBuffer(doc).then((buf) => {
   const out = `${path.join(__dirname, '..')}/요구사항정의서_${VERSION}.docx`;
-  fs.writeFileSync(out, buf);
-  console.log('wrote', out, buf.length, 'bytes');
+  writeNew(out, buf);
 });

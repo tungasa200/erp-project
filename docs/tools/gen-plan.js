@@ -1,7 +1,6 @@
-const fs = require('fs');
 const path = require('path');
 const { Packer, Paragraph, TextRun, AlignmentType, PageBreak } = require('docx');
-const { p, h1, h2, bullet, gap, code, table, makeDoc, ACCENT } = require('./lib');
+const { p, h1, h2, bullet, gap, code, table, makeDoc, writeNew, ACCENT } = require('./lib');
 
 const VERSION = 'v1.5';
 const TODAY = '2026-10-04';
@@ -312,6 +311,5 @@ const children = [
 const doc = makeDoc({ title: '작업 계획서 - worklog', headerText: `worklog 작업 계획서 ${VERSION}`, children });
 Packer.toBuffer(doc).then((buf) => {
   const out = `${path.join(__dirname, '..')}/작업계획서_${VERSION}.docx`;
-  fs.writeFileSync(out, buf);
-  console.log('wrote', out, buf.length, 'bytes');
+  writeNew(out, buf);
 });
