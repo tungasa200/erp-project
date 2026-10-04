@@ -327,7 +327,9 @@ describe('SCR-SYS-02 ③ 오프라인 띠', () => {
     stubFetch({})
     renderApp('/login')
     expect(await screen.findByLabelText('이메일')).toBeDisabled()
-    expect(screen.getByText(/연결이 끊겼어요\. 다시 연결되면 입력할 수 있어요/)).toBeInTheDocument()
+    expect(screen.getByText('재시도 중…').parentElement).toHaveTextContent(
+      '연결이 끊겼어요. 다시 연결되면 입력할 수 있어요',
+    )
     expect(screen.getByRole('button', { name: '로그인' })).toBeDisabled()
   })
 

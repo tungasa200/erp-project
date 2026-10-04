@@ -7,7 +7,7 @@ import { MaintenanceGate } from './app/MaintenanceGate'
 import { router } from './app/router'
 import { AuthProvider } from './auth/AuthContext'
 import { handleSessionExpired } from './auth/session'
-import { OfflineBanner } from './components/OfflineBanner'
+import { AppFrame } from './components/AppFrame'
 import { ToastProvider } from './components/Toast'
 import './theme/global.css'
 
@@ -21,12 +21,13 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <MaintenanceGate>
-          <ToastProvider>
-            <OfflineBanner />
-            <RouterProvider router={router} />
-          </ToastProvider>
-        </MaintenanceGate>
+        <AppFrame>
+          <MaintenanceGate>
+            <ToastProvider>
+              <RouterProvider router={router} />
+            </ToastProvider>
+          </MaintenanceGate>
+        </AppFrame>
       </AuthProvider>
     </QueryClientProvider>
   </StrictMode>,

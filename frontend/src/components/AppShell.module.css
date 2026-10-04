@@ -1,15 +1,14 @@
 .shell {
-  min-height: 100vh;
+  height: 100%;
   display: flex;
   background: var(--color-ground);
 }
 
 /* 데스크톱 사이드바 (1024px 이상, 약 240px) */
 .sidebar {
-  position: sticky;
-  top: 0;
   width: 248px;
-  height: 100vh;
+  height: 100%;
+  overflow-y: auto;
   flex: none;
   padding: 22px 16px;
   display: flex;
@@ -119,6 +118,7 @@
 .content {
   flex: 1;
   min-width: 0;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
 }

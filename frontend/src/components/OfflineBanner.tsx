@@ -8,7 +8,9 @@ export function OfflineBanner() {
   return (
     <div role="status" className={styles.offline}>
       <span className={styles.dot} aria-hidden="true" />
-      연결이 끊겼어요. 다시 연결되면 입력할 수 있어요
+      <span className={styles.message}>
+        연결이 끊겼어요<span className={styles.detail}>. 다시 연결되면 입력할 수 있어요</span>
+      </span>
       <span className={styles.retrying}>재시도 중…</span>
     </div>
   )
