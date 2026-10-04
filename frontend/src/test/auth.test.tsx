@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { api } from '../api'
@@ -57,8 +57,18 @@ describe('SCR-AUTH-02 로그인', () => {
     await user.click(screen.getByRole('button', { name: '로그인' }))
 
     expect(screen.getByText('이메일 형식이 맞지 않아요')).toBeInTheDocument()
-    expect(screen.getByText('비밀번호를 입력해 주세요')).toBeInTheDocument()
+    expect(screen.getByText('입력해 주세요')).toBeInTheDocument()
     expect(fetchMock).not.toHaveBeenCalledWith('/api/auth/login', expect.anything())
+  })
+
+  it('빈 칸은 칸 아래에 "입력해 주세요"', async () => {
+    stubFetch({})
+    renderApp('/login')
+    const user = userEvent.setup()
+    await screen.findByLabelText('이메일')
+    await user.click(screen.getByRole('button', { name: '로그인' }))
+
+    expect(screen.getAllByText('입력해 주세요')).toHaveLength(2)
   })
 
   it('INVALID_CREDENTIALS는 어느 쪽이 틀렸는지 밝히지 않고 안내한다', async () => {
@@ -96,6 +106,48 @@ describe('SCR-AUTH-02 로그인', () => {
     expect(await screen.findByText('잠시 문제가 생겼어요. 잠시 후 다시 시도해 주세요')).toBeInTheDocument()
     expect(screen.getByText('trace-123')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '복사' })).toBeInTheDocument()
+  })
+})
+
+describe('SCR-SYS-02 점검', () => {
+  const hhmm = (d: Date) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+
+  it('503 + code=MAINTENANCE면 라우터 대신 점검 화면을 보여 주고 Retry-After로 계산한 시각을 표시한다', async () => {
+    stubFetch({
+      'GET /api/users/me': () => {
+        const res = problem(503, 'MAINTENANCE')
+        res.headers.set('Retry-After', '1800')
+        return res
+      },
+    })
+    const before = hhmm(new Date(Date.now() + 1800_000))
+    renderApp('/calendar')
+    const heading = await screen.findByRole('heading', { name: '서비스 점검 중이에요' })
+    const after = hhmm(new Date(Date.now() + 1800_000))
+    const text = heading.nextElementSibling?.textContent ?? ''
+    expect([`${before} 이후 다시 이용할 수 있어요.`, `${after} 이후 다시 이용할 수 있어요.`]).toContain(
+      text.split(' 기록은')[0],
+    )
+    expect(screen.queryByRole('heading', { name: '로그인' })).not.toBeInTheDocument()
+  })
+
+  it('Retry-After가 없으면 "지금은 이용할 수 없어요"', async () => {
+    stubFetch({ 'GET /api/users/me': () => problem(503, 'MAINTENANCE') })
+    renderApp('/login')
+    expect(await screen.findByRole('heading', { name: '서비스 점검 중이에요' })).toBeInTheDocument()
+    expect(screen.getByText(/지금은 이용할 수 없어요/)).toBeInTheDocument()
+  })
+
+  it('본문이 Problem이 아닌 503은 점검이 아니라 서버 오류로 처리한다', async () => {
+    stubFetch({ 'POST /api/auth/login': () => new Response('Service Unavailable', { status: 503 }) })
+    renderApp('/login')
+    const user = userEvent.setup()
+    await user.type(await screen.findByLabelText('이메일'), 'demo@example.com')
+    await user.type(screen.getByLabelText('비밀번호'), 'worklog20')
+    await user.click(screen.getByRole('button', { name: '로그인' }))
+
+    expect(await screen.findByText('잠시 문제가 생겼어요. 잠시 후 다시 시도해 주세요')).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: '서비스 점검 중이에요' })).not.toBeInTheDocument()
   })
 })
 
@@ -243,6 +295,21 @@ describe('세션', () => {
 
     expect(await screen.findByText('다시 로그인해 주세요. 로그인 후 보던 화면으로 돌아가요.')).toBeInTheDocument()
     expect(router.state.location.pathname).toBe('/login')
-    expect(router.state.location.state).toMatchObject({ from: '/', expired: true })
+    expect(router.state.location.state).toMatchObject({ from: '/', reason: 'expired' })
+  })
+
+  it('다른 기기에서 탈퇴해 USER_DELETED를 받으면 탈퇴 안내와 회원가입 링크를 보여 준다', async () => {
+    stubFetch({
+      'GET /api/users/me': () => json(200, ME),
+      'GET /api/worklog/me': () => problem(401, 'USER_DELETED'),
+    })
+    const { router } = renderApp('/', probeRoutes)
+    const user = userEvent.setup()
+    await user.click(await screen.findByRole('button', { name: 'call' }))
+
+    const notice = await screen.findByText(/탈퇴 처리된 계정입니다\. 같은 이메일로 다시 가입할 수 있습니다\./)
+    expect(within(notice).getByRole('link', { name: '회원가입' })).toHaveAttribute('href', '/signup')
+    expect(screen.queryByText(/다시 로그인해 주세요/)).not.toBeInTheDocument()
+    expect(router.state.location.pathname).toBe('/login')
   })
 })

@@ -6,11 +6,15 @@
   --color-on-accent: #ffffff;
   --color-ground: #f2f4fa;
 
-  /* 파생 색: 연한 배경(흰색 88% 혼합), 밝은 강조(흰색 45% 혼합), 진한 강조(hover), 그림자 */
-  --color-accent-soft: color-mix(in srgb, var(--color-accent) 12%, white);
-  --color-accent-light: color-mix(in srgb, var(--color-accent) 55%, white);
-  --color-accent-strong: color-mix(in srgb, var(--color-accent) 80%, black);
-  --shadow-accent: 0 6px 16px color-mix(in srgb, var(--color-accent) 35%, transparent);
+  /* 파생 색 9종 (화면정의서 2.2). 괄호는 기본 키 컬러일 때 값 */
+  --color-accent-soft: color-mix(in srgb, var(--color-accent) 12%, white); /* 흰색 88% (#E9E8FA) */
+  --color-accent-softer: color-mix(in srgb, var(--color-accent) 8%, white); /* 흰색 92% (#F1F0FC) */
+  --color-accent-faint: color-mix(in srgb, var(--color-accent) 5%, white); /* 흰색 95% (#F6F5FD) */
+  --color-accent-light: color-mix(in srgb, var(--color-accent) 55%, white); /* 흰색 45% (#9C95E8) */
+  --color-accent-ink: color-mix(in srgb, var(--color-accent) 80%, black); /* 검정 20% (#3C32AB) */
+  --color-accent-ink-strong: color-mix(in srgb, var(--color-accent) 55%, black); /* 검정 45% (#292376) */
+  --color-accent-shadow: color-mix(in srgb, var(--color-accent) 30%, transparent);
+  --shadow-accent: 0 6px 16px var(--color-accent-shadow);
 
   /* 고정 색 */
   --color-surface: #ffffff;
@@ -31,7 +35,12 @@
 
   /* 기록 상태 색: 테마와 무관하게 고정 (화면정의서 2.3). 계획·진행 중·확정은 프로젝트 색을 쓴다(P1). */
   --status-pending-bg: #ffe9b8;
-  --status-pending-border: #e0a526;
+  --status-pending-border: #e0a100;
+  --status-pending-text: #4a3000;
+  --status-pending-tag-bg: #e0a100;
+  --status-pending-tag-text: #2a1b00;
+  --status-pending-card-bg: #fff7e3;
+  --status-pending-card-border: #f2c54a;
   --status-skipped-bg: #eceef4;
   --status-skipped-text: #8a8fa3;
 

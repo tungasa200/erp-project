@@ -185,7 +185,7 @@
 }
 
 .submit:hover:not(:disabled) {
-  background: var(--color-accent-strong);
+  background: var(--color-accent-ink);
 }
 
 .submit:disabled {
@@ -241,7 +241,7 @@
 
 .alertInfo {
   background: var(--color-accent-soft);
-  color: var(--color-accent-strong);
+  color: var(--color-accent-ink);
   font-weight: 700;
 }
 

@@ -4,8 +4,10 @@ type FetchFn = typeof fetch
 
 export interface ApiClientOptions {
   fetchFn: FetchFn
-  // refresh가 실패해 로그인 상태가 끝났을 때 한 번 호출된다.
-  onSessionExpired: () => void
+  // refresh가 실패해 로그인 상태가 끝났을 때 한 번 호출된다. code는 끝난 이유(USER_DELETED 등).
+  onSessionExpired: (code: string | undefined) => void
+  // 점검 중(503 + code=MAINTENANCE)일 때 호출된다. retryAt은 Retry-After 헤더로 계산한 시각(없으면 null).
+  onMaintenance?: (retryAt: Date | null) => void
 }
 
 export interface RequestOptions {
@@ -16,21 +18,29 @@ export interface RequestOptions {
 
 const REFRESH_PATH = '/api/auth/refresh'
 
-export function createApiClient({ fetchFn, onSessionExpired }: ApiClientOptions) {
+// Retry-After는 남은 초(contracts/gateway.yaml). 형식이 다르면 시각을 모르는 것으로 본다.
+function retryAt(res: Response): Date | null {
+  const value = res.headers.get('Retry-After')?.trim()
+  if (!value || !/^\d+$/.test(value)) return null
+  return new Date(Date.now() + Number(value) * 1000)
+}
+
+export function createApiClient({ fetchFn, onSessionExpired, onMaintenance = () => {} }: ApiClientOptions) {
   // 탭 안에서 동시에 401을 받아도 refresh는 한 번만 보낸다(single-flight).
-  let refreshing: Promise<boolean> | null = null
+  // 결과: 성공하면 null, 실패하면 그 code
+  let refreshing: Promise<string | undefined | null> | null = null
   // refresh가 끝날 때마다 증가. 요청을 보낸 뒤에 이미 갱신이 끝났다면 다시 갱신하지 않고 재시도만 한다.
   let refreshCount = 0
 
-  function refresh(): Promise<boolean> {
+  function refresh(): Promise<string | undefined | null> {
     refreshing ??= fetchFn(REFRESH_PATH, { method: 'POST', credentials: 'same-origin' })
       .then(
-        (res) => res.ok,
-        () => false,
+        async (res) => (res.ok ? null : (await toApiError(res)).code),
+        () => undefined,
       )
-      .then((ok) => {
-        if (ok) refreshCount++
-        return ok
+      .then((failure) => {
+        if (failure === null) refreshCount++
+        return failure
       })
       .finally(() => {
         refreshing = null
@@ -68,22 +78,28 @@ export function createApiClient({ fetchFn, onSessionExpired }: ApiClientOptions)
       const error = await toApiError(res)
       if (error.code !== 'UNAUTHENTICATED') {
         // USER_DELETED 등: 갱신해도 소용없으므로 바로 로그아웃 처리
-        onSessionExpired()
+        onSessionExpired(error.code)
         throw error
       }
-      const renewed = refreshCount !== seenRefreshCount || (await refresh())
-      if (!renewed) {
-        onSessionExpired()
+      const failure = refreshCount !== seenRefreshCount ? null : await refresh()
+      if (failure !== null) {
+        onSessionExpired(failure)
         throw error
       }
       res = await send(path, options)
       if (res.status === 401) {
-        onSessionExpired()
-        throw await toApiError(res)
+        const retryError = await toApiError(res)
+        onSessionExpired(retryError.code)
+        throw retryError
       }
     }
 
-    if (!res.ok) throw await toApiError(res)
+    if (!res.ok) {
+      const error = await toApiError(res)
+      // 본문이 Problem이 아니거나 code가 다른 503(프록시·플랫폼 응답)은 일반 서버 오류로 둔다.
+      if (res.status === 503 && error.code === 'MAINTENANCE') onMaintenance(retryAt(res))
+      throw error
+    }
     if (res.status === 204 || res.headers.get('Content-Length') === '0') return undefined as T
     return (await res.json()) as T
   }

@@ -14,6 +14,11 @@ describe('theme', () => {
     expect(onColor('#FFD43B')).toBe('#1A1C2B')
   })
 
+  it('흰 글자가 4.5:1에 못 미쳐도 진한 글자보다 대비가 크면 흰 글자', () => {
+    expect(contrastRatio('#FFFFFF', '#7A7A7A')).toBeLessThan(4.5)
+    expect(onColor('#7A7A7A')).toBe('#FFFFFF')
+  })
+
   it('applyTheme은 사용자 설정 2가지와 글자색을 CSS 변수로 넣는다', () => {
     const el = document.createElement('div')
     applyTheme('#FFD43B', '#FFFFFF', el)

@@ -3,6 +3,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { RouterProvider } from 'react-router'
 import { setSessionExpiredHandler } from './api'
+import { MaintenanceGate } from './app/MaintenanceGate'
 import { router } from './app/router'
 import { AuthProvider } from './auth/AuthContext'
 import { handleSessionExpired } from './auth/session'
@@ -13,15 +14,17 @@ const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false } },
 })
 
-setSessionExpiredHandler(() => handleSessionExpired(queryClient))
+setSessionExpiredHandler((code) => handleSessionExpired(queryClient, code))
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <ToastProvider>
-          <RouterProvider router={router} />
-        </ToastProvider>
+        <MaintenanceGate>
+          <ToastProvider>
+            <RouterProvider router={router} />
+          </ToastProvider>
+        </MaintenanceGate>
       </AuthProvider>
     </QueryClientProvider>
   </StrictMode>,

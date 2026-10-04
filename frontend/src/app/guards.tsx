@@ -1,10 +1,10 @@
 import { Navigate, Outlet, useLocation } from 'react-router'
-import { isSessionExpired } from '../auth/session'
+import { sessionEndReason, type SessionEndReason } from '../auth/session'
 import { useAuth } from '../auth/useAuth'
 
 export interface LoginLocationState {
   from?: string
-  expired?: boolean
+  reason?: SessionEndReason
 }
 
 // 로그인 확인 중에는 아무것도 그리지 않는다(0.3초 안에 끝나는 로딩은 표시하지 않음, 화면정의서 2.5).
@@ -15,7 +15,7 @@ export function RequireAuth() {
   if (!user) {
     const state: LoginLocationState = {
       from: location.pathname + location.search + location.hash,
-      expired: isSessionExpired(),
+      reason: sessionEndReason() ?? undefined,
     }
     return <Navigate to="/login" replace state={state} />
   }

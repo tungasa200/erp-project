@@ -3,6 +3,7 @@ import { render } from '@testing-library/react'
 import { createMemoryRouter, RouterProvider, type RouteObject } from 'react-router'
 import { vi } from 'vitest'
 import { setSessionExpiredHandler } from '../api'
+import { MaintenanceGate } from '../app/MaintenanceGate'
 import { routes } from '../app/router'
 import { AuthProvider } from '../auth/AuthContext'
 import { handleSessionExpired } from '../auth/session'
@@ -54,14 +55,16 @@ export function stubFetch(handlers: Record<string, Handler>) {
 
 export function renderApp(path: string, appRoutes: RouteObject[] = routes) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  setSessionExpiredHandler(() => handleSessionExpired(queryClient))
+  setSessionExpiredHandler((code) => handleSessionExpired(queryClient, code))
   const router = createMemoryRouter(appRoutes, { initialEntries: [path] })
   render(
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <ToastProvider>
-          <RouterProvider router={router} />
-        </ToastProvider>
+        <MaintenanceGate>
+          <ToastProvider>
+            <RouterProvider router={router} />
+          </ToastProvider>
+        </MaintenanceGate>
       </AuthProvider>
     </QueryClientProvider>,
   )

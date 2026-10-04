@@ -5,15 +5,22 @@ import type { LoginRequest, Me, SignupRequest } from './types'
 // 백엔드 없이 화면을 볼 때 VITE_API_MOCK=true. fetch 단계만 바꾸므로 클라이언트 로직은 실제와 같다.
 const useMock = import.meta.env.VITE_API_MOCK === 'true'
 
-let sessionExpiredHandler: () => void = () => {}
+let sessionExpiredHandler: (code: string | undefined) => void = () => {}
 
-export function setSessionExpiredHandler(handler: () => void) {
+export function setSessionExpiredHandler(handler: (code: string | undefined) => void) {
   sessionExpiredHandler = handler
+}
+
+let maintenanceHandler: (retryAt: Date | null) => void = () => {}
+
+export function setMaintenanceHandler(handler: (retryAt: Date | null) => void) {
+  maintenanceHandler = handler
 }
 
 export const api = createApiClient({
   fetchFn: useMock ? mockFetch : (...args) => fetch(...args),
-  onSessionExpired: () => sessionExpiredHandler(),
+  onSessionExpired: (code) => sessionExpiredHandler(code),
+  onMaintenance: (retryAt) => maintenanceHandler(retryAt),
 })
 
 export const authApi = {

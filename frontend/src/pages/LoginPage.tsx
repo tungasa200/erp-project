@@ -42,8 +42,9 @@ export function LoginPage() {
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault()
     const next: typeof errors = {}
-    if (!EMAIL_PATTERN.test(email.trim())) next.email = '이메일 형식이 맞지 않아요'
-    if (!password) next.password = '비밀번호를 입력해 주세요'
+    if (!email.trim()) next.email = '입력해 주세요'
+    else if (!EMAIL_PATTERN.test(email.trim())) next.email = '이메일 형식이 맞지 않아요'
+    if (!password) next.password = '입력해 주세요'
     setErrors(next)
     if (next.email || next.password) return
 
@@ -59,10 +60,12 @@ export function LoginPage() {
         setNow(Date.now())
         setNotice({ kind: error.code === 'AUTH_LOCKED' ? 'locked' : 'throttled', until: Date.now() + seconds * 1000 })
       } else if (error instanceof ApiError && error.code === 'VALIDATION_FAILED') {
-        const fields = new Set(error.problem?.errors?.map((x) => x.field))
+        const codes = new Map(error.problem?.errors?.map((x) => [x.field, x.code]))
+        const message = (field: string, otherwise: string) =>
+          codes.has(field) ? (codes.get(field) === 'REQUIRED' ? '입력해 주세요' : otherwise) : undefined
         setErrors({
-          email: fields.has('email') ? '이메일 형식이 맞지 않아요' : undefined,
-          password: fields.has('password') ? '비밀번호를 입력해 주세요' : undefined,
+          email: message('email', '이메일 형식이 맞지 않아요'),
+          password: message('password', '입력해 주세요'),
         })
       } else {
         const toast = toastForError(error)
@@ -87,9 +90,16 @@ export function LoginPage() {
       <form className={styles.form} onSubmit={onSubmit} noValidate>
         <h1 className={styles.title}>로그인</h1>
 
-        {state.expired && !notice && (
+        {state.reason === 'expired' && !notice && (
           <div role="status" className={`${styles.alert} ${styles.alertInfo}`}>
             다시 로그인해 주세요. 로그인 후 보던 화면으로 돌아가요.
+          </div>
+        )}
+        {state.reason === 'deleted' && !notice && (
+          <div role="status" className={`${styles.alert} ${styles.alertInfo}`}>
+            <span>
+              탈퇴 처리된 계정입니다. 같은 이메일로 다시 가입할 수 있습니다. <Link to="/signup">회원가입</Link>
+            </span>
           </div>
         )}
         {notice?.kind === 'invalid' && (

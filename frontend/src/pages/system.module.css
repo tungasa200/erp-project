@@ -42,7 +42,7 @@
 
 .iconInfo {
   background: var(--color-accent-soft);
-  color: var(--color-accent-strong);
+  color: var(--color-accent-ink);
 }
 
 .title {
@@ -79,7 +79,7 @@
 }
 
 .primary:hover {
-  background: var(--color-accent-strong);
+  background: var(--color-accent-ink);
   color: var(--color-on-accent);
 }
 

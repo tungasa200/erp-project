@@ -92,6 +92,18 @@ describe('createApiClient', () => {
     expect(error).toBeInstanceOf(ApiError)
     expect(error.code).toBe('UNAUTHENTICATED')
     expect(onSessionExpired).toHaveBeenCalledTimes(1)
+    expect(onSessionExpired).toHaveBeenCalledWith('REFRESH_INVALID')
+  })
+
+  it('refresh가 USER_DELETED로 실패하면 그 이유를 세션 만료에 넘긴다', async () => {
+    const fetchFn = vi.fn(async (input: RequestInfo | URL) =>
+      String(input) === '/api/auth/refresh' ? problem(401, 'USER_DELETED') : problem(401, 'UNAUTHENTICATED'),
+    ) as unknown as typeof fetch
+    const onSessionExpired = vi.fn()
+    const api = createApiClient({ fetchFn, onSessionExpired })
+
+    await expect(api.request('/api/users/me')).rejects.toMatchObject({ code: 'UNAUTHENTICATED' })
+    expect(onSessionExpired).toHaveBeenCalledWith('USER_DELETED')
   })
 
   it('USER_DELETED는 refresh 없이 바로 세션 만료로 처리한다', async () => {
@@ -102,6 +114,7 @@ describe('createApiClient', () => {
     await expect(api.request('/api/worklog/me')).rejects.toMatchObject({ code: 'USER_DELETED' })
     expect(fetchFn).toHaveBeenCalledTimes(1)
     expect(onSessionExpired).toHaveBeenCalledTimes(1)
+    expect(onSessionExpired).toHaveBeenCalledWith('USER_DELETED')
   })
 
   it('/api/auth/** 의 401(로그인 실패)은 refresh하지 않는다', async () => {

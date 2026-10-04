@@ -18,9 +18,9 @@ export function contrastRatio(a: string, b: string): number {
   return (hi + 0.05) / (lo + 0.05)
 }
 
-// 흰 글자로 4.5:1이 되면 흰색, 아니면 진한 글자색
+// 흰색과 진한 글자색 중 대비가 큰 쪽 (화면정의서 2.2 on-accent)
 export function onColor(background: string): string {
-  return contrastRatio(WHITE, background) >= 4.5 ? WHITE : DARK
+  return contrastRatio(WHITE, background) >= contrastRatio(DARK, background) ? WHITE : DARK
 }
 
 export function applyTheme(accent: string, ground: string, root: HTMLElement = document.documentElement) {
