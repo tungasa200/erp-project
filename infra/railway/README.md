@@ -20,7 +20,11 @@ Railway 프로젝트 WY-ERP(싱가포르)에 백엔드 3개와 PostgreSQL, Verce
 | 서비스 이름 | `api-gateway`, `identity-service`, `worklog-service` (private 도메인이 이 이름을 쓴다) |
 | Source | GitHub `tungasa200/erp-project`, 배포 브랜치 |
 | Root Directory | `/backend` |
-| Config file (railway.json) | `/infra/railway/backend-service.json` — Dockerfile 빌드(`backend/Dockerfile`), 헬스체크 `/actuator/health/readiness` 120초, 재시작 ON_FAILURE 최대 10회 |
+| Config File (Config as Code) | 비운다. Railway가 폐지 중이라 새 서비스에는 적용되지 않는다. 아래 네 항목을 콘솔에서 직접 설정한다 |
+| Builder | Dockerfile |
+| Dockerfile 경로 | `/backend/Dockerfile` (콘솔은 저장소 기준 절대경로로 받고, Root Directory를 정하면 이 값이 기본으로 표시된다) |
+| Healthcheck | Path `/actuator/health/readiness`, Timeout 120초 (경로를 저장해야 Timeout 칸이 나타난다) |
+| Restart Policy | On Failure, 최대 10회 |
 | 리전·인스턴스 | 싱가포르, 1개 |
 | 공개 도메인 | `api-gateway`에만 만든다 (대상 포트 8080). identity·worklog는 만들지 않는다 |
 
@@ -89,7 +93,7 @@ vercel.json이 하는 일: `/api/*`를 Gateway 공개 도메인으로 프록시�
 ## 순서
 
 1. PostgreSQL 생성, db-setup.sql 실행, 백업 설정
-2. 서비스 3개 생성·변수 입력 → 배포 → 헬스체크 통과 확인
+2. 서비스 3개 생성(Config File 칸은 비운다)·콘솔 설정 네 항목·변수 입력 → 배포 → 헬스체크 통과 확인
 3. api-gateway 공개 도메인 생성 → 도메인을 vercel.json에 반영해 커밋
 4. Vercel 프로젝트 생성·변수 입력 → 운영 도메인을 gateway `ALLOWED_ORIGINS`에 넣고 재배포
 5. 검증: Gateway 도메인 직접 호출 404, Vercel 경유 `/api` 동작, `/api` 응답의 `x-vercel-cache`가 HIT가 아님, 응답 크기·30초 제한, 로그 보관 기간·크래시 알림·백업 설정값 기록
