@@ -1,0 +1,12 @@
+{
+  "name": "worklog-screendoc",
+  "private": true,
+  "description": "화면정의서 docx 생성 도구",
+  "type": "commonjs",
+  "scripts": {
+    "build": "node gen-screen.js"
+  },
+  "dependencies": {
+    "docx": "^9.8.1"
+  }
+}
