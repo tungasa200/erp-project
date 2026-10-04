@@ -1,0 +1,112 @@
+openapi: 3.1.0
+info:
+  title: api-gateway 공통 응답
+  version: 0.1.0
+  description: |
+    Gateway가 내부 서비스로 넘기지 않고 직접 내는 응답의 계약이다. 모든 외부 경로(/api/**)에 공통으로 적용된다.
+    오류 본문은 RFC 9457 Problem Details + code·traceId (contracts/identity.yaml·worklog.yaml의 Problem과 같은 형식).
+    모든 응답에는 응답 헤더 X-Trace-Id가 붙는다 (NFR-09).
+
+    Gateway가 직접 내는 오류
+    - 401 UNAUTHENTICATED: /api/users/me/**·/api/worklog/**에 유효한 access_token 쿠키가 없음 (만료·서명 오류·aud 불일치 포함)
+    - 403 ORIGIN_REJECTED: 쓰기 요청(POST·PUT·PATCH·DELETE)의 Origin이 허용 목록에 없거나 없음 (NFR-02)
+    - 404: 라우트가 없는 경로 (/internal/**, /.well-known/** 등)
+    - 503 MAINTENANCE: 점검 중 (아래 /api/{path} 참고)
+
+    점검 응답 (SCR-SYS-02 ②)
+    - 계약만 정해 두었고 구현은 P4-12에서 한다 (점검 모드는 Gateway 환경변수로 켬).
+    - 점검 중에는 /api/** 전체에 503 + code=MAINTENANCE를 준다. Gateway 자신의 /actuator/health는 예외다(배포 헬스체크용).
+    - 프론트는 code=MAINTENANCE일 때만 점검 화면을 보여 준다. 본문이 Problem Details가 아니거나 code가 다른 502·503·504
+      (Vercel 프록시나 Railway가 Gateway 장애 때 주는 응답)는 서버 오류·네트워크 화면으로 처리한다.
+servers:
+  - url: /
+paths:
+  /api/{path}:
+    parameters:
+      - name: path
+        in: path
+        required: true
+        description: /api/ 아래 모든 경로
+        schema:
+          type: string
+    get:
+      operationId: gatewayCommonResponses
+      summary: Gateway 공통 응답 (모든 메서드에 같음)
+      security: [] # 인증 요구는 경로별로 다르다 (description 참고)
+      responses:
+        '200':
+          description: 정상이면 내부 서비스 응답을 그대로 전달한다 (형식은 identity.yaml·worklog.yaml).
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/OriginRejected'
+        '503':
+          $ref: '#/components/responses/Maintenance'
+components:
+  headers:
+    XTraceId:
+      description: 이 요청의 traceId. 오류 본문의 traceId와 같다.
+      schema:
+        type: string
+    RetryAfter:
+      description: 점검 종료 예상까지 남은 초 (선택). 예상 시각을 모르면 보내지 않는다.
+      schema:
+        type: integer
+        minimum: 0
+  responses:
+    Unauthenticated:
+      description: 유효한 access_token 쿠키 없음 (code=UNAUTHENTICATED). 프론트는 refresh 1회 후 재시도한다 (P0-07).
+      headers:
+        X-Trace-Id:
+          $ref: '#/components/headers/XTraceId'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    OriginRejected:
+      description: 쓰기 요청의 Origin이 허용 목록에 없거나 없음 (code=ORIGIN_REJECTED).
+      headers:
+        X-Trace-Id:
+          $ref: '#/components/headers/XTraceId'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Maintenance:
+      description: 점검 중 (code=MAINTENANCE). 구현은 P4-12.
+      headers:
+        X-Trace-Id:
+          $ref: '#/components/headers/XTraceId'
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: about:blank
+            title: Service Unavailable
+            status: 503
+            detail: 서비스 점검 중입니다.
+            code: MAINTENANCE
+            traceId: 4bf92f3577b34da6a3ce929d0e0e4736
+  schemas:
+    Problem:
+      type: object
+      description: RFC 9457 Problem Details + 확장 필드 (contracts/identity.yaml·worklog.yaml과 같음)
+      required: [type, title, status, code, traceId]
+      properties:
+        type:
+          type: string
+          format: uri-reference
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        code:
+          type: string
+          description: 기계 판독용 오류 코드
+        traceId:
+          type: string
