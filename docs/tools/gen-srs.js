@@ -2,7 +2,7 @@ const path = require('path');
 const { Packer, Paragraph, TextRun, AlignmentType, PageBreak } = require('docx');
 const { p, h1, h2, bullet, gap, table, makeDoc, writeNew, ACCENT } = require('./lib');
 
-const VERSION = 'v1.4';
+const VERSION = 'v1.5';
 // 기능 요구사항 표: ID, 요구사항, 상세, 우선순위, 단계
 const frTable = (rows) => table(['ID', '요구사항', '상세 설명', '우선순위', '단계'], rows, [11, 20, 47, 11, 11], [0, 3, 4]);
 
@@ -17,7 +17,7 @@ const children = [
     ['작성일', '2026-10-04'],
     ['문서 상태', '확정 — 8장 결정 사항 반영'],
     ['기술 스택', 'Spring Boot (MSA) / React / Railway / Vercel'],
-    ['관련 문서', '작업계획서_v1.6.docx, 화면정의서_v1.2.docx'],
+    ['관련 문서', '작업계획서_v1.7.docx, 화면정의서_v1.2.docx, contracts/*.yaml (API 계약), README (기술 버전)'],
   ], [30, 70]),
   new Paragraph({ children: [new PageBreak()] }),
 
@@ -29,6 +29,7 @@ const children = [
     ['v1.2', '2026-10-04', '인증 정책 확정(쿠키 토큰, RS256·JWKS, 서비스별 JWT 검증, 가입 후 이메일 인증, 로그인 보호, Google 로그인) — AUTH-08~10·NFR-14 신설, AUTH-03 P1 이동. 화면정의서 v1.0 도출 항목 반영 — AUTH-07, TASK-08, SCH-07, UX-07·08, NFR-13, EXP-08 신설, SCH-01·03·05, NOTI-01, AUTH-05, NFR-10 수정. 데이터 모델·결정 사항(D-16~D-26) 갱신, D-11 도메인 구매로 변경'],
     ['v1.3', '2026-10-04', '아키텍처 결정 반영 — 사용자 데이터 위치와 서비스 간 연동(5.4), 서비스 간 인증, API 공통 규약(5.5), 백그라운드 작업(5.6), 배포 리전·국외 이전·백업·운영 관측(5.7). AUTH-01·04·05·06, NFR-03·05·09·10 수정, 데이터 모델(공통 프로필 identity 이동, 사용자 변경 피드·탈퇴 기록·서비스 클라이언트·사용자 사본) 갱신, 결정 사항 D-27~D-36 추가 (D-36 문구 말투는 화면정의서 측 결정)'],
     ['v1.4', '2026-10-04', '화면정의서와 상호 점검 반영 — UX-09(키보드 단축키) 신설, AUTH-01·03·05·07·08, TASK-04·05, SCH-04, REC-03, LOG-02·04·09·14·16, EXP 공통 규칙, EXP-04, UX-03, NFR-04 수정, 확인 대기 생성 범위(5.6) 추가, 결정 사항 D-37~D-41 추가, 공휴일 데이터 공용(5.6)·Tag 엔티티 추가, LOG-13을 다음 근무일 기준으로 수정, QA 검증 보완(확인 대기 범위 기준, 날짜 계산 기준, 단축키 접근성, 파일명 규칙, 비밀번호 72바이트 한도)'],
+    ['v1.5', '2026-10-04', 'P0 착수 후 확정 사항 반영 — Railway 프로젝트 구성(D-42), 백엔드 버전(D-43), 프론트 기술 선택(D-44), worklog 탈퇴 처리 세부(D-45), 인증 API 계약 세부(D-46), API 계약 관리(D-47). AUTH-01·02, NFR-03·09, 5.1·5.2·5.4·5.5·5.7, 6장(worklog DeletedUser·FeedCursor) 수정, Gateway 라우팅 규칙 구체화'],
   ], [12, 18, 70], [0, 1]),
   gap(),
 
@@ -115,8 +116,8 @@ const children = [
   p('우선순위: 필수(MVP에 반드시 포함) / 권장(MVP 직후) / 선택(추후 검토) / 폐기(범위 제외, ID는 재사용하지 않음). 단계는 7장 로드맵을 따른다.'),
   h2('3.1 회원 및 프로필 (AUTH)'),
   frTable([
-    ['AUTH-01', '회원 가입', '이메일·비밀번호로 가입하고 바로 사용한다 (이메일 인증은 AUTH-08). 이용약관·개인정보 처리방침 동의를 받고, 가입 화면에 데이터 국외 보관·위탁 안내 문구를 표시한다 (별도 동의 아님, D-33). 비밀번호는 8자 이상 64자 이하이면서 UTF-8 72바이트 이하, 영문과 숫자를 포함하고 이메일과 다른 문자열이어야 한다 (D-38, 72바이트는 BCrypt 처리 한도). 비밀번호는 BCrypt로 저장하며, 로그인 수단은 사용자와 분리해 관리한다 (6장 UserCredential).', '필수', 'P0'],
-    ['AUTH-02', '로그인·로그아웃', 'JWT(RS256) 기반 인증. Access Token(10분)과 Refresh Token(14일)을 httpOnly 쿠키로 발급하고, Access Token이 만료되면 Refresh Token으로 갱신한다. Refresh Token은 갱신할 때마다 교체하며, 이미 교체된 토큰이 다시 쓰이면 탈취로 보고 해당 로그인 세션을 폐기한다. 단 직전 토큰은 30초간 허용한다 (여러 탭 동시 갱신). 로그아웃 시 세션을 폐기한다.', '필수', 'P0'],
+    ['AUTH-01', '회원 가입', '이메일·비밀번호로 가입하고 바로 사용한다 (이메일 인증은 AUTH-08). 가입에 성공하면 곧바로 로그인 상태가 된다 (201 응답과 함께 인증 쿠키 발급). 이메일은 앞뒤 공백을 지우고 소문자로 바꿔 저장·비교한다. 이용약관·개인정보 처리방침 동의를 받고, 가입 화면에 데이터 국외 보관·위탁 안내 문구를 표시한다 (별도 동의 아님, D-33). 비밀번호는 8자 이상 64자 이하이면서 UTF-8 72바이트 이하, 영문과 숫자를 포함하고 이메일과 다른 문자열이어야 한다 (D-38, 72바이트는 BCrypt 처리 한도). 비밀번호는 BCrypt로 저장하며, 로그인 수단은 사용자와 분리해 관리한다 (6장 UserCredential). 오류 코드는 API 계약(contracts/identity.yaml)을 따른다 (D-46).', '필수', 'P0'],
+    ['AUTH-02', '로그인·로그아웃', 'JWT(RS256) 기반 인증. Access Token(10분)과 Refresh Token(14일)을 httpOnly 쿠키로 발급하고, Access Token이 만료되면 Refresh Token으로 갱신한다. Refresh Token은 갱신할 때마다 교체하며, 이미 교체된 토큰이 다시 쓰이면 탈취로 보고 해당 로그인 세션을 폐기한다. 단 교체 후 30초 안에 직전 토큰이 다시 오면(여러 탭 동시 갱신) 탈취로 보지 않고 새 Access Token만 발급하며 Refresh 쿠키는 다시 보내지 않는다 (Refresh Token은 해시로만 저장해 같은 토큰을 다시 줄 수 없음, D-46). 로그아웃 시 세션을 폐기한다.', '필수', 'P0'],
     ['AUTH-03', '비밀번호 재설정', '메일로 받은 6자리 인증 코드(10분 유효, 5회 입력 제한)로 비밀번호를 재설정한다. 재설정을 마치면 메일 소유가 증명된 것으로 보고 이메일 인증도 완료 처리하며, 모든 기기의 로그인 세션을 폐기한다. 재설정 메일 제목에도 코드를 넣지 않는다 (D-41). 새 비밀번호는 AUTH-01 규칙을 따른다. 미인증 계정의 실제 이메일 주인은 이 흐름으로 계정을 되찾는다 (AUTH-08 이메일 선점 대응).', '필수', 'P1'],
     ['AUTH-04', '프로필', '이름, 소속, 직책(표시용 자유 입력)을 등록한다. 업무일지 작성자 정보로 사용한다. 첫 일지 생성 시점에 입력을 요청한다 (UX-04). 공통 프로필은 identity-service가 원본을 가진다 (5.4). 표시용 직책은 향후 권한용 역할과 별개다.', '필수', 'P1'],
     ['AUTH-05', '시간대·주 시작 요일·업무 요일', '사용자 시간대(기본 Asia/Seoul), 주 시작 요일(기본 월요일), 업무 요일(기본 월~금)을 설정한다. 근무일은 업무 요일 중 공휴일(D-25)이 아닌 날이며, 주·월 마지막 근무일 판단(LOG-14, LOG-16)에 쓴다 (D-37). 시간대를 바꿔도 기존 기록의 날짜는 바뀌지 않는다 (NFR-04).', '필수', 'P1'],
@@ -234,13 +235,13 @@ const children = [
   table(['ID', '구분', '요구사항'], [
     ['NFR-01', '성능', '일반 조회 API는 95% 요청이 500ms 이내 응답한다. 월간 일지 생성은 3초 이내 완료한다.'],
     ['NFR-02', '보안', '전 구간 HTTPS. 비밀번호는 BCrypt 해시. 모든 데이터 조회는 소유자 본인으로 제한한다(owner_id 검증). 인증 토큰은 HttpOnly·Secure·SameSite=Strict 쿠키로만 주고받고(Access: Path=/api, Refresh: Path=/api/auth), 쓰기 요청(POST·PUT·PATCH·DELETE)은 Origin을 검사한다. CSP를 적용하고 토큰을 로그·오류 보고에 남기지 않는다.'],
-    ['NFR-03', '보안', 'JWT는 RS256으로 서명하고 개인키는 identity-service만 가진다. 공개키는 JWKS 엔드포인트로 제공하며 키 교체는 kid로 무중단 처리한다. API Gateway와 각 내부 서비스가 모두 JWT를 검증하고(사용자 ID 헤더를 신뢰하지 않음), Gateway는 외부에서 온 Authorization·X-User-* 헤더를 제거한다. 내부 서비스는 Railway private network로만 통신한다. 사용자 요청이 없는 서비스 간 호출은 OAuth2 client credentials로 받은 서비스 토큰(RS256, 수명 5분, scope)으로 인증하며, 내부 API(/internal/**)는 Gateway가 외부로 라우팅하지 않는다.'],
+    ['NFR-03', '보안', 'JWT는 RS256으로 서명하고 개인키는 identity-service만 가진다. 공개키는 JWKS 엔드포인트로 제공하며 키 교체는 kid로 무중단 처리한다. 클레임 규칙: iss=erp-identity, 사용자 토큰은 aud=erp-api(scope 없음), 서비스 토큰은 aud=erp-internal·sub=service:<client_id>·scope (D-46). API Gateway와 각 내부 서비스가 모두 JWT를 검증하고(사용자 ID 헤더를 신뢰하지 않음), Gateway는 외부에서 온 Authorization·X-User-* 헤더를 제거한다. 예외로 /api/auth/**는 Gateway가 토큰을 검증하지 않고 쿠키를 그대로 identity에 전달하며, 로그인이 필요한 auth 경로는 identity가 직접 검증한다. 내부 서비스는 Railway private network로만 통신한다. 사용자 요청이 없는 서비스 간 호출은 OAuth2 client credentials로 받은 서비스 토큰(RS256, 수명 5분, scope)으로 인증하며, /internal/**·/.well-known/**·/actuator/**는 Gateway가 외부로 라우팅하지 않는다.'],
     ['NFR-04', '데이터', '시각은 UTC(Instant)로 저장하고, 표시는 사용자의 현재 시간대로 한다. 업무 기록의 날짜(work_date)는 저장 시점의 사용자 시간대로 start_at의 날짜를 계산하며, start_at이 없으면 사용자가 지정한 날짜를 쓴다. 확인 대기 기록은 일정에 저장된 시간대로 회차의 날짜를 계산한다. 저장한 날짜는 이후 시간대를 바꿔도 바뀌지 않는다 (D-40).'],
     ['NFR-05', '데이터', '삭제는 소프트 삭제를 기본으로 하며, 데이터베이스는 일 1회 이상 백업하고 백업본은 7일간 보관한 뒤 자동 파기한다. 백업에서 복원하면 탈퇴 기록을 다시 적용해 탈퇴자 데이터를 파기하며, 탈퇴 기록은 백업 보관 기간보다 오래 유지한다.'],
     ['NFR-06', '사용성', '모바일(폭 360px 이상)과 데스크톱 모두에서 동작하는 반응형 UI. P4에서 PWA로 설치 가능하게 한다.'],
     ['NFR-07', '호환성', '최신 Chrome, Edge, Safari, Samsung Internet을 지원한다.'],
     ['NFR-08', '품질', '핵심 도메인 로직(기록 확정, 빠른 입력 파싱, 일지 생성, 시간 집계)은 단위 테스트 커버리지 80% 이상을 유지한다.'],
-    ['NFR-09', '운영', '서비스별 헬스체크 엔드포인트(Actuator)와 JSON 구조화 로그를 제공한다. Gateway가 요청마다 traceId를 만들어 내부 호출로 전달하고, 모든 로그와 오류 응답에 같은 traceId를 남긴다. 프론트엔드 오류는 자체 엔드포인트로 수집한다 (5.7).'],
+    ['NFR-09', '운영', '서비스별 헬스체크 엔드포인트(Actuator)와 JSON 구조화 로그(Spring Boot 기본 구조화 로그)를 제공한다. Gateway가 요청마다 traceId를 만들어 내부 호출로 전달하고(Micrometer Tracing, Brave 브리지), 모든 로그와 오류 응답에 같은 traceId를 남기며 응답 헤더 X-Trace-Id로도 돌려준다. 프론트엔드 오류는 자체 엔드포인트로 수집한다 (5.7).'],
     ['NFR-10', '개인정보', '수집 항목을 최소화하고 개인정보 처리방침과 이용약관을 게시하며, 가입 시 동의를 받는다 (출시 전 필수). 처리방침에 국외 이전 항목(이전 항목·국가·시기·방법·이전받는 자·목적·보유 기간·거부 방법)과 백업 파기 기간을 공개한다. 탈퇴 시 개인정보와 기록을 지체 없이 파기한다.'],
     ['NFR-11', '내보내기', 'PDF·Word·Excel 내보내기에서 한글이 깨지지 않도록 한글 폰트를 포함한다.'],
     ['NFR-12', '사용성', '하루 마감(LOG-13)은 기록이 정상적으로 쌓인 날 기준 60초 이내에 완료할 수 있어야 한다.'],
@@ -253,18 +254,18 @@ const children = [
   h1('5. 시스템 구성 및 기술 제약'),
   h2('5.1 기술 스택'),
   table(['영역', '기술', '배포'], [
-    ['프론트엔드', 'React + Vite + TypeScript, UI 글꼴 Pretendard (D-26)', 'Vercel'],
+    ['프론트엔드', 'React + Vite + TypeScript. 스타일은 CSS Modules + CSS 변수(파생 색은 color-mix), 전역 상태는 React Context, 서버 상태는 TanStack Query, 통신은 fetch 래퍼, 아이콘은 인라인 SVG, UI 글꼴 Pretendard는 npm 패키지로 같은 사이트에서 제공(D-26). 코드 품질은 Prettier와 oxlint (D-44)', 'Vercel'],
     ['API Gateway', 'Spring Cloud Gateway', 'Railway'],
     ['인증', 'Spring Security OAuth2 Resource Server (Nimbus JOSE), JWT RS256 + JWKS', '-'],
-    ['백엔드 서비스', 'Spring Boot (P0에서 최신 안정판 확정) / Java 21', 'Railway'],
-    ['데이터베이스', 'PostgreSQL (서비스별 schema 분리)', 'Railway'],
-    ['공통 기반', 'ShedLock(주기 작업 중복 실행 방지), springdoc-openapi(API 명세), Micrometer Tracing(traceId 전달)', '-'],
+    ['백엔드 서비스', 'Spring Boot 4.0.x, Spring Cloud 2025.1.x, Java 21(Gradle toolchain), Gradle Wrapper. 세부 버전은 저장소 README 버전 표가 기준이다 (D-43)', 'Railway'],
+    ['데이터베이스', 'PostgreSQL (서비스별 schema 분리). 로컬은 PostgreSQL 18, 운영은 Railway 제공 버전', 'Railway'],
+    ['공통 기반', 'ShedLock(주기 작업 중복 실행 방지), springdoc-openapi(API 명세), Micrometer Tracing + Brave(traceId 전달), Flyway·Hibernate·PostgreSQL JDBC는 Spring Boot 관리 버전', '-'],
     ['저장소', '모노레포 (backend: Gradle 멀티모듈, frontend)', 'GitHub'],
   ], [22, 50, 28], [2]),
   gap(),
   h2('5.2 서비스 구성 (초기)'),
   table(['서비스', '책임', '비고'], [
-    ['api-gateway', '라우팅, 쿠키의 Access Token을 Authorization: Bearer로 옮겨 전달, JWT 검증, 외부에서 온 Authorization·X-User-* 헤더 제거, 쓰기 요청 Origin 검사', '외부 공개 유일 진입점'],
+    ['api-gateway', '라우팅(/api/auth/** → identity, 토큰 검증 없이 쿠키 전달 / /api/users/me/**·/api/worklog/** → JWT 필수), 쿠키의 Access Token을 Authorization: Bearer로 옮겨 전달, JWT 검증, 외부에서 온 Authorization·X-User-* 헤더 제거, 쓰기 요청 Origin 검사, /internal/**·/.well-known/**·/actuator/** 외부 미라우팅', '외부 공개 유일 진입점'],
     ['identity-service', '회원 가입·로그인, 이메일 인증, 토큰 발급(RS256)과 JWKS 제공, Refresh Token 관리, 비밀번호 재설정·변경, 로그인 보호, 공통 프로필(사용자 디렉터리) 원본, 사용자 변경 피드, 서비스 토큰 발급', 'identity schema'],
     ['worklog-service', '업무, 일정, 업무 기록, 시간 기록 옵션, 업무일지, 내보내기, worklog 전용 설정, 공통 프로필의 읽기 전용 사본. 요청마다 JWT를 직접 검증해 사용자를 식별', 'worklog schema'],
   ], [25, 50, 25]),
@@ -286,18 +287,19 @@ const children = [
   ], [40, 25, 35]),
   bullet('사용자 변경 피드: identity가 가입·프로필 변경·탈퇴 이벤트를 순번(seq)과 함께 쌓고 내부 API(/internal/user-events?after=<seq>)로 제공한다. 각 모듈은 주기적으로(약 30초) 가져가 사본을 갱신하고 탈퇴자 데이터를 파기하며, 마지막으로 처리한 순번(커서)을 저장한다.'),
   bullet('이벤트 누락 방지: 피드 기록은 잠금으로 직렬화한다 (순번 발급 순서와 커밋 순서가 어긋나 이벤트를 영구히 건너뛰는 문제 방지). 소비는 멱등하게 처리한다 (user_id 기준 갱신, 마지막 반영 순번보다 오래된 이벤트 무시).'),
-  bullet('즉시 반영: 사본이 없으면(가입 직후) 그 요청 안에서 사용자 토큰으로 identity를 조회해 저장한다. 프로필·설정을 저장한 직후 프론트엔드가 모듈에 프로필 재조회를 요청한다.'),
+  bullet('즉시 반영: 사본이 없으면(가입 직후) 그 요청 안에서 사용자 토큰으로 identity를 조회해 저장한다. identity를 조회하지 못하면 503(PROFILE_UNAVAILABLE)으로 응답한다. 프로필·설정을 저장한 직후 프론트엔드가 모듈에 프로필 재조회를 요청한다.'),
+  bullet('worklog의 피드 소비와 탈퇴 처리 (D-45): 피드는 30초마다 ShedLock으로 한 인스턴스에서만 가져오며, 커서는 worklog의 단일 행(FeedCursor)에 저장한다. 탈퇴 이벤트를 받으면 사용자 데이터를 파기하고 탈퇴 사용자 목록(worklog DeletedUser)에 올려 이후 요청을 거부한다(USER_DELETED). Access Token이 최대 10분 남아 있으므로 15분 뒤 한 번 더 파기하고, 목록의 행은 하루 1회 정리 작업으로 7일이 지나면 지운다. 백업에서 복원하면 커서도 과거로 돌아가 피드를 다시 읽고 다시 파기하므로 NFR-05와 충돌하지 않는다.'),
   bullet('재동기화: 피드는 30일 보관하며, 신규 모듈 합류나 장기 장애 복구 시 identity의 전체 목록 API로 사본을 다시 채운다. 탈퇴 기록은 백업 보관 기간보다 오래 유지한다 (NFR-05).'),
   bullet('서비스 간 인증: 피드·전체 목록 같은 내부 API는 서비스 토큰(client credentials, scope 예: user-events:read)으로만 호출한다. 사용자 토큰에는 scope가 없어 내부 API가 거부된다 (NFR-03).'),
   h2('5.5 API 공통 규약'),
   table(['항목', '규약'], [
-    ['ID', '외부에 노출되는 엔티티는 UUIDv7 (시간순). 피드 순번처럼 내부 순서용 값만 bigint'],
-    ['URL', '모듈별 접두사: /api/auth/**·/api/users/me/** (identity), /api/worklog/** (업무 모듈), 향후 /api/attendance/** 등. 내부 API는 /internal/**. URL에 버전을 넣지 않으며(쿠키 Path와 충돌 방지), 호환이 깨지는 변경은 새 엔드포인트를 추가한 뒤 단계적으로 폐기한다. 필드는 추가만 한다 (PWA에 캐시된 이전 프론트 대비)'],
+    ['ID', '외부에 노출되는 엔티티는 UUIDv7 (시간순). 애플리케이션에서 Hibernate @UuidGenerator(style = VERSION_7)로 생성하며, 엔티티 밖에서 필요해지면 uuid-creator를 추가한다 (D-43). 피드 순번처럼 내부 순서용 값만 bigint'],
+    ['URL', '모듈별 접두사: /api/auth/**·/api/users/me/** (identity), /api/worklog/** (업무 모듈), 향후 /api/attendance/** 등. 내부 API는 /internal/**. Gateway 라우팅 규칙은 5.2를 따른다. URL에 버전을 넣지 않으며(쿠키 Path와 충돌 방지), 호환이 깨지는 변경은 새 엔드포인트를 추가한 뒤 단계적으로 폐기한다. 필드는 추가만 한다 (PWA에 캐시된 이전 프론트 대비)'],
     ['목록 조회', '기본은 cursor 방식 (?cursor=&limit= → items, nextCursor). 캘린더·일지는 기간 조회 (?from=&to=)'],
     ['오류 응답', 'RFC 9457 Problem Details (application/problem+json) + code(기계 판독용), errors[](칸별 오류), traceId'],
     ['형식', '시각은 UTC ISO-8601 (2026-10-04T05:00:00Z), 날짜는 시간대 없는 YYYY-MM-DD, 시간대는 IANA 이름, JSON 필드는 camelCase'],
     ['수정', 'PATCH로 보낸 칸만 수정. 엔티티 version으로 낙관적 잠금, 불일치 시 409'],
-    ['명세', 'springdoc-openapi로 자동 생성하고 프론트엔드 TS 타입을 명세에서 생성'],
+    ['명세', '구현 전에는 저장소 루트 contracts/{모듈}.yaml(OpenAPI)로 엔드포인트·오류 코드를 합의한다. 구현 후에는 springdoc-openapi 출력이 기준이며 프론트엔드 TS 타입도 그 출력에서 생성한다 (D-47)'],
   ], [18, 82]),
   h2('5.6 백그라운드 작업'),
   bullet('확인 대기 기록(REC-03)은 미리 만들지 않고, 보여줄 때(홈 대시보드, 하루 마감, 알림 개수 계산) 해당 사용자의 끝난 회차 중 기록이 없는 것을 생성한다. (일정 ID, 회차 시작 시각) 유니크 제약으로 동시 호출에도 하나만 생성한다. 자동 생성 대상은 사용자 시간대 기준 오늘을 포함한 최근 7일 안에 끝난 회차로 한정하고, 일 보기를 열면 그날 회차를 생성한다 (보여줄 때 생성하므로 범위가 없으면 과거 회차 전체가 생성됨, D-39).'),
@@ -306,6 +308,7 @@ const children = [
   bullet('하루 마감 알림은 사용자별 다음 알림 시각(next_notify_at, UTC)을 미리 계산해 두고 1분마다 지난 사용자만 발송한 뒤 다시 계산한다. 시간대·마감 시각이 바뀌면 다시 계산한다.'),
   h2('5.7 배포 리전과 운영'),
   bullet('Gateway, 서비스, PostgreSQL은 모두 Railway Southeast Asia(싱가포르) 같은 리전에 둔다 (리전 선택은 Pro 요금제). 프론트엔드 정적 파일은 Vercel CDN으로 제공한다.'),
+  bullet('Railway는 Pro 워크스페이스 WY-ERP의 플랫폼 단위 프로젝트 WY-ERP 하나에 모든 모듈 서비스와 PostgreSQL을 둔다. private network가 같은 프로젝트·환경 안에서만 연결되기 때문이며, 모듈이 늘어도 같은 프로젝트에 서비스를 추가한다 (D-42).'),
   bullet('국외 이전은 계약 이행에 필요한 처리위탁·보관이므로 개인정보 처리방침 공개로 처리한다 (개인정보 보호법 제28조의8). 이전 대상: Railway(싱가포르, 저장·처리), Vercel(요청 전달·로그), 메일 발송 업체. 가입 화면에 안내 문구를 표시한다 (AUTH-01): "회원 정보와 서비스 이용 기록은 싱가포르 소재 서버(Railway)에 보관되며, 메일 발송 등 일부 업무는 국외 업체에 위탁하여 처리합니다." 국내 서버로 옮겨도 해외 업체 위탁은 남으므로 그때 고지 내용을 갱신한다.'),
   bullet('운영 관측은 외부 도구 없이 시작한다: JSON 로그와 traceId, Actuator 헬스체크, Railway 배포 헬스체크·재시작 정책, 프론트엔드 오류 자체 수집, (선택) 서버 오류 요약 메일. 외부 오류 추적·가동 감시 도구는 출시 직전에 다시 검토하며, 도입하면 국외 이전 대상에 추가한다.'),
   gap(),
@@ -321,6 +324,8 @@ const children = [
     ['RefreshToken', 'id, user_id, family_id, token_hash(SHA-256), expires_at, revoked_at?, created_at', 'User N:1 (identity-service). family = 로그인 세션 1개'],
     ['EmailVerificationCode', 'id, user_id, purpose(VERIFY_EMAIL/RESET_PASSWORD), code_hash, expires_at, attempts, created_at', 'User N:1 (identity-service)'],
     ['UserSnapshot', 'user_id, name, organization, position, timezone, week_start, work_days, last_seq, synced_at', '(worklog-service) 공통 프로필의 읽기 전용 사본. 피드로만 갱신'],
+    ['DeletedUser (worklog)', 'user_id, deleted_at', '(worklog-service) 탈퇴 사용자 요청 거부 목록. 개인정보 없음, 7일 뒤 정리. identity의 DeletedUser(장기 보관 탈퇴 기록)와 역할이 다르다'],
+    ['FeedCursor', 'last_seq, updated_at (단일 행)', '(worklog-service) 사용자 변경 피드 소비 위치'],
     ['UserSetting', 'owner_id, time_tracking_enabled(기본 false), work_hours_start, work_hours_end, daily_close_time, next_notify_at?', '(worklog-service) worklog 전용 설정'],
     ['Project', 'id, owner_id, name, color, archived', 'Task 1:N'],
     ['Tag', 'id, owner_id, name, created_at', 'Task N:M (TaskTag: task_id, tag_id). 사용 수는 TaskTag로 집계'],
@@ -387,6 +392,12 @@ const children = [
     ['D-39', '확인 대기 기록 범위', '사용자 시간대 기준 오늘 포함 최근 7일만 자동 생성·홈 표시, 7일 지난 미처리 기록은 숨김(상태 유지), 일 보기를 열면 그날 회차 생성, "모두 했어요"·요약·알림 개수는 7일 범위만', 'REC-03, 5.6'],
     ['D-40', '시간대 변경과 기록 날짜', '기록 날짜는 저장 시점 시간대로 start_at(없으면 지정 날짜) 기준 계산해 저장하고 변경하지 않음. 확인 대기 기록은 일정의 시간대 기준. 시각 표시만 새 시간대', 'NFR-04, AUTH-05'],
     ['D-41', '인증 메일과 인증 범위', '인증 코드는 메일 제목에 넣지 않음. 텍스트 복사도 내보내기로 보고 인증 요구', 'AUTH-08, AUTH-03'],
+    ['D-42', 'Railway 프로젝트 구성', 'Pro 워크스페이스 WY-ERP의 플랫폼 단위 프로젝트 WY-ERP 하나에 모든 모듈 서비스를 둔다 (private network가 프로젝트·환경 단위)', '5.7, 작업계획서 P0-09'],
+    ['D-43', '백엔드 버전', 'Spring Boot 4.0.x, Spring Cloud 2025.1.x, Java 21(toolchain), Gradle 9 Wrapper, UUIDv7은 Hibernate @UuidGenerator. 세부 버전은 README가 기준', '5.1, 5.5'],
+    ['D-44', '프론트 기술 선택', 'CSS Modules + CSS 변수, React Context + TanStack Query, fetch 래퍼, 인라인 SVG, Pretendard npm 자체 제공, Prettier, oxlint(create-vite react-ts 기본, 추가 설치 없고 빠르며 React hooks 규칙 포함. jsx-a11y 등 일부 ESLint 플러그인은 쓸 수 없음). P0 폼은 라이브러리 없이 작성하고 P1에서 재검토', '5.1'],
+    ['D-45', 'worklog 탈퇴 처리', '요청 거부 목록(worklog DeletedUser), 15분 뒤 재파기, 7일 뒤 목록 정리, 피드 30초 + ShedLock, 커서 단일 행', '5.4, 6장'],
+    ['D-46', '인증 API 계약 세부', 'iss/aud 규칙, 30초 유예 시 새 Access만 발급, /api/auth/**는 Gateway 미검증, 이메일 정규화, 가입 즉시 로그인, 오류 코드는 contracts/identity.yaml', 'AUTH-01·02, NFR-03'],
+    ['D-47', 'API 계약 관리', '구현 전 contracts/{모듈}.yaml로 합의, 구현 후 springdoc 출력이 기준, 프론트 타입은 springdoc에서 생성', '5.5'],
   ], [10, 20, 42, 28], [0]),
   gap(),
 

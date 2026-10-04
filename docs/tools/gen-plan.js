@@ -2,7 +2,7 @@ const path = require('path');
 const { Packer, Paragraph, TextRun, AlignmentType, PageBreak } = require('docx');
 const { p, h1, h2, bullet, gap, code, table, makeDoc, writeNew, ACCENT } = require('./lib');
 
-const VERSION = 'v1.6';
+const VERSION = 'v1.7';
 const TODAY = '2026-10-04';
 // WBS 표: ID, 작업, 산출물, 관련 요구사항, 화면 ID(화면정의서)
 const wbs = (rows) => table(['ID', '작업', '산출물', '관련 요구사항', '화면 ID'], rows, [9, 40, 14, 16, 21], [0]);
@@ -29,7 +29,7 @@ const children = [
   table(['항목', '내용'], [
     ['문서 버전', VERSION],
     ['작성일', TODAY],
-    ['근거 문서', '요구사항정의서_v1.4.docx, 화면정의서_v1.2.docx'],
+    ['근거 문서', '요구사항정의서_v1.5.docx, 화면정의서_v1.2.docx'],
     ['진행 방식', '고정 일정 없이 단계 순서와 완료 기준으로 진행'],
   ], [30, 70]),
   new Paragraph({ children: [new PageBreak()] }),
@@ -43,6 +43,7 @@ const children = [
     ['v1.4', TODAY, '요구사항 v1.2·화면정의서 v1.1 반영: 인증 정책을 P0 작업에 구체화, P1-11~P1-14 신설(홈 대시보드, 이메일 인증, 비밀번호 재설정 이동, 로그인 보호), P4-08~P4-12 신설, U1-03 Google 로그인, WBS에 화면 ID 열 추가, 도메인 구매(P0 전)·메일 서비스 준비 시점 P1로, 인증·배포·공휴일 리스크 추가'],
     ['v1.5', '2026-10-04', '요구사항 v1.3(아키텍처 결정 D-27~D-36) 반영: P0-10 공통 기반·P0-11 서비스 간 연동·P4-13 오류 수집 신설, P0-01·04·07·09, P1-01, P2-03, P4-01·05·07 구체화, 싱가포르 리전·백업·운영 관측 반영, 연동·리전·감시·백업 리스크 추가'],
     ['v1.6', TODAY, '요구사항 v1.4(화면정의서 상호 점검, D-37~D-41) 반영: 비밀번호 규칙, 근무일 판단(업무 요일+공휴일, 공휴일 데이터 공용), 확인 대기 7일 범위·일괄 확인, 시간대 변경 시 날짜 불변, 일지 편집 보조·결재란·파일명·초안 내보내기, 키보드 단축키(UX-09)를 해당 WBS에 반영, QA 검증 보완(공휴일 리스크, 단축키 접근성, 파일명 규칙)'],
+    ['v1.7', TODAY, '요구사항 v1.5(D-42~D-47) 반영: Railway 프로젝트 WY-ERP, 확정 버전·라이브러리(3.3), 저장소 구조에 common·contracts 추가, P0 통합 브랜치 규칙(3.2), 로컬 포트(7장), P0-01·04·07·09·10·11 구체화'],
   ], [15, 20, 65], [0, 1]),
   gap(),
 
@@ -79,7 +80,7 @@ const children = [
   p('P0 시작 전에 사용자가 직접 준비해야 하는 항목이다.'),
   table(['항목', '내용', '필요 시점'], [
     ['GitHub 계정·저장소', '원격 저장소 생성 (private 권장). CI(GitHub Actions)와 Railway·Vercel 배포 연동에 사용', 'P0'],
-    ['Railway 계정', '백엔드 서비스 3개와 PostgreSQL 배포. 상시 실행 서비스와 리전 선택(싱가포르) 때문에 Pro 요금제 필요', 'P0'],
+    ['Railway 계정', 'Pro 워크스페이스 WY-ERP. 상시 실행 서비스와 리전 선택(싱가포르) 때문에 Pro 요금제 필요. 플랫폼 단위 프로젝트 WY-ERP 하나에 모든 모듈 서비스를 둔다 (D-42)', 'P0'],
     ['Vercel 계정', '프론트엔드 배포. GitHub 저장소 연결', 'P0'],
     ['로컬 개발 도구', 'JDK 21, Docker Desktop(로컬 PostgreSQL), Git. Node.js 24는 설치 확인됨', 'P0'],
     ['도메인', '서비스 도메인 구매. 메일 발송 도메인 인증(SPF·DKIM)에 필요 (D-11)', 'P0 전'],
@@ -95,39 +96,44 @@ const children = [
     'C:\\projects\\erp-project\\',
     '├── backend\\                  Gradle 멀티모듈',
     '│   ├── settings.gradle',
+    '│   ├── gradle\\libs.versions.toml  의존성 버전 (README 버전 표와 함께 갱신)',
+    '│   ├── common\\                공통 모듈 (P0-10)',
     '│   ├── api-gateway\\           Spring Cloud Gateway',
     '│   ├── identity-service\\      가입·로그인·프로필',
     '│   └── worklog-service\\       업무·일정·시간기록·업무일지',
     '├── frontend\\                 React + Vite + TS',
     '├── infra\\',
     '│   └── docker-compose.yml     로컬 PostgreSQL',
-    '├── docs\\                     요구사항정의서, 작업계획서, 화면정의서',
+    '├── contracts\\                API 계약 초안 identity.yaml·worklog.yaml (D-47)',
+    '├── docs\\                     요구사항정의서, 작업계획서, 화면정의서, tools(생성 스크립트)',
     '└── .github\\workflows\\        CI',
   ]),
   h2('3.2 버전 관리 규칙'),
   table(['항목', '규칙'], [
-    ['브랜치', 'main은 항상 배포 가능 상태 유지. 작업은 feature/<WBS ID>-<설명> 브랜치에서 진행 (예: feature/P1-03-task-crud)'],
+    ['브랜치', 'main은 항상 배포 가능 상태 유지. 작업은 feature/<WBS ID>-<설명> 브랜치에서 진행 (예: feature/P1-03-task-crud). 예외: P0 동안은 여러 세션이 워킹트리 하나를 함께 쓰므로 통합 브랜치 feature/P0-skeleton 하나에 커밋하고 커밋 메시지에 WBS ID를 넣는다. P0가 끝나면 PR로 main에 병합한다. P1부터의 브랜치 규칙은 P0 종료 때 다시 정한다'],
     ['병합', 'Pull Request로 main에 병합. CI 통과가 병합 조건'],
     ['커밋 메시지', 'Conventional Commits + 요구사항 ID. 예: feat(TASK-01): 업무 생성 API 추가'],
     ['DB 변경', 'Flyway 마이그레이션 파일로만 변경. 이미 배포된 마이그레이션 파일은 수정하지 않음'],
     ['비밀값', 'JWT 서명 개인키(PEM), DB 비밀번호 등은 저장소에 두지 않고 Railway·Vercel 환경변수로 관리. 로컬은 개발용 키를 별도로 사용'],
   ], [18, 82]),
-  h2('3.3 주요 라이브러리 (P0에서 버전 확정)'),
-  table(['영역', '후보', '용도'], [
+  h2('3.3 주요 라이브러리 (버전 숫자는 README 버전 표가 기준)'),
+  table(['영역', '선택', '용도'], [
+    ['백엔드 기반', 'Spring Boot 4.0.x, Spring Cloud 2025.1.x, Java 21(Gradle toolchain), Gradle 9 Wrapper (D-43)', '세부 버전은 README'],
     ['인증', 'Spring Security OAuth2 Resource Server, Nimbus JOSE (확정)', 'JWT(RS256) 발급·검증, JWKS'],
     ['요청 제한', 'Bucket4j + Caffeine (인스턴스 확장 시 Redis로 전환)', 'AUTH-09'],
     ['주기 작업', 'Spring @Scheduled + ShedLock (JDBC)', 'D-31'],
-    ['API 명세', 'springdoc-openapi, openapi-typescript (프론트 타입 생성)', 'D-30'],
-    ['추적·로그', 'Micrometer Tracing (W3C traceparent), JSON 로그 인코더', 'NFR-09'],
-    ['DB', 'Spring Data JPA, Flyway, PostgreSQL', '영속성, 스키마 마이그레이션'],
+    ['API 명세', '구현 전 contracts/{모듈}.yaml, 구현 후 springdoc-openapi 출력 기준, openapi-typescript로 프론트 타입 생성 (D-47)', 'D-30'],
+    ['추적·로그', 'Micrometer Tracing + Brave 브리지(W3C traceparent, 응답 헤더 X-Trace-Id), Spring Boot 기본 구조화 로그', 'NFR-09'],
+    ['DB', 'Spring Data JPA, Flyway, PostgreSQL (Boot 관리 버전), UUIDv7은 Hibernate @UuidGenerator(VERSION_7)', '영속성, 스키마 마이그레이션'],
     ['반복 일정', 'ical4j (백엔드), rrule.js (프론트)', 'RFC 5545 RRULE 처리'],
     ['빠른 입력 파싱', '자체 구현 (한국어 상대 날짜 지원 라이브러리가 마땅치 않음)', 'REC-04'],
     ['명령 팔레트', 'cmdk (React)', 'UX-01'],
     ['문서 내보내기', 'Apache POI (Word·Excel), OpenHTMLtoPDF (PDF)', 'EXP-02~04'],
     ['캘린더 UI', 'FullCalendar (React)', '일·주·월·연·목록 뷰, 드래그 앤 드롭'],
     ['공휴일 데이터', '정적 JSON (연 1회 갱신, 대체·임시 공휴일 발표 시 갱신)', 'SCH-01, D-25'],
-    ['UI 글꼴', 'Pretendard', 'D-26'],
-    ['프론트 상태·통신', 'TanStack Query, React Router', '서버 상태 캐싱, 라우팅'],
+    ['UI 글꼴', 'Pretendard (npm 패키지, 같은 사이트에서 제공)', 'D-26'],
+    ['프론트 상태·통신', 'React Context(전역 상태), TanStack Query(서버 상태), React Router, fetch 래퍼', '상태·통신·라우팅 (D-44)'],
+    ['프론트 스타일·품질', 'CSS Modules + CSS 변수(파생 색 color-mix), 인라인 SVG 아이콘, Prettier, oxlint. P0 폼은 직접 작성하고 P1에서 폼 라이브러리 재검토', 'D-44'],
     ['테스트', 'JUnit 5, Testcontainers, Vitest, Playwright', '단위·통합·E2E'],
   ], [20, 45, 35]),
   gap(),
@@ -136,17 +142,17 @@ const children = [
   h1('4. 단계별 작업 (WBS)'),
   heading('4.1', P0),
   wbs([
-    ['P0-01', '개발 환경 확정: JDK·Spring Boot·Spring Cloud 호환 버전 선정, UUIDv7 생성 방식 확정, 로컬 도구 설치 확인', 'README 버전 표', '-', '-'],
+    ['P0-01', '개발 환경 확정: JDK·Spring Boot·Spring Cloud 호환 버전 선정, UUIDv7 생성 방식 확정, 로컬 도구 설치 확인 (결과: D-43)', 'README 버전 표', '-', '-'],
     ['P0-02', 'Git 저장소 초기화, 모노레포 구조 생성, GitHub 원격 연결, 진행현황 문서 생성', '저장소, docs/진행현황.md', '-', '-'],
     ['P0-03', '로컬 PostgreSQL (docker-compose), 서비스별 schema·DB 계정 생성 스크립트', 'docker-compose.yml', 'NFR-02', '-'],
-    ['P0-04', 'api-gateway: 라우팅, 쿠키의 access_token을 Authorization: Bearer로 옮겨 전달, JWKS로 JWT 검증, 외부에서 온 Authorization·X-User-* 헤더 제거, 쓰기 요청 Origin 검사, traceId 생성·전달, /internal/** 미라우팅', 'gateway 모듈', 'NFR-02, 03, 09, 14', '-'],
+    ['P0-04', 'api-gateway: 라우팅(/api/auth/** → identity 토큰 미검증, /api/users/me/**·/api/worklog/** → JWT 필수), 쿠키의 access_token을 Authorization: Bearer로 옮겨 전달, JWKS로 JWT 검증, 외부에서 온 Authorization·X-User-* 헤더 제거, 쓰기 요청 Origin 검사, traceId 생성·전달(X-Trace-Id), /internal/**·/.well-known/**·/actuator/** 미라우팅', 'gateway 모듈', 'NFR-02, 03, 09, 14', '-'],
     ['P0-05', 'identity-service: 회원 가입(약관 동의), 로그인·로그아웃, RS256 키 로드와 JWKS 엔드포인트, 비밀번호 규칙 검증(8~64자·72바이트 이하, 영문·숫자, 이메일과 다름), 쿠키 토큰 발급, Refresh Token rotation·재사용 탐지·30초 유예, User·UserCredential·RefreshToken Flyway 스키마', 'identity 모듈', 'AUTH-01, 02, NFR-03', '-'],
     ['P0-06', 'worklog-service 골격: 헬스체크, JWT 검증(Resource Server)으로 사용자 식별, 테스트용 키·토큰 유틸(공통 모듈), Flyway 설정', 'worklog 모듈', 'NFR-03, 09', '-'],
     ['P0-07', '프론트엔드 골격: 라우팅, API 클라이언트(401이면 refresh 1회 후 재시도, 탭 안 동시 갱신은 1회로), 가입(국외 보관 안내 문구 포함)·로그인 화면, 기본 예외 화면, 테마 색 토큰 구조, Pretendard 적용', 'frontend', 'AUTH-01, 02, NFR-13', 'SCR-COM-01, SCR-AUTH-02, 03, SCR-SYS-01, 02'],
     ['P0-08', 'CI: PR마다 백엔드 빌드·테스트, 프론트 빌드·린트 실행', 'GitHub Actions', 'NFR-08', '-'],
-    ['P0-09', '배포: Railway 싱가포르 리전(서비스 3개 + PostgreSQL), Vercel(rewrites로 /api/* 프록시), 환경변수·서명 키·서비스 클라이언트 비밀값 설정, 배포 헬스체크 경로·재시작 정책. 검증: 아시아 리전 배포 가능 여부, 프록시의 응답 크기·시간 제한, Gateway 직접 접근 차단(Vercel이 붙이는 비밀 헤더) 가능 여부, 로그 보관 기간, 크래시 알림, 백업 주기·7일 보관 설정', '배포 URL, 검증 결과', 'NFR-05, 09, 14', '-'],
-    ['P0-10', '공통 기반 모듈: Problem Details 오류 처리(code·errors[]·traceId), UUIDv7 ID, JSON 로그, springdoc-openapi와 프론트 타입 생성, ShedLock 설정', '공통 모듈', 'NFR-09', '-'],
-    ['P0-11', '서비스 간 연동: identity 사용자 변경 피드(기록 직렬화)·탈퇴 기록·전체 목록 API, client credentials 서비스 토큰 발급, worklog 피드 소비(멱등 갱신·커서)·사본 없을 때 즉시 조회·탈퇴 사용자 요청 거부, 정리 작업(만료 토큰·인증 코드·30일 지난 피드)', 'API, 주기 작업', 'AUTH-04, 05, 06, NFR-03', '-'],
+    ['P0-09', '배포: Railway 프로젝트 WY-ERP의 싱가포르 리전(서비스 3개 + PostgreSQL), Vercel(rewrites로 /api/* 프록시), 환경변수·서명 키·서비스 클라이언트 비밀값 설정, 배포 헬스체크 경로·재시작 정책. 검증: 아시아 리전 배포 가능 여부, 프록시의 응답 크기·시간 제한, Gateway 직접 접근 차단(Vercel이 붙이는 비밀 헤더) 가능 여부, 로그 보관 기간, 크래시 알림, 백업 주기·7일 보관 설정', '배포 URL, 검증 결과', 'NFR-05, 09, 14', '-'],
+    ['P0-10', '공통 기반 모듈: API 계약 초안(contracts/*.yaml), Problem Details 오류 처리(code·errors[]·traceId), UUIDv7 ID, JSON 로그, springdoc-openapi와 프론트 타입 생성, ShedLock 설정', '공통 모듈', 'NFR-09', '-'],
+    ['P0-11', '서비스 간 연동: identity 사용자 변경 피드(기록 직렬화)·탈퇴 기록·전체 목록 API, client credentials 서비스 토큰 발급, worklog 피드 소비(30초 + ShedLock, 멱등 갱신, 단일 행 커서)·사본 없을 때 즉시 조회(실패 시 503)·탈퇴 사용자 요청 거부(15분 뒤 재파기, 거부 목록 7일 뒤 정리), 정리 작업(만료 토큰·인증 코드·30일 지난 피드)', 'API, 주기 작업', 'AUTH-04, 05, 06, NFR-03', '-'],
   ]),
   p('완료 기준: 배포된 프론트엔드에서 가입 → 로그인 → 인증이 필요한 API 호출까지 성공하고, 새로고침·새 탭에서도 로그인이 유지됨.', { spacing: { before: 120, after: 120 }, run: { bold: true } }),
 
@@ -265,8 +271,8 @@ const children = [
   // ── 7. 배포 ──
   h1('7. 배포 계획'),
   table(['환경', '구성', '비고'], [
-    ['로컬', 'docker-compose(PostgreSQL) + 각 서비스 로컬 실행 + Vite 개발 서버', '개발·테스트'],
-    ['운영', 'Railway 싱가포르: api-gateway, identity-service, worklog-service, PostgreSQL\nVercel: frontend (rewrites로 /api/* → api-gateway 프록시)', 'main 병합 시 자동 배포'],
+    ['로컬', 'docker-compose(PostgreSQL 18) + 각 서비스 로컬 실행(gateway 8080, identity 8081, worklog 8082) + Vite 개발 서버', '개발·테스트'],
+    ['운영', 'Railway 프로젝트 WY-ERP(싱가포르): api-gateway, identity-service, worklog-service, PostgreSQL\nVercel: frontend (rewrites로 /api/* → api-gateway 프록시)', 'main 병합 시 자동 배포'],
   ], [12, 63, 25], [0]),
   bullet('외부에는 api-gateway만 공개하고, 내부 서비스는 Railway private network로만 통신한다. 내부 서비스에 공개 도메인을 만들지 않는다.'),
   bullet('프론트엔드와 API를 같은 사이트로 서비스한다. 인증 쿠키의 CSRF 방어가 이 구성을 전제로 하므로, 배포 환경을 바꿀 때는 같은 사이트가 유지되는지 먼저 확인한다 (NFR-14).'),
