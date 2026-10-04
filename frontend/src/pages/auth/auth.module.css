@@ -85,6 +85,19 @@
 }
 
 /* 폼 */
+.formArea {
+  width: 100%;
+  max-width: 400px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.formArea:disabled {
+  opacity: 0.55;
+}
+
 .form {
   width: 100%;
   max-width: 400px;

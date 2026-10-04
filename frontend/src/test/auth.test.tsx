@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { api } from '../api'
@@ -9,6 +9,7 @@ import { json, ME, problem, renderApp, stubFetch } from './renderApp'
 
 afterEach(() => {
   vi.unstubAllGlobals()
+  vi.restoreAllMocks()
 })
 
 describe('라우팅', () => {
@@ -311,5 +312,35 @@ describe('세션', () => {
     expect(within(notice).getByRole('link', { name: '회원가입' })).toHaveAttribute('href', '/signup')
     expect(screen.queryByText(/다시 로그인해 주세요/)).not.toBeInTheDocument()
     expect(router.state.location.pathname).toBe('/login')
+  })
+
+  it('새로 고침 직후 첫 조회가 USER_DELETED여도 탈퇴 안내를 보여 준다', async () => {
+    stubFetch({ 'GET /api/users/me': () => problem(401, 'USER_DELETED') })
+    renderApp('/calendar')
+    expect(await screen.findByText(/탈퇴 처리된 계정입니다\./)).toBeInTheDocument()
+  })
+})
+
+describe('SCR-SYS-02 ③ 오프라인 띠', () => {
+  it('로그인 전 화면에도 띠를 띄우고 폼 입력을 막는다', async () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    stubFetch({})
+    renderApp('/login')
+    expect(await screen.findByLabelText('이메일')).toBeDisabled()
+    expect(screen.getByText(/연결이 끊겼어요\. 다시 연결되면 입력할 수 있어요/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '로그인' })).toBeDisabled()
+  })
+
+  it('연결되면 띠가 사라지고 입력할 수 있다', async () => {
+    const onLine = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    stubFetch({})
+    renderApp('/login')
+    expect(await screen.findByLabelText('이메일')).toBeDisabled()
+    onLine.mockReturnValue(true)
+    act(() => {
+      window.dispatchEvent(new Event('online'))
+    })
+    expect(screen.queryByText(/연결이 끊겼어요/)).not.toBeInTheDocument()
+    expect(screen.getByLabelText('이메일')).toBeEnabled()
   })
 })

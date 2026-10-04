@@ -18,7 +18,7 @@ async function fetchMe(): Promise<Me | null> {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient()
-  const { data, isPending } = useQuery({ queryKey: ME_QUERY_KEY, queryFn: fetchMe, staleTime: Infinity })
+  const { data, isPending, error } = useQuery({ queryKey: ME_QUERY_KEY, queryFn: fetchMe, staleTime: Infinity })
   const user = data ?? null
 
   useEffect(() => {
@@ -29,6 +29,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => ({
       user,
       isLoading: isPending,
+      error,
       login: async (body) => {
         const me = await authApi.login(body)
         setUser(queryClient, me)
@@ -46,7 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         queryClient.removeQueries({ predicate: (q) => q.queryKey[0] !== ME_QUERY_KEY[0] })
       },
     }),
-    [user, isPending, queryClient],
+    [user, isPending, error, queryClient],
   )
 
   return <AuthContext value={value}>{children}</AuthContext>

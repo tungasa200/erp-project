@@ -1,6 +1,7 @@
 // 개발용 가짜 서버. contracts/identity.yaml의 응답 형태를 흉내 낸다. 쿠키 대신 localStorage에 세션을 둔다.
 // 체험용 계정: demo@example.com / worklog20
 // locked@example.com: 로그인 시 429 AUTH_LOCKED, error@example.com: 500, maintenance@example.com: 503 점검(30분)
+// deleted@example.com: 로그인은 되지만 이후 요청은 401 USER_DELETED(다른 기기에서 탈퇴한 경우, 새로 고침하면 재현)
 import { EMAIL_PATTERN, passwordViolations } from '../auth/passwordRules'
 import type { FieldError, Problem } from './problem'
 import type { Me } from './types'
@@ -106,6 +107,10 @@ export const mockFetch: typeof fetch = async (input, init) => {
     if (email === 'locked@example.com') return problem(429, 'AUTH_LOCKED', { retryAfterSeconds: 892 })
     if (email === 'error@example.com') return problem(500, 'INTERNAL_ERROR')
     if (email === 'maintenance@example.com') return problem(503, 'MAINTENANCE', { retryAfterSeconds: 1800 })
+    if (email === 'deleted@example.com') {
+      startSession(state, email)
+      return json(200, me(email, 'mock-deleted'))
+    }
     const account = state.accounts[email]
     if (!account || account.password !== body.password) return problem(401, 'INVALID_CREDENTIALS')
     startSession(state, email)
@@ -127,6 +132,7 @@ export const mockFetch: typeof fetch = async (input, init) => {
   if (method === 'GET' && path === '/api/users/me') {
     const session = state.session
     if (!session || session.accessExpiresAt < Date.now()) return problem(401, 'UNAUTHENTICATED')
+    if (session.email === 'deleted@example.com') return problem(401, 'USER_DELETED')
     return json(200, me(session.email, state.accounts[session.email]?.id ?? 'mock'))
   }
 

@@ -1,8 +1,8 @@
 // SCR-COM-01 앱 셸 (P0 골격). 알림(SCR-COM-05)·타이머(SCR-COM-06)·프로젝트 목록·빠른 기록은 이후 단계에서 채운다.
-import { useSyncExternalStore } from 'react'
 import { NavLink, Outlet } from 'react-router'
 import { useAuth } from '../auth/useAuth'
 import styles from './AppShell.module.css'
+import { useOnline } from './useOnline'
 
 const MENU = [
   { to: '/', label: '홈', icon: 'M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z' },
@@ -44,21 +44,12 @@ function Icon({ d, size = 18 }: { d: string; size?: number }) {
   )
 }
 
-function subscribeOnline(callback: () => void) {
-  window.addEventListener('online', callback)
-  window.addEventListener('offline', callback)
-  return () => {
-    window.removeEventListener('online', callback)
-    window.removeEventListener('offline', callback)
-  }
-}
-
 const navClass = ({ isActive }: { isActive: boolean }) =>
   isActive ? `${styles.navItem} ${styles.active}` : styles.navItem
 
 export function AppShell() {
   const { user } = useAuth()
-  const online = useSyncExternalStore(subscribeOnline, () => navigator.onLine)
+  const online = useOnline()
 
   return (
     <div className={styles.shell}>
@@ -92,12 +83,6 @@ export function AppShell() {
       </nav>
 
       <div className={styles.content}>
-        {!online && (
-          <div role="status" className={styles.offline}>
-            <span className={styles.offlineDot} aria-hidden="true" />
-            연결이 끊겼어요. 다시 연결되면 입력할 수 있어요
-          </div>
-        )}
         {/* 끊긴 동안에는 입력을 막는다 (SCR-SYS-02 ③, 오프라인 기록은 범위 밖) */}
         <fieldset className={styles.main} disabled={!online}>
           <Outlet />

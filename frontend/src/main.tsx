@@ -7,6 +7,7 @@ import { MaintenanceGate } from './app/MaintenanceGate'
 import { router } from './app/router'
 import { AuthProvider } from './auth/AuthContext'
 import { handleSessionExpired } from './auth/session'
+import { OfflineBanner } from './components/OfflineBanner'
 import { ToastProvider } from './components/Toast'
 import './theme/global.css'
 
@@ -22,6 +23,7 @@ createRoot(document.getElementById('root')!).render(
       <AuthProvider>
         <MaintenanceGate>
           <ToastProvider>
+            <OfflineBanner />
             <RouterProvider router={router} />
           </ToastProvider>
         </MaintenanceGate>

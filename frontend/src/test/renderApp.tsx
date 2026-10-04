@@ -7,6 +7,7 @@ import { MaintenanceGate } from '../app/MaintenanceGate'
 import { routes } from '../app/router'
 import { AuthProvider } from '../auth/AuthContext'
 import { handleSessionExpired } from '../auth/session'
+import { OfflineBanner } from '../components/OfflineBanner'
 import { ToastProvider } from '../components/Toast'
 
 type Handler = (init: RequestInit | undefined) => Response | Promise<Response>
@@ -62,6 +63,7 @@ export function renderApp(path: string, appRoutes: RouteObject[] = routes) {
       <AuthProvider>
         <MaintenanceGate>
           <ToastProvider>
+            <OfflineBanner />
             <RouterProvider router={router} />
           </ToastProvider>
         </MaintenanceGate>

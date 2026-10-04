@@ -1,0 +1,27 @@
+.offline {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 18px;
+  background: var(--color-banner);
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 4px;
+  background: #ff6b5e;
+}
+
+.retrying {
+  margin-left: auto;
+  font-size: 13px;
+  color: #c9ccdb;
+}
