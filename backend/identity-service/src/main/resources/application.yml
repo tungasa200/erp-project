@@ -4,3 +4,14 @@ spring:
 
 server:
   port: 8081
+
+---
+# 운영(Railway)은 JSON 로그 한 줄 = 이벤트 하나 (D-35). 로컬은 사람이 읽기 쉬운 기본 형식.
+spring:
+  config:
+    activate:
+      on-profile: prod
+logging:
+  structured:
+    format:
+      console: logstash

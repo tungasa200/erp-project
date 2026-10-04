@@ -1,0 +1,2 @@
+com.erp.common.autoconfigure.CommonWebAutoConfiguration
+com.erp.common.autoconfigure.ShedLockAutoConfiguration
