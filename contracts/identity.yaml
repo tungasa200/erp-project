@@ -280,6 +280,7 @@ paths:
       summary: 사용자 변경 피드
       description: |
         seq 오름차순. 피드 기록은 직렬화되어 있어 after 이후 이벤트가 나중에 끼어드는 일이 없다 (5.4).
+        seq는 단조 증가하지만 연속이 아닐 수 있다. 탈퇴 시 그 사용자의 과거 CREATED·PROFILE_UPDATED 이벤트를 지우고 DELETED만 남기기 때문이다.
         피드는 30일 보관한다. 소비자는 user_id 기준으로 멱등하게 반영하고 마지막 seq를 커서로 저장한다.
       security:
         - serviceToken: [user-events:read]
