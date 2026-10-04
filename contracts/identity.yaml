@@ -1,0 +1,640 @@
+openapi: 3.1.0
+info:
+  title: identity-service API
+  version: 0.1.0-draft
+  description: |
+    구현 전 합의용 초안 (P0 범위: P0-05 인증, P0-11 내부 API). 구현 후에는 springdoc 출력이 기준이다 (P0-10).
+    규약은 요구사항정의서 5.5를 따른다: 버전 없는 모듈 접두사(/api/auth, /api/users/me), 시각은 UTC ISO-8601,
+    시간대는 IANA 이름, camelCase, 오류는 RFC 9457 Problem Details + code·errors[]·traceId.
+
+    ■ 쿠키 (D-16, NFR-02)
+    - access_token: HttpOnly; Secure; SameSite=Strict; Path=/api; Max-Age=600
+    - refresh_token: HttpOnly; Secure; SameSite=Strict; Path=/api/auth; Max-Age=1209600
+    - Domain은 지정하지 않는다(host-only). 프론트는 토큰 값을 다루지 않는다.
+    - 쿠키를 지울 때는 같은 이름·Path로 Max-Age=0을 보낸다.
+
+    ■ 인증 경로별 처리
+    - /api/auth/**: Gateway가 토큰을 검증하지 않고 쿠키를 그대로 넘긴다. 로그인이 필요한 auth 경로는
+      identity가 access_token 쿠키를 직접 검증한다.
+    - /api/users/me/**: Gateway가 access_token 쿠키를 Authorization: Bearer로 옮겨 전달하고, identity가 다시 검증한다 (D-19).
+      worklog가 사본이 없을 때 사용자 토큰을 그대로 실어 내부 주소로 호출하는 경로이기도 하다.
+    - /internal/**, /.well-known/**: Gateway가 외부로 라우팅하지 않는다. Railway private network(로컬은 localhost:8081)로만 호출한다.
+
+    ■ JWT (RS256, D-18)
+    - 헤더: alg=RS256, kid
+    - 사용자 토큰: iss=erp-identity, aud=erp-api, sub=사용자 ID(UUIDv7), iat, exp(10분). scope 없음.
+    - 서비스 토큰 (D-29): iss=erp-identity, aud=erp-internal, sub=service:<client_id>, scope(공백 구분), iat, exp(5분).
+    - 검증 측: 사용자 API는 aud=erp-api만 허용한다. /internal/**은 aud=erp-internal이면서 필요한 scope가 있어야 한다.
+servers:
+  - url: /
+tags:
+  - name: auth
+    description: 가입·로그인·토큰 갱신·로그아웃 (AUTH-01, AUTH-02, AUTH-09)
+  - name: me
+    description: 현재 사용자 공통 프로필 (identity가 원본, D-27)
+  - name: jwks
+    description: JWT 공개키 (내부 전용)
+  - name: internal
+    description: 서비스 간 API (client credentials 서비스 토큰, D-28·D-29)
+paths:
+  /api/auth/signup:
+    post:
+      tags: [auth]
+      operationId: signup
+      summary: 회원 가입 후 바로 로그인
+      description: |
+        가입에 성공하면 자동으로 로그인 상태가 된다(쿠키 2종 발급). 이메일 인증은 막지 않는다 (D-20).
+        이메일은 앞뒤 공백을 지우고 소문자로 바꿔 저장·비교한다.
+        비밀번호 확인 입력 일치는 프론트에서만 검사한다.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignupRequest'
+      responses:
+        '201':
+          description: 가입·로그인 성공
+          headers:
+            Set-Cookie:
+              $ref: '#/components/headers/SetAuthCookies'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Me'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          description: 이미 가입된 이메일 (code=EMAIL_ALREADY_EXISTS). 화면은 로그인 링크를 안내한다 (SCR-AUTH-03).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '403':
+          $ref: '#/components/responses/OriginRejected'
+  /api/auth/login:
+    post:
+      tags: [auth]
+      operationId: login
+      summary: 이메일·비밀번호 로그인
+      description: |
+        성공하면 새 로그인 세션(refresh family)을 만들고 쿠키 2종을 발급한다.
+        연속 실패 시 응답이 점점 늦어지고, 10회 실패하면 15분 잠근다 (AUTH-09, P1-14에서 구현. 응답 형식은 지금 확정).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: 로그인 성공
+          headers:
+            Set-Cookie:
+              $ref: '#/components/headers/SetAuthCookies'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Me'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          description: |
+            이메일 또는 비밀번호가 맞지 않음 (code=INVALID_CREDENTIALS). 어느 쪽이 틀렸는지 구분하지 않으며,
+            없는 이메일도 같은 응답을 같은 시간대로 돌려준다.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '429':
+          description: |
+            계정 잠금(code=AUTH_LOCKED) 또는 IP 단위 시도 제한(code=TOO_MANY_REQUESTS).
+            남은 시간은 Retry-After 헤더(초)와 본문 retryAfterSeconds로 준다.
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/RateLimitedProblem'
+        '403':
+          $ref: '#/components/responses/OriginRejected'
+  /api/auth/refresh:
+    post:
+      tags: [auth]
+      operationId: refresh
+      summary: Access Token 갱신 (Refresh Token rotation)
+      description: |
+        refresh_token 쿠키로 호출한다. 본문은 없다.
+        - 정상: 기존 refresh를 폐기하고 같은 family로 새 refresh와 새 access를 발급한다.
+        - 30초 유예: 방금 교체된 직전 refresh가 30초 안에 다시 오면(여러 탭 동시 갱신) 탈취로 보지 않는다.
+          이때는 새 access_token만 발급하고 refresh_token 쿠키는 보내지 않는다. 브라우저에는 먼저 끝난 요청이
+          받은 새 refresh 쿠키가 이미 저장되어 있기 때문이다.
+        - 재사용 탐지: 그 외에 이미 폐기된 refresh가 오면 family 전체를 폐기하고 401을 준다.
+        401이면 쿠키 2종을 지운다. 프론트는 로그인 화면으로 보낸다(P0-07).
+      responses:
+        '204':
+          description: 갱신 성공. access_token은 항상, refresh_token은 정상 rotation일 때만 Set-Cookie로 온다.
+          headers:
+            Set-Cookie:
+              $ref: '#/components/headers/SetAuthCookies'
+        '401':
+          description: |
+            refresh 쿠키 없음·만료·폐기·재사용 탐지 (code=REFRESH_INVALID), 또는 탈퇴한 사용자 (code=USER_DELETED).
+            재사용 탐지 여부는 응답으로 구분하지 않는다.
+          headers:
+            Set-Cookie:
+              $ref: '#/components/headers/ClearAuthCookies'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '403':
+          $ref: '#/components/responses/OriginRejected'
+  /api/auth/logout:
+    post:
+      tags: [auth]
+      operationId: logout
+      summary: 로그아웃
+      description: |
+        refresh_token 쿠키의 family(현재 로그인 세션)를 폐기하고 쿠키 2종을 지운다.
+        access가 만료된 상태에서도 동작해야 하므로 refresh 쿠키만 본다. 쿠키가 없거나 이미 폐기됐어도 204를 준다.
+        이미 발급된 access는 수명(10분) 동안 남는다 (D-17, 즉시 무효화는 Redis 도입 때).
+      responses:
+        '204':
+          description: 로그아웃 완료
+          headers:
+            Set-Cookie:
+              $ref: '#/components/headers/ClearAuthCookies'
+        '403':
+          $ref: '#/components/responses/OriginRejected'
+  /api/users/me:
+    get:
+      tags: [me]
+      operationId: getMe
+      summary: 현재 사용자 조회
+      description: |
+        프론트의 로그인 상태 확인과 worklog의 사본 즉시 조회(P0-11)가 함께 쓴다.
+        수정(PATCH)은 P1-01에서 추가한다.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Me'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /.well-known/jwks.json:
+    get:
+      tags: [jwks]
+      operationId: getJwks
+      summary: JWT 서명 공개키 (내부 전용)
+      description: |
+        Gateway와 각 서비스가 jwk-set-uri로 가져간다. 키를 교체할 때는 신·구 공개키를 함께 게시한다(kid로 구분, NFR-03).
+      responses:
+        '200':
+          description: JWK Set (RFC 7517)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [keys]
+                properties:
+                  keys:
+                    type: array
+                    items:
+                      type: object
+                      required: [kty, kid, use, alg, n, e]
+                      properties:
+                        kty:
+                          type: string
+                          const: RSA
+                        kid:
+                          type: string
+                        use:
+                          type: string
+                          const: sig
+                        alg:
+                          type: string
+                          const: RS256
+                        n:
+                          type: string
+                        e:
+                          type: string
+  /internal/oauth/token:
+    post:
+      tags: [internal]
+      operationId: issueServiceToken
+      summary: 서비스 토큰 발급 (OAuth2 client credentials)
+      description: |
+        client_id·secret은 HTTP Basic으로 보낸다. 비밀값은 identity에 해시로 저장한다(ServiceClient).
+        호출 측은 만료 직전까지 토큰을 캐시한다.
+      security:
+        - clientBasic: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [grant_type]
+              properties:
+                grant_type:
+                  type: string
+                  const: client_credentials
+                scope:
+                  type: string
+                  description: 공백 구분. 생략하면 클라이언트에 허용된 scope 전체.
+                  example: user-events:read users:read
+      responses:
+        '200':
+          description: 발급 성공 (RFC 6749 5.1 형식이라 snake_case)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [access_token, token_type, expires_in]
+                properties:
+                  access_token:
+                    type: string
+                  token_type:
+                    type: string
+                    const: Bearer
+                  expires_in:
+                    type: integer
+                    example: 300
+                  scope:
+                    type: string
+        '400':
+          description: 지원하지 않는 grant_type 또는 허용되지 않은 scope (RFC 6749 5.2 오류 형식, error=unsupported_grant_type·invalid_scope)
+        '401':
+          description: 클라이언트 인증 실패 (RFC 6749 5.2, error=invalid_client)
+  /internal/user-events:
+    get:
+      tags: [internal]
+      operationId: listUserEvents
+      summary: 사용자 변경 피드
+      description: |
+        seq 오름차순. 피드 기록은 직렬화되어 있어 after 이후 이벤트가 나중에 끼어드는 일이 없다 (5.4).
+        피드는 30일 보관한다. 소비자는 user_id 기준으로 멱등하게 반영하고 마지막 seq를 커서로 저장한다.
+      security:
+        - serviceToken: [user-events:read]
+      parameters:
+        - name: after
+          in: query
+          required: true
+          description: 마지막으로 처리한 seq. 처음이면 /internal/users로 전체 동기화한 뒤 asOfSeq를 쓴다.
+          schema:
+            type: integer
+            format: int64
+            minimum: 0
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 500
+            default: 100
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, hasMore]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/UserEvent'
+                  hasMore:
+                    type: boolean
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/ScopeRequired'
+        '410':
+          description: after가 보관 기간 밖 (code=FEED_CURSOR_EXPIRED). 소비자는 전체 재동기화한다.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /internal/users:
+    get:
+      tags: [internal]
+      operationId: listUsers
+      summary: 전체 사용자 목록 (재동기화용)
+      description: |
+        신규 모듈 합류나 장기 장애 복구 때 사본을 다시 채운다. 탈퇴 사용자는 포함하지 않는다.
+        asOfSeq는 첫 페이지를 만든 시점의 피드 최신 seq다. 모든 페이지를 받은 뒤 커서를 asOfSeq로 두고 피드를 이어서 읽는다.
+        (asOfSeq 이후의 변경은 피드로 다시 오므로 페이지 사이에 바뀐 사용자도 결국 최신이 된다.)
+      security:
+        - serviceToken: [users:read]
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, asOfSeq]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required: [userId, profile]
+                      properties:
+                        userId:
+                          type: string
+                          format: uuid
+                        profile:
+                          $ref: '#/components/schemas/Profile'
+                  nextCursor:
+                    type: [string, 'null']
+                  asOfSeq:
+                    type: integer
+                    format: int64
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/ScopeRequired'
+  /internal/deleted-users:
+    get:
+      tags: [internal]
+      operationId: listDeletedUsers
+      summary: 탈퇴 기록 목록
+      description: 재동기화와 백업 복원 후 탈퇴 재적용(D-34)에 쓴다. 탈퇴 기록은 식별 정보 없이 user_id와 시각만 가진다.
+      security:
+        - serviceToken: [users:read]
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required: [userId, deletedAt]
+                      properties:
+                        userId:
+                          type: string
+                          format: uuid
+                        deletedAt:
+                          type: string
+                          format: date-time
+                  nextCursor:
+                    type: [string, 'null']
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/ScopeRequired'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: 브라우저 요청은 Gateway가 access_token 쿠키를 옮겨 넣는다.
+    clientBasic:
+      type: http
+      scheme: basic
+      description: client_id:secret
+    serviceToken:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: /internal/oauth/token으로 받은 서비스 토큰 (aud=erp-internal, scope 필수)
+  headers:
+    SetAuthCookies:
+      description: access_token, refresh_token 쿠키 (속성은 info.description 참고)
+      schema:
+        type: string
+    ClearAuthCookies:
+      description: access_token(Path=/api), refresh_token(Path=/api/auth)을 Max-Age=0으로 지움
+      schema:
+        type: string
+  parameters:
+    Cursor:
+      name: cursor
+      in: query
+      description: 이전 응답의 nextCursor. 처음이면 생략.
+      schema:
+        type: string
+    Limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 500
+        default: 100
+  responses:
+    ValidationFailed:
+      description: |
+        입력 오류 (code=VALIDATION_FAILED). 칸별 오류는 errors[]에 field·code로 준다.
+        errors[].code 목록:
+        - EMAIL_INVALID: 이메일 형식이 아님
+        - PASSWORD_LENGTH: 8자 미만 또는 64자 초과 (글자 수 기준)
+        - PASSWORD_TOO_LONG_BYTES: UTF-8 72바이트 초과 (D-38, 화면은 한글 안내 문구를 따로 표시)
+        - PASSWORD_LETTER_DIGIT_REQUIRED: 영문과 숫자를 모두 포함하지 않음
+        - PASSWORD_SAME_AS_EMAIL: 이메일과 같은 문자열 (대소문자 무시)
+        - AGREEMENT_REQUIRED: 필수 동의 항목 미동의
+        - REQUIRED: 필수 값 없음
+        비밀번호 규칙을 여러 개 어기면 errors[]에 모두 넣는다.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Unauthorized:
+      description: |
+        토큰 없음·만료·서명 오류·aud 불일치 (code=UNAUTHENTICATED), 또는 탈퇴한 사용자 (code=USER_DELETED).
+        프론트는 UNAUTHENTICATED일 때 refresh 1회 후 재시도한다 (P0-07).
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    ScopeRequired:
+      description: 서비스 토큰에 필요한 scope가 없음 (code=INSUFFICIENT_SCOPE)
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    OriginRejected:
+      description: 쓰기 요청의 Origin이 허용 목록에 없거나 없음 (code=ORIGIN_REJECTED). Gateway가 응답한다 (NFR-02).
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+  schemas:
+    SignupRequest:
+      type: object
+      required: [email, password, agreeTerms, agreePrivacy]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        password:
+          type: string
+          description: 8~64자, UTF-8 72바이트 이하, 영문·숫자 포함, 이메일과 다른 문자열 (D-38)
+        agreeTerms:
+          type: boolean
+          description: 이용약관 동의 (true여야 함)
+        agreePrivacy:
+          type: boolean
+          description: 개인정보 처리방침 동의 (true여야 함). 국외 보관 안내는 별도 동의가 아니다 (D-33).
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+    Me:
+      type: object
+      description: 현재 사용자. Profile의 칸을 같은 이름·타입으로 모두 포함한다.
+      required: [id, email, emailVerified, timezone, weekStart, workDays, themeAccent, themeGround, version]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: UUIDv7, JWT sub와 같음
+        email:
+          type: string
+        emailVerified:
+          type: boolean
+          description: 이메일 인증 완료 여부 (AUTH-08, 미인증 배너 표시용)
+        name:
+          type: [string, 'null']
+        organization:
+          type: [string, 'null']
+        position:
+          type: [string, 'null']
+          description: 표시용 직책 (권한용 역할과 별개)
+        timezone:
+          type: string
+          example: Asia/Seoul
+        weekStart:
+          $ref: '#/components/schemas/WeekStart'
+        workDays:
+          $ref: '#/components/schemas/WorkDays'
+        themeAccent:
+          type: string
+          pattern: '^#[0-9A-F]{6}$'
+          example: '#4B3FD6'
+        themeGround:
+          type: string
+          pattern: '^#[0-9A-F]{6}$'
+          example: '#F2F4FA'
+        version:
+          type: integer
+          format: int64
+          description: 낙관적 잠금 버전. P1-01의 PATCH에서 쓴다.
+    Profile:
+      type: object
+      description: 모듈에 전달하는 공통 프로필 스냅샷. 바뀐 칸만이 아니라 항상 전체를 보낸다. email·테마는 넣지 않는다.
+      required: [timezone, weekStart, workDays]
+      properties:
+        name:
+          type: [string, 'null']
+        organization:
+          type: [string, 'null']
+        position:
+          type: [string, 'null']
+        timezone:
+          type: string
+        weekStart:
+          $ref: '#/components/schemas/WeekStart'
+        workDays:
+          $ref: '#/components/schemas/WorkDays'
+    WeekStart:
+      type: string
+      enum: [MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY, SUNDAY]
+      default: MONDAY
+    WorkDays:
+      type: integer
+      minimum: 0
+      maximum: 127
+      default: 31
+      description: 비트마스크 월=1 … 일=64, 기본 31(월~금)
+    UserEvent:
+      type: object
+      required: [seq, type, userId, occurredAt]
+      properties:
+        seq:
+          type: integer
+          format: int64
+        type:
+          type: string
+          enum: [CREATED, PROFILE_UPDATED, DELETED]
+        userId:
+          type: string
+          format: uuid
+        occurredAt:
+          type: string
+          format: date-time
+        profile:
+          description: CREATED·PROFILE_UPDATED에만 있음. DELETED에는 없음.
+          oneOf:
+            - $ref: '#/components/schemas/Profile'
+            - type: 'null'
+    Problem:
+      type: object
+      description: RFC 9457 Problem Details + 확장 필드 (P0-10 공통 모듈 형식, contracts/worklog.yaml과 같음)
+      required: [type, title, status, code, traceId]
+      properties:
+        type:
+          type: string
+          format: uri-reference
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+        code:
+          type: string
+          description: 기계 판독용 오류 코드
+        errors:
+          type: array
+          items:
+            type: object
+            required: [field, code]
+            properties:
+              field:
+                type: string
+              code:
+                type: string
+              message:
+                type: string
+        traceId:
+          type: string
+    RateLimitedProblem:
+      allOf:
+        - $ref: '#/components/schemas/Problem'
+        - type: object
+          required: [retryAfterSeconds]
+          properties:
+            retryAfterSeconds:
+              type: integer
+              description: 다시 시도할 수 있을 때까지 남은 초. 잠금 안내 문구에 쓴다.
