@@ -15,9 +15,11 @@ dependencies {
 
 	compileOnly 'org.springframework.boot:spring-boot-starter-security'
 	compileOnly 'org.springframework.boot:spring-boot-starter-jdbc'
+	compileOnly libs.springdoc.webmvc.api
 
 	testFixturesApi 'org.springframework.security:spring-security-oauth2-jose'
 
 	testImplementation 'org.springframework.boot:spring-boot-starter-security'
 	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+	testImplementation libs.springdoc.webmvc.api
 }

@@ -1,13 +1,18 @@
 package com.erp.worklog.me;
 
+import com.erp.common.autoconfigure.OpenApiAutoConfiguration;
 import com.erp.worklog.security.CurrentUser;
+import com.erp.worklog.security.SecurityConfig;
 import com.erp.worklog.user.Profile;
 import com.erp.worklog.user.UserProfileService;
 import com.erp.worklog.user.UserSnapshotRepository.UserSnapshot;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.media.Schema.RequiredMode;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -63,7 +68,12 @@ class MeController {
 	}
 
 	@GetMapping(path = "/api/worklog/me", produces = MediaType.APPLICATION_JSON_VALUE)
-	@Operation(operationId = "getMe", summary = "현재 사용자의 worklog 프로필 조회")
+	@Operation(operationId = "getMe", summary = "현재 사용자의 worklog 프로필 조회",
+			security = @SecurityRequirement(name = SecurityConfig.COOKIE_SCHEME))
+	@ApiResponse(responseCode = "200", description = "조회 성공")
+	@ApiResponse(responseCode = "503", description = "사본이 없고 identity 조회도 실패함 (code=PROFILE_UNAVAILABLE). 잠시 후 재시도.",
+			content = @Content(mediaType = "application/problem+json",
+					schema = @Schema(ref = OpenApiAutoConfiguration.PROBLEM_REF)))
 	WorklogMe me(@Parameter(hidden = true) CurrentUser user, @AuthenticationPrincipal Jwt jwt) {
 		UserSnapshot snapshot = profiles.snapshotOf(user.id(), jwt.getTokenValue());
 		Profile p = snapshot.profile();

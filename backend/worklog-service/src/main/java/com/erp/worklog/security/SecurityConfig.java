@@ -1,6 +1,9 @@
 package com.erp.worklog.security;
 
 import com.erp.common.error.ProblemSecurityHandler;
+import io.swagger.v3.oas.annotations.enums.SecuritySchemeIn;
+import io.swagger.v3.oas.annotations.enums.SecuritySchemeType;
+import io.swagger.v3.oas.annotations.security.SecurityScheme;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -19,7 +22,12 @@ import java.util.List;
 
 @Configuration
 @EnableConfigurationProperties(JwtProperties.class)
+// 브라우저는 access_token 쿠키만 보낸다. Gateway가 Bearer로 옮겨 전달한다 (contracts/worklog.yaml)
+@SecurityScheme(name = SecurityConfig.COOKIE_SCHEME, type = SecuritySchemeType.APIKEY, in = SecuritySchemeIn.COOKIE,
+		paramName = "access_token")
 public class SecurityConfig {
+
+	public static final String COOKIE_SCHEME = "accessTokenCookie";
 
 	@Bean
 	SecurityFilterChain securityFilterChain(HttpSecurity http, ProblemSecurityHandler problems) throws Exception {
