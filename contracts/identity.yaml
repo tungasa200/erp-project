@@ -141,7 +141,8 @@ paths:
               $ref: '#/components/headers/SetAuthCookies'
         '401':
           description: |
-            refresh 쿠키 없음·만료·폐기·재사용 탐지 (code=REFRESH_INVALID), 또는 탈퇴한 사용자 (code=USER_DELETED).
+            refresh 쿠키 없음·만료·폐기·재사용 탐지 (code=REFRESH_INVALID). 탈퇴한 사용자도 같다
+            (탈퇴 시 Refresh Token을 함께 지우므로 구분할 수 없다).
             재사용 탐지 여부는 응답으로 구분하지 않는다.
           headers:
             Set-Cookie:

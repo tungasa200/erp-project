@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.erp.common.test.OpenApiSnapshot;
@@ -17,6 +18,7 @@ import com.erp.common.test.OpenApiSnapshot;
  */
 @SpringBootTest
 @AutoConfigureMockMvc
+@Import(PostgresTestConfig.class)
 class OpenApiSnapshotTest {
 
 	@Autowired
