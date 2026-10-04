@@ -2,7 +2,7 @@ const path = require('path');
 const { Packer, Paragraph, TextRun, AlignmentType, PageBreak } = require('docx');
 const { p, h1, h2, bullet, gap, code, table, makeDoc, writeNew, ACCENT } = require('./lib');
 
-const VERSION = 'v1.7';
+const VERSION = 'v1.8';
 const TODAY = '2026-10-04';
 // WBS 표: ID, 작업, 산출물, 관련 요구사항, 화면 ID(화면정의서)
 const wbs = (rows) => table(['ID', '작업', '산출물', '관련 요구사항', '화면 ID'], rows, [9, 40, 14, 16, 21], [0]);
@@ -29,7 +29,7 @@ const children = [
   table(['항목', '내용'], [
     ['문서 버전', VERSION],
     ['작성일', TODAY],
-    ['근거 문서', '요구사항정의서_v1.5.docx, 화면정의서_v1.2.docx'],
+    ['근거 문서', '요구사항정의서_v1.6.docx, 화면정의서_v1.3.docx'],
     ['진행 방식', '고정 일정 없이 단계 순서와 완료 기준으로 진행'],
   ], [30, 70]),
   new Paragraph({ children: [new PageBreak()] }),
@@ -44,6 +44,7 @@ const children = [
     ['v1.5', '2026-10-04', '요구사항 v1.3(아키텍처 결정 D-27~D-36) 반영: P0-10 공통 기반·P0-11 서비스 간 연동·P4-13 오류 수집 신설, P0-01·04·07·09, P1-01, P2-03, P4-01·05·07 구체화, 싱가포르 리전·백업·운영 관측 반영, 연동·리전·감시·백업 리스크 추가'],
     ['v1.6', TODAY, '요구사항 v1.4(화면정의서 상호 점검, D-37~D-41) 반영: 비밀번호 규칙, 근무일 판단(업무 요일+공휴일, 공휴일 데이터 공용), 확인 대기 7일 범위·일괄 확인, 시간대 변경 시 날짜 불변, 일지 편집 보조·결재란·파일명·초안 내보내기, 키보드 단축키(UX-09)를 해당 WBS에 반영, QA 검증 보완(공휴일 리스크, 단축키 접근성, 파일명 규칙)'],
     ['v1.7', TODAY, '요구사항 v1.5(D-42~D-47) 반영: Railway 프로젝트 WY-ERP, 확정 버전·라이브러리(3.3), 저장소 구조에 common·contracts 추가, P0 통합 브랜치 규칙(3.2), 로컬 포트(7장), P0-01·04·07·09·10·11 구체화'],
+    ['v1.8', TODAY, '요구사항 v1.6(D-48~D-52) 반영: P0-05·09·10·11 구현 확정 사항, 로그아웃 UI 시점(4.1), 명세 스냅샷(contracts/generated)·gateway 계약(3.1·3.3), 운영 필수 환경변수(3.2), 배포 브랜치·Vercel Hobby·Gateway 직접 접근 차단(1.2·2·7장), P1-12 인증 코드 정리, P4-03 하단 탭 아이콘, P4-05 탈퇴 실제 삭제, P4-12 점검 모드, 진행현황 담당(5.2)'],
   ], [15, 20, 65], [0, 1]),
   gap(),
 
@@ -59,7 +60,7 @@ const children = [
     ['백엔드', 'Java 21, Spring Boot, MSA — 초기 서비스 3개 (api-gateway, identity-service, worklog-service)'],
     ['프론트엔드', 'React + Vite + TypeScript, 반응형 웹 → P4에서 PWA'],
     ['디자인', 'C안(친근한 플래너), 기본 화면은 홈 대시보드, 키 컬러·배경 사용자 설정, UI 글꼴 Pretendard'],
-    ['배포', '백엔드·DB: Railway 싱가포르 리전 / 프론트엔드: Vercel (rewrites로 /api/*를 Gateway에 프록시해 같은 사이트로 서비스)'],
+    ['배포', '백엔드·DB: Railway 싱가포르 리전 / 프론트엔드: Vercel Hobby (/api/*를 Gateway에 프록시해 같은 사이트로 서비스)'],
     ['서비스 간 연동', 'identity가 공통 프로필 원본, 사용자 변경 피드(pull)로 모듈별 읽기 전용 사본 갱신·탈퇴 전파, 내부 호출은 client credentials 서비스 토큰'],
     ['API 규약', 'UUIDv7, /api/{모듈}/ 접두사·버전 없음, cursor 페이지네이션, Problem Details, PATCH·version 잠금, OpenAPI'],
     ['운영', '외부 오류 추적·가동 감시 도구 없이 JSON 로그·traceId·Railway 헬스체크로 시작, 출시 직전 재검토'],
@@ -81,7 +82,7 @@ const children = [
   table(['항목', '내용', '필요 시점'], [
     ['GitHub 계정·저장소', '원격 저장소 생성 (private 권장). CI(GitHub Actions)와 Railway·Vercel 배포 연동에 사용', 'P0'],
     ['Railway 계정', 'Pro 워크스페이스 WY-ERP. 상시 실행 서비스와 리전 선택(싱가포르) 때문에 Pro 요금제 필요. 플랫폼 단위 프로젝트 WY-ERP 하나에 모든 모듈 서비스를 둔다 (D-42)', 'P0'],
-    ['Vercel 계정', '프론트엔드 배포. GitHub 저장소 연결', 'P0'],
+    ['Vercel 계정', 'Hobby 요금제. 프론트엔드 배포, GitHub 저장소 연결', 'P0'],
     ['로컬 개발 도구', 'JDK 21, Docker Desktop(로컬 PostgreSQL), Git. Node.js 24는 설치 확인됨', 'P0'],
     ['도메인', '서비스 도메인 구매. 메일 발송 도메인 인증(SPF·DKIM)에 필요 (D-11)', 'P0 전'],
     ['메일 발송 서비스', '이메일 인증 코드·비밀번호 재설정 메일 발송용 (예: Resend, Amazon SES). 구매한 도메인으로 발송 도메인 인증', 'P1'],
@@ -104,7 +105,8 @@ const children = [
     '├── frontend\\                 React + Vite + TS',
     '├── infra\\',
     '│   └── docker-compose.yml     로컬 PostgreSQL',
-    '├── contracts\\                API 계약 초안 identity.yaml·worklog.yaml (D-47)',
+    '├── contracts\\                API 계약 초안 identity·worklog·gateway.yaml (D-47)',
+    '│   └── generated\\            springdoc 명세 스냅샷 (프론트 타입 생성 원본)',
     '├── docs\\                     요구사항정의서, 작업계획서, 화면정의서, tools(생성 스크립트)',
     '└── .github\\workflows\\        CI',
   ]),
@@ -114,7 +116,7 @@ const children = [
     ['병합', 'Pull Request로 main에 병합. CI 통과가 병합 조건'],
     ['커밋 메시지', 'Conventional Commits + 요구사항 ID. 예: feat(TASK-01): 업무 생성 API 추가'],
     ['DB 변경', 'Flyway 마이그레이션 파일로만 변경. 이미 배포된 마이그레이션 파일은 수정하지 않음'],
-    ['비밀값', 'JWT 서명 개인키(PEM), DB 비밀번호 등은 저장소에 두지 않고 Railway·Vercel 환경변수로 관리. 로컬은 개발용 키를 별도로 사용'],
+    ['비밀값', 'JWT 서명 개인키(PEM), DB 비밀번호 등은 저장소에 두지 않고 Railway·Vercel 환경변수로 관리. 로컬은 개발용 키를 별도로 사용. 운영 프로필은 필수 비밀값이 없거나 해석되지 않으면 기동에 실패한다 (D-50). 서비스 클라이언트 비밀값은 identity와 호출하는 서비스 양쪽에 같은 값을 넣는다'],
   ], [18, 82]),
   h2('3.3 주요 라이브러리 (버전 숫자는 README 버전 표가 기준)'),
   table(['영역', '선택', '용도'], [
@@ -122,7 +124,7 @@ const children = [
     ['인증', 'Spring Security OAuth2 Resource Server, Nimbus JOSE (확정)', 'JWT(RS256) 발급·검증, JWKS'],
     ['요청 제한', 'Bucket4j + Caffeine (인스턴스 확장 시 Redis로 전환)', 'AUTH-09'],
     ['주기 작업', 'Spring @Scheduled + ShedLock (JDBC)', 'D-31'],
-    ['API 명세', '구현 전 contracts/{모듈}.yaml, 구현 후 springdoc-openapi 출력 기준, openapi-typescript로 프론트 타입 생성 (D-47)', 'D-30'],
+    ['API 명세', '구현 전 contracts/{모듈}.yaml, 구현 후 springdoc-openapi 출력 기준. 출력은 contracts/generated/*.json 스냅샷으로 두고 백엔드 테스트가 일치를 검사하며, openapi-typescript로 그 스냅샷에서 프론트 타입 생성 (CI가 생성 결과 일치 검사, D-47)', 'D-30'],
     ['추적·로그', 'Micrometer Tracing + Brave 브리지(W3C traceparent, 응답 헤더 X-Trace-Id), Spring Boot 기본 구조화 로그', 'NFR-09'],
     ['DB', 'Spring Data JPA, Flyway, PostgreSQL (Boot 관리 버전), UUIDv7은 Hibernate @UuidGenerator(VERSION_7)', '영속성, 스키마 마이그레이션'],
     ['반복 일정', 'ical4j (백엔드), rrule.js (프론트)', 'RFC 5545 RRULE 처리'],
@@ -146,15 +148,16 @@ const children = [
     ['P0-02', 'Git 저장소 초기화, 모노레포 구조 생성, GitHub 원격 연결, 진행현황 문서 생성', '저장소, docs/진행현황.md', '-', '-'],
     ['P0-03', '로컬 PostgreSQL (docker-compose), 서비스별 schema·DB 계정 생성 스크립트', 'docker-compose.yml', 'NFR-02', '-'],
     ['P0-04', 'api-gateway: 라우팅(/api/auth/** → identity 토큰 미검증, /api/users/me/**·/api/worklog/** → JWT 필수), 쿠키의 access_token을 Authorization: Bearer로 옮겨 전달, JWKS로 JWT 검증, 외부에서 온 Authorization·X-User-* 헤더 제거, 쓰기 요청 Origin 검사, traceId 생성·전달(X-Trace-Id), /internal/**·/.well-known/**·/actuator/** 미라우팅', 'gateway 모듈', 'NFR-02, 03, 09, 14', '-'],
-    ['P0-05', 'identity-service: 회원 가입(약관 동의), 로그인·로그아웃, RS256 키 로드와 JWKS 엔드포인트, 비밀번호 규칙 검증(8~64자·72바이트 이하, 영문·숫자, 이메일과 다름), 쿠키 토큰 발급, Refresh Token rotation·재사용 탐지·30초 유예, User·UserCredential·RefreshToken Flyway 스키마', 'identity 모듈', 'AUTH-01, 02, NFR-03', '-'],
+    ['P0-05', 'identity-service: 회원 가입(약관 동의), 로그인·로그아웃, RS256 키 로드와 JWKS 엔드포인트, 비밀번호 규칙 검증(8~64자·72바이트 이하, 영문·숫자, 이메일과 다름), 쿠키 토큰 발급, Refresh Token rotation·재사용 탐지·30초 유예(직전 토큰이 30초 안에 교체됐고 같은 세션에 유효한 토큰이 있을 때), 가입 기본 설정값, User·UserCredential·RefreshToken Flyway 스키마(로그인 보호용 칸은 미리 만들고 P1-14부터 사용)', 'identity 모듈', 'AUTH-01, 02, NFR-03', '-'],
     ['P0-06', 'worklog-service 골격: 헬스체크, JWT 검증(Resource Server)으로 사용자 식별, 테스트용 키·토큰 유틸(공통 모듈), Flyway 설정', 'worklog 모듈', 'NFR-03, 09', '-'],
     ['P0-07', '프론트엔드 골격: 라우팅, API 클라이언트(401이면 refresh 1회 후 재시도, 탭 안 동시 갱신은 1회로), 가입(국외 보관 안내 문구 포함)·로그인 화면, 기본 예외 화면, 테마 색 토큰 구조, Pretendard 적용', 'frontend', 'AUTH-01, 02, NFR-13', 'SCR-COM-01, SCR-AUTH-02, 03, SCR-SYS-01, 02'],
     ['P0-08', 'CI: PR마다 백엔드 빌드·테스트, 프론트 빌드·린트 실행', 'GitHub Actions', 'NFR-08', '-'],
-    ['P0-09', '배포: Railway 프로젝트 WY-ERP의 싱가포르 리전(서비스 3개 + PostgreSQL), Vercel(rewrites로 /api/* 프록시), 환경변수·서명 키·서비스 클라이언트 비밀값 설정, 배포 헬스체크 경로·재시작 정책. 검증: 아시아 리전 배포 가능 여부, 프록시의 응답 크기·시간 제한, Gateway 직접 접근 차단(Vercel이 붙이는 비밀 헤더) 가능 여부, 로그 보관 기간, 크래시 알림, 백업 주기·7일 보관 설정', '배포 URL, 검증 결과', 'NFR-05, 09, 14', '-'],
-    ['P0-10', '공통 기반 모듈: API 계약 초안(contracts/*.yaml), Problem Details 오류 처리(code·errors[]·traceId), UUIDv7 ID, JSON 로그, springdoc-openapi와 프론트 타입 생성, ShedLock 설정', '공통 모듈', 'NFR-09', '-'],
-    ['P0-11', '서비스 간 연동: identity 사용자 변경 피드(기록 직렬화)·탈퇴 기록·전체 목록 API, client credentials 서비스 토큰 발급, worklog 피드 소비(30초 + ShedLock, 멱등 갱신, 단일 행 커서)·사본 없을 때 즉시 조회(실패 시 503)·탈퇴 사용자 요청 거부(15분 뒤 재파기, 거부 목록 7일 뒤 정리), 정리 작업(만료 토큰·인증 코드·30일 지난 피드)', 'API, 주기 작업', 'AUTH-04, 05, 06, NFR-03', '-'],
+    ['P0-09', '배포: Railway 프로젝트 WY-ERP의 싱가포르 리전(서비스 3개 + PostgreSQL), Vercel Hobby(/api/* 프록시), 환경변수·서명 키·서비스 클라이언트 비밀값 설정, 배포 헬스체크 경로·재시작 정책, Gateway 직접 접근 차단(Vercel 프록시 비밀 헤더 없으면 404), 허용 Origin은 운영 도메인 하나(프리뷰 쓰기 요청 거부), 배포 브랜치는 P0 동안 feature/P0-skeleton (D-52). 검증: 아시아 리전 배포 가능 여부, 프록시의 응답 크기·시간 제한, 로그 보관 기간, 크래시 알림, 백업 주기·7일 보관 설정', '배포 URL, 검증 결과', 'NFR-05, 09, 14', '-'],
+    ['P0-10', '공통 기반 모듈: API 계약 초안(contracts/*.yaml), Problem Details 오류 처리(code·errors[]·traceId), UUIDv7 ID, JSON 로그, springdoc-openapi(공통 오류 형식 Problem·401 자동 설정)와 명세 스냅샷(contracts/generated) 내보내기·일치 검사, 스냅샷에서 프론트 타입 생성, ShedLock 설정', '공통 모듈', 'NFR-09', '-'],
+    ['P0-11', '서비스 간 연동: identity 사용자 변경 피드(기록 직렬화)·탈퇴 기록·전체 목록 API, client credentials 서비스 토큰 발급(설정이 원본 — 기동 시 비밀값 해시 반영·설정에 없는 행 삭제, aud=erp-internal·scope, 범위 부족 403), 피드 보관 경계(pruned_through보다 작은 커서 410)·전체 목록 asOfSeq 고정(D-51), worklog 피드 소비(30초 + ShedLock, 멱등 갱신, 단일 행 커서)·사본 없을 때 즉시 조회(실패 시 503)·탈퇴 사용자 요청 거부(15분 뒤 재파기, 거부 목록 7일 뒤 정리), identity 정리 작업(매시: 만료 토큰·30일 지난 피드)', 'API, 주기 작업', 'AUTH-04, 05, 06, NFR-03', '-'],
   ]),
   p('완료 기준: 배포된 프론트엔드에서 가입 → 로그인 → 인증이 필요한 API 호출까지 성공하고, 새로고침·새 탭에서도 로그인이 유지됨.', { spacing: { before: 120, after: 120 }, run: { bold: true } }),
+  p('AUTH-02 로그아웃은 P0에서 API와 테스트로 확인한다. 화면의 로그아웃 버튼은 P4(SCR-SET-06)에서 만든다.', { spacing: { after: 120 } }),
 
   heading('4.2', P1),
   wbs([
@@ -169,7 +172,7 @@ const children = [
     ['P1-09', '한 줄 빠른 입력: 문법 정의, 파서(한국어 상대 날짜 포함), 입력창 미리보기', '파서, 화면', 'REC-04', 'SCR-COM-02, SCR-ONB-02, SCR-CAL-06'],
     ['P1-10', '명령 팔레트, 키보드 단축키(입력창 포커스 시 단일 문자 단축키 미동작, 설정에서 끄기, event.code로 판별), 되돌리기 토스트(확인창 예외 3가지), 설정 없이 시작하는 첫 화면', '화면', 'UX-01, 03, 04, 09', 'SCR-COM-03, 04, SCR-HOME-01'],
     ['P1-11', '홈 대시보드 1차: 요약 카드, 남은 업무, 다가오는 일정 7일', '화면', 'SCH-05', 'SCR-HOME-01'],
-    ['P1-12', '이메일 인증: 메일 발송 연동, 인증번호 메일(제목에 코드 미포함), 6자리 코드 발급·확인(10분, 5회), 재발송 제한(60초, 하루 10통), 미인증 배너', 'API, 화면, 메일', 'AUTH-08', 'SCR-AUTH-08, SCR-COM-07, SCR-MAIL-01'],
+    ['P1-12', '이메일 인증: 메일 발송 연동, 인증번호 메일(제목에 코드 미포함), 6자리 코드 발급·확인(10분, 5회), 재발송 제한(60초, 하루 10통), 미인증 배너, 만료 인증 코드 정리(identity 정리 작업에 추가)', 'API, 화면, 메일', 'AUTH-08', 'SCR-AUTH-08, SCR-COM-07, SCR-MAIL-01'],
     ['P1-13', '비밀번호 재설정: 재설정 코드 메일(제목에 코드 미포함), 새 비밀번호 저장 시 이메일 인증 완료 처리와 모든 기기 로그아웃 (미인증 계정 되찾기)', 'API, 화면, 메일', 'AUTH-03', 'SCR-AUTH-04, 05, SCR-MAIL-02'],
     ['P1-14', '로그인 보호: 연속 실패 시 점진 지연, 10회 실패 시 15분 잠금, IP 단위 보조 제한, 로그인 화면 안내', 'API, 화면', 'AUTH-09', 'SCR-AUTH-02'],
   ]),
@@ -208,16 +211,16 @@ const children = [
   wbs([
     ['P4-01', '하루 마감 알림 (앱 내 알림 + PWA 웹 푸시, next_notify_at 기반 1분 주기 발송), 알림 센터', 'API, 화면', 'NOTI-01', 'SCR-SET-05, SCR-COM-05'],
     ['P4-02', '업무 통계 화면, [옵션] 예상 대비 실제 회고', '화면', 'STAT-01, UX-05', 'SCR-STAT-01'],
-    ['P4-03', 'PWA: manifest, service worker, 홈 화면 바로가기, 모바일 빠른 기록 버튼', 'frontend', 'NFR-06, UX-02', 'SCR-MOB-01, 02, SCR-COM-01'],
+    ['P4-03', 'PWA: manifest, service worker, 홈 화면 바로가기, 모바일 빠른 기록 버튼, 모바일 하단 탭 아이콘(P0~P3은 글자만)', 'frontend', 'NFR-06, UX-02', 'SCR-MOB-01, 02, SCR-COM-01'],
     ['P4-04', '(P1-13으로 이동 — 비밀번호 재설정)', '-', '-', '-'],
-    ['P4-05', '회원 탈퇴(탈퇴 기록·피드 전파·각 모듈 파기), 개인정보 처리방침(국외 이전 항목, 백업 7일 파기 고지)·이용약관 페이지', 'API, 화면', 'AUTH-06, NFR-10', 'SCR-SET-06, 07, SCR-AUTH-06, 07'],
+    ['P4-05', '회원 탈퇴(탈퇴 기록·피드 전파·각 모듈 파기, identity 계정 행 실제 삭제와 그 사용자의 과거 피드 이벤트 삭제 — 같은 이메일 즉시 재가입 가능, D-49), 개인정보 처리방침(국외 이전 항목, 백업 7일 파기 고지)·이용약관 페이지', 'API, 화면', 'AUTH-06, NFR-10', 'SCR-SET-06, 07, SCR-AUTH-06, 07'],
     ['P4-06', 'E2E 테스트: 가입 → 빠른 입력 → 계획 기반 기록 확정 → 하루 마감 → 이메일 인증 → 내보내기 (Chromium·WebKit 엔진, 모바일 화면 크기 포함)', 'Playwright 테스트', 'NFR-07, 08', '-'],
     ['P4-07', '운영 점검: DB 백업 확인, 백업 복원 후 탈퇴 기록 재적용 절차 시험, 로그, 헬스체크', '점검표', 'NFR-05, 09', '-'],
     ['P4-08', '비밀번호 변경 (다른 기기 로그인 세션 폐기와 안내)', 'API, 화면', 'AUTH-07', 'SCR-SET-06'],
     ['P4-09', '테마 설정: 키 컬러 프리셋·직접 선택, 배경 4종, 대비 4.5:1 글자색 자동 선택', 'API, 화면', 'UX-07', 'SCR-SET-04'],
     ['P4-10', '보관함: 보관한 업무·프로젝트 조회와 복원', '화면', 'TASK-08', 'SCR-TASK-04'],
     ['P4-11', '서비스 소개(랜딩) 페이지', '화면', 'UX-08', 'SCR-AUTH-01'],
-    ['P4-12', '예외 화면 다듬기: 점검, 네트워크 끊김 시 입력 비활성화, 세션 만료 후 원래 경로 복귀', '화면', 'NFR-13', 'SCR-SYS (화면정의서 참조)'],
+    ['P4-12', '점검 모드: Gateway가 환경변수(MAINTENANCE_MODE)로 켜면 /api/** 전체에 503 + code=MAINTENANCE(선택적 Retry-After, /actuator/health 제외, D-48)와 점검 화면. 예외 화면 다듬기: 네트워크 끊김 시 입력 비활성화(로그인 전 화면 포함), 세션 만료 후 원래 경로 복귀', 'gateway, 화면', 'NFR-13', 'SCR-SYS (화면정의서 참조)'],
     ['P4-13', '오류 수집: 프론트엔드 오류 수집 엔드포인트(토큰·입력값 제외, 요청 제한), (선택) 서버 오류 요약 메일', 'API, frontend', 'NFR-09', '-'],
   ]),
   p('완료 기준: 휴대폰에서 기록부터 하루 마감·내보내기까지 전 과정을 수행할 수 있음.', { spacing: { before: 120, after: 120 }, run: { bold: true } }),
@@ -247,7 +250,7 @@ const children = [
     ]),
     [22, 50, 28]),
   h2('5.2 진행 상황 기록'),
-  bullet('저장소의 docs/진행현황.md에 WBS 항목별 상태(대기 / 진행 중 / 완료)와 다음에 할 작업을 기록한다. P0-02에서 만든다.'),
+  bullet('저장소의 docs/진행현황.md에 WBS 항목별 담당·상태(대기 / 진행 중 / 완료)와 다음에 할 작업을 기록한다. P0-02에서 만들었고, 개발 총괄(project-pm)이 갱신한다.'),
   bullet('작업 세션을 시작할 때 진행현황을 먼저 확인해 이어서 진행하고, 끝날 때 갱신한다.'),
   bullet('결정 사항이나 범위가 바뀌면 요구사항정의서·작업계획서의 새 버전을 발행한다.'),
   gap(),
@@ -272,9 +275,10 @@ const children = [
   h1('7. 배포 계획'),
   table(['환경', '구성', '비고'], [
     ['로컬', 'docker-compose(PostgreSQL 18) + 각 서비스 로컬 실행(gateway 8080, identity 8081, worklog 8082) + Vite 개발 서버', '개발·테스트'],
-    ['운영', 'Railway 프로젝트 WY-ERP(싱가포르): api-gateway, identity-service, worklog-service, PostgreSQL\nVercel: frontend (rewrites로 /api/* → api-gateway 프록시)', 'main 병합 시 자동 배포'],
+    ['운영', 'Railway 프로젝트 WY-ERP(싱가포르): api-gateway, identity-service, worklog-service, PostgreSQL\nVercel(Hobby): frontend (/api/* → api-gateway 프록시)', '배포 브랜치 push 시 자동 배포 (P0 동안 feature/P0-skeleton, main 병합 후 main, D-52)'],
   ], [12, 63, 25], [0]),
   bullet('외부에는 api-gateway만 공개하고, 내부 서비스는 Railway private network로만 통신한다. 내부 서비스에 공개 도메인을 만들지 않는다.'),
+  bullet('Gateway는 Vercel 프록시가 붙이는 비밀 헤더가 없거나 틀린 요청을 404로 거부해 공개 주소로 직접 접근하지 못하게 한다. 쓰기 요청 허용 Origin은 운영 도메인 하나라서 Vercel 프리뷰 배포에서는 로그인·가입이 거부된다. 화면 확인은 로컬 mock 서버(npm run dev:mock)로 한다.'),
   bullet('프론트엔드와 API를 같은 사이트로 서비스한다. 인증 쿠키의 CSRF 방어가 이 구성을 전제로 하므로, 배포 환경을 바꿀 때는 같은 사이트가 유지되는지 먼저 확인한다 (NFR-14).'),
   bullet('JWT 서명 개인키는 identity-service 환경변수에만 둔다. 키 교체는 새 키를 JWKS에 함께 게시한 뒤 서명 키를 바꾸고, Access Token 만료(10분) 후 이전 키를 내린다.'),
   bullet('스테이징 환경은 비용 때문에 초기에는 두지 않는다. 필요해지면 Railway PR 환경을 검토한다.'),
@@ -294,7 +298,7 @@ const children = [
     ['회사별 업무일지 양식 차이', '제출 활용도 저하', '표준 서식으로 출시하고, 출시 후 1차 업데이트에서 회사 양식 매핑(LOG-17) 제공'],
     ['작업 간격이 벌어져 맥락을 잃음', '재개할 때마다 시간 낭비', '진행현황 문서(5.2)와 WBS ID로 다음 작업을 바로 이어감. 작업은 한 세션 안에 끝낼 크기로 나눔'],
     ['CSRF 방어가 같은 사이트 배포에 의존', '배포 변경 시 로그인 불가 또는 CSRF 노출', '배포 구성 변경 시 NFR-14 점검. 다른 사이트가 되면 CSRF 토큰 도입, SameSite=None은 별도 대책 없이 쓰지 않음'],
-    ['X-Forwarded-For 위조 (Gateway가 공개 주소)', 'IP 단위 로그인 제한 무력화', '계정 단위 제한을 주력으로(AUTH-09). P0-09에서 Gateway 직접 접근 차단 가능 여부 검증'],
+    ['X-Forwarded-For 위조 (Gateway가 공개 주소)', 'IP 단위 로그인 제한 무력화', '계정 단위 제한을 주력으로(AUTH-09). Gateway 직접 접근 차단(Vercel 프록시 비밀 헤더, P0-09)'],
     ['여러 탭의 동시 토큰 갱신', 'Refresh Token 재사용 탐지 오작동으로 로그아웃', '직전 Refresh Token 30초 유예 (AUTH-02)'],
     ['메일 발송 실패·스팸 분류', '이메일 인증·비밀번호 재설정 불가', '구매한 도메인으로 발송 도메인 인증(SPF·DKIM) 설정, 재발송 기능'],
     ['공휴일 데이터 갱신 누락', '캘린더 공휴일 표시 오류, 이월 대상일·주간·월간 제안 시점 오류 (D-37)', '연 1회 갱신을 진행현황에 일정으로 두고, 대체·임시 공휴일 발표 시 즉시 갱신 (D-25). JSON을 갱신하면 프론트엔드(Vercel)와 worklog-service를 함께 다시 배포'],
