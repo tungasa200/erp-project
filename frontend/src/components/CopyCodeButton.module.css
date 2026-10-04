@@ -1,0 +1,38 @@
+.wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-body);
+}
+
+.code {
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: var(--color-text);
+}
+
+.button {
+  height: 32px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 16px;
+  background: var(--color-surface);
+  color: #3b3f52;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* 어두운 토스트 위 */
+.inverted {
+  color: #c9ccdb;
+}
+.inverted .code {
+  color: #ffffff;
+}
+.inverted .button {
+  background: rgba(255, 255, 255, 0.14);
+  color: #ffffff;
+}
