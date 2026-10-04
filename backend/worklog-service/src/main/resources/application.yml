@@ -8,6 +8,8 @@ spring:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/erp}
     username: ${DB_USERNAME:worklog_app}
     password: ${DB_PASSWORD:worklog_app_local}
+    hikari:
+      schema: worklog # 계정 search_path에 기대지 않는다 (Testcontainers·Railway 계정에는 없음). JdbcClient SQL이 이 schema를 쓴다
   jpa:
     open-in-view: false
     hibernate:
@@ -29,7 +31,7 @@ worklog:
   identity:
     base-uri: ${IDENTITY_URI:http://localhost:8081}
     client-id: ${IDENTITY_CLIENT_ID:worklog}
-    client-secret: ${IDENTITY_CLIENT_SECRET:}
+    client-secret: ${IDENTITY_CLIENT_SECRET:worklog-local-secret} # identity non-prod 기본값과 같다. 운영은 Railway 환경변수
 
 management:
   endpoints:

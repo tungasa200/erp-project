@@ -1,5 +1,6 @@
 package com.erp.worklog.security;
 
+import com.erp.common.error.ProblemSecurityHandler;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -21,7 +22,7 @@ import java.util.List;
 public class SecurityConfig {
 
 	@Bean
-	SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+	SecurityFilterChain securityFilterChain(HttpSecurity http, ProblemSecurityHandler problems) throws Exception {
 		http
 				.csrf(csrf -> csrf.disable()) // 쿠키를 받지 않고 Bearer만 받는다. CSRF는 Gateway의 Origin 검사가 담당 (NFR-02)
 				.sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -29,7 +30,9 @@ public class SecurityConfig {
 						.requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
 						.requestMatchers("/api/worklog/**").authenticated()
 						.anyRequest().denyAll())
-				.oauth2ResourceServer(rs -> rs.jwt(jwt -> {}));
+				// 토큰 없음·검증 실패(401)와 거부 경로(403)도 Problem 형식으로 응답한다 (P0-10)
+				.oauth2ResourceServer(rs -> rs.jwt(jwt -> {}).authenticationEntryPoint(problems).accessDeniedHandler(problems))
+				.exceptionHandling(e -> e.authenticationEntryPoint(problems).accessDeniedHandler(problems));
 		return http.build();
 	}
 

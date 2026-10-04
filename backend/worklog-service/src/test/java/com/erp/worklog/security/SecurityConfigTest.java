@@ -5,9 +5,11 @@ import com.nimbusds.jose.JWSHeader;
 import com.nimbusds.jose.crypto.RSASSASigner;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
+import com.erp.common.autoconfigure.CommonWebAutoConfiguration;
 import com.erp.worklog.user.DeletedUserRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.ImportAutoConfiguration;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Bean;
@@ -29,6 +31,7 @@ import java.util.UUID;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
@@ -36,6 +39,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * TODO: common testFixtures(com.erp.common.test)의 키·토큰 유틸이 생기면 여기 키 생성을 그것으로 바꾼다.
  */
 @WebMvcTest(controllers = SecurityConfigTest.ProbeController.class)
+@ImportAutoConfiguration(CommonWebAutoConfiguration.class) // 슬라이스 테스트는 공통 자동 설정(ProblemSecurityHandler)을 읽지 않는다
 @Import({SecurityConfig.class, WebConfig.class, SecurityConfigTest.TestKeys.class, SecurityConfigTest.ProbeController.class})
 class SecurityConfigTest {
 
@@ -59,7 +63,9 @@ class SecurityConfigTest {
 
 	@Test
 	void missingTokenIsRejected() throws Exception {
-		mvc.perform(get("/api/worklog/probe")).andExpect(status().isUnauthorized());
+		mvc.perform(get("/api/worklog/probe"))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.code").value("UNAUTHENTICATED"));
 	}
 
 	@Test
@@ -84,13 +90,15 @@ class SecurityConfigTest {
 	@Test
 	void tokenSignedByOtherKeyIsRejected() throws Exception {
 		mvc.perform(get("/api/worklog/probe").header("Authorization", bearer(token(OTHER_KEYS, "erp-identity", "erp-api", 600))))
-				.andExpect(status().isUnauthorized());
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.code").value("UNAUTHENTICATED"));
 	}
 
 	@Test
 	void pathsOutsideWorklogApiAreDenied() throws Exception {
 		mvc.perform(get("/internal/anything").header("Authorization", bearer(token(KEYS, "erp-identity", "erp-api", 600))))
-				.andExpect(status().isForbidden());
+				.andExpect(status().isForbidden())
+				.andExpect(jsonPath("$.code").value("FORBIDDEN"));
 	}
 
 	private static String bearer(String token) {
