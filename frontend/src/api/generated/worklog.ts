@@ -25,6 +25,23 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** @description RFC 9457 Problem Details + 확장 필드 (P0-10 공통 모듈 형식) */
+        Problem: {
+            /** @description 기계 판독용 오류 코드 */
+            code: string;
+            detail?: string;
+            errors?: {
+                code: string;
+                field: string;
+                message?: string;
+            }[];
+            instance?: string;
+            status: number;
+            title: string;
+            traceId: string;
+            /** Format: uri-reference */
+            type: string;
+        };
         ProfileSnapshot: {
             name?: string | null;
             organization?: string | null;
@@ -57,7 +74,20 @@ export interface components {
             workHoursStart?: string | null;
         };
     };
-    responses: never;
+    responses: {
+        /**
+         * @description 토큰 없음·만료·서명 오류·aud 불일치 (code=UNAUTHENTICATED), 또는 탈퇴한 사용자 (code=USER_DELETED).
+         *     프론트는 UNAUTHENTICATED일 때 refresh 1회 후 재시도한다 (P0-07).
+         */
+        Unauthorized: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+    };
     parameters: never;
     requestBodies: never;
     headers: never;
@@ -74,13 +104,23 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description OK */
+            /** @description 조회 성공 */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["WorklogMe"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description 사본이 없고 identity 조회도 실패함 (code=PROFILE_UNAVAILABLE). 잠시 후 재시도. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };

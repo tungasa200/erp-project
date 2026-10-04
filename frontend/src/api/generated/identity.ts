@@ -106,10 +106,97 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/deleted-users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 탈퇴 기록 목록
+         * @description 재동기화와 백업 복원 후 탈퇴 재적용(D-34)에 쓴다.
+         */
+        get: operations["listDeletedUsers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/oauth/token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 서비스 토큰 발급 (OAuth2 client credentials) */
+        post: operations["issueServiceToken"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/user-events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 사용자 변경 피드
+         * @description seq 오름차순. seq는 단조 증가하지만 연속이 아닐 수 있다. 30일 보관.
+         */
+        get: operations["listUserEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 전체 사용자 목록 (재동기화용)
+         * @description 탈퇴 사용자 제외. 모든 페이지를 받은 뒤 커서를 asOfSeq로 두고 피드를 이어서 읽는다.
+         */
+        get: operations["listUsers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        DeletedUser: {
+            /** Format: date-time */
+            deletedAt: string;
+            /** Format: uuid */
+            userId: string;
+        };
+        DeletedUserPage: {
+            items: components["schemas"]["DeletedUser"][];
+            nextCursor?: string | null;
+        };
         LoginRequest: {
             email: string;
             password: string;
@@ -132,18 +219,32 @@ export interface components {
             /** Format: int32 */
             workDays: number;
         };
-        ProblemDetail: {
+        /** @description RFC 9457 Problem Details + 확장 필드 (P0-10 공통 모듈 형식) */
+        Problem: {
+            /** @description 기계 판독용 오류 코드 */
+            code: string;
             detail?: string;
-            /** Format: uri */
+            errors?: {
+                code: string;
+                field: string;
+                message?: string;
+            }[];
             instance?: string;
-            properties?: {
-                [key: string]: unknown;
-            };
+            status: number;
+            title: string;
+            traceId: string;
+            /** Format: uri-reference */
+            type: string;
+        };
+        Profile: {
+            name?: string | null;
+            organization?: string | null;
+            position?: string | null;
+            timezone: string;
+            /** @enum {string} */
+            weekStart: "MONDAY" | "TUESDAY" | "WEDNESDAY" | "THURSDAY" | "FRIDAY" | "SATURDAY" | "SUNDAY";
             /** Format: int32 */
-            status?: number;
-            title?: string;
-            /** Format: uri */
-            type?: string;
+            workDays: number;
         };
         SignupRequest: {
             agreePrivacy: boolean;
@@ -152,8 +253,48 @@ export interface components {
             email: string;
             password: string;
         };
+        UserEvent: {
+            /** Format: date-time */
+            occurredAt: string;
+            /** @description CREATED·PROFILE_UPDATED에만 있음. DELETED는 null */
+            profile?: components["schemas"]["Profile"];
+            /** Format: int64 */
+            seq: number;
+            /** @enum {string} */
+            type: "CREATED" | "PROFILE_UPDATED" | "DELETED";
+            /** Format: uuid */
+            userId: string;
+        };
+        UserEventPage: {
+            hasMore: boolean;
+            items: components["schemas"]["UserEvent"][];
+        };
+        UserItem: {
+            profile: components["schemas"]["Profile"];
+            /** Format: uuid */
+            userId: string;
+        };
+        UserPage: {
+            /** Format: int64 */
+            asOfSeq: number;
+            items: components["schemas"]["UserItem"][];
+            nextCursor?: string | null;
+        };
     };
-    responses: never;
+    responses: {
+        /**
+         * @description 토큰 없음·만료·서명 오류·aud 불일치 (code=UNAUTHENTICATED), 또는 탈퇴한 사용자 (code=USER_DELETED).
+         *     프론트는 UNAUTHENTICATED일 때 refresh 1회 후 재시도한다 (P0-07).
+         */
+        Unauthorized: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+    };
     parameters: never;
     requestBodies: never;
     headers: never;
@@ -211,7 +352,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
             /** @description INVALID_CREDENTIALS */
@@ -220,7 +361,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -271,7 +412,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -304,7 +445,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
             /** @description EMAIL_ALREADY_EXISTS */
@@ -313,7 +454,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -342,7 +483,217 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listDeletedUsers: {
+        parameters: {
+            query?: {
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 조회 성공 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["DeletedUserPage"];
+                };
+            };
+            /** @description INVALID_CURSOR(cursor 형식 오류) 또는 BAD_REQUEST(after·limit 누락·범위 밖) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description 서비스 토큰 없음·만료·aud 불일치 (UNAUTHENTICATED) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description 필요한 scope가 없음 (INSUFFICIENT_SCOPE) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    issueServiceToken: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/x-www-form-urlencoded": {
+                    grant_type?: string;
+                    scope?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description 발급 성공 (RFC 6749 5.1 형식이라 snake_case) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description error=unsupported_grant_type 또는 invalid_scope (RFC 6749 5.2) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description error=invalid_client (RFC 6749 5.2) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    listUserEvents: {
+        parameters: {
+            query: {
+                after: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 조회 성공 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["UserEventPage"];
+                };
+            };
+            /** @description INVALID_CURSOR(cursor 형식 오류) 또는 BAD_REQUEST(after·limit 누락·범위 밖) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description 서비스 토큰 없음·만료·aud 불일치 (UNAUTHENTICATED) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description 필요한 scope가 없음 (INSUFFICIENT_SCOPE) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description FEED_CURSOR_EXPIRED: after가 보관 기간 밖. 전체 재동기화한다 */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listUsers: {
+        parameters: {
+            query?: {
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 조회 성공 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["UserPage"];
+                };
+            };
+            /** @description INVALID_CURSOR(cursor 형식 오류) 또는 BAD_REQUEST(after·limit 누락·범위 밖) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description 서비스 토큰 없음·만료·aud 불일치 (UNAUTHENTICATED) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description 필요한 scope가 없음 (INSUFFICIENT_SCOPE) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
         };
