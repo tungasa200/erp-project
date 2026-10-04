@@ -16,7 +16,8 @@ permissions:
 
 jobs:
   backend:
-    runs-on: ubuntu-latest
+    # ubuntu-latest가 2026-10-19부터 26으로 바뀐다. P0 동안 고정하고 P0 병합 뒤 올린다
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: backend
@@ -37,7 +38,7 @@ jobs:
           retention-days: 7
 
   frontend:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: frontend
