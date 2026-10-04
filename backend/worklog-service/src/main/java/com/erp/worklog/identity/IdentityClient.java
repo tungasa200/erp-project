@@ -2,6 +2,7 @@ package com.erp.worklog.identity;
 
 import com.erp.worklog.user.Profile;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.core.env.Environment;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
@@ -26,6 +27,7 @@ import java.util.function.Supplier;
 public class IdentityClient {
 
 	static final String SCOPES = "user-events:read users:read";
+	static final String LOCAL_CLIENT_SECRET = "worklog-local-secret";
 
 	public record UserEvent(long seq, String type, UUID userId, Instant occurredAt, Profile profile) {
 	}
@@ -73,7 +75,12 @@ public class IdentityClient {
 	private String serviceToken;
 	private Instant serviceTokenRefreshAt = Instant.EPOCH;
 
-	IdentityClient(RestClient.Builder builder, IdentityProperties props, Clock clock) {
+	IdentityClient(RestClient.Builder builder, IdentityProperties props, Clock clock, Environment env) {
+		// 운영에서 비밀값이 빠지거나 로컬 기본값이면 피드 연동이 조용히 실패하므로 기동을 막는다
+		if (env.matchesProfiles("prod")
+				&& (props.clientSecret() == null || props.clientSecret().isBlank() || LOCAL_CLIENT_SECRET.equals(props.clientSecret()))) {
+			throw new IllegalStateException("prod 프로필에는 IDENTITY_CLIENT_SECRET이 필요합니다.");
+		}
 		this.rest = builder.baseUrl(props.baseUri()).build();
 		this.props = props;
 		this.clock = clock;

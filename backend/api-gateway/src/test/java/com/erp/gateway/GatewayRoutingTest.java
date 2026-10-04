@@ -82,7 +82,9 @@ class GatewayRoutingTest {
 				.header("X-User-Id", "attacker")
 				.exchange()
 				.expectStatus().isOk()
-				.expectHeader().exists(TraceIdFilter.HEADER);
+				.expectHeader().exists(TraceIdFilter.HEADER)
+				// Vercel은 외부 rewrite 응답을 upstream Cache-Control대로 캐시하므로 인증 응답은 no-store여야 한다 (P0-09)
+				.expectHeader().value("Cache-Control", v -> assertThat(v).contains("no-store"));
 
 		Headers forwarded = lastDownstreamHeaders.get();
 		assertThat(forwarded.getFirst("Authorization")).isEqualTo("Bearer " + token);

@@ -45,3 +45,13 @@ management:
   tracing:
     sampling:
       probability: 0.0 # 내보내는 곳(exporter)이 없으므로 수집하지 않고 traceId 전파·로그 표시만 쓴다
+---
+# 운영(Railway): SPRING_PROFILES_ACTIVE=prod. JSON 로그. IDENTITY_CLIENT_SECRET이 없거나 로컬 기본값이면 IdentityClient가 기동을 막는다
+spring:
+  config:
+    activate:
+      on-profile: prod
+logging:
+  structured:
+    format:
+      console: logstash
