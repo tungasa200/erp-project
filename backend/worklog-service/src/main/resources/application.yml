@@ -1,0 +1,41 @@
+server:
+  port: ${PORT:8082}
+
+spring:
+  application:
+    name: worklog-service
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/erp}
+    username: ${DB_USERNAME:worklog_app}
+    password: ${DB_PASSWORD:worklog_app}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        default_schema: worklog
+        jdbc:
+          time_zone: UTC
+  flyway:
+    schemas: worklog
+    default-schema: worklog
+
+worklog:
+  jwt:
+    jwk-set-uri: ${IDENTITY_JWKS_URI:http://localhost:8081/.well-known/jwks.json}
+    issuer: erp-identity
+    audience: erp-api
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  tracing:
+    sampling:
+      probability: 0.0 # 내보내는 곳(exporter)이 없으므로 수집하지 않고 traceId 전파·로그 표시만 쓴다
