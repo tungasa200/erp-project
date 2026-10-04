@@ -10,7 +10,6 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ProblemDetail;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,7 +37,7 @@ public class MeController {
 
 	@Operation(operationId = "getMe", summary = "현재 사용자 조회", security = @SecurityRequirement(name = "bearerAuth"))
 	@ApiResponse(responseCode = "200", description = "조회 성공")
-	@ApiResponse(responseCode = "401", description = "UNAUTHENTICATED 또는 USER_DELETED", content = @Content(mediaType = "application/problem+json", schema = @Schema(implementation = ProblemDetail.class)))
+	@ApiResponse(responseCode = "401", description = "UNAUTHENTICATED 또는 USER_DELETED", content = @Content(mediaType = "application/problem+json", schema = @Schema(ref = "#/components/schemas/Problem")))
 	@GetMapping
 	@Transactional(readOnly = true)
 	public Me me(@AuthenticationPrincipal Jwt jwt) {

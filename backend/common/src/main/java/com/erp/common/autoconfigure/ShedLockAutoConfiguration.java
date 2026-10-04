@@ -9,17 +9,19 @@ import net.javacrumbs.shedlock.spring.annotation.EnableSchedulerLock;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
  * 주기 작업(@Scheduled)을 인스턴스 하나에서만 돌린다 (D-31).
  * 각 서비스는 자기 schema에 shedlock 테이블을 Flyway로 만든다.
+ * 테스트처럼 주기 작업이 저절로 돌면 안 되는 곳은 erp.scheduling.enabled=false로 스케줄링만 끈다(잠금은 그대로).
  */
 @AutoConfiguration(afterName = "org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration")
 @ConditionalOnBean(DataSource.class)
-@EnableScheduling
 @EnableSchedulerLock(defaultLockAtMostFor = "PT10M")
 public class ShedLockAutoConfiguration {
 
@@ -30,6 +32,13 @@ public class ShedLockAutoConfiguration {
 			.withJdbcTemplate(new JdbcTemplate(dataSource))
 			.usingDbTime()
 			.build());
+	}
+
+	@Configuration(proxyBeanMethods = false)
+	@ConditionalOnProperty(name = "erp.scheduling.enabled", havingValue = "true", matchIfMissing = true)
+	@EnableScheduling
+	static class SchedulingConfiguration {
+
 	}
 
 }

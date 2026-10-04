@@ -1,6 +1,47 @@
 {
   "components" : {
+    "responses" : {
+      "Unauthorized" : {
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/Problem"
+            }
+          }
+        },
+        "description" : "토큰 없음·만료·서명 오류·aud 불일치 (code=UNAUTHENTICATED), 또는 탈퇴한 사용자 (code=USER_DELETED).\n프론트는 UNAUTHENTICATED일 때 refresh 1회 후 재시도한다 (P0-07)."
+      }
+    },
     "schemas" : {
+      "DeletedUser" : {
+        "properties" : {
+          "deletedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "userId" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "required" : [ "deletedAt", "userId" ],
+        "type" : "object"
+      },
+      "DeletedUserPage" : {
+        "properties" : {
+          "items" : {
+            "items" : {
+              "$ref" : "#/components/schemas/DeletedUser"
+            },
+            "type" : "array"
+          },
+          "nextCursor" : {
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "items" ],
+        "type" : "object"
+      },
       "LoginRequest" : {
         "properties" : {
           "email" : {
@@ -61,31 +102,78 @@
         "required" : [ "email", "emailVerified", "id", "themeAccent", "themeGround", "timezone", "version", "weekStart", "workDays" ],
         "type" : "object"
       },
-      "ProblemDetail" : {
+      "Problem" : {
+        "description" : "RFC 9457 Problem Details + 확장 필드 (P0-10 공통 모듈 형식)",
         "properties" : {
+          "code" : {
+            "description" : "기계 판독용 오류 코드",
+            "type" : "string"
+          },
           "detail" : {
             "type" : "string"
           },
+          "errors" : {
+            "items" : {
+              "properties" : {
+                "code" : {
+                  "type" : "string"
+                },
+                "field" : {
+                  "type" : "string"
+                },
+                "message" : {
+                  "type" : "string"
+                }
+              },
+              "required" : [ "field", "code" ],
+              "type" : "object"
+            },
+            "type" : "array"
+          },
           "instance" : {
-            "format" : "uri",
             "type" : "string"
           },
-          "properties" : {
-            "additionalProperties" : { },
-            "type" : "object"
-          },
           "status" : {
-            "format" : "int32",
             "type" : "integer"
           },
           "title" : {
             "type" : "string"
           },
+          "traceId" : {
+            "type" : "string"
+          },
           "type" : {
-            "format" : "uri",
+            "format" : "uri-reference",
             "type" : "string"
           }
         },
+        "required" : [ "type", "title", "status", "code", "traceId" ],
+        "type" : "object"
+      },
+      "Profile" : {
+        "properties" : {
+          "name" : {
+            "type" : [ "string", "null" ]
+          },
+          "organization" : {
+            "type" : [ "string", "null" ]
+          },
+          "position" : {
+            "type" : [ "string", "null" ]
+          },
+          "timezone" : {
+            "type" : "string"
+          },
+          "weekStart" : {
+            "enum" : [ "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY" ],
+            "type" : "string"
+          },
+          "workDays" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "timezone", "weekStart", "workDays" ],
         "type" : "object"
       },
       "SignupRequest" : {
@@ -109,6 +197,80 @@
         },
         "required" : [ "agreePrivacy", "agreeTerms", "email", "password" ],
         "type" : "object"
+      },
+      "UserEvent" : {
+        "properties" : {
+          "occurredAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "profile" : {
+            "$ref" : "#/components/schemas/Profile",
+            "description" : "CREATED·PROFILE_UPDATED에만 있음. DELETED는 null",
+            "type" : [ "object", "null" ]
+          },
+          "seq" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "type" : {
+            "enum" : [ "CREATED", "PROFILE_UPDATED", "DELETED" ],
+            "type" : "string"
+          },
+          "userId" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "required" : [ "occurredAt", "seq", "type", "userId" ],
+        "type" : "object"
+      },
+      "UserEventPage" : {
+        "properties" : {
+          "hasMore" : {
+            "type" : "boolean"
+          },
+          "items" : {
+            "items" : {
+              "$ref" : "#/components/schemas/UserEvent"
+            },
+            "type" : "array"
+          }
+        },
+        "required" : [ "hasMore", "items" ],
+        "type" : "object"
+      },
+      "UserItem" : {
+        "properties" : {
+          "profile" : {
+            "$ref" : "#/components/schemas/Profile"
+          },
+          "userId" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "required" : [ "profile", "userId" ],
+        "type" : "object"
+      },
+      "UserPage" : {
+        "properties" : {
+          "asOfSeq" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "items" : {
+            "items" : {
+              "$ref" : "#/components/schemas/UserItem"
+            },
+            "type" : "array"
+          },
+          "nextCursor" : {
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "asOfSeq", "items" ],
+        "type" : "object"
       }
     },
     "securitySchemes" : {
@@ -116,11 +278,17 @@
         "bearerFormat" : "JWT",
         "scheme" : "bearer",
         "type" : "http"
+      },
+      "serviceToken" : {
+        "bearerFormat" : "JWT",
+        "description" : "/internal/oauth/token으로 받은 서비스 토큰 (aud=erp-internal, scope 필수)",
+        "scheme" : "bearer",
+        "type" : "http"
       }
     }
   },
   "info" : {
-    "title" : "OpenAPI definition",
+    "title" : "identity-service API",
     "version" : "v0"
   },
   "openapi" : "3.1.0",
@@ -173,7 +341,7 @@
             "content" : {
               "application/problem+json" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/ProblemDetail"
+                  "$ref" : "#/components/schemas/Problem"
                 }
               }
             },
@@ -183,7 +351,7 @@
             "content" : {
               "application/problem+json" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/ProblemDetail"
+                  "$ref" : "#/components/schemas/Problem"
                 }
               }
             },
@@ -240,7 +408,7 @@
             "content" : {
               "application/problem+json" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/ProblemDetail"
+                  "$ref" : "#/components/schemas/Problem"
                 }
               }
             },
@@ -279,7 +447,7 @@
             "content" : {
               "application/problem+json" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/ProblemDetail"
+                  "$ref" : "#/components/schemas/Problem"
                 }
               }
             },
@@ -289,7 +457,7 @@
             "content" : {
               "application/problem+json" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/ProblemDetail"
+                  "$ref" : "#/components/schemas/Problem"
                 }
               }
             },
@@ -318,7 +486,7 @@
             "content" : {
               "application/problem+json" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/ProblemDetail"
+                  "$ref" : "#/components/schemas/Problem"
                 }
               }
             },
@@ -331,11 +499,297 @@
         "summary" : "현재 사용자 조회",
         "tags" : [ "me" ]
       }
+    },
+    "/internal/deleted-users" : {
+      "get" : {
+        "description" : "재동기화와 백업 복원 후 탈퇴 재적용(D-34)에 쓴다.",
+        "operationId" : "listDeletedUsers",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "cursor",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "default" : 100,
+            "format" : "int32",
+            "maximum" : 500,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DeletedUserPage"
+                }
+              }
+            },
+            "description" : "조회 성공"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "INVALID_CURSOR(cursor 형식 오류) 또는 BAD_REQUEST(after·limit 누락·범위 밖)"
+          },
+          "401" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "서비스 토큰 없음·만료·aud 불일치 (UNAUTHENTICATED)"
+          },
+          "403" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "필요한 scope가 없음 (INSUFFICIENT_SCOPE)"
+          }
+        },
+        "security" : [ {
+          "serviceToken" : [ "users:read" ]
+        } ],
+        "summary" : "탈퇴 기록 목록",
+        "tags" : [ "internal" ]
+      }
+    },
+    "/internal/oauth/token" : {
+      "post" : {
+        "operationId" : "issueServiceToken",
+        "requestBody" : {
+          "content" : {
+            "application/x-www-form-urlencoded" : {
+              "schema" : {
+                "properties" : {
+                  "grant_type" : {
+                    "type" : "string"
+                  },
+                  "scope" : {
+                    "type" : "string"
+                  }
+                },
+                "type" : "object"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "additionalProperties" : { },
+                  "type" : "object"
+                }
+              }
+            },
+            "description" : "발급 성공 (RFC 6749 5.1 형식이라 snake_case)"
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "additionalProperties" : { },
+                  "type" : "object"
+                }
+              }
+            },
+            "description" : "error=unsupported_grant_type 또는 invalid_scope (RFC 6749 5.2)"
+          },
+          "401" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "additionalProperties" : { },
+                  "type" : "object"
+                }
+              }
+            },
+            "description" : "error=invalid_client (RFC 6749 5.2)"
+          }
+        },
+        "summary" : "서비스 토큰 발급 (OAuth2 client credentials)",
+        "tags" : [ "internal" ]
+      }
+    },
+    "/internal/user-events" : {
+      "get" : {
+        "description" : "seq 오름차순. seq는 단조 증가하지만 연속이 아닐 수 있다. 30일 보관.",
+        "operationId" : "listUserEvents",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "after",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "minimum" : 0,
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "default" : 100,
+            "format" : "int32",
+            "maximum" : 500,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UserEventPage"
+                }
+              }
+            },
+            "description" : "조회 성공"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "INVALID_CURSOR(cursor 형식 오류) 또는 BAD_REQUEST(after·limit 누락·범위 밖)"
+          },
+          "401" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "서비스 토큰 없음·만료·aud 불일치 (UNAUTHENTICATED)"
+          },
+          "403" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "필요한 scope가 없음 (INSUFFICIENT_SCOPE)"
+          },
+          "410" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "FEED_CURSOR_EXPIRED: after가 보관 기간 밖. 전체 재동기화한다"
+          }
+        },
+        "security" : [ {
+          "serviceToken" : [ "user-events:read" ]
+        } ],
+        "summary" : "사용자 변경 피드",
+        "tags" : [ "internal" ]
+      }
+    },
+    "/internal/users" : {
+      "get" : {
+        "description" : "탈퇴 사용자 제외. 모든 페이지를 받은 뒤 커서를 asOfSeq로 두고 피드를 이어서 읽는다.",
+        "operationId" : "listUsers",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "cursor",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "default" : 100,
+            "format" : "int32",
+            "maximum" : 500,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UserPage"
+                }
+              }
+            },
+            "description" : "조회 성공"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "INVALID_CURSOR(cursor 형식 오류) 또는 BAD_REQUEST(after·limit 누락·범위 밖)"
+          },
+          "401" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "서비스 토큰 없음·만료·aud 불일치 (UNAUTHENTICATED)"
+          },
+          "403" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "필요한 scope가 없음 (INSUFFICIENT_SCOPE)"
+          }
+        },
+        "security" : [ {
+          "serviceToken" : [ "users:read" ]
+        } ],
+        "summary" : "전체 사용자 목록 (재동기화용)",
+        "tags" : [ "internal" ]
+      }
     }
   },
   "servers" : [ {
-    "description" : "Generated server url",
-    "url" : "http://localhost"
+    "url" : "/"
   } ],
   "tags" : [ {
     "description" : "가입·로그인·토큰 갱신·로그아웃 (AUTH-01, AUTH-02, AUTH-09)",
@@ -343,6 +797,9 @@
   }, {
     "description" : "현재 사용자 공통 프로필 (identity가 원본, D-27)",
     "name" : "me"
+  }, {
+    "description" : "서비스 간 API (client credentials 서비스 토큰, D-28·D-29)",
+    "name" : "internal"
   }, {
     "description" : "JWT 공개키 (내부 전용)",
     "name" : "jwks"

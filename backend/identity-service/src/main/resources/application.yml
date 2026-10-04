@@ -29,6 +29,12 @@ identity:
     # PKCS#8 PEM. 비어 있으면 실행할 때마다 임시 키를 만든다(로컬 전용). 운영은 아래 prod 프로필에서 필수.
     private-key: ${JWT_PRIVATE_KEY:}
     key-id: ${JWT_KEY_ID:local}
+  # 서비스 토큰 클라이언트 (D-29). 기동 시 BCrypt 해시로 service_clients에 반영한다(ServiceClientRegistrar).
+  # 로컬 기본 비밀값은 worklog의 IDENTITY_CLIENT_SECRET 기본값과 같다. 운영은 prod 프로필에서 기본값 없이 받는다.
+  service-clients:
+    worklog:
+      secret: ${WORKLOG_CLIENT_SECRET:worklog-local-secret}
+      scopes: user-events:read users:read
 
 management:
   endpoints:
@@ -58,3 +64,6 @@ identity:
     # 기본값이 없으므로 환경 변수가 없으면 기동에 실패한다. 재시작마다 키가 바뀌면 모든 로그인이 끊긴다.
     private-key: ${JWT_PRIVATE_KEY}
     key-id: ${JWT_KEY_ID}
+  service-clients:
+    worklog:
+      secret: ${WORKLOG_CLIENT_SECRET}

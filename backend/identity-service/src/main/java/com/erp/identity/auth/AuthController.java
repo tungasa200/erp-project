@@ -47,8 +47,8 @@ public class AuthController {
 
 	@Operation(operationId = "signup", summary = "회원 가입 후 바로 로그인")
 	@ApiResponse(responseCode = "201", description = "가입·로그인 성공. 쿠키 2종 발급")
-	@ApiResponse(responseCode = "400", description = "VALIDATION_FAILED (errors[].code는 contracts/identity.yaml)", content = @Content(mediaType = "application/problem+json", schema = @Schema(implementation = ProblemDetail.class)))
-	@ApiResponse(responseCode = "409", description = "EMAIL_ALREADY_EXISTS", content = @Content(mediaType = "application/problem+json", schema = @Schema(implementation = ProblemDetail.class)))
+	@ApiResponse(responseCode = "400", description = "VALIDATION_FAILED (errors[].code는 contracts/identity.yaml)", content = @Content(mediaType = "application/problem+json", schema = @Schema(ref = "#/components/schemas/Problem")))
+	@ApiResponse(responseCode = "409", description = "EMAIL_ALREADY_EXISTS", content = @Content(mediaType = "application/problem+json", schema = @Schema(ref = "#/components/schemas/Problem")))
 	@PostMapping("/signup")
 	public ResponseEntity<Me> signup(@Valid @RequestBody SignupRequest request) {
 		AuthService.Session session = auth.signUp(request);
@@ -59,8 +59,8 @@ public class AuthController {
 
 	@Operation(operationId = "login", summary = "이메일·비밀번호 로그인")
 	@ApiResponse(responseCode = "200", description = "로그인 성공. 쿠키 2종 발급")
-	@ApiResponse(responseCode = "400", description = "VALIDATION_FAILED", content = @Content(mediaType = "application/problem+json", schema = @Schema(implementation = ProblemDetail.class)))
-	@ApiResponse(responseCode = "401", description = "INVALID_CREDENTIALS", content = @Content(mediaType = "application/problem+json", schema = @Schema(implementation = ProblemDetail.class)))
+	@ApiResponse(responseCode = "400", description = "VALIDATION_FAILED", content = @Content(mediaType = "application/problem+json", schema = @Schema(ref = "#/components/schemas/Problem")))
+	@ApiResponse(responseCode = "401", description = "INVALID_CREDENTIALS", content = @Content(mediaType = "application/problem+json", schema = @Schema(ref = "#/components/schemas/Problem")))
 	@PostMapping("/login")
 	public ResponseEntity<Me> login(@Valid @RequestBody LoginRequest request) {
 		AuthService.Session session = auth.login(request);
@@ -69,7 +69,7 @@ public class AuthController {
 
 	@Operation(operationId = "refresh", summary = "Access Token 갱신 (Refresh Token rotation)")
 	@ApiResponse(responseCode = "204", description = "access_token은 항상, refresh_token은 정상 rotation일 때만 Set-Cookie (30초 유예면 없음)")
-	@ApiResponse(responseCode = "401", description = "REFRESH_INVALID. 쿠키 2종을 지운다", content = @Content(mediaType = "application/problem+json", schema = @Schema(implementation = ProblemDetail.class)))
+	@ApiResponse(responseCode = "401", description = "REFRESH_INVALID. 쿠키 2종을 지운다", content = @Content(mediaType = "application/problem+json", schema = @Schema(ref = "#/components/schemas/Problem")))
 	@PostMapping("/refresh")
 	public ResponseEntity<?> refresh(@CookieValue(name = AuthCookies.REFRESH, required = false) String refreshToken) {
 		if (refreshTokens.refresh(refreshToken) instanceof RefreshTokenService.Outcome.Refreshed refreshed) {

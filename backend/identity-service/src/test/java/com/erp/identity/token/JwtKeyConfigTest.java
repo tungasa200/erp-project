@@ -26,6 +26,14 @@ class JwtKeyConfigTest {
 	}
 
 	@Test
+	void 환경_변수가_없어_자리표시자가_그대로_들어오면_기동에_실패한다() {
+		assertThatThrownBy(() -> new JwtProperties("${JWT_PRIVATE_KEY}", "k1"))
+			.isInstanceOf(IllegalStateException.class);
+		assertThatThrownBy(() -> new JwtProperties("", "${JWT_KEY_ID}")).isInstanceOf(IllegalStateException.class);
+		new JwtProperties("", "local"); // 로컬: 키 없음 → 임시 키
+	}
+
+	@Test
 	void 읽을_수_없는_키면_기동에_실패한다() {
 		assertThatThrownBy(() -> JwtKeyConfig.fromPem("not a key")).isInstanceOf(IllegalStateException.class);
 	}

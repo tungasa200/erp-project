@@ -11,6 +11,7 @@ import java.security.spec.RSAPublicKeySpec;
 import java.util.Base64;
 import java.util.List;
 
+import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.KeyUse;
@@ -69,6 +70,20 @@ public class JwtKeyConfig {
 		return new DelegatingOAuth2TokenValidator<>(JwtValidators.createDefaultWithIssuer(JwtClaimNames.ISSUER),
 				new JwtClaimValidator<List<String>>("aud",
 						aud -> aud != null && aud.contains(JwtClaimNames.AUDIENCE_API)));
+	}
+
+	/** /internal/** 검증용. aud=erp-internal만 허용하며 scope는 SCOPE_ 권한으로 바뀐다. 사용자 토큰은 여기서 거부된다. */
+	public static JwtDecoder serviceTokenDecoder(RSAKey signingKey) {
+		try {
+			NimbusJwtDecoder decoder = NimbusJwtDecoder.withPublicKey(signingKey.toRSAPublicKey()).build();
+			decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(
+					JwtValidators.createDefaultWithIssuer(JwtClaimNames.ISSUER), new JwtClaimValidator<List<String>>(
+							"aud", aud -> aud != null && aud.contains(JwtClaimNames.AUDIENCE_INTERNAL))));
+			return decoder;
+		}
+		catch (JOSEException ex) {
+			throw new IllegalStateException(ex);
+		}
 	}
 
 	private static RSAKey.Builder temporaryKey() {

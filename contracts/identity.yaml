@@ -316,6 +316,8 @@ paths:
                       $ref: '#/components/schemas/UserEvent'
                   hasMore:
                     type: boolean
+        '400':
+          $ref: '#/components/responses/InvalidInternalQuery'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -365,6 +367,8 @@ paths:
                   asOfSeq:
                     type: integer
                     format: int64
+        '400':
+          $ref: '#/components/responses/InvalidInternalQuery'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -403,6 +407,8 @@ paths:
                           format: date-time
                   nextCursor:
                     type: [string, 'null']
+        '400':
+          $ref: '#/components/responses/InvalidInternalQuery'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -468,6 +474,14 @@ components:
       description: |
         토큰 없음·만료·서명 오류·aud 불일치 (code=UNAUTHENTICATED), 또는 탈퇴한 사용자 (code=USER_DELETED).
         프론트는 UNAUTHENTICATED일 때 refresh 1회 후 재시도한다 (P0-07).
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    InvalidInternalQuery:
+      description: |
+        cursor 형식이 틀림 (code=INVALID_CURSOR, 이전 응답의 nextCursor를 그대로 보내야 한다),
+        또는 after·limit 누락·범위 밖 (code=BAD_REQUEST).
       content:
         application/problem+json:
           schema:
