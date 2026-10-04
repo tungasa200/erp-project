@@ -1,29 +1,9 @@
-// 임시 타입: P0-10에서 springdoc 출력으로 생성한 타입으로 교체한다. (contracts/identity.yaml 기준)
-export type WeekStart = 'MONDAY' | 'TUESDAY' | 'WEDNESDAY' | 'THURSDAY' | 'FRIDAY' | 'SATURDAY' | 'SUNDAY'
+// API 타입은 명세 스냅샷(contracts/generated/*.json)으로 생성한 타입을 쓴다. 다시 만들 때는 npm run gen:api.
+// Problem은 아직 스냅샷에 없어 problem.ts에 손으로 둔다(common 오류 형식이 스냅샷에 들어오면 교체).
+import type { components } from './generated/identity'
 
-export interface Me {
-  id: string
-  email: string
-  emailVerified: boolean
-  name?: string | null
-  organization?: string | null
-  position?: string | null
-  timezone: string
-  weekStart: WeekStart
-  workDays: number
-  themeAccent: string
-  themeGround: string
-  version: number
-}
+type IdentitySchemas = components['schemas']
 
-export interface SignupRequest {
-  email: string
-  password: string
-  agreeTerms: boolean
-  agreePrivacy: boolean
-}
-
-export interface LoginRequest {
-  email: string
-  password: string
-}
+export type Me = IdentitySchemas['Me']
+export type SignupRequest = IdentitySchemas['SignupRequest']
+export type LoginRequest = IdentitySchemas['LoginRequest']

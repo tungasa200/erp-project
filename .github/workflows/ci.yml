@@ -49,6 +49,12 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
+      # 생성 타입(src/api/generated)이 명세 스냅샷과 같은지 검사한다. 다르면 로컬에서 npm run gen:api 후 함께 커밋한다.
+      - name: 생성 타입 일치 검사
+        run: |
+          npm run gen:api
+          git diff --exit-code -- src/api/generated
+          test -z "$(git status --porcelain -- src/api/generated)"
       - run: npm run lint
       - run: npm run format:check
       - run: npm test
