@@ -52,7 +52,8 @@ export const tagApi = {
   list: () => api.request<{ items: Tag[] }>('/api/worklog/tags'),
   rename: (id: string, body: { version: number; name: string }) =>
     api.request<Tag>(`/api/worklog/tags/${id}`, { method: 'PATCH', body }),
-  remove: (id: string) => api.request<void>(`/api/worklog/tags/${id}`, { method: 'DELETE' }),
+  remove: (id: string, options: { keepalive?: boolean } = {}) =>
+    api.request<void>(`/api/worklog/tags/${id}`, { method: 'DELETE', keepalive: options.keepalive }),
 }
 
 export function useProjects() {

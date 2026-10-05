@@ -78,7 +78,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const closeUndo = useCallback(() => {
     const item = undoRef.current
     clearUndo()
-    item?.commits.forEach((commit) => commit())
+    item?.commits.forEach((commit) => commit({ keepalive: false }))
   }, [clearUndo])
 
   const startTimer = useCallback(
@@ -104,7 +104,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         })
       } else {
         // 다른 동작의 토스트로 바뀌면 앞 동작은 더 되돌릴 수 없으니 확정한다.
-        current?.commits.forEach((c) => c())
+        current?.commits.forEach((c) => c({ keepalive: false }))
         setUndo({ id: nextId.current++, group, count: 1, message, undos: [undo], commits })
       }
       remaining.current = DURATION_MS
@@ -139,6 +139,26 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     setPaused(false)
     startTimer(remaining.current)
   }
+
+  // 페이지를 떠나거나 숨기면 미뤄 둔 동작을 바로 확정한다(사용자 결정 P1-02-07). 토스트도 함께 치워 같은 동작이
+  // 두 번 나가지 않게 한다. 모바일 브라우저는 탭을 닫을 때 pagehide를 주지 않기도 해 visibilitychange도 본다.
+  useEffect(() => {
+    const flush = () => {
+      const item = undoRef.current
+      if (!item?.commits.length) return
+      clearUndo()
+      item.commits.forEach((commit) => commit({ keepalive: true }))
+    }
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') flush()
+    }
+    window.addEventListener('pagehide', flush)
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => {
+      window.removeEventListener('pagehide', flush)
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
+  }, [clearUndo])
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {

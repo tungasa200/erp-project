@@ -248,6 +248,30 @@
   color: var(--color-danger);
 }
 
+/* 누르는 영역 넓히기 (P1-02-09, 2.5 터치 영역 44px): 보이는 크기는 그대로 두고 투명한 가상 요소로 넓힌다 */
+.smallButton,
+.colorOption,
+.iconButton {
+  position: relative;
+}
+
+.smallButton::after,
+.colorOption::after,
+.iconButton::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: max(100%, 44px);
+  height: max(100%, 44px);
+  transform: translate(-50%, -50%);
+}
+
+.title:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
 .srOnly {
   position: absolute;
   width: 1px;

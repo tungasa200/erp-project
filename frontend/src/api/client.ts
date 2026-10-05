@@ -14,6 +14,8 @@ export interface RequestOptions {
   method?: string
   body?: unknown
   signal?: AbortSignal
+  /** 페이지를 떠나는 중에도 요청을 끝까지 보낸다 (지연 삭제 확정, P1-02-07) */
+  keepalive?: boolean
 }
 
 const REFRESH_PATH = '/api/auth/refresh'
@@ -62,6 +64,7 @@ export function createApiClient({ fetchFn, onSessionExpired, onMaintenance = () 
         body,
         credentials: 'same-origin',
         signal: options.signal,
+        keepalive: options.keepalive,
       })
     } catch (e) {
       if (e instanceof DOMException && e.name === 'AbortError') throw e

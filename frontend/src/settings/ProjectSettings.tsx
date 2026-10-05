@@ -1,6 +1,6 @@
 // SCR-SET-08 설정 — 프로젝트·태그 (TASK-04). 프로젝트는 삭제 없이 보관만 하고(되돌리기 토스트), 태그는 이름 변경과 사용 수를 보여 준다.
 import { useQueryClient } from '@tanstack/react-query'
-import { useId, useState, type FormEvent } from 'react'
+import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { toastForError } from '../api/errorToast'
 import { ApiError } from '../api/problem'
 import { useToast } from '../components/useToast'
@@ -205,9 +205,22 @@ function TagSection() {
   const { showToast, showUndo } = useToast()
   const { data: tags, isPending, isError, refetch } = useTags()
 
+  const headingRef = useRef<HTMLHeadingElement>(null)
+  // 지운 뒤 포커스를 둘 곳: 다음 태그의 ✎, 없으면 목록 머리 (P1-02-10)
+  const [focusAfterRemove, setFocusAfterRemove] = useState<string | null>(null)
+  useEffect(() => {
+    if (focusAfterRemove === null) return
+    const next = document.querySelector<HTMLButtonElement>(`[data-tag-edit="${focusAfterRemove}"]`)
+    ;(next ?? headingRef.current)?.focus()
+    setFocusAfterRemove(null)
+  }, [focusAfterRemove])
+
   // 태그 삭제는 되돌릴 수 없는 API라, 화면에서 먼저 빼고 되돌리기 토스트가 닫힐 때 보낸다(P1-02 결정 A안).
-  // 토스트가 떠 있는 동안 탭을 닫으면 삭제 요청은 나가지 않는다(지워지지 않는 쪽으로 실패).
+  // 새로 고침·탭 닫기 때는 토스트가 keepalive로 바로 확정한다(P1-02-07).
   const remove = (tag: Tag) => {
+    const index = tags?.findIndex((t) => t.id === tag.id) ?? -1
+    const rest = tags?.filter((t) => t.id !== tag.id) ?? []
+    setFocusAfterRemove(rest[index]?.id ?? rest[index - 1]?.id ?? '')
     queryClient.setQueryData<Tag[]>(TAGS_QUERY_KEY, (list) => list?.filter((t) => t.id !== tag.id))
     showUndo({
       group: 'delete-tag',
@@ -217,8 +230,8 @@ function TagSection() {
           [...(list ?? []), tag].sort((a, b) => a.name.localeCompare(b.name)),
         )
       },
-      commit: () =>
-        void tagApi.remove(tag.id).catch((error: unknown) => {
+      commit: ({ keepalive }) =>
+        void tagApi.remove(tag.id, { keepalive }).catch((error: unknown) => {
           // 이미 지워졌으면(404) 원하던 결과다.
           if (error instanceof ApiError && error.status === 404) return
           void refetch()
@@ -229,7 +242,7 @@ function TagSection() {
 
   return (
     <section aria-labelledby="settings-tags" className={styles.panel}>
-      <h2 id="settings-tags" className={styles.title}>
+      <h2 id="settings-tags" ref={headingRef} tabIndex={-1} className={styles.title}>
         태그
       </h2>
       {isPending && <p className={styles.muted}>불러오는 중…</p>}
@@ -260,16 +273,30 @@ function TagChip({ tag, onRemove }: { tag: Tag; onRemove: () => void }) {
   const [name, setName] = useState(tag.name)
   const [error, setError] = useState<string | null>(null)
   const id = useId()
+  const editButton = useRef<HTMLButtonElement>(null)
+  // Enter·Esc로 편집을 끝내면 ✎로 포커스를 돌려준다. 바깥을 눌러 끝낼 때는 누른 곳에 둔다 (P1-02-10)
+  const [returnFocus, setReturnFocus] = useState(false)
+  useEffect(() => {
+    if (!editing && returnFocus) {
+      editButton.current?.focus()
+      setReturnFocus(false)
+    }
+  }, [editing, returnFocus])
 
-  const cancel = () => {
+  const cancel = (refocus = false) => {
     setEditing(false)
     setName(tag.name)
     setError(null)
+    setReturnFocus(refocus)
   }
 
-  const save = async () => {
+  const save = async (refocus = false) => {
     const next = name.trim()
-    if (next === tag.name) return cancel()
+    if (next === tag.name) return cancel(refocus)
+    if (next === '') {
+      setError('태그 이름을 적어 주세요')
+      return
+    }
     if (!TAG_NAME.test(next)) {
       setError('공백과 #은 쓸 수 없고 30자까지예요')
       return
@@ -279,12 +306,13 @@ function TagChip({ tag, onRemove }: { tag: Tag; onRemove: () => void }) {
       queryClient.setQueryData<Tag[]>(TAGS_QUERY_KEY, (list) => list?.map((t) => (t.id === updated.id ? updated : t)))
       setEditing(false)
       setError(null)
+      setReturnFocus(refocus)
     } catch (err) {
       if (err instanceof ApiError && err.code === 'DUPLICATE_NAME') setError('같은 이름의 태그가 있어요')
       else if (err instanceof ApiError && err.code === 'VERSION_CONFLICT') {
         void queryClient.refetchQueries({ queryKey: TAGS_QUERY_KEY })
         showToast('다른 곳에서 먼저 수정돼서 새로 불러왔어요. 다시 해 주세요')
-        cancel()
+        cancel(refocus)
       } else showToast(...spread(toastForError(err)))
     }
   }
@@ -295,8 +323,10 @@ function TagChip({ tag, onRemove }: { tag: Tag; onRemove: () => void }) {
         <span>#{tag.name}</span>
         <span className={styles.count}>{tag.usageCount}</span>
         <button
+          ref={editButton}
           type="button"
           className={styles.iconButton}
+          data-tag-edit={tag.id}
           aria-label={`${tag.name} 태그 이름 바꾸기`}
           onClick={() => setEditing(true)}
         >
@@ -321,8 +351,8 @@ function TagChip({ tag, onRemove }: { tag: Tag; onRemove: () => void }) {
         onChange={(e) => setName(e.target.value)}
         onKeyDown={(e) => {
           if (e.nativeEvent.isComposing) return
-          if (e.key === 'Enter') void save()
-          if (e.key === 'Escape') cancel()
+          if (e.key === 'Enter') void save(true)
+          if (e.key === 'Escape') cancel(true)
         }}
         onBlur={() => void save()}
         aria-invalid={error !== null}

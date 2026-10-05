@@ -40,6 +40,7 @@ function setup(options: { createProblem?: string } = {}) {
   ]
   const tags = [tag('t1', '결제', 4), tag('t2', '견적', 3)]
   const calls: { method: string; url: string; body?: unknown }[] = []
+  const keepalives: boolean[] = []
   const record = (method: string, url: string, init?: RequestInit) =>
     calls.push({ method, url, body: init?.body ? JSON.parse(String(init.body)) : undefined })
 
@@ -63,7 +64,8 @@ function setup(options: { createProblem?: string } = {}) {
       if (body.name === '견적') return problem(409, 'DUPLICATE_NAME')
       return json(200, { ...tag('t1', body.name, 4), version: 1 })
     },
-    'DELETE /api/worklog/tags/t2': () => {
+    'DELETE /api/worklog/tags/t2': (init) => {
+      keepalives.push(init?.keepalive ?? false)
       record('DELETE', '/api/worklog/tags/t2')
       return new Response(null, { status: 204 })
     },
@@ -76,7 +78,7 @@ function setup(options: { createProblem?: string } = {}) {
       </ToastProvider>
     </QueryClientProvider>,
   )
-  return { calls }
+  return { calls, keepalives }
 }
 
 describe('SCR-SET-08 프로젝트', () => {
@@ -187,5 +189,43 @@ describe('SCR-SET-08 태그', () => {
     await userEvent.click(screen.getByRole('button', { name: '개발 보관' }))
     expect(await screen.findByText('프로젝트 1개를 보관했어요')).toBeInTheDocument()
     await waitFor(() => expect(calls.map((c) => c.method)).toEqual(['PATCH', 'DELETE']))
+  })
+  it('P1-02-07 지운 뒤 새로 고침·탭 닫기(pagehide)면 DELETE를 keepalive로 바로 한 번만 보낸다', async () => {
+    const { calls, keepalives } = setup()
+    await userEvent.click(await screen.findByRole('button', { name: '견적 태그 이름 바꾸기' }))
+    await userEvent.click(screen.getByRole('button', { name: '삭제' }))
+    window.dispatchEvent(new Event('pagehide'))
+    await waitFor(() => expect(calls.map((c) => c.method)).toEqual(['DELETE']))
+    expect(keepalives).toEqual([true])
+    // 토스트도 치워서 닫힐 때 다시 보내지 않는다
+    expect(screen.queryByText('태그 1개를 지웠어요')).not.toBeInTheDocument()
+    window.dispatchEvent(new Event('pagehide'))
+    expect(calls).toHaveLength(1)
+  })
+
+  it('P1-02-10 Enter·Esc로 편집을 끝내면 ✎로, 지우면 다음 태그의 ✎로 포커스가 간다', async () => {
+    setup()
+    const edit = await screen.findByRole('button', { name: '결제 태그 이름 바꾸기' })
+    await userEvent.click(edit)
+    await userEvent.keyboard('{Escape}')
+    expect(screen.getByRole('button', { name: '결제 태그 이름 바꾸기' })).toHaveFocus()
+
+    await userEvent.click(screen.getByRole('button', { name: '결제 태그 이름 바꾸기' }))
+    await userEvent.click(screen.getByRole('button', { name: '삭제' }))
+    expect(screen.getByRole('button', { name: '견적 태그 이름 바꾸기' })).toHaveFocus()
+
+    await userEvent.click(screen.getByRole('button', { name: '견적 태그 이름 바꾸기' }))
+    await userEvent.click(screen.getByRole('button', { name: '삭제' }))
+    // 남은 태그가 없으면 목록 머리로
+    expect(screen.getByRole('heading', { name: '태그' })).toHaveFocus()
+  })
+
+  it('태그 이름을 비우면 1자 이상 적으라고 알린다', async () => {
+    const { calls } = setup()
+    await userEvent.click(await screen.findByRole('button', { name: '결제 태그 이름 바꾸기' }))
+    await userEvent.clear(screen.getByRole('textbox', { name: '태그 이름' }))
+    await userEvent.keyboard('{Enter}')
+    expect(screen.getByRole('alert')).toHaveTextContent('태그 이름을 적어 주세요')
+    expect(calls).toEqual([])
   })
 })

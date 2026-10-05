@@ -6,8 +6,9 @@ export interface UndoOptions {
   message: (count: number) => string
   undo: () => void | Promise<void>
   /** 되돌리지 않고 토스트가 닫힐 때(시간 끝, 닫기, 다른 동작의 토스트로 바뀜) 실행한다.
-   *  되돌릴 수 없는 API(태그 삭제)는 이때 보낸다(P1-02 결정 A안) */
-  commit?: () => void
+   *  되돌릴 수 없는 API(태그·일정 삭제)는 이때 보낸다(P1-02 결정 A안). 새로 고침·탭 닫기·탭 숨김에서도
+   *  한 번만 실행하며, 그때는 keepalive=true이므로 요청에 keepalive를 넘겨야 끝까지 간다(P1-02-07) */
+  commit?: (options: { keepalive: boolean }) => void
 }
 
 export interface ToastValue {
