@@ -215,7 +215,7 @@ describe('SCR-AUTH-03 회원가입', () => {
     const { router } = renderApp('/signup')
     await fillSignup(' New@Example.com ', 'worklog20')
 
-    expect(await screen.findByRole('heading', { name: '홈' })).toBeInTheDocument()
+    expect(await screen.findByRole('textbox', { name: '빠른 기록' })).toBeInTheDocument()
     expect(router.state.location.pathname).toBe('/')
     expect(body).toEqual({ email: 'New@Example.com', password: 'worklog20', agreeTerms: true, agreePrivacy: true })
   })

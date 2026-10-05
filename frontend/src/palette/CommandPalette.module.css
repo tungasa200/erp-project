@@ -1,0 +1,148 @@
+/* SCR-COM-03 명령 팔레트 (목업 COM-03) */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 70px 16px 16px;
+  background: rgba(26, 28, 43, 0.45);
+}
+
+.dialog {
+  width: min(640px, 100%);
+  max-height: min(520px, calc(100dvh - 86px));
+  display: flex;
+  flex-direction: column;
+  border-radius: 22px;
+  background: var(--color-surface);
+  box-shadow: 0 24px 60px rgba(26, 28, 43, 0.35);
+  overflow: hidden;
+}
+
+.command {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+
+.search {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 20px;
+  border-bottom: 1px solid #eef0f6;
+  color: var(--color-text-muted);
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  font: inherit;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-text);
+  background: transparent;
+}
+
+.kbd {
+  flex: none;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  background: var(--color-ground);
+  border-radius: 8px;
+  padding: 4px 8px;
+}
+
+.list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 8px 10px;
+}
+
+.group [cmdk-group-heading] {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  padding: 12px 12px 6px;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  padding: 8px 12px;
+  box-sizing: border-box;
+  border-radius: 12px;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.item[data-selected='true'] {
+  background: var(--color-accent-softer);
+}
+
+.icon {
+  width: 28px;
+  height: 28px;
+  flex: none;
+  border-radius: 9px;
+  background: var(--color-ground);
+  color: #3b3f52;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.item[data-selected='true'] .icon {
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+.label {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.footer {
+  display: flex;
+  gap: 18px;
+  padding: 12px 20px;
+  border-top: 1px solid #eef0f6;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.footerEnd {
+  margin-left: auto;
+}
+
+@media (max-width: 767px) {
+  .overlay {
+    padding: 0;
+  }
+
+  .dialog {
+    width: 100%;
+    max-height: none;
+    height: 100dvh;
+    border-radius: 0;
+  }
+
+  .footer {
+    display: none;
+  }
+}

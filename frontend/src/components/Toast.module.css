@@ -50,3 +50,51 @@
   justify-content: center;
   cursor: pointer;
 }
+
+/* SCR-COM-04 되돌리기 토스트 (목업 COM-04) */
+.undo {
+  position: relative;
+  overflow: hidden;
+  min-width: min(420px, 100%);
+  border-radius: 18px;
+}
+
+.undoButton {
+  height: 40px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 20px;
+  background: var(--color-accent-light);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.progress {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: 3px;
+  background: var(--color-accent-light);
+  transform-origin: left;
+  animation: undo-countdown 5s linear forwards;
+}
+
+.paused .progress {
+  animation-play-state: paused;
+}
+
+@keyframes undo-countdown {
+  to {
+    transform: scaleX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progress {
+    animation: none;
+  }
+}

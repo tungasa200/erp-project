@@ -2,6 +2,7 @@ import { createBrowserRouter } from 'react-router'
 import { AppShell } from '../components/AppShell'
 import { GuestOnly, RequireAuth } from './guards'
 import { ErrorPage } from '../pages/ErrorPage'
+import { HomePage } from '../pages/HomePage'
 import { LoginPage } from '../pages/LoginPage'
 import { NotFoundPage } from '../pages/NotFoundPage'
 import { PlaceholderPage } from '../pages/PlaceholderPage'
@@ -24,8 +25,7 @@ export const routes = [
           {
             element: <AppShell />,
             children: [
-              // 홈 대시보드는 P1. 지금은 자리만 둔다.
-              { path: '/', element: <PlaceholderPage title="홈" /> },
+              { path: '/', element: <HomePage /> },
               { path: '/calendar', element: <PlaceholderPage title="캘린더" /> },
               { path: '/tasks', element: <PlaceholderPage title="업무" /> },
               { path: '/logs', element: <PlaceholderPage title="업무일지" /> },

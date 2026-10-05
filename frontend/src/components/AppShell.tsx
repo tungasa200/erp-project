@@ -1,6 +1,10 @@
 // SCR-COM-01 앱 셸 (P0 골격). 알림(SCR-COM-05)·타이머(SCR-COM-06)·프로젝트 목록·빠른 기록은 이후 단계에서 채운다.
-import { NavLink, Outlet } from 'react-router'
+// 명령 팔레트(Ctrl+K)와 빠른 입력 단축키(N)는 앱 화면 어디서든 동작한다 (P1-10).
+import { useCallback, useEffect, useState } from 'react'
+import { NavLink, Outlet, useNavigate } from 'react-router'
 import { useAuth } from '../auth/useAuth'
+import { CommandPalette } from '../palette/CommandPalette'
+import { useSingleKeyShortcuts } from '../shortcuts/useShortcuts'
 import styles from './AppShell.module.css'
 import { useOnline } from './useOnline'
 
@@ -50,6 +54,31 @@ const navClass = ({ isActive }: { isActive: boolean }) =>
 export function AppShell() {
   const { user } = useAuth()
   const online = useOnline()
+  const navigate = useNavigate()
+  const [paletteOpen, setPaletteOpen] = useState(false)
+
+  // 지금 화면에 빠른 입력창이 있으면 거기로, 없으면 홈의 입력창으로 간다.
+  const quickAdd = useCallback(
+    (text?: string) => {
+      const input = document.querySelector<HTMLInputElement>('[data-quick-input]')
+      if (input && text === undefined) input.focus()
+      else navigate('/', { state: { quickText: text, focusQuick: true } })
+    },
+    [navigate],
+  )
+  const closePalette = useCallback(() => setPaletteOpen(false), [])
+
+  useSingleKeyShortcuts({ KeyN: () => quickAdd() })
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.shiftKey || e.altKey || e.code !== 'KeyK') return
+      e.preventDefault()
+      setPaletteOpen((open) => !open)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [])
 
   return (
     <div className={styles.shell}>
@@ -110,6 +139,8 @@ export function AppShell() {
           더보기
         </button>
       </nav>
+
+      {paletteOpen && <CommandPalette onClose={closePalette} onQuickAdd={quickAdd} />}
     </div>
   )
 }
