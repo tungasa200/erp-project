@@ -1,9 +1,10 @@
 openapi: 3.1.0
 info:
   title: worklog-service API
-  version: 0.2.0
+  version: 0.3.0
   description: |
     구현 전 합의용 계약. P0 범위(GET /api/worklog/me)는 구현 완료, P1-01~03 범위는 2026-10-05 확정(구현 전).
+    P1-05·06 일정 범위(schedules)는 2026-10-06 확정.
     구현 후에는 springdoc 출력(contracts/generated/worklog.json)이 기준이다 (D-47).
     규약은 요구사항정의서 5.5를 따른다: /api/worklog/ 접두사, 버전 없음,
     시각은 UTC ISO-8601, 날짜는 YYYY-MM-DD, 시간대는 IANA 이름, camelCase,
@@ -33,6 +34,8 @@ tags:
     description: 태그 — P1-02 (TASK-04, SCR-SET-08)
   - name: tasks
     description: 업무 — P1-03 (TASK-01·02·03·05, SCR-TASK-01·02), 목록 필터는 P1-04 (TASK-06)
+  - name: schedules
+    description: 일정 — P1-05 일정 CRUD·종일 (SCH-02), P1-06 반복 (SCH-03, D-24), SCR-CAL-07·08
 paths:
   /api/worklog/me:
     get:
@@ -522,6 +525,192 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+  /api/worklog/schedules:
+    get:
+      tags: [schedules]
+      operationId: listOccurrences
+      summary: 기간 안의 일정 회차 (캘린더 일·주·월·연·목록 보기)
+      description: |
+        [from, to)와 겹치는 회차를 시작 시각순으로 준다. 반복 일정은 이 기간의 회차로 전개하고,
+        "이 일정만"으로 바꾼 회차는 바뀐 값으로, 삭제한 회차는 빼고 준다.
+        겹침 판단: 시간 일정은 [startAt, endAt), 종일 일정은 일정 시간대(timezone)의 [startDate 0시, endDate 다음 날 0시).
+        기간은 최대 400일(연 보기 대비). 페이지네이션 없이 한 번에 준다.
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          required: true
+          description: from보다 뒤, from + 400일 이내
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Occurrence'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [schedules]
+      operationId: createSchedule
+      summary: 일정 추가 (반복 포함)
+      description: |
+        timezone은 사용자 프로필의 현재 시간대로 정해지며 바꿀 수 없다(반복 전개·종일 날짜의 기준, D-40).
+        프로필 사본이 없으면 identity에서 바로 가져온다(실패하면 503).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScheduleCreate'
+      responses:
+        '201':
+          description: 생성됨
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Schedule'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          $ref: '#/components/responses/ProfileUnavailable'
+  /api/worklog/schedules/{scheduleId}:
+    parameters:
+      - $ref: '#/components/parameters/ScheduleId'
+    get:
+      tags: [schedules]
+      operationId: getSchedule
+      summary: 일정 조회 (반복 일정은 원본 규칙)
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Schedule'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [schedules]
+      operationId: updateSchedule
+      summary: 일정 수정 — 반복 일정이면 "모든 일정" (SCR-CAL-08)
+      description: |
+        보낸 칸만 바꾼다. 종일 여부를 바꾸면 새 종류의 시각 칸(startAt·endAt 또는 startDate·endDate)을 함께 보내야 한다.
+        반복 일정에서 시각(startAt·endAt·startDate·endDate·allDay)이나 recurrence를 바꾸면 "이 일정만"으로 바꾸거나 삭제한 회차 기록을 모두 지운다
+        (회차의 기준 시각이 달라지기 때문). 제목·메모·연결 업무만 바꾸면 회차 기록은 남고, 회차에서 따로 바꾼 칸은 회차 값이 그대로 보인다.
+        recurrence에 null을 보내면 반복을 없앤다(원본 시각의 일정 하나만 남는다).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SchedulePatch'
+      responses:
+        '200':
+          description: 수정 후 전체
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Schedule'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/VersionConflict'
+    delete:
+      tags: [schedules]
+      operationId: deleteSchedule
+      summary: 일정 삭제 — 반복 일정이면 "모든 일정"
+      description: 일정과 회차 기록을 함께 지운다(되돌릴 수 없음). 이미 없으면 404. version을 받지 않는다.
+      responses:
+        '204':
+          description: 삭제됨
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/worklog/schedules/{scheduleId}/occurrences/{occurrenceStart}:
+    parameters:
+      - $ref: '#/components/parameters/ScheduleId'
+      - $ref: '#/components/parameters/OccurrenceStart'
+    patch:
+      tags: [schedules]
+      operationId: updateOccurrence
+      summary: 반복 일정의 한 회차만 수정 — "이 일정만" (SCR-CAL-08, 블록 이동 포함)
+      description: |
+        제목·메모·시각만 바꿀 수 있다(종일 여부·반복·연결 업무는 일정 전체 수정으로).
+        시각은 일정의 종류에 맞는 칸(시간 일정: startAt·endAt, 종일: startDate·endDate)만 받는다. 다른 회차와 겹치게 옮겨도 된다.
+        version은 일정(Schedule)의 version이다. 성공하면 일정의 version이 오른다.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OccurrencePatch'
+      responses:
+        '200':
+          description: 수정한 회차
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Occurrence'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: 일정이 없거나 occurrenceStart가 그 일정의 회차가 아님(이미 삭제한 회차 포함) (code=NOT_FOUND)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: version 불일치(code=VERSION_CONFLICT) 또는 반복 일정이 아님(code=NOT_RECURRING, 일정 전체 API를 쓴다)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+    delete:
+      tags: [schedules]
+      operationId: deleteOccurrence
+      summary: 반복 일정의 한 회차만 삭제 — "이 일정만"
+      description: 그 회차를 목록에서 뺀다. 일정의 version이 오른다. version을 받지 않는다. 이미 삭제한 회차면 204.
+      responses:
+        '204':
+          description: 삭제됨
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: 반복 일정이 아님 (code=NOT_RECURRING)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
 
 components:
   securitySchemes:
@@ -551,6 +740,21 @@ components:
       schema:
         type: string
         format: uuid
+    ScheduleId:
+      name: scheduleId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    OccurrenceStart:
+      name: occurrenceStart
+      in: path
+      required: true
+      description: 회차 키 (Occurrence.occurrenceStart를 그대로, 예 2026-10-06T00:00:00Z)
+      schema:
+        type: string
+        format: date-time
   responses:
     Unauthorized:
       description: |
@@ -569,8 +773,9 @@ components:
     ValidationFailed:
       description: |
         입력 오류 (code=VALIDATION_FAILED). errors[]에 칸별 오류.
-        errors[].code: REQUIRED, TOO_LONG, INVALID_FORMAT, OUT_OF_RANGE, NOT_FOUND(참조한 프로젝트·태그가 없음),
-        INVALID_ORDER(업무 시간대 종료가 시작보다 앞서거나 같음).
+        errors[].code: REQUIRED, TOO_LONG, INVALID_FORMAT, OUT_OF_RANGE, NOT_FOUND(참조한 프로젝트·태그·업무가 없음),
+        INVALID_ORDER(업무 시간대 종료가 시작보다 앞서거나 같음, 일정 종료가 시작보다 앞서거나 같음·종일 일정 endDate가 startDate보다 앞섬,
+        목록 조회 to가 from보다 앞서거나 같음).
       content:
         application/problem+json:
           schema:
@@ -917,6 +1122,232 @@ components:
         memo:
           type: [string, 'null']
           maxLength: 5000
+
+    Recurrence:
+      type: object
+      description: |
+        반복 규칙 (SCH-03, SCR-CAL-07 ③). 저장은 RFC 5545 RRULE 문자열로 하고(FREQ·BYDAY·UNTIL·COUNT, INTERVAL=1), API는 이 형태로 주고받는다.
+        첫 회차는 항상 일정의 시작이다. 그래서 매주는 weekdays에 시작일(일정 시간대)의 요일이 들어 있어야 한다(아니면 OUT_OF_RANGE).
+        매월은 시작일과 같은 날짜이며, 그 날짜가 없는 달(예 31일)은 건너뛴다.
+        회차 시각은 일정 시간대(timezone)의 벽시계 시각으로 유지한다(서머타임이 있는 시간대에서도 같은 현지 시각).
+        until과 count는 함께 쓸 수 없다. 둘 다 없으면 끝없이 반복한다.
+      required: [frequency]
+      properties:
+        frequency:
+          type: string
+          enum: [DAILY, WEEKLY, MONTHLY]
+        weekdays:
+          type: array
+          description: WEEKLY에서만, 1개 이상 필수
+          items:
+            type: string
+            enum: [MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY, SUNDAY]
+        until:
+          type: [string, 'null']
+          format: date
+          description: 이 날짜(일정 시간대)까지의 회차 포함. 시작일보다 앞서면 OUT_OF_RANGE
+        count:
+          type: [integer, 'null']
+          minimum: 1
+          maximum: 999
+          description: 회차 수 (삭제한 회차도 센다)
+    Schedule:
+      type: object
+      description: |
+        일정 원본 (SCH-02). allDay=false면 startAt·endAt, true면 startDate·endDate(포함)가 값을 갖고 나머지 두 칸은 null이다.
+      required: [id, title, allDay, timezone, createdAt, updatedAt, version]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        allDay:
+          type: boolean
+        startAt:
+          type: [string, 'null']
+          format: date-time
+        endAt:
+          type: [string, 'null']
+          format: date-time
+        startDate:
+          type: [string, 'null']
+          format: date
+        endDate:
+          type: [string, 'null']
+          format: date
+          description: 마지막 날 포함 (하루짜리 종일 일정은 startDate와 같다)
+        timezone:
+          type: string
+          description: 반복 전개와 종일 날짜의 기준 IANA 시간대. 만들 때 사용자 시간대로 정해지며 바뀌지 않는다
+          example: Asia/Seoul
+        recurrence:
+          oneOf:
+            - $ref: '#/components/schemas/Recurrence'
+            - type: 'null'
+        taskId:
+          type: [string, 'null']
+          format: uuid
+          description: 연결 업무 (SCR-CAL-07 ④). 프로젝트는 업무를 따른다
+        memo:
+          type: [string, 'null']
+          maxLength: 5000
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        version:
+          type: integer
+          format: int64
+    ScheduleCreate:
+      type: object
+      required: [title, allDay]
+      description: |
+        allDay=false면 startAt·endAt 필수(endAt > startAt), true면 startDate·endDate 필수(endDate >= startDate).
+        다른 종류의 두 칸은 보내지 않거나 null이어야 한다(아니면 INVALID_FORMAT). 제목은 앞뒤 공백을 빼고 저장한다.
+        taskId는 보관하지 않은 내 업무여야 한다(아니면 NOT_FOUND). 15분 단위는 화면 조작 규칙이며 서버는 강제하지 않는다.
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        allDay:
+          type: boolean
+        startAt:
+          type: [string, 'null']
+          format: date-time
+        endAt:
+          type: [string, 'null']
+          format: date-time
+        startDate:
+          type: [string, 'null']
+          format: date
+        endDate:
+          type: [string, 'null']
+          format: date
+        recurrence:
+          oneOf:
+            - $ref: '#/components/schemas/Recurrence'
+            - type: 'null'
+        taskId:
+          type: [string, 'null']
+          format: uuid
+        memo:
+          type: [string, 'null']
+          maxLength: 5000
+    SchedulePatch:
+      type: object
+      required: [version]
+      description: 보낸 칸만 바꾼다. 검증 규칙은 ScheduleCreate와 같다(바꾼 뒤의 전체 값으로 검사).
+      properties:
+        version:
+          type: integer
+          format: int64
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        allDay:
+          type: boolean
+        startAt:
+          type: [string, 'null']
+          format: date-time
+        endAt:
+          type: [string, 'null']
+          format: date-time
+        startDate:
+          type: [string, 'null']
+          format: date
+        endDate:
+          type: [string, 'null']
+          format: date
+        recurrence:
+          oneOf:
+            - $ref: '#/components/schemas/Recurrence'
+            - type: 'null'
+        taskId:
+          type: [string, 'null']
+          format: uuid
+        memo:
+          type: [string, 'null']
+          maxLength: 5000
+    OccurrencePatch:
+      type: object
+      required: [version]
+      description: 보낸 칸만 바꾼다. memo에 null을 보내면 이 회차의 메모만 비운다.
+      properties:
+        version:
+          type: integer
+          format: int64
+          description: 일정(Schedule)의 version
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        startAt:
+          type: string
+          format: date-time
+        endAt:
+          type: string
+          format: date-time
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        memo:
+          type: [string, 'null']
+          maxLength: 5000
+    Occurrence:
+      type: object
+      description: |
+        캘린더에 그리는 일정 회차 하나. 반복이 없는 일정도 회차 하나로 준다.
+        occurrenceStart는 회차 키다: 원래(바꾸기 전) 시작 시각 — 종일 일정은 원래 시작일의 일정 시간대 0시.
+        회차를 옮겨도 키는 바뀌지 않는다. 기록 연결(P2, WorkRecord)도 이 키를 쓴다.
+      required: [scheduleId, occurrenceStart, recurring, modified, title, allDay, version]
+      properties:
+        scheduleId:
+          type: string
+          format: uuid
+        occurrenceStart:
+          type: string
+          format: date-time
+        recurring:
+          type: boolean
+          description: 반복 일정의 회차인지 (반복 아이콘, 수정 시 범위 선택 SCR-CAL-08)
+        modified:
+          type: boolean
+          description: '"이 일정만"으로 바꾼 회차인지'
+        title:
+          type: string
+        allDay:
+          type: boolean
+        startAt:
+          type: [string, 'null']
+          format: date-time
+        endAt:
+          type: [string, 'null']
+          format: date-time
+        startDate:
+          type: [string, 'null']
+          format: date
+        endDate:
+          type: [string, 'null']
+          format: date
+        taskId:
+          type: [string, 'null']
+          format: uuid
+        memo:
+          type: [string, 'null']
+        version:
+          type: integer
+          format: int64
+          description: 일정(Schedule)의 version. 회차·전체 수정 모두 이 값을 보낸다
 
     Problem:
       type: object
