@@ -14,7 +14,8 @@ import com.erp.common.autoconfigure.OpenApiAutoConfiguration;
 import com.erp.common.error.Problems;
 
 /**
- * 로그인 429 응답 본문 RateLimitedProblem (contracts/identity.yaml). Problem + retryAfterSeconds.
+ * 확장 필드가 있는 오류 본문 (contracts/identity.yaml): RateLimitedProblem(Problem + retryAfterSeconds),
+ * CodeRejectedProblem(Problem + attemptsRemaining).
  */
 @Configuration(proxyBeanMethods = false)
 class AuthOpenApi {
@@ -23,7 +24,17 @@ class AuthOpenApi {
 
 	@Bean
 	OpenApiCustomizer rateLimitedProblemSchema() {
-		return openApi -> openApi.getComponents().addSchemas("RateLimitedProblem", rateLimitedProblem());
+		return openApi -> openApi.getComponents()
+			.addSchemas("RateLimitedProblem", rateLimitedProblem())
+			.addSchemas("CodeRejectedProblem", codeRejectedProblem());
+	}
+
+	/** 인증·재설정 코드 오류 (contracts/identity.yaml CodeRejectedProblem). Problem + attemptsRemaining. */
+	@SuppressWarnings("rawtypes")
+	private static Schema codeRejectedProblem() {
+		Schema attempts = new ObjectSchema().addProperty("attemptsRemaining", new IntegerSchema().format(null)
+			.description("CODE_MISMATCH일 때만. 남은 시도 횟수 (0이면 다음부터 CODE_EXPIRED)"));
+		return new Schema<>().allOf(List.of(new Schema<>().$ref(OpenApiAutoConfiguration.PROBLEM_REF), attempts));
 	}
 
 	@SuppressWarnings("rawtypes")

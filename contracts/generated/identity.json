@@ -13,6 +13,50 @@
       }
     },
     "schemas" : {
+      "CodeCheckRequest" : {
+        "properties" : {
+          "code" : {
+            "minLength" : 1,
+            "pattern" : "^[0-9]{6}$",
+            "type" : "string"
+          },
+          "email" : {
+            "minLength" : 1,
+            "type" : "string"
+          }
+        },
+        "required" : [ "code", "email" ],
+        "type" : "object"
+      },
+      "CodeIssued" : {
+        "description" : "코드를 새로 발급했을 때 화면의 카운트다운용 시각 (UTC)",
+        "properties" : {
+          "expiresAt" : {
+            "description" : "코드 만료 시각 (발급 + 10분)",
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "resendAvailableAt" : {
+            "description" : "다시 받기를 누를 수 있는 시각 (발급 + 60초)",
+            "format" : "date-time",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "CodeRejectedProblem" : {
+        "allOf" : [ {
+          "$ref" : "#/components/schemas/Problem"
+        }, {
+          "properties" : {
+            "attemptsRemaining" : {
+              "description" : "CODE_MISMATCH일 때만. 남은 시도 횟수 (0이면 다음부터 CODE_EXPIRED)",
+              "type" : "integer"
+            }
+          },
+          "type" : "object"
+        } ]
+      },
       "DeletedUser" : {
         "properties" : {
           "deletedAt" : {
@@ -40,6 +84,42 @@
           }
         },
         "required" : [ "items" ],
+        "type" : "object"
+      },
+      "EmailVerificationConfirmRequest" : {
+        "properties" : {
+          "code" : {
+            "description" : "메일로 받은 6자리 숫자",
+            "minLength" : 1,
+            "pattern" : "^[0-9]{6}$",
+            "type" : "string"
+          }
+        },
+        "required" : [ "code" ],
+        "type" : "object"
+      },
+      "EmailVerificationStatus" : {
+        "properties" : {
+          "attemptsRemaining" : {
+            "description" : "유효한 코드의 남은 시도 횟수. 유효한 코드가 없으면 null",
+            "format" : "int32",
+            "type" : [ "integer", "null" ]
+          },
+          "expiresAt" : {
+            "description" : "유효한 코드의 만료 시각. 유효한 코드가 없으면 null",
+            "format" : "date-time",
+            "type" : [ "string", "null" ]
+          },
+          "resendAvailableAt" : {
+            "description" : "다시 받을 수 있는 시각. 지금 받을 수 있으면 null. 하루 한도에 닿았으면 한도가 풀리는 시각",
+            "format" : "date-time",
+            "type" : [ "string", "null" ]
+          },
+          "verified" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "verified" ],
         "type" : "object"
       },
       "LoginRequest" : {
@@ -104,6 +184,37 @@
           }
         },
         "required" : [ "email", "emailVerified", "id", "keyboardShortcutsEnabled", "themeAccent", "themeGround", "timezone", "version", "weekStart", "workDays" ],
+        "type" : "object"
+      },
+      "PasswordResetConfirmRequest" : {
+        "properties" : {
+          "code" : {
+            "minLength" : 1,
+            "pattern" : "^[0-9]{6}$",
+            "type" : "string"
+          },
+          "email" : {
+            "minLength" : 1,
+            "type" : "string"
+          },
+          "newPassword" : {
+            "description" : "8~64자, UTF-8 72바이트 이하, 영문·숫자 포함, 이메일과 다른 문자열 (D-38). errors[].field는 newPassword",
+            "minLength" : 1,
+            "type" : "string"
+          }
+        },
+        "required" : [ "code", "email", "newPassword" ],
+        "type" : "object"
+      },
+      "PasswordResetRequest" : {
+        "properties" : {
+          "email" : {
+            "description" : "가입과 같이 앞뒤 공백 제거·소문자로 비교한다",
+            "minLength" : 1,
+            "type" : "string"
+          }
+        },
+        "required" : [ "email" ],
         "type" : "object"
       },
       "Problem" : {
@@ -467,6 +578,130 @@
         "tags" : [ "auth" ]
       }
     },
+    "/api/auth/password-reset" : {
+      "post" : {
+        "description" : "가입 여부와 관계없이 같은 202. 가입된 이메일이면 새 코드를 커밋 뒤 메일로 보낸다(이전 코드 무효).",
+        "operationId" : "requestPasswordReset",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/PasswordResetRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "202" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CodeIssued"
+                }
+              }
+            },
+            "description" : "접수 (가입 여부 비노출)"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "VALIDATION_FAILED"
+          },
+          "429" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RateLimitedProblem"
+                }
+              }
+            },
+            "description" : "RESEND_TOO_SOON(60초) · DAILY_SEND_LIMIT(24시간 10통) · TOO_MANY_REQUESTS(IP 1시간 10회)",
+            "headers" : {
+              "Retry-After" : {
+                "schema" : {
+                  "type" : "integer"
+                },
+                "style" : "simple"
+              }
+            }
+          }
+        },
+        "summary" : "비밀번호 재설정 코드 메일 요청 (AUTH-03, P1-13, SCR-AUTH-04)",
+        "tags" : [ "auth" ]
+      }
+    },
+    "/api/auth/password-reset/confirm" : {
+      "post" : {
+        "description" : "저장하면 이메일 인증 완료, 모든 로그인 세션 폐기와 쿠키 삭제, 로그인 잠금 해제, 코드 사용 처리.",
+        "operationId" : "confirmPasswordReset",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/PasswordResetConfirmRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "204" : {
+            "description" : "저장 완료. 쿠키 2종을 지운다"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CodeRejectedProblem"
+                }
+              }
+            },
+            "description" : "코드 오류(CODE_MISMATCH·CODE_EXPIRED) 또는 VALIDATION_FAILED(비밀번호 규칙, errors[].field=newPassword)"
+          }
+        },
+        "summary" : "코드로 새 비밀번호 저장",
+        "tags" : [ "auth" ]
+      }
+    },
+    "/api/auth/password-reset/verify" : {
+      "post" : {
+        "description" : "코드가 맞는지만 확인하고 쓰지 않는다. 틀리면 시도 횟수가 준다(5회).",
+        "operationId" : "verifyPasswordResetCode",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CodeCheckRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "204" : {
+            "description" : "코드가 맞음"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CodeRejectedProblem"
+                }
+              }
+            },
+            "description" : "CODE_MISMATCH(attemptsRemaining) · CODE_EXPIRED · VALIDATION_FAILED(CODE_FORMAT)"
+          }
+        },
+        "summary" : "재설정 코드 확인 (새 비밀번호 입력 단계로 넘어가기 전)",
+        "tags" : [ "auth" ]
+      }
+    },
     "/api/auth/refresh" : {
       "post" : {
         "operationId" : "refresh",
@@ -643,6 +878,129 @@
           "bearerAuth" : [ ]
         } ],
         "summary" : "공통 프로필·화면 설정 수정 (AUTH-04·05, UX-09, P1-01)",
+        "tags" : [ "me" ]
+      }
+    },
+    "/api/users/me/email-verification" : {
+      "get" : {
+        "operationId" : "getEmailVerification",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/EmailVerificationStatus"
+                }
+              }
+            },
+            "description" : "조회 성공"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/Unauthorized"
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ],
+        "summary" : "이메일 인증 진행 상태 (SCR-AUTH-08 모달을 열 때)",
+        "tags" : [ "me" ]
+      },
+      "post" : {
+        "description" : "새 코드를 발급하고 커밋 뒤 메일로 보낸다. 이전 코드는 무효. 가입 직후 첫 코드는 서버가 자동으로 보낸다.",
+        "operationId" : "sendEmailVerificationCode",
+        "responses" : {
+          "202" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CodeIssued"
+                }
+              }
+            },
+            "description" : "새 코드 발급, 메일 발송 예약"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/Unauthorized"
+          },
+          "409" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "EMAIL_ALREADY_VERIFIED"
+          },
+          "429" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RateLimitedProblem"
+                }
+              }
+            },
+            "description" : "RESEND_TOO_SOON(60초) · DAILY_SEND_LIMIT(24시간 10통) · TOO_MANY_REQUESTS(IP 1시간 10회)",
+            "headers" : {
+              "Retry-After" : {
+                "schema" : {
+                  "type" : "integer"
+                },
+                "style" : "simple"
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ],
+        "summary" : "인증번호 메일 발송·재발송 (AUTH-08, P1-12)",
+        "tags" : [ "me" ]
+      }
+    },
+    "/api/users/me/email-verification/confirm" : {
+      "post" : {
+        "description" : "맞으면 인증을 완료하고 현재 사용자를 준다. 이미 인증된 사용자는 코드와 관계없이 200.",
+        "operationId" : "confirmEmailVerification",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/EmailVerificationConfirmRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Me"
+                }
+              }
+            },
+            "description" : "인증 완료"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CodeRejectedProblem"
+                }
+              }
+            },
+            "description" : "CODE_MISMATCH(attemptsRemaining) · CODE_EXPIRED · VALIDATION_FAILED(CODE_FORMAT)"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/Unauthorized"
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ],
+        "summary" : "인증 코드 확인",
         "tags" : [ "me" ]
       }
     },
