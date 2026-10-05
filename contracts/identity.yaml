@@ -1,9 +1,9 @@
 openapi: 3.1.0
 info:
   title: identity-service API
-  version: 0.1.0-draft
+  version: 0.2.0-draft
   description: |
-    구현 전 합의용 초안 (P0 범위: P0-05 인증, P0-11 내부 API). 구현 후에는 springdoc 출력이 기준이다 (P0-10).
+    구현 전 합의용 초안 (P0 범위: P0-05 인증, P0-11 내부 API. P1 범위: P1-01 프로필 수정). 구현 후에는 springdoc 출력이 기준이다 (P0-10).
     규약은 요구사항정의서 5.5를 따른다: 버전 없는 모듈 접두사(/api/auth, /api/users/me), 시각은 UTC ISO-8601,
     시간대는 IANA 이름, camelCase, 오류는 RFC 9457 Problem Details + code·errors[]·traceId.
 
@@ -177,7 +177,6 @@ paths:
       summary: 현재 사용자 조회
       description: |
         프론트의 로그인 상태 확인과 worklog의 사본 즉시 조회(P0-11)가 함께 쓴다.
-        수정(PATCH)은 P1-01에서 추가한다.
       security:
         - bearerAuth: []
       responses:
@@ -189,6 +188,43 @@ paths:
                 $ref: '#/components/schemas/Me'
         '401':
           $ref: '#/components/responses/Unauthorized'
+    patch:
+      tags: [me]
+      operationId: updateMe
+      summary: 공통 프로필·화면 설정 수정 (AUTH-04·05, UX-09, P1-01)
+      description: |
+        보낸 칸만 바꾼다(항목별 자동 저장, SCR-SET-01·02). 칸을 보내지 않으면 그대로 두고, version은 항상 보낸다.
+        - version이 현재 값과 다르면 409(VERSION_CONFLICT)이며 아무것도 바꾸지 않는다.
+          한 화면에서 여러 칸을 저장할 때 프론트는 저장 요청을 순서대로 보내고, 직전 응답의 version을 다음 요청에 쓴다.
+        - 값이 실제로 바뀐 경우에만 version이 올라간다. Profile 칸이 바뀌었으면 사용자 변경 피드에 PROFILE_UPDATED(전체 Profile)를
+          같은 트랜잭션으로 남긴다(keyboardShortcutsEnabled만 바뀐 경우는 피드 없음). 바뀐 값이 없으면 200으로 현재 상태를 그대로 준다.
+        - 문자열 칸(name·organization·position)은 앞뒤 공백을 지워 저장하고, 빈 문자열이나 null이면 값을 지운다(null 저장).
+        - timezone·weekStart·workDays·keyboardShortcutsEnabled는 지울 수 없다. null을 보내면 400(REQUIRED).
+        - 이메일·테마는 이 API로 바꾸지 않는다 (테마는 P4-09에서 칸을 추가한다).
+        - worklog 사본은 피드로 약 30초 안에 갱신된다. 화면이 즉시 반영을 원하면 저장 후 worklog의 POST /api/worklog/me/profile/refresh를 호출한다 (contracts/worklog.yaml).
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProfileUpdateRequest'
+      responses:
+        '200':
+          description: 수정 성공 (또는 바뀐 값 없음). 새 version이 담긴 현재 사용자를 준다.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Me'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/OriginRejected'
+        '409':
+          $ref: '#/components/responses/VersionConflict'
   /.well-known/jwks.json:
     get:
       tags: [jwks]
@@ -464,7 +500,10 @@ components:
         - PASSWORD_LETTER_DIGIT_REQUIRED: 영문과 숫자를 모두 포함하지 않음
         - PASSWORD_SAME_AS_EMAIL: 이메일과 같은 문자열 (대소문자 무시)
         - AGREEMENT_REQUIRED: 필수 동의 항목 미동의
-        - REQUIRED: 필수 값 없음
+        - REQUIRED: 필수 값 없음 (PATCH에서 지울 수 없는 칸에 null을 보낸 경우 포함)
+        - TOO_LONG: 이름·소속·직책이 공백 제거 후 100자 초과
+        - TIMEZONE_INVALID: IANA 시간대 이름이 아님 (예: Asia/Seoul. +09:00 같은 오프셋은 받지 않는다)
+        - WORK_DAYS_INVALID: 업무 요일이 1~127 밖 (요일을 하나도 고르지 않은 0 포함)
         비밀번호 규칙을 여러 개 어기면 errors[]에 모두 넣는다.
       content:
         application/problem+json:
@@ -498,6 +537,14 @@ components:
         application/problem+json:
           schema:
             $ref: '#/components/schemas/Problem'
+    VersionConflict:
+      description: |
+        보낸 version이 현재 값과 다름 (code=VERSION_CONFLICT, D-30). 다른 탭·기기에서 먼저 수정된 경우다.
+        화면은 충돌 띠와 [새로 불러오기]를 보여 주고 덮어쓰지 않는다 (화면정의서 2.5).
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
   schemas:
     SignupRequest:
       type: object
@@ -527,7 +574,7 @@ components:
     Me:
       type: object
       description: 현재 사용자. Profile의 칸을 같은 이름·타입으로 모두 포함한다.
-      required: [id, email, emailVerified, timezone, weekStart, workDays, themeAccent, themeGround, version]
+      required: [id, email, emailVerified, timezone, weekStart, workDays, themeAccent, themeGround, keyboardShortcutsEnabled, version]
       properties:
         id:
           type: string
@@ -560,15 +607,62 @@ components:
           type: string
           pattern: '^#[0-9A-F]{6}$'
           example: '#F2F4FA'
+        keyboardShortcutsEnabled:
+          type: boolean
+          default: true
+          description: |
+            키보드 단축키 사용 (UX-09, SCR-SET-02 ⑥, 기본 켬). 끄면 수식키 없는 한 글자 단축키가 모두 꺼진다.
+            테마처럼 앱 전체 화면 설정이라 identity에 두며, 모듈에는 전달하지 않는다(Profile·피드에 없음).
         version:
           type: integer
           format: int64
-          description: 낙관적 잠금 버전. P1-01의 PATCH에서 쓴다.
+          description: 낙관적 잠금 버전. PATCH /api/users/me에 그대로 보낸다.
+    ProfileUpdateRequest:
+      type: object
+      description: |
+        보낸 칸만 수정한다. 칸 없음 = 그대로, null = 지움(이름·소속·직책만). 모르는 칸은 무시한다.
+      required: [version]
+      properties:
+        version:
+          type: integer
+          format: int64
+          description: 마지막으로 받은 Me.version
+        name:
+          type: [string, 'null']
+          maxLength: 100
+        organization:
+          type: [string, 'null']
+          maxLength: 100
+        position:
+          type: [string, 'null']
+          maxLength: 100
+          description: 표시용 직책 (권한용 역할과 별개)
+        timezone:
+          type: string
+          description: IANA 시간대 이름. 바꿔도 기존 기록 날짜는 그대로다 (D-40).
+          example: Asia/Seoul
+        weekStart:
+          $ref: '#/components/schemas/WeekStart'
+        workDays:
+          type: integer
+          minimum: 1
+          maximum: 127
+          description: 비트마스크 월=1 … 일=64. 최소 하루는 골라야 한다.
+        keyboardShortcutsEnabled:
+          type: boolean
+          description: 키보드 단축키 사용 (UX-09). 피드에는 남기지 않는다.
     Profile:
       type: object
-      description: 모듈에 전달하는 공통 프로필 스냅샷. 바뀐 칸만이 아니라 항상 전체를 보낸다. email·테마는 넣지 않는다.
-      required: [timezone, weekStart, workDays]
+      description: |
+        모듈에 전달하는 공통 프로필 스냅샷. 바뀐 칸만이 아니라 항상 전체를 보낸다. email·테마는 넣지 않는다.
+        version은 Me.version과 같은 값(사용자 행의 낙관적 잠금 버전)이다. 소비자는 사본의 version보다 큰 값만 반영한다
+        (피드와 즉시 재조회 중 어느 쪽이 먼저 와도 옛 값으로 덮어쓰지 않게). 테마·인증 상태만 바뀌어도 version은 오를 수 있다.
+        P1-01 이전에 기록된 피드 이벤트에는 version이 없다. 소비자는 없으면 0으로 본다.
+      required: [timezone, weekStart, workDays, version]
       properties:
+        version:
+          type: integer
+          format: int64
         name:
           type: [string, 'null']
         organization:
