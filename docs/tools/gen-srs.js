@@ -2,7 +2,7 @@ const path = require('path');
 const { Packer, Paragraph, TextRun, AlignmentType, PageBreak } = require('docx');
 const { p, h1, h2, bullet, gap, table, makeDoc, writeNew, ACCENT } = require('./lib');
 
-const VERSION = 'v1.6';
+const VERSION = 'v1.7';
 // 기능 요구사항 표: ID, 요구사항, 상세, 우선순위, 단계
 const frTable = (rows) => table(['ID', '요구사항', '상세 설명', '우선순위', '단계'], rows, [11, 20, 47, 11, 11], [0, 3, 4]);
 
@@ -14,10 +14,10 @@ const children = [
     children: [new TextRun({ text: '개인용 업무기록 · 업무일지 · 스케줄 관리 모듈 (worklog)', size: 28 })] }),
   table(['항목', '내용'], [
     ['문서 버전', VERSION],
-    ['작성일', '2026-10-04'],
+    ['작성일', '2026-10-05'],
     ['문서 상태', '확정 — 8장 결정 사항 반영'],
     ['기술 스택', 'Spring Boot (MSA) / React / Railway / Vercel'],
-    ['관련 문서', '작업계획서_v1.8.docx, 화면정의서_v1.3.docx, contracts/*.yaml (API 계약), contracts/generated/*.json (명세 스냅샷), README (기술 버전)'],
+    ['관련 문서', '작업계획서_v1.9.docx, 화면정의서_v1.5.docx, contracts/*.yaml (API 계약), contracts/generated/*.json (명세 스냅샷), README (기술 버전)'],
   ], [30, 70]),
   new Paragraph({ children: [new PageBreak()] }),
 
@@ -31,6 +31,7 @@ const children = [
     ['v1.4', '2026-10-04', '화면정의서와 상호 점검 반영 — UX-09(키보드 단축키) 신설, AUTH-01·03·05·07·08, TASK-04·05, SCH-04, REC-03, LOG-02·04·09·14·16, EXP 공통 규칙, EXP-04, UX-03, NFR-04 수정, 확인 대기 생성 범위(5.6) 추가, 결정 사항 D-37~D-41 추가, 공휴일 데이터 공용(5.6)·Tag 엔티티 추가, LOG-13을 다음 근무일 기준으로 수정, QA 검증 보완(확인 대기 범위 기준, 날짜 계산 기준, 단축키 접근성, 파일명 규칙, 비밀번호 72바이트 한도)'],
     ['v1.5', '2026-10-04', 'P0 착수 후 확정 사항 반영 — Railway 프로젝트 구성(D-42), 백엔드 버전(D-43), 프론트 기술 선택(D-44), worklog 탈퇴 처리 세부(D-45), 인증 API 계약 세부(D-46), API 계약 관리(D-47). AUTH-01·02, NFR-03·09, 5.1·5.2·5.4·5.5·5.7, 6장(worklog DeletedUser·FeedCursor) 수정, Gateway 라우팅 규칙 구체화'],
     ['v1.6', '2026-10-04', 'P0 구현 확정 사항 반영 — 점검 응답 계약(D-48), 탈퇴 후 즉시 재가입·계정 행 실제 삭제(D-49), 서비스 클라이언트 비밀값과 운영 필수 환경변수(D-50), 사용자 변경 피드 보관 경계·재동기화(D-51), 배포 구성 세부(D-52). AUTH-01·02·06, NFR-03·05·13, 5.2·5.4·5.5·5.6·5.7, 6장(User·UserEvent·ServiceClient·UserCredential, FeedRetention 추가) 수정'],
+    ['v1.7', '2026-10-05', 'P0 진행 중 확정 사항 반영 — 트랜잭션 처리 방침(D-53, 5.5), 백업 보관을 7일 이내로 조정(Railway Daily 6일, PITR 미사용, D-34·NFR-05), 도메인 구매 시점을 P1 메일 작업 전으로 변경(D-11), Railway 서비스 설정은 콘솔에서(5.7), 409 화면 동작 연결(5.5)'],
   ], [12, 18, 70], [0, 1]),
   gap(),
 
@@ -238,7 +239,7 @@ const children = [
     ['NFR-02', '보안', '전 구간 HTTPS. 비밀번호는 BCrypt 해시. 모든 데이터 조회는 소유자 본인으로 제한한다(owner_id 검증). 인증 토큰은 HttpOnly·Secure·SameSite=Strict 쿠키로만 주고받고(Access: Path=/api, Refresh: Path=/api/auth), 쓰기 요청(POST·PUT·PATCH·DELETE)은 Origin을 검사한다. CSP를 적용하고 토큰을 로그·오류 보고에 남기지 않는다.'],
     ['NFR-03', '보안', 'JWT는 RS256으로 서명하고 개인키는 identity-service만 가진다. 공개키는 JWKS 엔드포인트로 제공하며 키 교체는 kid로 무중단 처리한다. 클레임 규칙: iss=erp-identity, 사용자 토큰은 aud=erp-api(scope 없음), 서비스 토큰은 aud=erp-internal·sub=service:<client_id>·scope (D-46). API Gateway와 각 내부 서비스가 모두 JWT를 검증하고(사용자 ID 헤더를 신뢰하지 않음), Gateway는 외부에서 온 Authorization·X-User-* 헤더를 제거한다. 예외로 /api/auth/**는 Gateway가 토큰을 검증하지 않고 쿠키를 그대로 identity에 전달하며, 로그인이 필요한 auth 경로는 identity가 직접 검증한다. 내부 서비스는 Railway private network로만 통신한다. 사용자 요청이 없는 서비스 간 호출은 OAuth2 client credentials로 받은 서비스 토큰(RS256, 수명 5분, scope)으로 인증한다. 내부 API는 서비스 토큰만 받고 사용자 토큰은 거부하며, 경로에 필요한 scope가 없으면 403(INSUFFICIENT_SCOPE)으로 응답한다. 서비스 클라이언트 비밀값 관리는 5.4를 따른다 (D-50). 또한 /internal/**·/.well-known/**·/actuator/**는 Gateway가 외부로 라우팅하지 않는다.'],
     ['NFR-04', '데이터', '시각은 UTC(Instant)로 저장하고, 표시는 사용자의 현재 시간대로 한다. 업무 기록의 날짜(work_date)는 저장 시점의 사용자 시간대로 start_at의 날짜를 계산하며, start_at이 없으면 사용자가 지정한 날짜를 쓴다. 확인 대기 기록은 일정에 저장된 시간대로 회차의 날짜를 계산한다. 저장한 날짜는 이후 시간대를 바꿔도 바뀌지 않는다 (D-40).'],
-    ['NFR-05', '데이터', '업무 데이터 삭제는 소프트 삭제를 기본으로 한다. 회원 탈퇴 파기(AUTH-06)는 예외로 실제 삭제한다. 데이터베이스는 일 1회 이상 백업하고 백업본은 7일간 보관한 뒤 자동 파기한다. 백업에서 복원하면 탈퇴 기록을 다시 적용해 탈퇴자 데이터를 파기하며, 탈퇴 기록은 백업 보관 기간보다 오래 유지한다.'],
+    ['NFR-05', '데이터', '업무 데이터 삭제는 소프트 삭제를 기본으로 한다. 회원 탈퇴 파기(AUTH-06)는 예외로 실제 삭제한다. 데이터베이스는 매일 백업하고 백업본은 7일 이내에 자동 파기한다 (Railway Daily 백업, 보관 6일). 시점 복구(PITR)는 쓰지 않는다 (D-34). 백업에서 복원하면 탈퇴 기록을 다시 적용해 탈퇴자 데이터를 파기하며, 탈퇴 기록은 백업 보관 기간보다 오래 유지한다.'],
     ['NFR-06', '사용성', '모바일(폭 360px 이상)과 데스크톱 모두에서 동작하는 반응형 UI. P4에서 PWA로 설치 가능하게 한다.'],
     ['NFR-07', '호환성', '최신 Chrome, Edge, Safari, Samsung Internet을 지원한다.'],
     ['NFR-08', '품질', '핵심 도메인 로직(기록 확정, 빠른 입력 파싱, 일지 생성, 시간 집계)은 단위 테스트 커버리지 80% 이상을 유지한다.'],
@@ -300,7 +301,8 @@ const children = [
     ['목록 조회', '기본은 cursor 방식 (?cursor=&limit= → items, nextCursor). 캘린더·일지는 기간 조회 (?from=&to=)'],
     ['오류 응답', 'RFC 9457 Problem Details (application/problem+json) + code(기계 판독용), errors[](칸별 오류), traceId. 여러 모듈에 공통인 code: UNAUTHENTICATED(401), USER_DELETED(401, 탈퇴 사용자), VALIDATION_FAILED(400), INVALID_CURSOR(400, 잘못된 cursor), ORIGIN_REJECTED(403), MAINTENANCE(503, Gateway 점검, 선택적 Retry-After — D-48). 모듈별 code는 contracts를 따른다'],
     ['형식', '시각은 UTC ISO-8601 (2026-10-04T05:00:00Z), 날짜는 시간대 없는 YYYY-MM-DD, 시간대는 IANA 이름, JSON 필드는 camelCase'],
-    ['수정', 'PATCH로 보낸 칸만 수정. 엔티티 version으로 낙관적 잠금, 불일치 시 409'],
+    ['수정', 'PATCH로 보낸 칸만 수정. 엔티티 version으로 낙관적 잠금, 불일치 시 409. 409를 받은 화면 동작(다시 불러오기, 덮어쓰기 없음)은 화면정의서 2.5를 따른다'],
+    ['트랜잭션', '트랜잭션은 서비스 계층(@Transactional)에서 열고, 조회만 하는 메서드는 readOnly로 둔다. 격리 수준은 PostgreSQL 기본값(READ COMMITTED). 트랜잭션은 한 서비스의 DB 안에서만 쓰고 서비스 간 분산 트랜잭션은 쓰지 않는다. 서비스 간 일관성은 사용자 변경 피드로 맞춘다 (변경과 피드 이벤트를 같은 트랜잭션에 기록, 소비는 멱등, 5.4). 동시 수정은 version 낙관적 잠금, 중복 생성은 유니크 제약(5.6), 순서가 중요한 곳(피드 기록, Refresh Token 교체)만 잠금으로 막는다. 메일 발송 같은 외부 호출은 트랜잭션 안에서 하지 않고 커밋 뒤에 한다 (롤백된 요청의 메일 발송, 외부 응답을 기다리는 동안의 DB 커넥션 점유 방지). 여러 단계 기능(하루 마감, 타이머 동시 1개)을 어디까지 한 트랜잭션으로 묶을지는 해당 작업 설계 때 정한다 (D-53)'],
     ['명세', '구현 전에는 저장소 루트 contracts/{모듈}.yaml(OpenAPI)로 엔드포인트·오류 코드를 합의한다. Gateway가 직접 주는 응답은 contracts/gateway.yaml에 둔다. 구현 후에는 springdoc-openapi 출력이 기준이다. 출력은 contracts/generated/{모듈}.json 스냅샷으로 저장소에 두고 백엔드 테스트가 실제 출력과 같은지 검사하며, 프론트엔드 TS 타입은 이 스냅샷에서 openapi-typescript로 생성한다. 공통 오류 형식(Problem·401)은 공통 모듈이 명세에 자동으로 넣는다 (D-47)'],
   ], [18, 82]),
   h2('5.6 백그라운드 작업'),
@@ -310,7 +312,7 @@ const children = [
   bullet('하루 마감 알림은 사용자별 다음 알림 시각(next_notify_at, UTC)을 미리 계산해 두고 1분마다 지난 사용자만 발송한 뒤 다시 계산한다. 시간대·마감 시각이 바뀌면 다시 계산한다.'),
   h2('5.7 배포 리전과 운영'),
   bullet('Gateway, 서비스, PostgreSQL은 모두 Railway Southeast Asia(싱가포르) 같은 리전에 둔다 (리전 선택은 Pro 요금제). 프론트엔드 정적 파일은 Vercel CDN으로 제공한다.'),
-  bullet('Railway는 Pro 워크스페이스 WY-ERP의 플랫폼 단위 프로젝트 WY-ERP 하나에 모든 모듈 서비스와 PostgreSQL을 둔다. private network가 같은 프로젝트·환경 안에서만 연결되기 때문이며, 모듈이 늘어도 같은 프로젝트에 서비스를 추가한다 (D-42).'),
+  bullet('Railway는 Pro 워크스페이스 WY-ERP의 플랫폼 단위 프로젝트 WY-ERP 하나에 모든 모듈 서비스와 PostgreSQL을 둔다. private network가 같은 프로젝트·환경 안에서만 연결되기 때문이며, 모듈이 늘어도 같은 프로젝트에 서비스를 추가한다 (D-42). 서비스 설정(빌드, 헬스체크, 재시작 정책)은 Railway가 폐지 중인 Config as Code 대신 콘솔에서 하며, 설정 기준은 infra/railway/README.md다.'),
   bullet('배포 구성 (D-52): Vercel은 Hobby 요금제를 쓴다. Gateway는 Vercel 프록시가 붙이는 비밀 헤더가 없거나 틀린 요청을 404로 거부해 공개 주소로 직접 접근하지 못하게 한다. 쓰기 요청 허용 Origin은 운영 도메인 하나이며, Vercel 프리뷰 배포의 쓰기 요청은 거부된다(화면 확인은 로컬 mock 서버). 배포 브랜치는 P0 동안 feature/P0-skeleton이고, main에 병합한 뒤 main으로 바꾼다. 운영 프로필은 서명 키·서비스 클라이언트 비밀값·프록시 비밀 헤더 같은 필수 환경변수가 없거나 해석되지 않으면 기동에 실패한다 (로컬 기본값으로 운영되는 사고 방지, D-50).'),
   bullet('국외 이전은 계약 이행에 필요한 처리위탁·보관이므로 개인정보 처리방침 공개로 처리한다 (개인정보 보호법 제28조의8). 이전 대상: Railway(싱가포르, 저장·처리), Vercel(요청 전달·로그), 메일 발송 업체. 가입 화면에 안내 문구를 표시한다 (AUTH-01): "회원 정보와 서비스 이용 기록은 싱가포르 소재 서버(Railway)에 보관되며, 메일 발송 등 일부 업무는 국외 업체에 위탁하여 처리합니다." 국내 서버로 옮겨도 해외 업체 위탁은 남으므로 그때 고지 내용을 갱신한다.'),
   bullet('운영 관측은 외부 도구 없이 시작한다: JSON 로그와 traceId, Actuator 헬스체크, Railway 배포 헬스체크·재시작 정책, 프론트엔드 오류 자체 수집, (선택) 서버 오류 요약 메일. 외부 오류 추적·가동 감시 도구는 출시 직전에 다시 검토하며, 도입하면 국외 이전 대상에 추가한다.'),
@@ -365,7 +367,7 @@ const children = [
     ['D-08', '업무일지 항목', '2.1 표준 항목 (기간, 작성자, 실적, 계획, 진행률, 이슈)', 'LOG-02'],
     ['D-09', '모바일 지원', '반응형 웹 → P4에서 PWA, 네이티브 앱 없음', 'NFR-06'],
     ['D-10', '기본 설정값', '주 시작 월요일, Asia/Seoul', 'AUTH-05'],
-    ['D-11', '외부 캘린더·도메인', 'Google Calendar 연동 MVP 제외. 서비스 도메인은 본작업(P0) 시작 전에 구매 (메일 발송 도메인 인증용)', 'SCH-06, AUTH-08'],
+    ['D-11', '외부 캘린더·도메인', 'Google Calendar 연동 MVP 제외. 서비스 도메인은 P1 메일 발송 작업(AUTH-08·03) 전에 구매 (메일 발송 도메인 인증용). P0는 Vercel 기본 도메인(vercel.app)으로 진행', 'SCH-06, AUTH-08'],
     ['D-12', '출퇴근·휴게 기록', '이 모듈에서 제외, 향후 별도 근태 모듈', 'TIME-01·02·08, NOTI-02 폐기'],
     ['D-13', '시간 기록', '사용자가 켜고 끄는 선택 기능, 기본 꺼짐', 'TIME-09, REC 신설'],
     ['D-14', 'MVP 차별화 기능', '계획 기반 기록, 한 줄 빠른 입력, 실시간 일지·하루 마감, 계획/실제 타임라인·빈 시간 메우기 + 소규모 자동화·UX 항목', 'REC, LOG-12~16, TIME-10·11, UX'],
@@ -388,7 +390,7 @@ const children = [
     ['D-31', '백그라운드 작업', '확인 대기 기록은 보여줄 때 생성(유니크 제약), 주기 작업은 @Scheduled + ShedLock', '5.6, REC-03, NOTI-01'],
     ['D-32', '배포 리전', 'Railway 싱가포르 단일 리전', '5.7'],
     ['D-33', '국외 이전 고지', '별도 동의 없이 처리방침 공개 + 가입 화면 안내 문구', 'NFR-10, AUTH-01'],
-    ['D-34', '백업과 탈퇴', '백업 7일 보관, 복원 시 탈퇴 기록 재적용', 'NFR-05'],
+    ['D-34', '백업과 탈퇴', '백업은 7일 이내 보관(Railway Daily, 보관 6일, PITR 미사용), 복원 시 탈퇴 기록 재적용', 'NFR-05'],
     ['D-35', '운영 관측', '외부 오류 추적·가동 감시 도구 없이 시작, 출시 직전 재검토', 'NFR-09, 5.7'],
     ['D-36', '문구 말투', '기본은 친근한 존댓말(~해요). 회원가입, 개인정보 처리방침·이용약관, 국외 이전 안내, 회원 탈퇴는 사무적인 말투(~합니다)', 'SCR-AUTH-03·06·07, SCR-SET-07'],
     ['D-37', '근무일 판단', '업무 요일 중 공휴일이 아닌 날. 주·월 마지막 근무일에 이월·주간·월간 제안. 공휴일 데이터는 프론트·백엔드 공용', 'AUTH-05, LOG-14·16, 5.6'],
@@ -407,6 +409,7 @@ const children = [
     ['D-50', '서비스 클라이언트 비밀값과 운영 필수 환경변수', '서비스 클라이언트는 identity 설정이 유일한 원본(기동 시 BCrypt 해시 upsert, 설정에 없는 행 삭제). 로컬·테스트는 고정 기본값, 운영은 Railway 환경변수만. 운영에서 필수 환경변수가 없거나 해석되지 않으면 기동 실패', '5.4, 5.7, NFR-03'],
     ['D-51', '피드 보관 경계와 재동기화', '보관 정리로 지운 마지막 seq(pruned_through)보다 작은 커서는 410(FEED_CURSOR_EXPIRED) → 전체 목록으로 재동기화. 탈퇴로 지운 행은 pruned_through에 반영하지 않음. 전체 목록의 asOfSeq는 첫 페이지 값으로 고정', '5.4, 6장'],
     ['D-52', '배포 구성 세부', 'Vercel Hobby. Gateway는 Vercel 프록시 비밀 헤더 없는 요청을 404로 거부. 허용 Origin은 운영 도메인 하나(프리뷰 쓰기 요청 거부). 배포 브랜치는 P0 동안 feature/P0-skeleton, main 병합 후 main', '5.7, NFR-14, 작업계획서 P0-09'],
+    ['D-53', '트랜잭션 처리 방침', '서비스 계층 @Transactional, 조회는 readOnly, 격리 수준 READ COMMITTED. 분산 트랜잭션 없이 피드로 서비스 간 일관성. 외부 호출(메일 등)은 커밋 뒤. 여러 단계 기능의 묶음 범위는 작업 설계 때', '5.5, 작업계획서 P1-12·13'],
   ], [10, 20, 42, 28], [0]),
   gap(),
 
