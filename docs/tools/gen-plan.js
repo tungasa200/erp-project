@@ -2,7 +2,7 @@ const path = require('path');
 const { Packer, Paragraph, TextRun, AlignmentType, PageBreak } = require('docx');
 const { p, h1, h2, bullet, gap, code, table, makeDoc, writeNew, ACCENT } = require('./lib');
 
-const VERSION = 'v1.9';
+const VERSION = 'v2.0';
 const TODAY = '2026-10-05';
 // WBS 표: ID, 작업, 산출물, 관련 요구사항, 화면 ID(화면정의서)
 const wbs = (rows) => table(['ID', '작업', '산출물', '관련 요구사항', '화면 ID'], rows, [9, 40, 14, 16, 21], [0]);
@@ -29,7 +29,7 @@ const children = [
   table(['항목', '내용'], [
     ['문서 버전', VERSION],
     ['작성일', TODAY],
-    ['근거 문서', '요구사항정의서_v1.7.docx, 화면정의서_v1.5.docx'],
+    ['근거 문서', '요구사항정의서_v1.8.docx, 화면정의서_v1.6.docx, docs/결정기록.md'],
     ['진행 방식', '고정 일정 없이 단계 순서와 완료 기준으로 진행'],
   ], [30, 70]),
   new Paragraph({ children: [new PageBreak()] }),
@@ -46,6 +46,7 @@ const children = [
     ['v1.7', '2026-10-04', '요구사항 v1.5(D-42~D-47) 반영: Railway 프로젝트 WY-ERP, 확정 버전·라이브러리(3.3), 저장소 구조에 common·contracts 추가, P0 통합 브랜치 규칙(3.2), 로컬 포트(7장), P0-01·04·07·09·10·11 구체화'],
     ['v1.8', '2026-10-04', '요구사항 v1.6(D-48~D-52) 반영: P0-05·09·10·11 구현 확정 사항, 로그아웃 UI 시점(4.1), 명세 스냅샷(contracts/generated)·gateway 계약(3.1·3.3), 운영 필수 환경변수(3.2), 배포 브랜치·Vercel Hobby·Gateway 직접 접근 차단(1.2·2·7장), P1-12 인증 코드 정리, P4-03 하단 탭 아이콘, P4-05 탈퇴 실제 삭제, P4-12 점검 모드, 진행현황 담당(5.2)'],
     ['v1.9', TODAY, '요구사항 v1.7(D-53, D-11·D-34 변경) 반영: 도메인 구매 시점 P1 메일 작업 전(2장), Railway 서비스 설정은 콘솔에서·백업 Daily 6일(P0-09, 3.1, 7장), 메일은 커밋 뒤 발송(P1-12·13), 처리방침 백업 파기 7일 이내(P4-05)'],
+    ['v2.0', TODAY, '결정 기록 분리와 단계 말 일괄 개정(D-54): 결정은 docs/결정기록.md에 기록, 개정 대기는 docs/개정대기.md, 요구사항정의서·작업계획서는 단계 종료 시 개정(5.2), 완료 기준(6.2), 저장소 구조(3.1)'],
   ], [15, 20, 65], [0, 1]),
   gap(),
 
@@ -109,7 +110,7 @@ const children = [
     '│   └── railway\\               운영 배포 콘솔 설정 안내(README)·운영 DB 설정 SQL',
     '├── contracts\\                API 계약 초안 identity·worklog·gateway.yaml (D-47)',
     '│   └── generated\\            springdoc 명세 스냅샷 (프론트 타입 생성 원본)',
-    '├── docs\\                     요구사항정의서, 작업계획서, 화면정의서, tools(생성 스크립트)',
+    '├── docs\\                     요구사항정의서, 작업계획서, 화면정의서, 결정기록.md, 개정대기.md, 진행현황.md, tools(생성 스크립트)',
     '└── .github\\workflows\\        CI',
   ]),
   h2('3.2 버전 관리 규칙'),
@@ -254,7 +255,8 @@ const children = [
   h2('5.2 진행 상황 기록'),
   bullet('저장소의 docs/진행현황.md에 WBS 항목별 담당·상태(대기 / 진행 중 / 완료)와 다음에 할 작업을 기록한다. P0-02에서 만들었고, 개발 총괄(project-pm)이 갱신한다.'),
   bullet('작업 세션을 시작할 때 진행현황을 먼저 확인해 이어서 진행하고, 끝날 때 갱신한다.'),
-  bullet('결정 사항이나 범위가 바뀌면 요구사항정의서·작업계획서의 새 버전을 발행한다.'),
+  bullet('결정 사항은 정한 날 docs/결정기록.md에 D-nn으로 기록하고, 그때마다 문서를 개정하지 않는다. 문서에 반영할 내용은 docs/개정대기.md에 추가해 두고, 요구사항정의서·작업계획서는 단계가 끝날 때(P1 종료, P2 종료 …) 모아서 개정한다 (D-54).'),
+  bullet('구현을 막는 요구사항·범위 변경만 예외로 단계 중간에 개정하며, 이때도 project-pm에 먼저 묻는다.'),
   gap(),
 
   // ── 6. 품질 관리 ──
@@ -270,7 +272,7 @@ const children = [
   bullet('관련 요구사항의 동작을 만족한다.'),
   bullet('단위·통합 테스트를 작성했고 로컬과 CI에서 모두 통과한다.'),
   bullet('PR로 병합되었고, 배포 환경에서 동작을 확인했다 (단계 종료 시).'),
-  bullet('API·스키마·결정 사항 변경이 있으면 docs의 문서를 갱신했다.'),
+  bullet('API·스키마 변경은 contracts에, 결정은 docs/결정기록.md에 기록했고, 문서에 반영할 내용은 docs/개정대기.md에 올렸다.'),
   gap(),
 
   // ── 7. 배포 ──

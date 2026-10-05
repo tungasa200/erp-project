@@ -7,7 +7,7 @@
 | `gen-srs.js` | `../요구사항정의서_<VERSION>.docx` 생성 |
 | `gen-plan.js` | `../작업계획서_<VERSION>.docx` 생성 |
 | `lib.js` | 공통 서식 (글꼴, 표, 머리글·바닥글) |
-| `crosscheck.py` | 요구사항(필수·권장, P단계) 중 WBS에 연결되지 않은 ID 검사 |
+| `crosscheck.py` | 요구사항(필수·권장, P단계) 중 WBS에 연결되지 않은 ID 검사, 두 문서가 참조하는 결정 ID(D-nn)가 `../결정기록.md`에 있는지 검사 |
 
 ## 사용
 
