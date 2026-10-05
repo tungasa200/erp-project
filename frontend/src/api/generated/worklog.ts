@@ -61,6 +61,166 @@ export interface paths {
         patch: operations["updateMySettings"];
         trace?: never;
     };
+    "/api/worklog/projects": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 프로젝트 목록
+         * @description 페이지 없이 전체를 돌려준다. 만든 순서.
+         */
+        get: operations["listProjects"];
+        put?: never;
+        /** 프로젝트 추가 */
+        post: operations["createProject"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/worklog/projects/{projectId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 프로젝트 조회 */
+        get: operations["getProject"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * 프로젝트 수정·보관·보관 해제
+         * @description 보낸 칸만 바꾼다. 보관한 프로젝트의 업무는 업무 목록 기본 조회에서 빠진다.
+         */
+        patch: operations["updateProject"];
+        trace?: never;
+    };
+    "/api/worklog/tags": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 태그 목록 (사용 수 포함)
+         * @description 페이지 없이 전체를 돌려준다. 이름순.
+         */
+        get: operations["listTags"];
+        put?: never;
+        /**
+         * 태그 추가 (같은 이름이 있으면 그 태그를 돌려줌)
+         * @description 같은 이름(대소문자 무시)이 이미 있으면 새로 만들지 않고 200으로 기존 태그를 돌려준다. 새로 만들면 201.
+         */
+        post: operations["createTag"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/worklog/tags/{tagId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * 태그 삭제
+         * @description 태그를 실제로 지우고 모든 업무에서 뗀다 (보관한 업무 포함). 되돌릴 수 없다.
+         */
+        delete: operations["deleteTag"];
+        options?: never;
+        head?: never;
+        /**
+         * 태그 이름 변경
+         * @description 다른 태그와 이름이 같아지면 409(DUPLICATE_NAME). 합치기는 하지 않는다.
+         */
+        patch: operations["updateTag"];
+        trace?: never;
+    };
+    "/api/worklog/tasks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 업무 목록 (cursor, 필터·검색)
+         * @description 기본 조회는 보관(소프트 삭제)하지 않은 업무 중 보관한 프로젝트에 속하지 않은 것이다. projectId로 거르면 보관한 프로젝트의 업무도 돌려준다.
+         *     정렬: sort=due는 마감일 오름차순(마감일 없음은 뒤) → 생성순, sort=created는 생성 역순.
+         *     필터를 바꾸면 cursor 없이 처음부터 조회한다.
+         */
+        get: operations["listTasks"];
+        put?: never;
+        /** 업무 추가 */
+        post: operations["createTask"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/worklog/tasks/{taskId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 업무 조회 (보관한 업무 포함) */
+        get: operations["getTask"];
+        put?: never;
+        post?: never;
+        /**
+         * 업무 보관 (소프트 삭제)
+         * @description 이미 보관한 업무면 그대로 204. version을 받지 않는다.
+         */
+        delete: operations["deleteTask"];
+        options?: never;
+        head?: never;
+        /**
+         * 업무 수정 (항목별 자동 저장)
+         * @description 보낸 칸만 바꾼다. dueDate·projectId·memo는 null을 보내면 비운다. tagIds는 보낸 목록으로 통째로 바꾼다.
+         *     DONE으로 바꾸면 completedAt을 기록하고, DONE에서 벗어나면 비운다. 상태 전이 제한은 없고 진행률은 자동으로 바꾸지 않는다.
+         *     보관한 업무는 수정할 수 없다(409 TASK_DELETED).
+         */
+        patch: operations["updateTask"];
+        trace?: never;
+    };
+    "/api/worklog/tasks/{taskId}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 보관한 업무 복원 (되돌리기 토스트, 보관함)
+         * @description 보관하지 않은 업무면 그대로 200.
+         */
+        post: operations["restoreTask"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -97,6 +257,154 @@ export interface components {
              * @description 비트마스크 월=1 … 일=64, 기본 31(월~금)
              */
             workDays: number;
+        };
+        Project: {
+            archived: boolean;
+            /** Format: date-time */
+            archivedAt?: string | null;
+            /**
+             * @description 프로젝트 전용 팔레트 8색의 키 (실제 색 값은 프론트 디자인 토큰)
+             * @enum {string}
+             */
+            color: "P1" | "P2" | "P3" | "P4" | "P5" | "P6" | "P7" | "P8";
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: uuid */
+            id: string;
+            name: string;
+            /**
+             * Format: int64
+             * @description 보관(소프트 삭제)하지 않은 업무 수 (상태 무관)
+             */
+            taskCount: number;
+            /** Format: int64 */
+            version: number;
+        };
+        ProjectCreate: {
+            /** @enum {string} */
+            color: "P1" | "P2" | "P3" | "P4" | "P5" | "P6" | "P7" | "P8";
+            /** @description 앞뒤 공백은 빼고 저장한다 */
+            name: string;
+        };
+        ProjectList: {
+            items: components["schemas"]["Project"][];
+        };
+        ProjectPatch: {
+            archived?: boolean;
+            /** @enum {string} */
+            color?: "P1" | "P2" | "P3" | "P4" | "P5" | "P6" | "P7" | "P8";
+            name?: string;
+            /** Format: int64 */
+            version: number;
+        };
+        Tag: {
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: uuid */
+            id: string;
+            /** @description #은 붙이지 않는다 */
+            name: string;
+            /**
+             * Format: int64
+             * @description 이 태그가 붙은 업무 중 보관하지 않은 업무 수
+             */
+            usageCount: number;
+            /** Format: int64 */
+            version: number;
+        };
+        TagCreate: {
+            name: string;
+        };
+        TagList: {
+            items: components["schemas"]["Tag"][];
+        };
+        TagPatch: {
+            name: string;
+            /** Format: int64 */
+            version: number;
+        };
+        Task: {
+            /**
+             * Format: uuid
+             * @description 이월 원본 업무 (읽기 전용, 이월 기능은 P3)
+             */
+            carriedOverFromId?: string | null;
+            /**
+             * Format: date-time
+             * @description status가 DONE일 때만 값이 있다
+             */
+            completedAt?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /**
+             * Format: date-time
+             * @description 보관(소프트 삭제) 시각. 값이 있으면 읽기 전용
+             */
+            deletedAt?: string | null;
+            /**
+             * Format: date
+             * @description 마감 임박·초과 표시는 프론트가 사용자 시간대의 오늘과 비교해 계산한다
+             */
+            dueDate?: string | null;
+            /** Format: uuid */
+            id: string;
+            memo?: string | null;
+            /** @enum {string} */
+            priority: "HIGH" | "NORMAL" | "LOW";
+            /** Format: int32 */
+            progress: number;
+            /** Format: uuid */
+            projectId?: string | null;
+            /** @enum {string} */
+            status: "TODO" | "IN_PROGRESS" | "DONE" | "ON_HOLD";
+            tagIds: string[];
+            title: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: int64 */
+            version: number;
+        };
+        /** @description status 기본 TODO, priority 기본 NORMAL. status=DONE으로 만들면 completedAt을 기록한다. */
+        TaskCreate: {
+            /** Format: date */
+            dueDate?: string | null;
+            memo?: string | null;
+            /** @enum {string} */
+            priority?: "HIGH" | "NORMAL" | "LOW";
+            /**
+             * Format: int32
+             * @default 0
+             */
+            progress: number;
+            /** Format: uuid */
+            projectId?: string | null;
+            /** @enum {string} */
+            status?: "TODO" | "IN_PROGRESS" | "DONE" | "ON_HOLD";
+            tagIds?: string[];
+            /** @description 앞뒤 공백은 빼고 저장한다 */
+            title: string;
+        };
+        TaskList: {
+            items: components["schemas"]["Task"][];
+            /** @description 다음 페이지가 없으면 null */
+            nextCursor?: string | null;
+        };
+        TaskPatch: {
+            /** Format: date */
+            dueDate?: string | null;
+            memo?: string | null;
+            /** @enum {string} */
+            priority?: "HIGH" | "NORMAL" | "LOW";
+            /** Format: int32 */
+            progress?: number;
+            /** Format: uuid */
+            projectId?: string | null;
+            /** @enum {string} */
+            status?: "TODO" | "IN_PROGRESS" | "DONE" | "ON_HOLD";
+            tagIds?: string[];
+            title?: string;
+            /** Format: int64 */
+            version: number;
         };
         WorklogMe: {
             profile: components["schemas"]["ProfileSnapshot"];
@@ -254,6 +562,540 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             /** @description 다른 곳에서 먼저 수정됨 (code=VERSION_CONFLICT) */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listProjects: {
+        parameters: {
+            query?: {
+                /** @description true면 보관한 프로젝트도 포함 */
+                includeArchived?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 조회 성공 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectList"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    createProject: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProjectCreate"];
+            };
+        };
+        responses: {
+            /** @description 생성됨 */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Project"];
+                };
+            };
+            /** @description 입력 오류 (code=VALIDATION_FAILED) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description 같은 이름이 이미 있음 (code=DUPLICATE_NAME) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getProject: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 조회 성공 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Project"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description 없거나 다른 사용자의 프로젝트 (code=NOT_FOUND) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    updateProject: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProjectPatch"];
+            };
+        };
+        responses: {
+            /** @description 수정 후 전체 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Project"];
+                };
+            };
+            /** @description 입력 오류 (code=VALIDATION_FAILED) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description 없거나 다른 사용자의 프로젝트 (code=NOT_FOUND) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description version 불일치(code=VERSION_CONFLICT) 또는 같은 이름(code=DUPLICATE_NAME) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listTags: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 조회 성공 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TagList"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    createTag: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TagCreate"];
+            };
+        };
+        responses: {
+            /** @description 같은 이름의 기존 태그 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Tag"];
+                };
+            };
+            /** @description 생성됨 */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Tag"];
+                };
+            };
+            /** @description 입력 오류 (code=VALIDATION_FAILED) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    deleteTag: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tagId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 삭제됨 */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description 없거나 다른 사용자의 태그 (code=NOT_FOUND) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    updateTag: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tagId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TagPatch"];
+            };
+        };
+        responses: {
+            /** @description 수정 후 전체 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Tag"];
+                };
+            };
+            /** @description 입력 오류 (code=VALIDATION_FAILED) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description 없거나 다른 사용자의 태그 (code=NOT_FOUND) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description version 불일치(code=VERSION_CONFLICT) 또는 같은 이름(code=DUPLICATE_NAME) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listTasks: {
+        parameters: {
+            query?: {
+                /** @description 이전 응답의 nextCursor. 처음이면 생략. */
+                cursor?: string;
+                limit?: string;
+                /** @description 여러 개면 OR (?status=TODO&status=IN_PROGRESS) */
+                status?: ("TODO" | "IN_PROGRESS" | "DONE" | "ON_HOLD")[];
+                /** @description 여러 개면 OR */
+                projectId?: string[];
+                /** @description 여러 개면 OR (태그 중 하나라도 붙은 업무) */
+                tagId?: string[];
+                /** @description 마감일 >= dueFrom */
+                dueFrom?: string;
+                /** @description 마감일 <= dueTo */
+                dueTo?: string;
+                /** @description 완료 업무는 완료 시각이 이 시각 이후인 것만 (완료가 아닌 업무에는 영향 없음) */
+                completedSince?: string;
+                /** @description 제목 부분 일치 검색 (대소문자 무시) */
+                q?: string;
+                /** @description true면 보관(소프트 삭제)한 업무만 돌려준다 */
+                deleted?: boolean;
+                sort?: "due" | "created";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 조회 성공 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskList"];
+                };
+            };
+            /** @description 값 형식 오류(code=VALIDATION_FAILED) 또는 cursor 형식이 틀림(code=INVALID_CURSOR) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    createTask: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TaskCreate"];
+            };
+        };
+        responses: {
+            /** @description 생성됨 */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Task"];
+                };
+            };
+            /** @description 입력 오류 (code=VALIDATION_FAILED). 참조한 프로젝트·태그가 없으면 errors[].code=NOT_FOUND */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    getTask: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                taskId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 조회 성공 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Task"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description 없거나 다른 사용자의 업무 (code=NOT_FOUND) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    deleteTask: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                taskId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 보관됨 */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description 없거나 다른 사용자의 업무 (code=NOT_FOUND) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    updateTask: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                taskId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TaskPatch"];
+            };
+        };
+        responses: {
+            /** @description 수정 후 전체 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Task"];
+                };
+            };
+            /** @description 입력 오류 (code=VALIDATION_FAILED) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description 없거나 다른 사용자의 업무 (code=NOT_FOUND) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description version 불일치(code=VERSION_CONFLICT) 또는 보관한 업무(code=TASK_DELETED) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    restoreTask: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                taskId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 복원 후 전체 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Task"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description 없거나 다른 사용자의 업무 (code=NOT_FOUND) */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
