@@ -111,4 +111,4 @@ vercel.json이 하는 일: `/api/*`를 Gateway 공개 도메인으로 프록시�
 | 응답 크기·30초 제한 | 미측정 |
 | 로그 보관 | 30일 (Pro 플랜 "30-Day Log History", Hobby면 7일) |
 | 크래시 알림 | 계정 단위 Notification Rules(All Projects): Deployment Failed, Deployment Crashed / Oom Killed, Usage Alert, Workspace·Service·Domain Restricted, Fallback(High Severity, Notice) 모두 Email & In-App |
-| 백업 | Volume backups Daily, 보관 6일, PITR 미사용. 첫 백업은 2026-10-05 기록 시점에 실행 전 |
+| 백업 | Volume backups Daily, 보관 6일, PITR 미사용. 첫 백업 2026-10-05 21:41 KST 무렵 일정대로 자동 실행(938 MB) |
