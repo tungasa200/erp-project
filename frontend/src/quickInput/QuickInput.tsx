@@ -1,8 +1,16 @@
 // SCR-COM-02 빠른 입력창. 입력하는 동안 해석 결과를 칩으로 미리 보여 준다(오해석 방지).
-// 저장(onSubmit)은 업무·일정 API가 생기면(P1-03·05) 연결한다. 칩 수정 드롭다운, 새 프로젝트 확인,
-// 자주 하는 업무 제안(④)도 프로젝트·업무 데이터가 필요해 그때 붙인다.
+// @프로젝트는 그 프로젝트 색 칩, 없는 프로젝트는 "새 프로젝트 만들기" 칩(눌러서 확인 후 생성).
+// #태그는 태그마다 칩 하나, 없는 태그는 저장할 때 만들어지므로 "새" 표시만 한다(P1-02 결정 B안, erp-design 칩 기준).
+// 저장(onSubmit)은 업무·일정 API가 생기면(P1-03·05) 연결한다. 칩 수정 드롭다운, 자주 하는 업무 제안(④)도 그때 붙인다.
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useId, useMemo, useRef, useState } from 'react'
+import { toastForError } from '../api/errorToast'
+import { ApiError } from '../api/problem'
 import { useAuth } from '../auth/useAuth'
+import { useToast } from '../components/useToast'
+import { PROJECTS_QUERY_KEY, projectApi, TAGS_QUERY_KEY, tagApi, type Project, type Tag } from '../projects/api'
+import { nextColor, projectColor } from '../projects/palette'
+import { useShortcutsEnabled } from '../shortcuts/useShortcuts'
 import { shortDate, todayIn, weekStartNumber } from './dates'
 import { GrammarHelp } from './GrammarHelp'
 import { parseQuickInput, toDraft, type Priority, type QuickDraft } from './parse'
@@ -10,28 +18,41 @@ import styles from './QuickInput.module.css'
 
 const PRIORITY_LABEL: Record<Priority, string> = { HIGH: '높음', MEDIUM: '보통', LOW: '낮음' }
 
-interface Chip {
-  kind: 'time' | 'project' | 'priority' | 'due'
-  text: string
-  strong?: boolean
-}
+type Chip =
+  | { key: string; kind: 'time' | 'priority' | 'due'; text: string; strong?: boolean }
+  | { key: string; kind: 'project'; text: string; project?: Project }
+  | { key: string; kind: 'newProject'; name: string }
+  | { key: string; kind: 'tag'; name: string; isNew: boolean }
 
-function chipsOf(draft: QuickDraft, today: string): Chip[] {
+const sameName = (a: string, b: string) => a.toLowerCase() === b.toLowerCase()
+
+function chipsOf(draft: QuickDraft, today: string, projects?: Project[], tags?: Tag[]): Chip[] {
   const day = (date: string) => (date === today ? '오늘' : shortDate(date))
   const chips: Chip[] = []
   if (draft.schedule) {
     const { date, start, end } = draft.schedule
-    chips.push({ kind: 'time', text: `${day(date)} ${start}–${end}` })
+    chips.push({ key: 'time', kind: 'time', text: `${day(date)} ${start}–${end}` })
   }
-  if (draft.project) chips.push({ kind: 'project', text: `#${draft.project}` })
+  if (draft.project) {
+    const name = draft.project
+    const project = projects?.find((p) => sameName(p.name, name))
+    // 목록을 아직 못 받았으면 새 프로젝트로 단정하지 않고 이름만 보여 준다.
+    if (projects && !project) chips.push({ key: 'project', kind: 'newProject', name })
+    else chips.push({ key: 'project', kind: 'project', text: project?.name ?? name, project })
+  }
+  for (const name of draft.tags ?? []) {
+    const isNew = tags !== undefined && !tags.some((t) => sameName(t.name, name))
+    chips.push({ key: `tag-${name}`, kind: 'tag', name, isNew })
+  }
   if (draft.priority) {
     chips.push({
+      key: 'priority',
       kind: 'priority',
       text: `우선순위 ${PRIORITY_LABEL[draft.priority]}`,
       strong: draft.priority === 'HIGH',
     })
   }
-  if (draft.due) chips.push({ kind: 'due', text: `마감 ${day(draft.due)}` })
+  if (draft.due) chips.push({ key: 'due', kind: 'due', text: `마감 ${day(draft.due)}` })
   return chips
 }
 
@@ -57,8 +78,38 @@ export function QuickInput({ value, onChange, onSubmit, label = '빠른 입력' 
   const today = todayIn(user?.timezone ?? 'Asia/Seoul')
   const weekStart = weekStartNumber(user?.weekStart)
   const draft = useMemo(() => toDraft(parseQuickInput(value, { today, weekStart }), today), [value, today, weekStart])
-  const chips = chipsOf(draft, today)
+  const queryClient = useQueryClient()
+  const { showToast } = useToast()
+  const shortcutsEnabled = useShortcutsEnabled()
+  // @·#을 쓸 때만 목록을 받는다. 자주 바뀌지 않으므로 30초 동안은 다시 받지 않는다.
+  const projects = useQuery({
+    queryKey: PROJECTS_QUERY_KEY,
+    queryFn: async () => (await projectApi.list()).items,
+    enabled: Boolean(draft.project),
+    staleTime: 30_000,
+  })
+  const tags = useQuery({
+    queryKey: TAGS_QUERY_KEY,
+    queryFn: async () => (await tagApi.list()).items,
+    enabled: Boolean(draft.tags?.length),
+    staleTime: 30_000,
+  })
+  const chips = chipsOf(draft, today, projects.data, tags.data)
   const typing = value.trim() !== ''
+
+  const createProject = async (name: string) => {
+    try {
+      const created = await projectApi.create({ name, color: nextColor(projects.data ?? []) })
+      queryClient.setQueryData<Project[]>(PROJECTS_QUERY_KEY, (list) => [...(list ?? []), created])
+    } catch (error) {
+      // 다른 곳에서 먼저 만들었으면 목록을 다시 받아 그 프로젝트로 보여 준다.
+      if (error instanceof ApiError && error.code === 'DUPLICATE_NAME') void projects.refetch()
+      else {
+        const { message, traceId } = toastForError(error)
+        showToast(message, { traceId })
+      }
+    }
+  }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
     // 한글 조합 중 Enter는 조합 확정이라 저장하지 않는다.
@@ -94,9 +145,12 @@ export function QuickInput({ value, onChange, onSubmit, label = '빠른 입력' 
         {typing && onSubmit ? (
           <span className={styles.enter}>Enter 저장</span>
         ) : (
-          <kbd className={styles.kbd} aria-hidden="true">
-            N
-          </kbd>
+          // 단축키를 끄면 N 안내도 숨긴다 (qa P1-01-11)
+          shortcutsEnabled && (
+            <kbd className={styles.kbd} aria-hidden="true">
+              N
+            </kbd>
+          )
         )}
         <button
           type="button"
@@ -114,14 +168,57 @@ export function QuickInput({ value, onChange, onSubmit, label = '빠른 입력' 
         <div id={`${id}-preview`} className={styles.preview}>
           {chips.length > 0 && (
             <ul className={styles.chips} aria-label="해석 결과">
-              {chips.map((c) => (
-                <li
-                  key={c.kind}
-                  className={[styles.chip, styles[c.kind], c.strong && styles.strong].filter(Boolean).join(' ')}
-                >
-                  {c.text}
-                </li>
-              ))}
+              {chips.map((c) => {
+                if (c.kind === 'newProject') {
+                  return (
+                    <li key={c.key}>
+                      <button
+                        type="button"
+                        className={`${styles.chip} ${styles.newProject}`}
+                        onClick={() => void createProject(c.name)}
+                      >
+                        + 새 프로젝트 "{c.name}" 만들기
+                      </button>
+                    </li>
+                  )
+                }
+                if (c.kind === 'tag') {
+                  return (
+                    <li
+                      key={c.key}
+                      className={[styles.chip, styles.tag, c.isNew && styles.tagNew].filter(Boolean).join(' ')}
+                      aria-label={c.isNew ? `새 태그 ${c.name}` : undefined}
+                    >
+                      #{c.name}
+                      {c.isNew && (
+                        <span className={styles.newBadge} aria-hidden="true">
+                          새
+                        </span>
+                      )}
+                    </li>
+                  )
+                }
+                if (c.kind === 'project') {
+                  const color = c.project && projectColor(c.project.color)
+                  return (
+                    <li
+                      key={c.key}
+                      className={`${styles.chip} ${styles.project}`}
+                      style={color && { background: color.tint, color: color.ink }}
+                    >
+                      {c.text}
+                    </li>
+                  )
+                }
+                return (
+                  <li
+                    key={c.key}
+                    className={[styles.chip, styles[c.kind], c.strong && styles.strong].filter(Boolean).join(' ')}
+                  >
+                    {c.text}
+                  </li>
+                )
+              })}
             </ul>
           )}
           <p className={styles.hint}>

@@ -13,7 +13,10 @@ import { json, ME, renderApp, stubFetch } from './renderApp'
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] })
   vi.setSystemTime(new Date('2026-10-07T03:00:00Z')) // 서울 10/7(수) 12:00
-  stubFetch({ 'GET /api/users/me': () => json(200, ME) })
+  stubFetch({
+    'GET /api/users/me': () => json(200, ME),
+    'GET /api/worklog/projects?includeArchived=true': () => json(200, { items: [] }),
+  })
 })
 
 afterEach(() => {
@@ -25,7 +28,7 @@ afterEach(() => {
 describe('SCR-COM-02 qa 회귀', () => {
   it('P1-09-01 칩 class에 undefined가 들어가지 않고 마감·우선순위 칩은 종류 class를 갖는다', async () => {
     renderApp('/')
-    await userEvent.type(await screen.findByRole('textbox', { name: '빠른 기록' }), '견적서 회신 #영업 !낮음 ~금')
+    await userEvent.type(await screen.findByRole('textbox', { name: '빠른 기록' }), '견적서 회신 @영업 !낮음 ~금')
     const chips = within(screen.getByRole('list', { name: '해석 결과' })).getAllByRole('listitem')
     for (const chip of chips) expect(chip.className).not.toContain('undefined')
     expect(chips.find((c) => c.textContent === '마감 10/9(금)')).toHaveClass('chip', 'due')
@@ -42,6 +45,19 @@ describe('SCR-COM-02 qa 회귀', () => {
     await userEvent.keyboard('{Escape}')
     expect(screen.queryByRole('dialog', { name: '한 줄 입력 문법' })).not.toBeInTheDocument()
     expect(help).toHaveFocus()
+  })
+
+  it('P1-01-11 키보드 단축키를 끄면 입력창의 N 안내를 숨긴다', async () => {
+    stubFetch({ 'GET /api/users/me': () => json(200, { ...ME, keyboardShortcutsEnabled: false }) })
+    renderApp('/')
+    await screen.findByRole('textbox', { name: '빠른 기록' })
+    expect(document.querySelector('kbd')).toBeNull()
+  })
+
+  it('단축키가 켜져 있으면 N 안내를 보여 준다', async () => {
+    renderApp('/')
+    await screen.findByRole('textbox', { name: '빠른 기록' })
+    expect(document.querySelector('kbd')).toHaveTextContent('N')
   })
 
   it('도움말 표는 날짜만 쓰면 마감일이라고 알린다 (D-62)', async () => {

@@ -8,17 +8,18 @@ const parse = (text: string, weekStart?: number) => parseQuickInput(text, { toda
 
 describe('parseQuickInput', () => {
   it('요구사항 예시 한 줄을 모두 해석한다', () => {
-    expect(parse('14-16 견적서 작성 #영업 !높음 ~금')).toEqual({
+    expect(parse('14-16 견적서 작성 @영업 #견적 !높음 ~금')).toEqual({
       title: '견적서 작성',
       time: { start: '14:00', end: '16:00' },
       project: '영업',
+      tags: ['견적'],
       priority: 'HIGH',
       due: '2026-10-09',
     })
   })
 
   it('낱말 순서와 관계없이 읽는다', () => {
-    expect(parse('#영업 견적서 ~내일 작성 14-16')).toMatchObject({
+    expect(parse('@영업 견적서 ~내일 작성 14-16')).toMatchObject({
       title: '견적서 작성',
       project: '영업',
       due: '2026-10-08',
@@ -88,7 +89,7 @@ describe('parseQuickInput', () => {
     )
   })
 
-  describe('마감·프로젝트·우선순위', () => {
+  describe('마감·프로젝트·태그·우선순위', () => {
     it.each([
       ['~금', '2026-10-09'],
       ['~금요일', '2026-10-09'],
@@ -107,12 +108,27 @@ describe('parseQuickInput', () => {
     })
 
     it('해석하지 못한 기호 낱말은 제목에 남는다', () => {
-      expect(parse('# ! ~ !급함 ~아무때나 #')).toEqual({ title: '# ! ~ !급함 ~아무때나 #' })
+      expect(parse('# @ ! ~ !급함 ~아무때나 #a#b')).toEqual({ title: '# @ ! ~ !급함 ~아무때나 #a#b' })
+    })
+
+    it('태그는 여러 개를 입력 순서대로 받고 같은 이름(대소문자 무시)은 하나로 친다', () => {
+      expect(parse('#결제 회의 #견적 #API #api #결제')).toEqual({ title: '회의', tags: ['결제', '견적', 'API'] })
+    })
+
+    it('태그 이름은 30자까지, 프로젝트 이름은 50자까지', () => {
+      const tag31 = `#${'가'.repeat(31)}`
+      const project51 = `@${'나'.repeat(51)}`
+      expect(parse(`${tag31} ${project51}`)).toEqual({ title: `${tag31} ${project51}` })
+      expect(parse(`#${'가'.repeat(30)} @${'나'.repeat(50)}`)).toEqual({
+        title: '',
+        tags: ['가'.repeat(30)],
+        project: '나'.repeat(50),
+      })
     })
 
     it('같은 종류가 두 번 나오면 처음 것만 쓰고 나머지는 제목에 남긴다', () => {
-      expect(parse('#가 #나 !높음 !낮음 오늘 내일 1-2 3-4 메모')).toEqual({
-        title: '#나 !낮음 내일 3-4 메모',
+      expect(parse('@가 @나 !높음 !낮음 오늘 내일 1-2 3-4 메모')).toEqual({
+        title: '@나 !낮음 내일 3-4 메모',
         project: '가',
         priority: 'HIGH',
         date: '2026-10-07',
@@ -135,9 +151,10 @@ describe('toDraft', () => {
   })
 
   it('날짜와 시간이 있으면 그날 일정', () => {
-    expect(draft('내일 10-11 스프린트 리뷰 #개발')).toEqual({
+    expect(draft('내일 10-11 스프린트 리뷰 @개발 #스프린트')).toEqual({
       title: '스프린트 리뷰',
       project: '개발',
+      tags: ['스프린트'],
       schedule: { date: '2026-10-08', start: '10:00', end: '11:00' },
     })
   })

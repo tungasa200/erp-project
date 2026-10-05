@@ -1,13 +1,14 @@
 // REC-04 한 줄 빠른 입력 파서 (P1-09). 문법 범위를 작게 시작해 넓혀 간다(작업계획서 위험 대응).
 //
-// 공백으로 나눈 낱말을 순서와 관계없이 읽는다. 종류마다 처음 나온 것만 쓰고,
+// 공백으로 나눈 낱말을 순서와 관계없이 읽는다. 태그 말고는 종류마다 처음 나온 것만 쓰고,
 // 해석하지 못한 낱말과 두 번째부터 나온 같은 종류 낱말은 제목에 그대로 남는다.
 //   시간    14-16 · 9:30-10:30   24시간제. 끝이 시작보다 이르면 오후로 본다(11-1 → 11:00–13:00)
 //   날짜    오늘 · 내일 · 모레 · 어제 · 수요일 · 이번주/다음주/다다음주/지난주 수(요일) · 10/12 · 10월 12일
 //           요일만 쓰면 오늘을 포함해 가장 가까운 그 요일. 한 글자 요일은 주 앞말이나 ~ 뒤에서만 받는다("일 정리" 오해석 방지)
 //           월/일만 쓰면 오늘에서 가장 가까운 해
 //   마감    ~ 뒤에 날짜: ~금 · ~내일 · ~10/12 · ~다음주 수요일
-//   프로젝트 #이름
+//   프로젝트 @이름 (P1-02 결정 B안: @는 프로젝트, #은 태그)
+//   태그    #이름 · 여러 개 가능, 같은 이름(대소문자 무시)은 하나로. 이름 규칙은 1~30자, 공백·# 없음(계약 TagName)
 //   우선순위 !높음 · !보통 · !낮음
 import { addDays, daysBetween, isoWeekday, makeDate, WEEKDAY_NAMES } from './dates'
 
@@ -21,6 +22,8 @@ export interface QuickParse {
   dateText?: string
   time?: { start: string; end: string }
   project?: string
+  /** 입력 순서대로 */
+  tags?: string[]
   priority?: Priority
   due?: string
 }
@@ -138,8 +141,15 @@ export function parseQuickInput(text: string, options: ParseOptions): QuickParse
       i += 1
       continue
     }
-    if (!result.project && /^#\S+$/.test(t)) {
+    if (!result.project && /^@\S{1,50}$/.test(t)) {
       result.project = t.slice(1)
+      i += 1
+      continue
+    }
+    if (/^#[^\s#]{1,30}$/.test(t)) {
+      const tag = t.slice(1)
+      const tags = (result.tags ??= [])
+      if (!tags.some((x) => x.toLowerCase() === tag.toLowerCase())) tags.push(tag)
       i += 1
       continue
     }
@@ -176,15 +186,16 @@ export function parseQuickInput(text: string, options: ParseOptions): QuickParse
 export interface QuickDraft {
   title: string
   project?: string
+  tags?: string[]
   priority?: Priority
   due?: string
   schedule?: { date: string; start: string; end: string }
 }
 
 export function toDraft(parsed: QuickParse, today: string): QuickDraft {
-  const { title, project, priority, due, date, dateText, time } = parsed
-  if (time) return { title, project, priority, due, schedule: { date: date ?? today, ...time } }
+  const { title, project, tags, priority, due, date, dateText, time } = parsed
+  if (time) return { title, project, tags, priority, due, schedule: { date: date ?? today, ...time } }
   // 시각 없이 쓴 날짜는 마감으로 본다. ~ 마감이 따로 있으면 날짜 글자를 제목에 돌려놓는다 (P1-09 결정 A안).
-  if (date && !due) return { title, project, priority, due: date }
-  return { title: dateText ? `${dateText} ${title}`.trim() : title, project, priority, due }
+  if (date && !due) return { title, project, tags, priority, due: date }
+  return { title: dateText ? `${dateText} ${title}`.trim() : title, project, tags, priority, due }
 }

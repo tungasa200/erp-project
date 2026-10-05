@@ -21,8 +21,28 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
+// 빠른 입력이 @·#을 해석할 때 받는 프로젝트·태그 목록
+const WORKLOG = {
+  'GET /api/worklog/projects?includeArchived=true': () =>
+    json(200, {
+      items: [
+        {
+          id: 'p2',
+          name: '영업',
+          color: 'P2',
+          archived: false,
+          taskCount: 4,
+          createdAt: '2026-10-01T00:00:00Z',
+          version: 0,
+        },
+      ],
+    }),
+  'GET /api/worklog/tags': () =>
+    json(200, { items: [{ id: 't1', name: '결제', usageCount: 4, createdAt: '2026-10-01T00:00:00Z', version: 0 }] }),
+}
+
 async function openHome(me: object = ME) {
-  stubFetch({ 'GET /api/users/me': () => json(200, me) })
+  stubFetch({ 'GET /api/users/me': () => json(200, me), ...WORKLOG })
   const result = renderApp('/')
   const input = await screen.findByRole('textbox', { name: '빠른 기록' })
   return { ...result, input }
@@ -38,8 +58,8 @@ describe('SCR-HOME-01 첫 화면 (UX-04)', () => {
 
   it('예시를 누르면 입력창에 채운다', async () => {
     const { input } = await openHome()
-    await userEvent.click(screen.getByRole('button', { name: '견적서 회신 #영업 !높음 ~금' }))
-    expect(input).toHaveValue('견적서 회신 #영업 !높음 ~금')
+    await userEvent.click(screen.getByRole('button', { name: '견적서 회신 @영업 #결제 !낮음 ~금' }))
+    expect(input).toHaveValue('견적서 회신 @영업 #결제 !낮음 ~금')
     expect(input).toHaveFocus()
   })
 })
@@ -47,10 +67,52 @@ describe('SCR-HOME-01 첫 화면 (UX-04)', () => {
 describe('SCR-COM-02 빠른 입력창', () => {
   it('해석 결과를 실제 날짜 칩으로 미리 보여 준다', async () => {
     const { input } = await openHome()
-    await userEvent.type(input, '14-16 견적서 작성 #영업 !높음 ~금')
-    const chips = within(screen.getByRole('list', { name: '해석 결과' })).getAllByRole('listitem')
-    expect(chips.map((c) => c.textContent)).toEqual(['오늘 14:00–16:00', '#영업', '우선순위 높음', '마감 10/9(금)'])
+    await userEvent.type(input, '14-16 견적서 작성 @영업 #결제 #견적 !높음 ~금')
+    const list = screen.getByRole('list', { name: '해석 결과' })
+    // 목록을 받으면 없는 태그(견적)에 "새"가 붙는다
+    await waitFor(() =>
+      expect(
+        within(list)
+          .getAllByRole('listitem')
+          .map((c) => c.textContent),
+      ).toEqual(['오늘 14:00–16:00', '영업', '#결제', '#견적새', '우선순위 높음', '마감 10/9(금)']),
+    )
     expect(screen.getByText('일정과 업무가 함께 만들어져요')).toBeInTheDocument()
+  })
+
+  it('@프로젝트는 그 프로젝트 색, #태그는 흰 칩이고 없는 태그는 "새 태그"로 읽힌다', async () => {
+    const { input } = await openHome()
+    await userEvent.type(input, '보고 @영업 #결제 #정산')
+    const project = await screen.findByText('영업')
+    expect(project).toHaveStyle({ background: 'var(--project-p2-tint)', color: 'var(--project-p2-ink)' })
+    expect(screen.getByText('#결제')).toHaveClass('chip', 'tag')
+    expect(await screen.findByRole('listitem', { name: '새 태그 정산' })).toHaveClass('tag', 'tagNew')
+  })
+
+  it('없는 프로젝트는 "새 프로젝트 만들기" 칩을 눌러 만든다', async () => {
+    const created: unknown[] = []
+    stubFetch({
+      'GET /api/users/me': () => json(200, ME),
+      ...WORKLOG,
+      'POST /api/worklog/projects': (init) => {
+        const body = JSON.parse(String(init?.body)) as { name: string; color: string }
+        created.push(body)
+        return json(201, {
+          id: 'p9',
+          ...body,
+          archived: false,
+          taskCount: 0,
+          createdAt: '2026-10-07T00:00:00Z',
+          version: 0,
+        })
+      },
+    })
+    renderApp('/')
+    await userEvent.type(await screen.findByRole('textbox', { name: '빠른 기록' }), '보도자료 @마케팅')
+    await userEvent.click(await screen.findByRole('button', { name: '+ 새 프로젝트 "마케팅" 만들기' }))
+    // 영업(P2)만 쓰는 중이라 첫 빈 색 P1
+    await waitFor(() => expect(created).toEqual([{ name: '마케팅', color: 'P1' }]))
+    expect(await screen.findByText('마케팅')).toHaveStyle({ background: 'var(--project-p1-tint)' })
   })
 
   it('시각 없는 날짜는 마감으로 보여 준다', async () => {
@@ -62,7 +124,7 @@ describe('SCR-COM-02 빠른 입력창', () => {
 
   describe('Enter', () => {
     async function renderQuick() {
-      stubFetch({ 'GET /api/users/me': () => json(200, ME) })
+      stubFetch({ 'GET /api/users/me': () => json(200, ME), ...WORKLOG })
       const onSubmit = vi.fn()
       function Wrapper() {
         const [value, setValue] = useState('')
@@ -71,7 +133,9 @@ describe('SCR-COM-02 빠른 입력창', () => {
       render(
         <QueryClientProvider client={new QueryClient()}>
           <AuthProvider>
-            <Wrapper />
+            <ToastProvider>
+              <Wrapper />
+            </ToastProvider>
           </AuthProvider>
         </QueryClientProvider>,
       )
@@ -89,18 +153,19 @@ describe('SCR-COM-02 빠른 입력창', () => {
 
     it('제목 없이 문법 낱말만 있으면 안내하고 저장하지 않는다', async () => {
       const { onSubmit, input } = await renderQuick()
-      await userEvent.type(input, '14-16 #영업{Enter}')
+      await userEvent.type(input, '14-16 @영업 #결제{Enter}')
       expect(onSubmit).not.toHaveBeenCalled()
       expect(screen.getByText('할 일 이름을 적어 주세요')).toBeInTheDocument()
-      expect(input).toHaveValue('14-16 #영업')
+      expect(input).toHaveValue('14-16 @영업 #결제')
     })
 
     it('제목이 있으면 해석 결과로 저장하고 입력을 비운다', async () => {
       const { onSubmit, input } = await renderQuick()
-      await userEvent.type(input, '견적서 14-16 #영업{Enter}')
+      await userEvent.type(input, '견적서 14-16 @영업 #결제{Enter}')
       expect(onSubmit).toHaveBeenCalledWith({
         title: '견적서',
         project: '영업',
+        tags: ['결제'],
         schedule: { date: '2026-10-07', start: '14:00', end: '16:00' },
       })
       await waitFor(() => expect(input).toHaveValue(''))
@@ -117,8 +182,8 @@ describe('SCR-COM-02 빠른 입력창', () => {
     const { input } = await openHome()
     await userEvent.click(screen.getByRole('button', { name: '문법 도움말' }))
     const help = screen.getByRole('dialog', { name: '한 줄 입력 문법' })
-    await userEvent.click(within(help).getByRole('button', { name: '내일 10-11 스프린트 리뷰 #개발' }))
-    expect(input).toHaveValue('내일 10-11 스프린트 리뷰 #개발')
+    await userEvent.click(within(help).getByRole('button', { name: '내일 10-11 스프린트 리뷰 @개발' }))
+    expect(input).toHaveValue('내일 10-11 스프린트 리뷰 @개발')
     expect(screen.queryByRole('dialog', { name: '한 줄 입력 문법' })).not.toBeInTheDocument()
   })
 })
