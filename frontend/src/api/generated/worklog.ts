@@ -1392,7 +1392,7 @@ export interface operations {
             query?: {
                 /** @description 이전 응답의 nextCursor. 처음이면 생략. */
                 cursor?: string;
-                limit?: string;
+                limit?: number;
                 /** @description 여러 개면 OR (?status=TODO&status=IN_PROGRESS) */
                 status?: ("TODO" | "IN_PROGRESS" | "DONE" | "ON_HOLD")[];
                 /** @description 여러 개면 OR */
