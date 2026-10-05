@@ -3,7 +3,9 @@
 // locked@example.com: 로그인 시 429 AUTH_LOCKED, error@example.com: 500, maintenance@example.com: 503 점검(30분)
 // deleted@example.com: 로그인은 되지만 이후 요청은 401 USER_DELETED(다른 기기에서 탈퇴한 경우, 새로 고침하면 재현)
 // 프로필 수정(PATCH /api/users/me)은 localStorage에 남는다. 탭 두 개에서 고치면 409 VERSION_CONFLICT를 재현할 수 있다.
+// 이메일 인증·비밀번호 재설정 코드는 항상 123456 (mockCodes.ts). 가입하면 첫 인증 코드를 자동으로 보낸 것으로 친다.
 import { EMAIL_PATTERN, passwordViolations } from '../auth/passwordRules'
+import { checkCode, codeStatus, issueCode } from './mockCodes'
 import { handleWorklog } from './mockWorklog'
 import type { FieldError, Problem } from './problem'
 import type { Me, ProfileUpdateRequest } from './types'
@@ -132,6 +134,7 @@ export const mockFetch: typeof fetch = async (input, init) => {
     const id = `mock-${Date.now()}`
     state.accounts[email] = { password: body.password, id }
     startSession(state, email)
+    issueCode(`verify:${email}`)
     return json(201, me(email, id))
   }
 
@@ -170,6 +173,65 @@ export const mockFetch: typeof fetch = async (input, init) => {
     if (session.email === 'deleted@example.com') return problem(401, 'USER_DELETED')
     const account = state.accounts[session.email]
     return json(200, me(session.email, account?.id ?? 'mock', account?.profile))
+  }
+
+  if (path === '/api/auth/password-reset' && method === 'POST') {
+    const email = String(body.email ?? '')
+      .trim()
+      .toLowerCase()
+    const issued = issueCode(`reset:${email}`)
+    if ('retryAfterSeconds' in issued) return problem(429, 'RESEND_TOO_SOON', issued)
+    return json(202, issued)
+  }
+
+  if (
+    (path === '/api/auth/password-reset/verify' || path === '/api/auth/password-reset/confirm') &&
+    method === 'POST'
+  ) {
+    const email = String(body.email ?? '')
+      .trim()
+      .toLowerCase()
+    const confirm = path.endsWith('/confirm')
+    const result = checkCode(`reset:${email}`, body.code, false)
+    if (!result.ok) return problem(400, result.code, result.extra as Partial<Problem>)
+    if (!confirm) return new Response(null, { status: 204 })
+    const errors = passwordViolations(String(body.newPassword ?? ''), email).map((code) => ({
+      field: 'newPassword',
+      code,
+    }))
+    if (errors.length) return problem(400, 'VALIDATION_FAILED', { errors })
+    checkCode(`reset:${email}`, body.code, true)
+    const account = state.accounts[email]
+    if (account) {
+      account.password = String(body.newPassword)
+      account.profile = { ...account.profile, emailVerified: true }
+    }
+    state.session = null // 모든 기기 로그아웃
+    save(state)
+    return new Response(null, { status: 204 })
+  }
+
+  if (path.startsWith('/api/users/me/email-verification')) {
+    const session = state.session
+    const account = session && state.accounts[session.email]
+    if (!session || !account) return problem(401, 'UNAUTHENTICATED')
+    const current = me(session.email, account.id, account.profile)
+    const key = `verify:${session.email}`
+    if (method === 'GET') return json(200, { verified: current.emailVerified, ...codeStatus(key) })
+    if (method === 'POST' && path.endsWith('/confirm')) {
+      if (current.emailVerified) return json(200, current)
+      const result = checkCode(key, body.code, true)
+      if (!result.ok) return problem(400, result.code, result.extra as Partial<Problem>)
+      account.profile = { ...account.profile, emailVerified: true, version: current.version + 1 }
+      save(state)
+      return json(200, me(session.email, account.id, account.profile))
+    }
+    if (method === 'POST') {
+      if (current.emailVerified) return problem(409, 'EMAIL_ALREADY_VERIFIED')
+      const issued = issueCode(key)
+      if ('retryAfterSeconds' in issued) return problem(429, 'RESEND_TOO_SOON', issued)
+      return json(202, issued)
+    }
   }
 
   if (method === 'PATCH' && path === '/api/users/me') {

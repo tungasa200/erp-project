@@ -5,6 +5,8 @@ import { ErrorPage } from '../pages/ErrorPage'
 import { HomePage } from '../pages/HomePage'
 import { LoginPage } from '../pages/LoginPage'
 import { NotFoundPage } from '../pages/NotFoundPage'
+import { ForgotPasswordPage } from '../pages/password/ForgotPasswordPage'
+import { ResetPasswordPage } from '../pages/password/ResetPasswordPage'
 import { PlaceholderPage } from '../pages/PlaceholderPage'
 import { SignupPage } from '../pages/SignupPage'
 import { GeneralSettings } from '../settings/GeneralSettings'
@@ -21,6 +23,8 @@ export const routes = [
         children: [
           { path: '/login', element: <LoginPage /> },
           { path: '/signup', element: <SignupPage /> },
+          { path: '/password/forgot', element: <ForgotPasswordPage /> },
+          { path: '/password/reset', element: <ResetPasswordPage /> },
         ],
       },
       {

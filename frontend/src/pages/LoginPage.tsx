@@ -114,7 +114,8 @@ export function LoginPage() {
             <span>
               <b>15분 동안 로그인할 수 없어요.</b>
               <br />
-              비밀번호를 10번 잘못 입력했어요. 비밀번호가 기억나지 않으면 재설정하세요.
+              비밀번호를 10번 잘못 입력했어요. 비밀번호가 기억나지 않으면{' '}
+              <Link to="/password/forgot">재설정하세요</Link>.
             </span>
           </div>
         )}
@@ -193,9 +194,8 @@ export function LoginPage() {
           {waiting ? `로그인 · ${formatRemaining(waitUntil - now)} 후 가능` : submitting ? '로그인 중…' : '로그인'}
         </button>
 
-        {/* 비밀번호 찾기 링크는 P1-13에서 추가 (화면정의서 SCR-AUTH-02 ④) */}
         <div className={styles.links}>
-          <span />
+          <Link to="/password/forgot">비밀번호 찾기</Link>
           <Link to="/signup">회원가입</Link>
         </div>
       </form>

@@ -5,6 +5,7 @@ import { Link, NavLink, Outlet, useNavigate } from 'react-router'
 import { useAuth } from '../auth/useAuth'
 import { CommandPalette } from '../palette/CommandPalette'
 import { useSingleKeyShortcuts } from '../shortcuts/useShortcuts'
+import { UnverifiedBanner } from '../verification/UnverifiedBanner'
 import styles from './AppShell.module.css'
 import { useOnline } from './useOnline'
 
@@ -125,6 +126,7 @@ export function AppShell() {
       </nav>
 
       <div className={styles.content}>
+        <UnverifiedBanner />
         {/* 끊긴 동안에는 입력을 막는다 (SCR-SYS-02 ③, 오프라인 기록은 범위 밖) */}
         <fieldset className={styles.main} disabled={!online}>
           <Outlet />
