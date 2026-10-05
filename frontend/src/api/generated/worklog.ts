@@ -103,6 +103,82 @@ export interface paths {
         patch: operations["updateProject"];
         trace?: never;
     };
+    "/api/worklog/schedules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 기간 안의 일정 회차 (캘린더 일·주·월·연·목록 보기)
+         * @description [from, to)와 겹치는 회차를 시작 시각순으로 준다. 반복 일정은 회차로 전개하고, "이 일정만"으로 바꾼 회차는 바뀐 값으로,
+         *     삭제한 회차는 빼고 준다. 종일 일정은 일정 시간대의 [startDate 0시, endDate 다음 날 0시)로 겹침을 판단한다. 기간은 최대 400일.
+         */
+        get: operations["listOccurrences"];
+        put?: never;
+        /**
+         * 일정 추가 (반복 포함)
+         * @description timezone은 사용자 프로필의 현재 시간대로 정해지며 바꿀 수 없다(반복 전개·종일 날짜의 기준, D-40).
+         */
+        post: operations["createSchedule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/worklog/schedules/{scheduleId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 일정 조회 (반복 일정은 원본 규칙) */
+        get: operations["getSchedule"];
+        put?: never;
+        post?: never;
+        /**
+         * 일정 삭제 — 반복 일정이면 "모든 일정"
+         * @description 일정과 회차 기록을 함께 지운다(되돌릴 수 없음). version을 받지 않는다.
+         */
+        delete: operations["deleteSchedule"];
+        options?: never;
+        head?: never;
+        /**
+         * 일정 수정 — 반복 일정이면 "모든 일정" (SCR-CAL-08)
+         * @description 보낸 칸만 바꾼다. 종일 여부를 바꾸면 새 종류의 시각 칸을 함께 보낸다. 반복 일정에서 시각이나 recurrence를 바꾸면
+         *     회차별 변경·삭제를 모두 지운다. 제목·메모·연결 업무만 바꾸면 남는다. recurrence에 null을 보내면 반복을 없앤다.
+         */
+        patch: operations["updateSchedule"];
+        trace?: never;
+    };
+    "/api/worklog/schedules/{scheduleId}/occurrences/{occurrenceStart}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * 반복 일정의 한 회차만 삭제 — "이 일정만"
+         * @description 그 회차를 목록에서 뺀다. 일정의 version이 오른다. version을 받지 않는다. 이미 삭제한 회차면 204.
+         */
+        delete: operations["deleteOccurrence"];
+        options?: never;
+        head?: never;
+        /**
+         * 반복 일정의 한 회차만 수정 — "이 일정만" (SCR-CAL-08, 블록 이동 포함)
+         * @description 제목·메모·시각만 바꿀 수 있다(종일 여부·반복·연결 업무는 일정 전체 수정으로). 시각은 일정 종류에 맞는 칸만 받는다.
+         *     version은 일정의 version이며 성공하면 오른다.
+         */
+        patch: operations["updateOccurrence"];
+        trace?: never;
+    };
     "/api/worklog/tags": {
         parameters: {
             query?: never;
@@ -225,6 +301,59 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * @description 캘린더에 그리는 일정 회차 하나. 반복이 없는 일정도 회차 하나로 준다.
+         *     occurrenceStart는 회차 키(원래 시작 시각, 종일은 원래 날짜의 일정 시간대 0시)이며 회차를 옮겨도 바뀌지 않는다.
+         */
+        Occurrence: {
+            allDay: boolean;
+            /** Format: date-time */
+            endAt?: string | null;
+            /** Format: date */
+            endDate?: string | null;
+            memo?: string | null;
+            /** @description "이 일정만"으로 바꾼 회차인지 */
+            modified: boolean;
+            /** Format: date-time */
+            occurrenceStart: string;
+            /** @description 반복 일정의 회차인지 */
+            recurring: boolean;
+            /** Format: uuid */
+            scheduleId: string;
+            /** Format: date-time */
+            startAt?: string | null;
+            /** Format: date */
+            startDate?: string | null;
+            /** Format: uuid */
+            taskId?: string | null;
+            title: string;
+            /**
+             * Format: int64
+             * @description 일정(Schedule)의 version
+             */
+            version: number;
+        };
+        OccurrenceList: {
+            items: components["schemas"]["Occurrence"][];
+        };
+        /** @description 보낸 칸만 바꾼다. memo에 null을 보내면 이 회차의 메모만 비운다. */
+        OccurrencePatch: {
+            /** Format: date-time */
+            endAt?: string;
+            /** Format: date */
+            endDate?: string;
+            memo?: string | null;
+            /** Format: date-time */
+            startAt?: string;
+            /** Format: date */
+            startDate?: string;
+            title?: string;
+            /**
+             * Format: int64
+             * @description 일정(Schedule)의 version
+             */
+            version: number;
+        };
         /** @description RFC 9457 Problem Details + 확장 필드 (P0-10 공통 모듈 형식) */
         Problem: {
             /** @description 기계 판독용 오류 코드 */
@@ -294,6 +423,99 @@ export interface components {
             /** @enum {string} */
             color?: "P1" | "P2" | "P3" | "P4" | "P5" | "P6" | "P7" | "P8";
             name?: string;
+            /** Format: int64 */
+            version: number;
+        };
+        /**
+         * @description 반복 규칙 (SCH-03). 첫 회차는 항상 일정의 시작이라 매주는 weekdays에 시작일의 요일이 있어야 한다.
+         *     매월은 시작일과 같은 날짜이며 그 날짜가 없는 달은 건너뛴다. until과 count는 함께 쓸 수 없고, 둘 다 없으면 끝없이 반복한다.
+         */
+        Recurrence: {
+            /**
+             * Format: int32
+             * @description 회차 수 (삭제한 회차도 센다)
+             */
+            count?: number | null;
+            /** @enum {string} */
+            frequency: "DAILY" | "WEEKLY" | "MONTHLY";
+            /**
+             * Format: date
+             * @description 이 날짜(일정 시간대)까지의 회차 포함
+             */
+            until?: string | null;
+            /**
+             * @description WEEKLY에서만, 1개 이상 필수
+             * @enum {array}
+             */
+            weekdays?: "MONDAY" | "TUESDAY" | "WEDNESDAY" | "THURSDAY" | "FRIDAY" | "SATURDAY" | "SUNDAY";
+        };
+        /** @description 일정 원본. allDay=false면 startAt·endAt, true면 startDate·endDate(포함)만 값이 있다. */
+        Schedule: {
+            allDay: boolean;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            endAt?: string | null;
+            /**
+             * Format: date
+             * @description 마지막 날 포함
+             */
+            endDate?: string | null;
+            /** Format: uuid */
+            id: string;
+            memo?: string | null;
+            recurrence?: components["schemas"]["Recurrence"];
+            /** Format: date-time */
+            startAt?: string | null;
+            /** Format: date */
+            startDate?: string | null;
+            /** Format: uuid */
+            taskId?: string | null;
+            /** @description 반복 전개와 종일 날짜의 기준 IANA 시간대. 만들 때 사용자 시간대로 정해지며 바뀌지 않는다 */
+            timezone: string;
+            title: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: int64 */
+            version: number;
+        };
+        /**
+         * @description allDay=false면 startAt·endAt 필수(endAt > startAt), true면 startDate·endDate 필수(endDate >= startDate).
+         *     다른 종류의 두 칸은 보내지 않거나 null이어야 한다. taskId는 보관하지 않은 내 업무여야 한다.
+         */
+        ScheduleCreate: {
+            allDay: boolean;
+            /** Format: date-time */
+            endAt?: string | null;
+            /** Format: date */
+            endDate?: string | null;
+            memo?: string | null;
+            recurrence?: components["schemas"]["Recurrence"];
+            /** Format: date-time */
+            startAt?: string | null;
+            /** Format: date */
+            startDate?: string | null;
+            /** Format: uuid */
+            taskId?: string | null;
+            /** @description 앞뒤 공백은 빼고 저장한다 */
+            title: string;
+        };
+        /** @description 보낸 칸만 바꾼다. 검증 규칙은 ScheduleCreate와 같다(바꾼 뒤의 전체 값으로 검사). */
+        SchedulePatch: {
+            allDay?: boolean;
+            /** Format: date-time */
+            endAt?: string | null;
+            /** Format: date */
+            endDate?: string | null;
+            memo?: string | null;
+            recurrence?: components["schemas"]["Recurrence"];
+            /** Format: date-time */
+            startAt?: string | null;
+            /** Format: date */
+            startDate?: string | null;
+            /** Format: uuid */
+            taskId?: string | null;
+            title?: string;
             /** Format: int64 */
             version: number;
         };
@@ -714,6 +936,295 @@ export interface operations {
                 };
             };
             /** @description version 불일치(code=VERSION_CONFLICT) 또는 같은 이름(code=DUPLICATE_NAME) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listOccurrences: {
+        parameters: {
+            query?: {
+                from?: string;
+                /** @description from보다 뒤, from + 400일 이내 */
+                to?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 조회 성공 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OccurrenceList"];
+                };
+            };
+            /** @description from·to 누락(REQUIRED)·순서(INVALID_ORDER)·400일 초과(OUT_OF_RANGE)·형식 오류(INVALID_FORMAT) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    createSchedule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScheduleCreate"];
+            };
+        };
+        responses: {
+            /** @description 생성됨 */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Schedule"];
+                };
+            };
+            /** @description 입력 오류 (code=VALIDATION_FAILED, errors[].field는 recurrence.weekdays처럼 점으로 구분) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description identity 조회 실패 (code=PROFILE_UNAVAILABLE) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getSchedule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                scheduleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 조회 성공 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Schedule"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description 없거나 다른 사용자의 일정 (code=NOT_FOUND) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    deleteSchedule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                scheduleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 삭제됨 */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description 없거나 다른 사용자의 일정 (code=NOT_FOUND) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    updateSchedule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                scheduleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SchedulePatch"];
+            };
+        };
+        responses: {
+            /** @description 수정 후 전체 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Schedule"];
+                };
+            };
+            /** @description 입력 오류 (code=VALIDATION_FAILED) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description 없거나 다른 사용자의 일정 (code=NOT_FOUND) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description version 불일치 (code=VERSION_CONFLICT) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    deleteOccurrence: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                scheduleId: string;
+                occurrenceStart: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 삭제됨 */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description 없거나 다른 사용자의 일정, 또는 그 일정의 회차가 아님 (code=NOT_FOUND) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description 반복 일정이 아님 (code=NOT_RECURRING) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    updateOccurrence: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                scheduleId: string;
+                /** @description 회차 키 (Occurrence.occurrenceStart를 그대로) */
+                occurrenceStart: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OccurrencePatch"];
+            };
+        };
+        responses: {
+            /** @description 수정한 회차 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Occurrence"];
+                };
+            };
+            /** @description 입력 오류 (code=VALIDATION_FAILED) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description 일정이 없거나 occurrenceStart가 그 일정의 회차가 아님(삭제한 회차 포함) (code=NOT_FOUND) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description version 불일치(code=VERSION_CONFLICT) 또는 반복 일정이 아님(code=NOT_RECURRING) */
             409: {
                 headers: {
                     [name: string]: unknown;
