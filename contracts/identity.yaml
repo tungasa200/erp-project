@@ -683,7 +683,8 @@ components:
     InvalidInternalQuery:
       description: |
         cursor 형식이 틀림 (code=INVALID_CURSOR, 이전 응답의 nextCursor를 그대로 보내야 한다),
-        또는 after·limit 누락·범위 밖 (code=BAD_REQUEST).
+        after·limit 누락·범위 밖 (code=BAD_REQUEST), 또는 after·limit이 숫자가 아님
+        (code=VALIDATION_FAILED, errors[].code=INVALID_FORMAT — 모든 서비스 공통 처리).
       content:
         application/problem+json:
           schema:

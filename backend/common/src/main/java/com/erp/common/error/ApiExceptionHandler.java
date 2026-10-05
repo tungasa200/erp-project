@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.TypeMismatchException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
 /**
@@ -57,6 +59,21 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 		ProblemDetail problem = Problems.of(HttpStatus.BAD_REQUEST, Problems.VALIDATION_FAILED, "입력값을 확인해 주세요.",
 				errors);
 		return ResponseEntity.badRequest().headers(headers).body(problem);
+	}
+
+	/**
+	 * 쿼리·경로 값의 형식 오류(잘못된 UUID·날짜 등)는 본문 검증과 같게 VALIDATION_FAILED + errors[](INVALID_FORMAT)로 준다.
+	 * 값 누락·범위 밖처럼 다른 매개변수 오류는 그대로 BAD_REQUEST다.
+	 */
+	@Override
+	protected ResponseEntity<Object> handleTypeMismatch(TypeMismatchException ex, HttpHeaders headers,
+			HttpStatusCode status, WebRequest request) {
+		if (ex instanceof MethodArgumentTypeMismatchException mismatch) {
+			ProblemDetail problem = Problems.of(HttpStatus.BAD_REQUEST, Problems.VALIDATION_FAILED, "입력값을 확인해 주세요.",
+					List.of(new FieldErrorDetail(mismatch.getName(), "INVALID_FORMAT", null)));
+			return ResponseEntity.badRequest().headers(headers).body(problem);
+		}
+		return super.handleTypeMismatch(ex, headers, status, request);
 	}
 
 	@Override
