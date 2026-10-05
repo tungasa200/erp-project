@@ -69,7 +69,7 @@ export function HomePage() {
         <h2 id="home-empty-title" className={styles.emptyTitle}>
           오늘 할 일을 한 줄로 적어 보세요
         </h2>
-        <p className={styles.emptyText}>시간·#프로젝트·!우선순위·~마감을 같이 적으면 알아서 나눠 저장해요.</p>
+        <p className={styles.emptyText}>시간·@프로젝트·#태그·!우선순위·~마감을 같이 적으면 알아서 나눠 저장해요.</p>
         <div className={styles.examples}>
           {EXAMPLES.map((e) => (
             <button key={e} type="button" className={styles.example} onClick={() => fillExample(e)}>

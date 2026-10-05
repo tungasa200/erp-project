@@ -54,6 +54,10 @@ describe('SCR-HOME-01 첫 화면 (UX-04)', () => {
     expect(screen.getByText('10월 7일 수요일')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: '좋은 오후예요' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: '오늘 할 일을 한 줄로 적어 보세요' })).toBeInTheDocument()
+    // D-67: @프로젝트·#태그 (qa P1-10-06)
+    expect(
+      screen.getByText('시간·@프로젝트·#태그·!우선순위·~마감을 같이 적으면 알아서 나눠 저장해요.'),
+    ).toBeInTheDocument()
   })
 
   it('예시를 누르면 입력창에 채운다', async () => {
