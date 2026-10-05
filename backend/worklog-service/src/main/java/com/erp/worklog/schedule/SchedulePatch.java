@@ -48,7 +48,7 @@ class SchedulePatch {
 
 	private boolean endDateSent;
 
-	@Schema(types = { "object", "null" })
+	/** null 허용 명세는 ScheduleOpenApi가 만든다. */
 	@Valid
 	private ScheduleDtos.RecurrenceDto recurrence;
 

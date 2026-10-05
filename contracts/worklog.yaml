@@ -1352,6 +1352,12 @@ components:
         taskId:
           type: [string, 'null']
           format: uuid
+        projectId:
+          type: [string, 'null']
+          format: uuid
+          description: |
+            연결 업무의 프로젝트 (읽기 전용, 캘린더 프로젝트 필터·블록 색). 업무나 프로젝트가 없으면 null.
+            보관한 업무도 그 프로젝트를 준다. (2026-10-06 추가)
         memo:
           type: [string, 'null']
         version:

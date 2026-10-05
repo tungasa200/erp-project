@@ -52,6 +52,7 @@ class ScheduleApiTest {
 	void reset() {
 		jdbc.sql("DELETE FROM schedule").update();
 		jdbc.sql("DELETE FROM task WHERE owner_id IN (?, ?)").params(ALICE, BOB).update();
+		jdbc.sql("DELETE FROM project WHERE owner_id IN (?, ?)").params(ALICE, BOB).update();
 		jdbc.sql("DELETE FROM user_snapshot WHERE user_id IN (?, ?)").params(ALICE, BOB).update();
 		snapshot(ALICE, "Asia/Seoul");
 		snapshot(BOB, "America/New_York");
@@ -225,6 +226,31 @@ class ScheduleApiTest {
 				"{\"title\":\"t\",\"allDay\":true,\"startDate\":\"2026-10-06\",\"endDate\":\"2026-10-06\",\"taskId\":\"" + task + "\"}")
 			.andExpect(status().isCreated())
 			.andExpect(jsonPath("$.taskId").value(task));
+	}
+
+	@Test
+	void 회차에_연결_업무의_프로젝트를_싣고_보관한_업무도_그대로_준다() throws Exception {
+		String project = id(send(ALICE, post("/api/worklog/projects"), "{\"name\":\"일정 프로젝트\",\"color\":\"P3\"}"));
+		String task = id(send(ALICE, post("/api/worklog/tasks"), "{\"title\":\"a\",\"projectId\":\"" + project + "\"}"));
+		String noProjectTask = id(send(ALICE, post("/api/worklog/tasks"), "{\"title\":\"b\"}"));
+		String id = id(send(ALICE, post("/api/worklog/schedules"), """
+				{"title":"연결","allDay":false,"startAt":"2026-10-06T01:00:00Z","endAt":"2026-10-06T02:00:00Z","taskId":"%s",
+				 "recurrence":{"frequency":"DAILY","count":2}}""".formatted(task)));
+		send(ALICE, post("/api/worklog/schedules"), """
+				{"title":"프로젝트 없음","allDay":false,"startAt":"2026-10-06T03:00:00Z","endAt":"2026-10-06T04:00:00Z","taskId":"%s"}"""
+			.formatted(noProjectTask));
+		send(ALICE, post("/api/worklog/schedules"), """
+				{"title":"업무 없음","allDay":false,"startAt":"2026-10-06T05:00:00Z","endAt":"2026-10-06T06:00:00Z"}""");
+
+		list(ALICE, "2026-10-05T15:00:00Z", "2026-10-06T15:00:00Z").andExpect(jsonPath("$.items.length()").value(3))
+			.andExpect(jsonPath("$.items[0].projectId").value(project))
+			.andExpect(jsonPath("$.items[1].projectId").isEmpty())
+			.andExpect(jsonPath("$.items[2].projectId").isEmpty());
+		send(ALICE, patch("/api/worklog/schedules/" + id + "/occurrences/2026-10-07T01:00:00Z"), "{\"version\":0,\"title\":\"x\"}")
+			.andExpect(jsonPath("$.projectId").value(project));
+
+		send(ALICE, delete("/api/worklog/tasks/" + task), "").andExpect(status().isNoContent());
+		list(ALICE, "2026-10-05T15:00:00Z", "2026-10-06T15:00:00Z").andExpect(jsonPath("$.items[0].projectId").value(project));
 	}
 
 	private void snapshot(UUID user, String timezone) {

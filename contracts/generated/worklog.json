@@ -38,6 +38,11 @@
             "format" : "date-time",
             "type" : "string"
           },
+          "projectId" : {
+            "description" : "연결 업무의 프로젝트 (읽기 전용, 캘린더 프로젝트 필터·블록 색). 업무나 프로젝트가 없으면 null. 보관한 업무도 그 프로젝트를 준다",
+            "format" : "uuid",
+            "type" : [ "string", "null" ]
+          },
           "recurring" : {
             "description" : "반복 일정의 회차인지",
             "type" : "boolean"
@@ -315,8 +320,8 @@
           },
           "weekdays" : {
             "description" : "WEEKLY에서만, 1개 이상 필수",
-            "enum" : [ "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY" ],
             "items" : {
+              "enum" : [ "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY" ],
               "type" : "string"
             },
             "type" : "array"
@@ -353,8 +358,11 @@
             "type" : [ "string", "null" ]
           },
           "recurrence" : {
-            "$ref" : "#/components/schemas/Recurrence",
-            "type" : [ "object", "null" ]
+            "oneOf" : [ {
+              "$ref" : "#/components/schemas/Recurrence"
+            }, {
+              "type" : "null"
+            } ]
           },
           "startAt" : {
             "format" : "date-time",
@@ -408,8 +416,11 @@
             "type" : [ "string", "null" ]
           },
           "recurrence" : {
-            "$ref" : "#/components/schemas/Recurrence",
-            "type" : [ "object", "null" ]
+            "oneOf" : [ {
+              "$ref" : "#/components/schemas/Recurrence"
+            }, {
+              "type" : "null"
+            } ]
           },
           "startAt" : {
             "format" : "date-time",
@@ -453,8 +464,11 @@
             "type" : [ "string", "null" ]
           },
           "recurrence" : {
-            "$ref" : "#/components/schemas/Recurrence",
-            "type" : [ "object", "null" ]
+            "oneOf" : [ {
+              "$ref" : "#/components/schemas/Recurrence"
+            }, {
+              "type" : "null"
+            } ]
           },
           "startAt" : {
             "format" : "date-time",

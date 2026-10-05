@@ -8,6 +8,7 @@ import java.util.UUID;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Size;
 
+import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.media.Schema.RequiredMode;
 
@@ -25,8 +26,8 @@ final class ScheduleDtos {
 			매월은 시작일과 같은 날짜이며 그 날짜가 없는 달은 건너뛴다. until과 count는 함께 쓸 수 없고, 둘 다 없으면 끝없이 반복한다.""")
 	record RecurrenceDto(
 			@Schema(requiredMode = RequiredMode.REQUIRED, allowableValues = { "DAILY", "WEEKLY", "MONTHLY" }) String frequency,
-			@Schema(description = "WEEKLY에서만, 1개 이상 필수",
-					allowableValues = { "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY" })
+			@ArraySchema(arraySchema = @Schema(description = "WEEKLY에서만, 1개 이상 필수"), schema = @Schema(
+					allowableValues = { "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY" }))
 			List<String> weekdays,
 			@Schema(types = { "string", "null" }, format = "date", description = "이 날짜(일정 시간대)까지의 회차 포함") LocalDate until,
 			@Schema(types = { "integer", "null" }, minimum = "1", maximum = "999", description = "회차 수 (삭제한 회차도 센다)")
@@ -49,7 +50,7 @@ final class ScheduleDtos {
 			@Schema(types = { "string", "null" }, format = "date", description = "마지막 날 포함") LocalDate endDate,
 			@Schema(requiredMode = RequiredMode.REQUIRED,
 					description = "반복 전개와 종일 날짜의 기준 IANA 시간대. 만들 때 사용자 시간대로 정해지며 바뀌지 않는다") String timezone,
-			@Schema(types = { "object", "null" }) RecurrenceDto recurrence,
+			RecurrenceDto recurrence, // null 허용 명세는 ScheduleOpenApi
 			@Schema(types = { "string", "null" }, format = "uuid") UUID taskId,
 			@Schema(types = { "string", "null" }, maxLength = 5000) String memo,
 			@Schema(requiredMode = RequiredMode.REQUIRED) Instant createdAt,
@@ -78,12 +79,16 @@ final class ScheduleDtos {
 			@Schema(types = { "string", "null" }, format = "date") LocalDate startDate,
 			@Schema(types = { "string", "null" }, format = "date") LocalDate endDate,
 			@Schema(types = { "string", "null" }, format = "uuid") UUID taskId,
+			@Schema(types = { "string", "null" }, format = "uuid",
+					description = "연결 업무의 프로젝트 (읽기 전용, 캘린더 프로젝트 필터·블록 색). 업무나 프로젝트가 없으면 null. 보관한 업무도 그 프로젝트를 준다")
+			UUID projectId,
 			@Schema(types = { "string", "null" }) String memo,
 			@Schema(requiredMode = RequiredMode.REQUIRED, description = "일정(Schedule)의 version") long version) {
 
-		static OccurrenceView of(Schedule s, Schedule.Occurrence o) {
+		static OccurrenceView of(Schedule s, Schedule.Occurrence o, UUID projectId) {
 			return new OccurrenceView(s.getId(), o.key(), o.recurring(), o.modified(), o.title(), o.allDay(),
-					o.startAt(), o.endAt(), o.startDate(), o.endDate(), s.getTaskId(), o.memo(), s.getVersion());
+					o.startAt(), o.endAt(), o.startDate(), o.endDate(), s.getTaskId(), projectId, o.memo(),
+					s.getVersion());
 		}
 	}
 
@@ -101,7 +106,7 @@ final class ScheduleDtos {
 			@Schema(types = { "string", "null" }, format = "date-time") Instant endAt,
 			@Schema(types = { "string", "null" }, format = "date") LocalDate startDate,
 			@Schema(types = { "string", "null" }, format = "date") LocalDate endDate,
-			@Schema(types = { "object", "null" }) @Valid RecurrenceDto recurrence,
+			@Valid RecurrenceDto recurrence, // null 허용 명세는 ScheduleOpenApi
 			@Schema(types = { "string", "null" }, format = "uuid") UUID taskId,
 			@Schema(types = { "string", "null" }, maxLength = 5000) @Size(max = 5000, message = "TOO_LONG") String memo) {
 	}

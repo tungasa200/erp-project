@@ -9,8 +9,10 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
@@ -71,12 +73,15 @@ class ScheduleService {
 
 		record Sorted(Instant start, OccurrenceView view) {
 		}
+		List<Schedule> found = schedules.findOverlapping(ownerId, from, to);
+		Map<UUID, UUID> projects = projectsOf(found.stream().map(Schedule::getTaskId).filter(Objects::nonNull).toList());
 		List<Sorted> result = new ArrayList<>();
-		for (Schedule s : schedules.findOverlapping(ownerId, from, to)) {
+		for (Schedule s : found) {
 			ZoneId zone = ZoneId.of(s.getTimezone());
+			UUID projectId = s.getTaskId() == null ? null : projects.get(s.getTaskId());
 			for (Schedule.Occurrence o : s.occurrences(from, to)) {
 				Instant start = o.allDay() ? o.startDate().atStartOfDay(zone).toInstant() : o.startAt();
-				result.add(new Sorted(start, OccurrenceView.of(s, o)));
+				result.add(new Sorted(start, OccurrenceView.of(s, o, projectId)));
 			}
 		}
 		result.sort(Comparator.comparing(Sorted::start).thenComparing(r -> r.view().scheduleId()));
@@ -205,7 +210,9 @@ class ScheduleService {
 		s.override(key, override.copy());
 		s.touch(clock.instant());
 		Schedule saved = schedules.saveAndFlush(s);
-		return OccurrenceView.of(saved, saved.occurrence(key));
+		UUID projectId = saved.getTaskId() == null ? null
+				: projectsOf(List.of(saved.getTaskId())).get(saved.getTaskId());
+		return OccurrenceView.of(saved, saved.occurrence(key), projectId);
 	}
 
 	@Transactional
@@ -345,6 +352,18 @@ class ScheduleService {
 		if (found == null || found == 0) {
 			errors.add(error("taskId", "NOT_FOUND"));
 		}
+	}
+
+	/** 연결 업무 → 그 업무의 프로젝트 (프로젝트가 없는 업무는 빠진다). 보관한 업무도 포함한다. 한 번의 조회로 묶는다. */
+	private Map<UUID, UUID> projectsOf(List<UUID> taskIds) {
+		if (taskIds.isEmpty()) {
+			return Map.of();
+		}
+		Map<UUID, UUID> projects = new HashMap<>();
+		jdbc.query("SELECT id, project_id FROM task WHERE id = ANY (?) AND project_id IS NOT NULL", rs -> {
+			projects.put(rs.getObject("id", UUID.class), rs.getObject("project_id", UUID.class));
+		}, (Object) taskIds.stream().distinct().toArray(UUID[]::new));
+		return projects;
 	}
 
 	private static void requirePresent(String field, Object value, List<FieldErrorDetail> errors) {
