@@ -176,6 +176,28 @@ describe('SCR-COM-02 빠른 입력창', () => {
     })
   })
 
+  it('저장에 실패하면(onSubmit 거부) 입력을 그대로 남긴다', async () => {
+    stubFetch({ 'GET /api/users/me': () => json(200, ME) })
+    const onSubmit = vi.fn(() => Promise.reject(new Error('저장 실패')))
+    function Wrapper() {
+      const [value, setValue] = useState('')
+      return <QuickInput value={value} onChange={setValue} onSubmit={onSubmit} />
+    }
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <AuthProvider>
+          <ToastProvider>
+            <Wrapper />
+          </ToastProvider>
+        </AuthProvider>
+      </QueryClientProvider>,
+    )
+    const input = await screen.findByRole('textbox', { name: '빠른 입력' })
+    await userEvent.type(input, '보고서{Enter}')
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled())
+    expect(input).toHaveValue('보고서')
+  })
+
   it('Esc로 입력을 비운다', async () => {
     const { input } = await openHome()
     await userEvent.type(input, '회의{Escape}')

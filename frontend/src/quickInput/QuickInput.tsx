@@ -119,7 +119,11 @@ export function QuickInput({ value, onChange, onSubmit, label = '빠른 입력' 
     } else if (e.key === 'Enter') {
       e.preventDefault()
       if (!onSubmit || draft.title === '') return
-      void Promise.resolve(onSubmit(draft)).then(() => onChange(''))
+      // 저장에 실패하면(onSubmit이 거부) 입력을 그대로 남긴다. 오류 안내는 onSubmit 쪽이 맡는다.
+      void Promise.resolve(onSubmit(draft)).then(
+        () => onChange(''),
+        () => {},
+      )
     }
   }
 

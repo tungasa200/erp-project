@@ -45,7 +45,6 @@ export async function saveQuickDraft(
 
   const task = await taskApi.create({
     title: draft.title,
-    progress: 0, // 스냅샷의 TaskCreate가 progress를 필수로 표시해서 기본값을 직접 보낸다
     priority: draft.priority,
     dueDate: draft.due,
     projectId,

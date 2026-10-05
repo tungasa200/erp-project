@@ -50,7 +50,6 @@ describe('saveQuickDraft', () => {
     expect(calls.map((c) => c.key)).toEqual(['tag', 'tag', 'task'])
     expect(calls[2].body).toEqual({
       title: '견적서 회신',
-      progress: 0,
       priority: 'LOW',
       dueDate: '2026-10-09',
       projectId: 'p-sales',
