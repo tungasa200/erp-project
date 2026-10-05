@@ -17,7 +17,7 @@ export function ErrorPage() {
           !
         </span>
         <h1 className={styles.title}>잠시 문제가 생겼어요</h1>
-        <p className={styles.text}>입력한 내용은 저장되어 있어요. 잠시 후 다시 시도해 주세요.</p>
+        <p className={styles.text}>잠시 후 다시 시도해 주세요.</p>
         <div className={styles.actions}>
           <button type="button" className={styles.primary} onClick={() => window.location.reload()}>
             다시 시도
