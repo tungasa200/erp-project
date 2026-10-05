@@ -12,9 +12,10 @@ interface WorklogState {
 const now = () => new Date().toISOString()
 const id = () => `mock-${Date.now()}-${Math.random().toString(16).slice(2, 6)}`
 
+// 예시 데이터는 ID를 고정한다. 저장 전에 다시 불러와도 같은 ID라 첫 수정이 404가 되지 않는다(qa 관찰).
 function seed(): WorklogState {
-  const project = (name: string, color: Project['color'], taskCount: number): Project => ({
-    id: id(),
+  const project = (key: string, name: string, color: Project['color'], taskCount: number): Project => ({
+    id: `mock-project-${key}`,
     name,
     color,
     archived: false,
@@ -23,10 +24,23 @@ function seed(): WorklogState {
     createdAt: now(),
     version: 0,
   })
-  const tag = (name: string, usageCount: number): Tag => ({ id: id(), name, usageCount, createdAt: now(), version: 0 })
+  const tag = (key: string, name: string, usageCount: number): Tag => ({
+    id: `mock-tag-${key}`,
+    name,
+    usageCount,
+    createdAt: now(),
+    version: 0,
+  })
   return {
-    projects: [project('개발', 'P1', 5), project('영업', 'P2', 4), project('공통', 'P3', 2)],
-    tags: [tag('결제', 4), tag('견적', 3), tag('스프린트', 2), tag('보고', 2), tag('리뷰', 1), tag('온보딩', 1)],
+    projects: [project('dev', '개발', 'P1', 5), project('sales', '영업', 'P2', 4), project('common', '공통', 'P3', 2)],
+    tags: [
+      tag('payment', '결제', 4),
+      tag('quote', '견적', 3),
+      tag('sprint', '스프린트', 2),
+      tag('report', '보고', 2),
+      tag('review', '리뷰', 1),
+      tag('onboarding', '온보딩', 1),
+    ],
   }
 }
 
@@ -37,7 +51,10 @@ function load(): WorklogState {
   } catch {
     // 저장소를 못 쓰면 예시 데이터로 시작
   }
-  return seed()
+  // 처음 불러올 때 바로 저장해 이후 요청이 같은 데이터를 본다
+  const initial = seed()
+  save(initial)
+  return initial
 }
 
 function save(state: WorklogState) {
