@@ -148,21 +148,50 @@ describe('SCR-SET-01 프로필', () => {
 })
 
 describe('SCR-SET-02 일반', () => {
-  it('시간대·주 시작 요일은 고르는 즉시 저장한다', async () => {
+  it('시간대는 검색해서 고르면 저장하고, 바꾼 뒤에만 안내를 보여 준다', async () => {
     const server = fakeServer()
     renderApp('/settings/general')
     const tz = await screen.findByRole('combobox', { name: '시간대' })
-    expect(tz).toHaveValue('Asia/Seoul')
-    expect(screen.getByRole('note')).toHaveTextContent('시간대를 바꿔도 기존 기록의 날짜는 그대로예요')
+    expect(tz).toHaveValue('Asia/Seoul (UTC+09:00)')
+    expect(screen.queryByRole('note')).not.toBeInTheDocument()
 
-    await userEvent.selectOptions(tz, 'Asia/Tokyo')
-    await userEvent.selectOptions(screen.getByRole('combobox', { name: '주 시작 요일' }), 'SUNDAY')
-    await waitFor(() =>
-      expect(server.patches).toEqual([
-        { timezone: 'Asia/Tokyo', version: 0 },
-        { weekStart: 'SUNDAY', version: 1 },
-      ]),
+    await userEvent.click(tz)
+    await userEvent.clear(tz)
+    await userEvent.type(tz, '도쿄')
+    expect(
+      within(screen.getByRole('listbox'))
+        .getAllByRole('option')
+        .map((o) => o.textContent),
+    ).toEqual(['Asia/Tokyo (UTC+09:00)'])
+    await userEvent.keyboard('{Enter}')
+    await waitFor(() => expect(server.patches).toEqual([{ timezone: 'Asia/Tokyo', version: 0 }]))
+    expect(tz).toHaveValue('Asia/Tokyo (UTC+09:00)')
+    expect(screen.getByRole('note')).toHaveTextContent('시간대를 바꿔도 기존 기록의 날짜는 그대로예요')
+  })
+
+  it('시간대 목록 맨 위에 추천(감지한 시간대·Asia/Seoul)을 두고, Esc로 닫으면 고른 값으로 되돌린다', async () => {
+    const server = fakeServer()
+    renderApp('/settings/general')
+    const tz = await screen.findByRole('combobox', { name: '시간대' })
+    await userEvent.click(tz)
+    const recommended = screen.getByRole('group', { name: '추천' })
+    expect(within(recommended).getByRole('option', { name: 'Asia/Seoul (UTC+09:00)' })).toHaveAttribute(
+      'aria-selected',
+      'true',
     )
+    await userEvent.type(tz, 'zzz')
+    expect(screen.getByText('찾는 시간대가 없어요')).toBeInTheDocument()
+    await userEvent.keyboard('{Escape}')
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
+    expect(tz).toHaveValue('Asia/Seoul (UTC+09:00)')
+    expect(server.patches).toEqual([])
+  })
+
+  it('주 시작 요일은 고르는 즉시 저장한다', async () => {
+    const server = fakeServer()
+    renderApp('/settings/general')
+    await userEvent.selectOptions(await screen.findByRole('combobox', { name: '주 시작 요일' }), 'SUNDAY')
+    await waitFor(() => expect(server.patches).toEqual([{ weekStart: 'SUNDAY', version: 0 }]))
   })
 
   it('업무 요일은 비트마스크로 저장하고, 하루도 고르지 않으면 보내지 않는다', async () => {
@@ -187,6 +216,9 @@ describe('SCR-SET-02 일반', () => {
     renderApp('/settings/general')
     const toggle = await screen.findByRole('switch', { name: '키보드 단축키 사용' })
     expect(toggle).toHaveAttribute('aria-checked', 'true')
+
+    // 행 제목을 눌러도 켜고 끈다(누르는 영역 넓히기, erp-design)
+    expect(screen.getByText('키보드 단축키').tagName).toBe('LABEL')
 
     await userEvent.click(toggle)
     await waitFor(() => expect(server.patches).toEqual([{ keyboardShortcutsEnabled: false, version: 0 }]))

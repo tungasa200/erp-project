@@ -5,6 +5,7 @@ import type { Me } from '../api/types'
 import { useAuth } from '../auth/useAuth'
 import { WEEKDAY_NAMES } from '../quickInput/dates'
 import { ConflictBanner, SaveError } from './parts'
+import { TimeZoneCombobox } from './TimeZoneCombobox'
 import styles from './settings.module.css'
 import { useProfileSaver, type ProfilePatch, type SaveResult } from './useProfileSaver'
 
@@ -12,26 +13,6 @@ type Save = (patch: ProfilePatch) => Promise<SaveResult>
 type Failure = Extract<SaveResult, { ok: false }>
 
 const WEEK_STARTS: Me['weekStart'][] = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY']
-
-const ZONE_NAMES: Record<string, string> = {
-  'Asia/Seoul': '서울',
-  'Asia/Tokyo': '도쿄',
-  'Asia/Shanghai': '상하이',
-  'Asia/Singapore': '싱가포르',
-  'Asia/Ho_Chi_Minh': '호찌민',
-  'Europe/London': '런던',
-  'Europe/Berlin': '베를린',
-  'America/New_York': '뉴욕',
-  'America/Los_Angeles': '로스앤젤레스',
-  UTC: '협정 세계시',
-}
-
-function timeZones(current: string): string[] {
-  const zones = Intl.supportedValuesOf('timeZone')
-  return zones.includes(current) ? zones : [current, ...zones]
-}
-
-const zoneLabel = (zone: string) => (ZONE_NAMES[zone] ? `${ZONE_NAMES[zone]} (${zone})` : zone.replaceAll('_', ' '))
 
 /** 값을 바꾸는 즉시 저장한다. 실패하면 고른 값을 그대로 두고 그 항목에 오류와 다시 시도를 보여 준다 */
 function useInstantSave<T>(initial: T, toPatch: (value: T) => ProfilePatch, save: Save) {
@@ -89,6 +70,8 @@ function GeneralForm({ user, save }: { user: Me; save: Save }) {
   const workDays = useInstantSave(user.workDays, (v) => ({ workDays: v }), save)
   const shortcuts = useInstantSave(user.keyboardShortcutsEnabled, (v) => ({ keyboardShortcutsEnabled: v }), save)
   const [noDayError, setNoDayError] = useState(false)
+  // 시간대 안내는 바꿨을 때 그 행 아래에 보여 주고 화면을 떠날 때까지 둔다 (erp-design)
+  const [tzChanged, setTzChanged] = useState(false)
 
   const toggleDay = (bit: number) => {
     const next = workDays.value ^ bit
@@ -103,21 +86,22 @@ function GeneralForm({ user, save }: { user: Me; save: Save }) {
 
   return (
     <>
-      <Row title={<label htmlFor={`${id}-tz`}>시간대</label>} description="날짜와 시간을 이 기준으로 계산해요">
-        <select
-          id={`${id}-tz`}
-          className={styles.select}
+      <Row title={<span id={`${id}-tz`}>시간대</span>} description="날짜와 시간을 이 기준으로 계산해요">
+        <TimeZoneCombobox
           value={timezone.value}
-          onChange={(e) => void timezone.change(e.target.value)}
-          aria-describedby={`${id}-tz-note`}
-        >
-          {timeZones(user.timezone).map((z) => (
-            <option key={z} value={z}>
-              {zoneLabel(z)}
-            </option>
-          ))}
-        </select>
+          labelledBy={`${id}-tz`}
+          describedBy={tzChanged ? `${id}-tz-note` : undefined}
+          onChange={(zone) => {
+            setTzChanged(true)
+            void timezone.change(zone)
+          }}
+        />
       </Row>
+      {tzChanged && (
+        <p id={`${id}-tz-note`} role="note" className={styles.tzNote}>
+          시간대를 바꿔도 기존 기록의 날짜는 그대로예요. 시각 표시만 새 시간대로 바뀌어요.
+        </p>
+      )}
       <SaveError id={`${id}-tz-error`} failure={timezone.failure} onRetry={timezone.retry} />
 
       <Row title={<label htmlFor={`${id}-ws`}>주 시작 요일</label>} description="캘린더와 주간 일지에 적용돼요">
@@ -165,8 +149,13 @@ function GeneralForm({ user, save }: { user: Me; save: Save }) {
       )}
       <SaveError id={`${id}-wd-error`} failure={workDays.failure} onRetry={workDays.retry} />
 
-      <Row title="키보드 단축키" description="N, D·W·M·Y·A 같은 한 글자 단축키를 써요. 입력 중에는 동작하지 않아요">
+      <Row
+        title={<label htmlFor={`${id}-sc`}>키보드 단축키</label>}
+        description="N, D·W·M·Y·A 같은 한 글자 단축키를 써요. 입력 중에는 동작하지 않아요"
+      >
+        {/* 보이는 스위치는 56x32, 누르는 영역은 44px 높이. 행 제목을 눌러도 켜고 끈다 */}
         <button
+          id={`${id}-sc`}
           type="button"
           role="switch"
           aria-checked={shortcuts.value}
@@ -174,14 +163,12 @@ function GeneralForm({ user, save }: { user: Me; save: Save }) {
           className={styles.switch}
           onClick={() => void shortcuts.change(!shortcuts.value)}
         >
-          <span className={styles.knob} />
+          <span className={styles.track}>
+            <span className={styles.knob} />
+          </span>
         </button>
       </Row>
       <SaveError id={`${id}-sc-error`} failure={shortcuts.failure} onRetry={shortcuts.retry} />
-
-      <p id={`${id}-tz-note`} role="note" className={styles.tzNote}>
-        시간대를 바꿔도 기존 기록의 날짜는 그대로예요. 시각 표시만 새 시간대로 바뀌어요.
-      </p>
     </>
   )
 }
