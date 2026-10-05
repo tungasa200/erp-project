@@ -23,7 +23,10 @@ public class UserDataPurger {
 
 	@Transactional
 	public void purge(UUID userId) {
-		jdbc.sql("DELETE FROM user_setting WHERE owner_id = ?").param(userId).update();
+		// 업무가 프로젝트를 가리키므로 업무부터 지운다. task_tag는 ON DELETE CASCADE
+		for (String table : new String[] { "task", "tag", "project", "user_setting" }) {
+			jdbc.sql("DELETE FROM " + table + " WHERE owner_id = ?").param(userId).update();
+		}
 		snapshots.delete(userId);
 	}
 }
