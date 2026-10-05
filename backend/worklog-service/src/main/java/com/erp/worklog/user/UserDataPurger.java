@@ -1,5 +1,6 @@
 package com.erp.worklog.user;
 
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,13 +14,16 @@ import java.util.UUID;
 public class UserDataPurger {
 
 	private final UserSnapshotRepository snapshots;
+	private final JdbcClient jdbc;
 
-	UserDataPurger(UserSnapshotRepository snapshots) {
+	UserDataPurger(UserSnapshotRepository snapshots, JdbcClient jdbc) {
 		this.snapshots = snapshots;
+		this.jdbc = jdbc;
 	}
 
 	@Transactional
 	public void purge(UUID userId) {
+		jdbc.sql("DELETE FROM user_setting WHERE owner_id = ?").param(userId).update();
 		snapshots.delete(userId);
 	}
 }

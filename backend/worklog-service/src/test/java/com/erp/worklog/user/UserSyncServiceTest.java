@@ -80,7 +80,7 @@ class UserSyncServiceTest {
 		// 탈퇴자의 과거 이벤트 행은 identity가 지우므로 seq에 빈 번호가 있다 (누락이 아니다)
 		when(identity.userEvents(eq(10L), anyInt())).thenReturn(new UserEventPage(List.of(
 				event(11, "CREATED", ALICE, profile("앨리스")),
-				event(17, "PROFILE_UPDATED", ALICE, profile("앨리스2")),
+				event(17, "PROFILE_UPDATED", ALICE, profile("앨리스2", 1)),
 				event(18, "CREATED", BOB, profile("밥")),
 				event(25, "DELETED", BOB, null)), false));
 
@@ -94,9 +94,11 @@ class UserSyncServiceTest {
 
 	@Test
 	void olderEventDoesNotOverwriteNewerSnapshot() {
-		snapshots.upsert(ALICE, profile("최신"), 20);
+		snapshots.upsert(ALICE, profile("최신", 3), 20);
 
-		snapshots.upsert(ALICE, profile("예전"), 15);
+		// 사본은 seq가 아니라 프로필 version으로 비교한다: 더 큰 seq라도 version이 낮으면 무시
+		snapshots.upsert(ALICE, profile("예전", 2), 25);
+		snapshots.upsert(ALICE, profile("같은 버전", 3), 0);
 
 		assertThat(snapshots.find(ALICE)).hasValueSatisfying(s -> assertThat(s.profile().name()).isEqualTo("최신"));
 	}
@@ -154,7 +156,11 @@ class UserSyncServiceTest {
 	}
 
 	static Profile profile(String name) {
-		return new Profile(name, null, null, "Asia/Seoul", "MONDAY", 31);
+		return profile(name, 0); // P0 피드 이벤트처럼 version이 없는 경우
+	}
+
+	static Profile profile(String name, long version) {
+		return new Profile(name, null, null, "Asia/Seoul", "MONDAY", 31, version);
 	}
 
 	static UserEvent event(long seq, String type, UUID userId, Profile profile) {
