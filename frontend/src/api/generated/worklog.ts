@@ -316,6 +316,11 @@ export interface components {
             modified: boolean;
             /** Format: date-time */
             occurrenceStart: string;
+            /**
+             * Format: uuid
+             * @description 연결 업무의 프로젝트 (읽기 전용, 캘린더 프로젝트 필터·블록 색). 업무나 프로젝트가 없으면 null. 보관한 업무도 그 프로젝트를 준다
+             */
+            projectId?: string | null;
             /** @description 반복 일정의 회차인지 */
             recurring: boolean;
             /** Format: uuid */
@@ -443,11 +448,8 @@ export interface components {
              * @description 이 날짜(일정 시간대)까지의 회차 포함
              */
             until?: string | null;
-            /**
-             * @description WEEKLY에서만, 1개 이상 필수
-             * @enum {array}
-             */
-            weekdays?: "MONDAY" | "TUESDAY" | "WEDNESDAY" | "THURSDAY" | "FRIDAY" | "SATURDAY" | "SUNDAY";
+            /** @description WEEKLY에서만, 1개 이상 필수 */
+            weekdays?: ("MONDAY" | "TUESDAY" | "WEDNESDAY" | "THURSDAY" | "FRIDAY" | "SATURDAY" | "SUNDAY")[];
         };
         /** @description 일정 원본. allDay=false면 startAt·endAt, true면 startDate·endDate(포함)만 값이 있다. */
         Schedule: {
@@ -464,7 +466,7 @@ export interface components {
             /** Format: uuid */
             id: string;
             memo?: string | null;
-            recurrence?: components["schemas"]["Recurrence"];
+            recurrence?: components["schemas"]["Recurrence"] | null;
             /** Format: date-time */
             startAt?: string | null;
             /** Format: date */
@@ -490,7 +492,7 @@ export interface components {
             /** Format: date */
             endDate?: string | null;
             memo?: string | null;
-            recurrence?: components["schemas"]["Recurrence"];
+            recurrence?: components["schemas"]["Recurrence"] | null;
             /** Format: date-time */
             startAt?: string | null;
             /** Format: date */
@@ -508,7 +510,7 @@ export interface components {
             /** Format: date */
             endDate?: string | null;
             memo?: string | null;
-            recurrence?: components["schemas"]["Recurrence"];
+            recurrence?: components["schemas"]["Recurrence"] | null;
             /** Format: date-time */
             startAt?: string | null;
             /** Format: date */
@@ -568,6 +570,8 @@ export interface components {
              * @description 마감 임박·초과 표시는 프론트가 사용자 시간대의 오늘과 비교해 계산한다
              */
             dueDate?: string | null;
+            /** @description 일정이 하나 이상 연결돼 있음 (반복 일정은 시리즈 하나로 센다). 업무 행의 일정 배치 아이콘(SCR-TASK-01 ⑤) */
+            hasSchedule: boolean;
             /** Format: uuid */
             id: string;
             memo?: string | null;
@@ -1405,6 +1409,8 @@ export interface operations {
                 q?: string;
                 /** @description true면 보관(소프트 삭제)한 업무만 돌려준다 */
                 deleted?: boolean;
+                /** @description false면 일정이 연결되지 않은 업무만(캘린더 업무 패널, SCH-07), true면 연결된 업무만. 생략하면 거르지 않는다 */
+                scheduled?: boolean;
                 sort?: "due" | "created";
             };
             header?: never;
