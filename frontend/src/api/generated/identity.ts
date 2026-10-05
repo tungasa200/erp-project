@@ -246,6 +246,10 @@ export interface components {
             /** Format: int32 */
             workDays: number;
         };
+        RateLimitedProblem: components["schemas"]["Problem"] & {
+            /** @description 다시 시도할 수 있을 때까지 남은 초. 잠금 안내 문구에 쓴다. */
+            retryAfterSeconds: number;
+        };
         SignupRequest: {
             agreePrivacy: boolean;
             agreeTerms: boolean;
@@ -362,6 +366,16 @@ export interface operations {
                 };
                 content: {
                     "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description 계정 잠금(AUTH_LOCKED) 또는 IP 단위 시도 제한(TOO_MANY_REQUESTS). 남은 시간은 Retry-After(초)와 retryAfterSeconds */
+            429: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["RateLimitedProblem"];
                 };
             };
         };
