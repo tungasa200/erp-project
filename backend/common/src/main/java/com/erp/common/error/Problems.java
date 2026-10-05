@@ -18,6 +18,8 @@ public final class Problems {
 	public static final String METHOD_NOT_ALLOWED = "METHOD_NOT_ALLOWED";
 	public static final String BAD_REQUEST = "BAD_REQUEST";
 	public static final String CONFLICT = "CONFLICT";
+	/** PATCH의 version이 현재 값과 다름 (D-58, 모든 서비스 공용). */
+	public static final String VERSION_CONFLICT = "VERSION_CONFLICT";
 	public static final String INTERNAL_ERROR = "INTERNAL_ERROR";
 
 	/** 요청 제한 응답의 확장 필드 이름. ApiExceptionHandler가 같은 값을 Retry-After 헤더로도 준다. */

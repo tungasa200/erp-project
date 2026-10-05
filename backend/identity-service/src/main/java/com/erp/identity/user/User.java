@@ -61,8 +61,13 @@ public class User {
 	@JdbcTypeCode(SqlTypes.CHAR)
 	private String themeGround;
 
+	private boolean keyboardShortcutsEnabled;
+
+	// 로그인 보호(LoginProtection)가 원자적 UPDATE로만 바꾼다. 엔티티 저장이 동시에 기록된 실패 횟수를 옛 값으로 덮지 않게 한다.
+	@Column(updatable = false)
 	private int failedLoginCount;
 
+	@Column(updatable = false)
 	private Instant lockedUntil;
 
 	@Version
@@ -85,13 +90,56 @@ public class User {
 		user.workDays = DEFAULT_WORK_DAYS;
 		user.themeAccent = DEFAULT_THEME_ACCENT;
 		user.themeGround = DEFAULT_THEME_GROUND;
+		user.keyboardShortcutsEnabled = true;
 		user.createdAt = now;
 		user.updatedAt = now;
 		return user;
 	}
 
+	/** version은 마지막 flush 기준이다. 변경 직후 값이 필요하면 먼저 flush한다. */
 	public Profile profile() {
-		return new Profile(name, organization, position, timezone, weekStart, workDays);
+		return new Profile(name, organization, position, timezone, weekStart, workDays, version);
+	}
+
+	/** profile: 피드로 전달하는 칸이 바뀜. any: 무엇이든 바뀜(version이 오른다). */
+	public record Changes(boolean profile, boolean any) {
+	}
+
+	/** 보낸 칸만 반영한다 (ProfileUpdate). 값이 같으면 바뀐 것으로 보지 않는다. */
+	public Changes apply(ProfileUpdate update, Instant now) {
+		Profile before = profile();
+		if (update.name() != null) {
+			name = update.name().value();
+		}
+		if (update.organization() != null) {
+			organization = update.organization().value();
+		}
+		if (update.position() != null) {
+			position = update.position().value();
+		}
+		if (update.timezone() != null) {
+			timezone = update.timezone();
+		}
+		if (update.weekStart() != null) {
+			weekStart = update.weekStart();
+		}
+		if (update.workDays() != null) {
+			workDays = update.workDays().shortValue();
+		}
+		boolean shortcutsChanged = update.keyboardShortcutsEnabled() != null
+				&& update.keyboardShortcutsEnabled() != keyboardShortcutsEnabled;
+		if (shortcutsChanged) {
+			keyboardShortcutsEnabled = update.keyboardShortcutsEnabled();
+		}
+		boolean profileChanged = !profile().equals(before);
+		if (profileChanged || shortcutsChanged) {
+			updatedAt = now;
+		}
+		return new Changes(profileChanged, profileChanged || shortcutsChanged);
+	}
+
+	public boolean isKeyboardShortcutsEnabled() {
+		return keyboardShortcutsEnabled;
 	}
 
 	public UUID getId() {

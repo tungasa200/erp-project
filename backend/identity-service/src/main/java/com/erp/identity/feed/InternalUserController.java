@@ -25,6 +25,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
 
 import com.erp.common.error.ApiException;
 import com.erp.identity.user.Profile;
@@ -141,7 +142,7 @@ public class InternalUserController {
 			lastId = UUID.fromString(parts[1]);
 		}
 		String sql = """
-				SELECT id, name, organization, position, timezone, week_start, work_days FROM users
+				SELECT id, name, organization, position, timezone, week_start, work_days, version FROM users
 				%s ORDER BY id LIMIT ?
 				""".formatted(lastId == null ? "" : "WHERE id > ?");
 		Object[] args = lastId == null ? new Object[] { limit + 1 } : new Object[] { lastId, limit + 1 };
@@ -149,7 +150,7 @@ public class InternalUserController {
 				(rs, i) -> new UserItem(rs.getObject("id", UUID.class),
 						new Profile(rs.getString("name"), rs.getString("organization"), rs.getString("position"),
 								rs.getString("timezone"), DayOfWeek.valueOf(rs.getString("week_start")),
-								rs.getInt("work_days"))),
+								rs.getInt("work_days"), rs.getLong("version"))),
 				args);
 		boolean hasMore = users.size() > limit;
 		List<UserItem> page = hasMore ? users.subList(0, limit) : users;
@@ -184,7 +185,14 @@ public class InternalUserController {
 	}
 
 	private Profile profile(String payload) {
-		return payload == null ? null : json.readValue(payload, Profile.class);
+		if (payload == null) {
+			return null;
+		}
+		ObjectNode node = (ObjectNode) json.readTree(payload);
+		if (!node.has("version")) {
+			node.put("version", 0L); // P1-01 이전에 기록된 이벤트 (contracts/identity.yaml: 없으면 0)
+		}
+		return json.treeToValue(node, Profile.class);
 	}
 
 	private static String[] parseCursor(String cursor) {

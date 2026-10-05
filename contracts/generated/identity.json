@@ -68,6 +68,10 @@
             "format" : "uuid",
             "type" : "string"
           },
+          "keyboardShortcutsEnabled" : {
+            "description" : "키보드 단축키 사용 (UX-09, 기본 켬). 모듈에는 전달하지 않는다.",
+            "type" : "boolean"
+          },
           "name" : {
             "type" : [ "string", "null" ]
           },
@@ -99,7 +103,7 @@
             "type" : "integer"
           }
         },
-        "required" : [ "email", "emailVerified", "id", "themeAccent", "themeGround", "timezone", "version", "weekStart", "workDays" ],
+        "required" : [ "email", "emailVerified", "id", "keyboardShortcutsEnabled", "themeAccent", "themeGround", "timezone", "version", "weekStart", "workDays" ],
         "type" : "object"
       },
       "Problem" : {
@@ -164,6 +168,10 @@
           "timezone" : {
             "type" : "string"
           },
+          "version" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
           "weekStart" : {
             "enum" : [ "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY" ],
             "type" : "string"
@@ -173,7 +181,52 @@
             "type" : "integer"
           }
         },
-        "required" : [ "timezone", "weekStart", "workDays" ],
+        "required" : [ "timezone", "version", "weekStart", "workDays" ],
+        "type" : "object"
+      },
+      "ProfileUpdateRequest" : {
+        "description" : "보낸 칸만 수정한다. 칸 없음 = 그대로, null = 지움(이름·소속·직책만). 모르는 칸은 무시한다.",
+        "properties" : {
+          "keyboardShortcutsEnabled" : {
+            "description" : "키보드 단축키 사용 (UX-09). 피드에는 남기지 않는다.",
+            "type" : "boolean"
+          },
+          "name" : {
+            "maxLength" : 100,
+            "type" : [ "string", "null" ]
+          },
+          "organization" : {
+            "maxLength" : 100,
+            "type" : [ "string", "null" ]
+          },
+          "position" : {
+            "description" : "표시용 직책 (권한용 역할과 별개)",
+            "maxLength" : 100,
+            "type" : [ "string", "null" ]
+          },
+          "timezone" : {
+            "description" : "IANA 시간대 이름. 바꿔도 기존 기록 날짜는 그대로다 (D-40).",
+            "example" : "Asia/Seoul",
+            "type" : "string"
+          },
+          "version" : {
+            "description" : "마지막으로 받은 Me.version",
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "weekStart" : {
+            "enum" : [ "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY" ],
+            "type" : "string"
+          },
+          "workDays" : {
+            "description" : "비트마스크 월=1 … 일=64. 최소 하루는 골라야 한다.",
+            "format" : "int32",
+            "maximum" : 127,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        },
+        "required" : [ "version" ],
         "type" : "object"
       },
       "RateLimitedProblem" : {
@@ -529,6 +582,67 @@
           "bearerAuth" : [ ]
         } ],
         "summary" : "현재 사용자 조회",
+        "tags" : [ "me" ]
+      },
+      "patch" : {
+        "description" : "보낸 칸만 바꾼다. version이 현재 값과 다르면 409. 프로필 칸이 바뀌면 사용자 변경 피드에 PROFILE_UPDATED를 남긴다.",
+        "operationId" : "updateMe",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ProfileUpdateRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Me"
+                }
+              }
+            },
+            "description" : "수정 성공(또는 바뀐 값 없음). 새 version이 담긴 현재 사용자"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "VALIDATION_FAILED (errors[].code: REQUIRED·TOO_LONG·TIMEZONE_INVALID·WORK_DAYS_INVALID) 또는 BAD_REQUEST(형식 오류)"
+          },
+          "401" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "UNAUTHENTICATED 또는 USER_DELETED"
+          },
+          "409" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "VERSION_CONFLICT (다른 곳에서 먼저 수정됨)"
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ],
+        "summary" : "공통 프로필·화면 설정 수정 (AUTH-04·05, UX-09, P1-01)",
         "tags" : [ "me" ]
       }
     },
