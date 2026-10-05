@@ -289,6 +289,8 @@ describe('SCR-COM-03 명령 팔레트', () => {
       'GET /api/users/me': () => json(200, ME),
       ...WORKLOG,
       'GET /api/worklog/schedules': () => json(200, { items: [] }),
+      // 캘린더 업무 패널(P1-08)이 일정 없는 업무를 받는다
+      'GET /api/worklog/tasks': () => json(200, { items: [] }),
     })
     await userEvent.keyboard('{Control>}k{/Control}10/12')
     expect(screen.getByRole('option', { name: /10\/12\(월\) 캘린더 보기/ })).toBeInTheDocument()
