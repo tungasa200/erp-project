@@ -11,7 +11,7 @@ Railway 프로젝트 WY-ERP(싱가포르)에 백엔드 3개와 PostgreSQL, Verce
 
 1. 싱가포르 리전에 PostgreSQL 서비스를 추가한다. 서비스 이름은 `Postgres`(아래 참조 변수가 이 이름을 쓴다).
 2. Data → Query에서 [db-setup.sql](db-setup.sql)을 실행한다. `<IDENTITY_DB_PASSWORD>`·`<WORKLOG_DB_PASSWORD>`는 🔒 새로 만든 값으로 바꿔 실행한다.
-3. 백업: 주기와 보관 기간(7일)을 설정하고 실제 값을 기록한다.
+3. 백업: Volume backups Daily(24시간마다, 보관 6일), PITR 미사용. Railway 콘솔이 고르는 값이라 7일이 아니다(요구사항·작업계획서 개정 대기).
 
 ### 서비스 3개 공통
 
@@ -42,7 +42,7 @@ Railway 프로젝트 WY-ERP(싱가포르)에 백엔드 3개와 PostgreSQL, Verce
 | `IDENTITY_URI` | `http://identity-service.railway.internal:8081` | private 도메인 |
 | `WORKLOG_URI` | `http://worklog-service.railway.internal:8082` | private 도메인 |
 | `IDENTITY_JWKS_URI` | `http://identity-service.railway.internal:8081/.well-known/jwks.json` | private 도메인 |
-| `ALLOWED_ORIGINS` | `https://<Vercel 운영 도메인>` (하나만, 프리뷰 도메인은 넣지 않는다) | 입력 |
+| `ALLOWED_ORIGINS` | `https://project-7qtt1.vercel.app` (Vercel 운영 도메인 하나만, 프리뷰 도메인은 넣지 않는다) | 입력 |
 | `ORIGIN_SECRET` | 🔒 32바이트 이상 난수 (`openssl rand -hex 32`), Vercel과 같은 값 | 입력 |
 
 **identity-service**
@@ -97,3 +97,18 @@ vercel.json이 하는 일: `/api/*`를 Gateway 공개 도메인으로 프록시�
 3. api-gateway 공개 도메인 생성 → 도메인을 vercel.json에 반영해 커밋
 4. Vercel 프로젝트 생성·변수 입력 → 운영 도메인을 gateway `ALLOWED_ORIGINS`에 넣고 재배포
 5. 검증: Gateway 도메인 직접 호출 404, Vercel 경유 `/api` 동작, `/api` 응답의 `x-vercel-cache`가 HIT가 아님, 응답 크기·30초 제한, 로그 보관 기간·크래시 알림·백업 설정값 기록
+
+## 검증 결과 (2026-10-05)
+
+| 항목 | 결과 |
+|---|---|
+| Gateway 공개 도메인 | `api-gateway-production-9d89.up.railway.app` (대상 포트 8080) |
+| Vercel 운영 도메인 | `project-7qtt1.vercel.app` |
+| Gateway 직접 호출 | 404. 공개되는 actuator는 `/actuator/health`(상세 없이 status만)뿐이고 `/actuator`·`/actuator/env` 등은 404 |
+| Vercel 경유 `/api` | `/api/worklog/health` → 401 problem+json (비밀 헤더 통과) |
+| `x-vercel-cache` | MISS |
+| Origin 검사 | 운영 Origin 통과, 다른 Origin의 쓰기 요청 403 |
+| 응답 크기·30초 제한 | 미측정 |
+| 로그 보관 | 30일 (Pro 플랜 "30-Day Log History", Hobby면 7일) |
+| 크래시 알림 | 계정 단위 Notification Rules(All Projects): Deployment Failed, Deployment Crashed / Oom Killed, Usage Alert, Workspace·Service·Domain Restricted, Fallback(High Severity, Notice) 모두 Email & In-App |
+| 백업 | Volume backups Daily, 보관 6일, PITR 미사용. 첫 백업은 2026-10-05 기록 시점에 실행 전 |
