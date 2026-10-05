@@ -114,6 +114,10 @@ public class User {
 		return themeGround;
 	}
 
+	public Instant getLockedUntil() {
+		return lockedUntil;
+	}
+
 	public Long getVersion() {
 		return version;
 	}

@@ -29,6 +29,12 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 	ResponseEntity<ProblemDetail> handleApi(ApiException ex) {
 		ProblemDetail problem = Problems.of(ex.getStatus(), ex.getCode(), ex.getMessage(), ex.getErrors());
 		ex.getProperties().forEach(problem::setProperty);
+		// 요청 제한 응답(RateLimitedProblem)은 본문의 남은 초를 Retry-After 헤더로도 준다.
+		if (ex.getProperties().get(Problems.RETRY_AFTER_SECONDS) instanceof Number seconds) {
+			return ResponseEntity.status(ex.getStatus())
+				.header(HttpHeaders.RETRY_AFTER, String.valueOf(seconds.longValue()))
+				.body(problem);
+		}
 		return ResponseEntity.status(ex.getStatus()).body(problem);
 	}
 
