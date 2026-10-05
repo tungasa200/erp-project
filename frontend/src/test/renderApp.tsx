@@ -42,11 +42,12 @@ export const ME = {
   version: 0,
 }
 
-// "METHOD /path" → 응답. 등록하지 않은 요청은 401 UNAUTHENTICATED(비로그인)로 본다.
+// "METHOD /path" → 응답. 쿼리까지 같은 키가 없으면 쿼리를 뺀 "METHOD /path"로 찾는다.
+// 등록하지 않은 요청은 401 UNAUTHENTICATED(비로그인)로 본다.
 export function stubFetch(handlers: Record<string, Handler>) {
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const key = `${init?.method ?? 'GET'} ${String(input)}`
-    const handler = handlers[key]
+    const handler = handlers[key] ?? handlers[key.split('?')[0]]
     if (handler) return handler(init)
     if (key === 'POST /api/auth/refresh') return problem(401, 'REFRESH_INVALID')
     return problem(401, 'UNAUTHENTICATED')

@@ -1,4 +1,5 @@
 import { createBrowserRouter } from 'react-router'
+import { CalendarIndexRedirect, CalendarPage } from '../calendar/CalendarPage'
 import { AppShell } from '../components/AppShell'
 import { GuestOnly, RequireAuth } from './guards'
 import { ErrorPage } from '../pages/ErrorPage'
@@ -34,7 +35,10 @@ export const routes = [
             element: <AppShell />,
             children: [
               { path: '/', element: <HomePage /> },
-              { path: '/calendar', element: <PlaceholderPage title="캘린더" /> },
+              // 캘린더(P1-07, frontend2): /calendar는 오늘의 주 보기(모바일은 일 보기)로 보낸다
+              { path: '/calendar', element: <CalendarIndexRedirect /> },
+              { path: '/calendar/list', element: <CalendarPage /> },
+              { path: '/calendar/:view/:date', element: <CalendarPage /> },
               { path: '/tasks', element: <PlaceholderPage title="업무" /> },
               { path: '/logs', element: <PlaceholderPage title="업무일지" /> },
               { path: '/stats', element: <PlaceholderPage title="통계" /> },

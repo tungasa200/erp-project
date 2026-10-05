@@ -204,8 +204,8 @@ describe('UX-09 키보드 단축키', () => {
 
   it('다른 화면에서 N을 누르면 홈 입력창으로 간다', async () => {
     stubFetch({ 'GET /api/users/me': () => json(200, ME) })
-    const { router } = renderApp('/calendar')
-    await screen.findByRole('heading', { name: '캘린더' })
+    const { router } = renderApp('/logs')
+    await screen.findByRole('heading', { name: '업무일지' })
     await userEvent.keyboard('n')
     expect(await screen.findByRole('textbox', { name: '빠른 기록' })).toHaveFocus()
     expect(router.state.location.pathname).toBe('/')
@@ -226,8 +226,8 @@ describe('SCR-COM-03 명령 팔레트', () => {
     await userEvent.keyboard('{Control>}k{/Control}')
     const palette = screen.getByRole('dialog', { name: '명령 팔레트' })
     expect(within(palette).getByRole('option', { name: /업무 추가/ })).toHaveTextContent('N')
-    await userEvent.keyboard('캘린더{Enter}')
-    expect(router.state.location.pathname).toBe('/calendar')
+    await userEvent.keyboard('업무일지{Enter}')
+    expect(router.state.location.pathname).toBe('/logs')
     expect(screen.queryByRole('dialog', { name: '명령 팔레트' })).not.toBeInTheDocument()
   })
 
@@ -262,11 +262,16 @@ describe('SCR-COM-03 명령 팔레트', () => {
 
   it('날짜를 적으면 그날 캘린더로 이동한다', async () => {
     const { router } = await openHome()
+    // 캘린더 화면이 그날 일정을 받는다
+    stubFetch({
+      'GET /api/users/me': () => json(200, ME),
+      ...WORKLOG,
+      'GET /api/worklog/schedules': () => json(200, { items: [] }),
+    })
     await userEvent.keyboard('{Control>}k{/Control}10/12')
     expect(screen.getByRole('option', { name: /10\/12\(월\) 캘린더 보기/ })).toBeInTheDocument()
     await userEvent.keyboard('{Enter}')
-    expect(router.state.location.pathname).toBe('/calendar')
-    expect(router.state.location.search).toBe('?date=2026-10-12')
+    expect(router.state.location.pathname).toBe('/calendar/day/2026-10-12')
   })
 })
 

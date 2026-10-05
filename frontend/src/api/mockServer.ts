@@ -5,6 +5,7 @@
 // 프로필 수정(PATCH /api/users/me)은 localStorage에 남는다. 탭 두 개에서 고치면 409 VERSION_CONFLICT를 재현할 수 있다.
 // 이메일 인증·비밀번호 재설정 코드는 항상 123456 (mockCodes.ts). 가입하면 첫 인증 코드를 자동으로 보낸 것으로 친다.
 import { EMAIL_PATTERN, passwordViolations } from '../auth/passwordRules'
+import { handleScheduleMock } from '../calendar/mockSchedules'
 import { checkCode, codeStatus, issueCode } from './mockCodes'
 import { handleWorklog } from './mockWorklog'
 import type { FieldError, Problem } from './problem'
@@ -251,10 +252,12 @@ export const mockFetch: typeof fetch = async (input, init) => {
 
   if (path.startsWith('/api/worklog/')) {
     if (!state.session || state.session.accessExpiresAt < Date.now()) return problem(401, 'UNAUTHENTICATED')
-    const handled = handleWorklog(method, path, body, {
+    const respond = {
       json,
-      problem: (s, c, e) => problem(s, c, e as Partial<Problem>),
-    })
+      problem: (s: number, c: string, e?: Record<string, unknown>) => problem(s, c, e as Partial<Problem>),
+    }
+    // 일정(P1-05·06)은 캘린더 쪽 mock이 맡는다 (frontend2)
+    const handled = handleScheduleMock(method, path, body, respond) ?? handleWorklog(method, path, body, respond)
     if (handled) return handled
   }
 

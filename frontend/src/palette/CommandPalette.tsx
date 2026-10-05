@@ -171,7 +171,7 @@ export function CommandPalette({ onClose, onQuickAdd }: Props) {
                   className={styles.item}
                   onSelect={() => {
                     onClose()
-                    navigate(`/calendar?date=${jumpDate}`)
+                    navigate(`/calendar/day/${jumpDate}`)
                   }}
                 >
                   <span className={styles.icon} aria-hidden="true">
