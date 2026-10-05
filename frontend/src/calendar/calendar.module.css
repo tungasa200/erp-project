@@ -1238,12 +1238,8 @@ textarea.input {
 
 /* ── 반응형 (2.4): 태블릿은 업무 패널 접힘, 모바일은 사이드바도 숨기고 전체 폭 */
 @media (max-width: 1023px) {
+  /* 태블릿·모바일은 기본으로 접혀 있고(CalendarPage), P로 열면 오른쪽에 떠서 보인다 */
   .taskPanel {
-    display: none;
-  }
-
-  .taskPanel[data-open] {
-    display: flex;
     position: fixed;
     right: 16px;
     top: 16px;

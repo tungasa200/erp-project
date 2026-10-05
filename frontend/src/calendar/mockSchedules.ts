@@ -238,6 +238,11 @@ function publicSchedule({ overrides: _overrides, ...s }: MockSchedule): Schedule
   return s
 }
 
+/** 일정이 연결된 업무 id. 가짜 업무 서버(mockWorklog)가 Task.hasSchedule을 계산할 때 쓴다 */
+export function scheduledTaskIds(): Set<string> {
+  return new Set(load().flatMap((s) => (s.taskId ? [s.taskId] : [])))
+}
+
 // ── 요청 처리
 
 /** 처리한 요청이면 응답, 아니면 null */

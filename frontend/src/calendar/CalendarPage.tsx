@@ -15,7 +15,10 @@ import { QuickCreate, type CreateTarget, type ScheduleDraft } from './QuickCreat
 import { ScheduleDialog } from './ScheduleDialog'
 import { ScopeDialog } from './ScopeDialog'
 import { TimeGrid, type TimeRange } from './TimeGrid'
+import { QuickInput } from '../quickInput/QuickInput'
+import { TaskPanel } from './TaskPanel'
 import { YearView } from './YearView'
+import { useTaskPanel } from './useTaskPanel'
 import { shiftByDays, useScheduleActions, type Scope, type ScopeAction } from './useScheduleActions'
 import {
   MINUTES_PER_DAY,
@@ -47,6 +50,7 @@ const LIST_WINDOW_DAYS = 30
 const MAX_RANGE_DAYS = 400
 const HIDDEN_PROJECTS_KEY = 'worklog.calendar.hiddenProjects'
 const MOBILE_QUERY = '(max-width: 767px)'
+const DESKTOP_QUERY = '(min-width: 1024px)'
 
 function useCalendarPrefs() {
   const { user } = useAuth()
@@ -136,6 +140,8 @@ function Calendar({ view, date, today, timeZone, weekStart }: CalendarProps) {
   const [hiddenProjects, setHiddenProjects] = useState(loadHiddenProjects)
   const [listWindows, setListWindows] = useState({ past: 0, future: 2 })
   const mainRef = useRef<HTMLElement>(null)
+  // 업무 패널(SCR-CAL-09): 데스크톱은 기본 열림, 태블릿·모바일은 접힘(2.4). P로 열고 닫는다
+  const [panelOpen, setPanelOpen] = useState(() => window.matchMedia?.(DESKTOP_QUERY).matches ?? true)
 
   const askScope = useCallback(
     (occurrence: Occurrence, action: ScopeAction) =>
@@ -143,6 +149,8 @@ function Calendar({ view, date, today, timeZone, weekStart }: CalendarProps) {
     [],
   )
   const actions = useScheduleActions(askScope)
+  const panel = useTaskPanel(timeZone, projects.data ?? [])
+  const [panelText, setPanelText] = useState('')
 
   // ── 보기별 날짜 범위
   const days = useMemo(() => {
@@ -183,12 +191,15 @@ function Calendar({ view, date, today, timeZone, weekStart }: CalendarProps) {
     else if (view === 'year') go(view, addMonths(date, 12 * direction))
   }
 
-  /** "일정 만들기"·C: 보고 있는 날의 다음 정시부터 1시간(오늘이 아니면 09시) */
-  const openCreate = () => {
+  /** "일정 만들기"·C·"일정 잡기": 보고 있는 날의 다음 정시부터 1시간(오늘이 아니면 09시) */
+  const openCreate = (task?: { id: string; title: string }) => {
     const target = days.includes(today) ? today : date
     const nowMinutes = toZoned(now, timeZone).minutes
     const start = target === today ? Math.min(MINUTES_PER_DAY - 60, Math.ceil((nowMinutes + 1) / 60) * 60) : 9 * 60
-    setDialog({ kind: 'create', draft: { title: '', date: target, start, end: start + 60, allDay: false } })
+    setDialog({
+      kind: 'create',
+      draft: { title: task?.title ?? '', taskId: task?.id, date: target, start, end: start + 60, allDay: false },
+    })
   }
 
   const openQuick = (target: CreateTarget) => {
@@ -205,7 +216,8 @@ function Calendar({ view, date, today, timeZone, weekStart }: CalendarProps) {
     KeyT: () => go(view, today),
     KeyJ: () => step(-1),
     KeyK: () => step(1),
-    KeyC: openCreate,
+    KeyC: () => openCreate(),
+    KeyP: () => setPanelOpen((open) => !open),
   })
 
   // ── 제목
@@ -251,7 +263,7 @@ function Calendar({ view, date, today, timeZone, weekStart }: CalendarProps) {
   return (
     <div className={styles.page}>
       <aside className={styles.side} aria-label="캘린더 사이드바">
-        <button type="button" className={styles.createButton} onClick={openCreate} title="단축키 C">
+        <button type="button" className={styles.createButton} onClick={() => openCreate()} title="단축키 C">
           <svg
             width="20"
             height="20"
@@ -367,6 +379,7 @@ function Calendar({ view, date, today, timeZone, weekStart }: CalendarProps) {
             onOpen={(o) => setDialog({ kind: 'edit', occurrence: o })}
             onMove={(o, change) => void actions.move(o, change)}
             onOpenDay={view === 'week' ? (d) => go('day', d) : undefined}
+            onDropTask={panel.placeById}
           />
         )}
         {view === 'month' && (
@@ -417,6 +430,21 @@ function Calendar({ view, date, today, timeZone, weekStart }: CalendarProps) {
           </p>
         )}
       </section>
+
+      {panelOpen && (
+        <TaskPanel
+          tasks={panel.tasks.items}
+          projects={projects.data ?? []}
+          today={today}
+          loading={panel.tasks.isFetching}
+          hasMore={!!panel.tasks.hasNextPage}
+          onLoadMore={() => void panel.tasks.fetchNextPage()}
+          onPlace={(task) => openCreate(task)}
+          quickInput={
+            <QuickInput label="업무 빠른 입력" value={panelText} onChange={setPanelText} onSubmit={panel.quickSave} />
+          }
+        />
+      )}
 
       {quick && (
         <QuickCreate

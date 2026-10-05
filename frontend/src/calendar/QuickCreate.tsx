@@ -22,6 +22,8 @@ export interface CreateTarget {
 
 export interface ScheduleDraft extends CreateTarget {
   title: string
+  /** 업무 패널의 "일정 잡기"로 열면 그 업무에 연결한다(P1-08) */
+  taskId?: string
 }
 
 interface Props {

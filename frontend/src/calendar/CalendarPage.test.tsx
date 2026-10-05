@@ -44,11 +44,38 @@ function stubServer() {
     }
     if (url === '/api/users/me') return json(200, ME)
     if (url.startsWith('/api/worklog/projects')) return json(200, { items: [] })
+    if (url === '/api/worklog/tasks' && method === 'POST') {
+      const body = JSON.parse(String(init!.body))
+      return json(201, task('task-new', body.title, body.dueDate ?? null))
+    }
+    if (url.startsWith('/api/worklog/tasks?')) {
+      // 일정 없는 업무만(scheduled=false) — 일정이 연결된 업무는 빠진다
+      const linked = new Set(
+        JSON.parse(localStorage.getItem('worklog.mock.schedules') ?? '[]').map((x: { taskId: string }) => x.taskId),
+      )
+      return json(200, { items: tasks.filter((t) => !linked.has(t.id)) })
+    }
     return problem(404, 'NOT_FOUND')
   })
   vi.stubGlobal('fetch', fetchMock)
   return fetchMock
 }
+
+const task = (id: string, title: string, dueDate: string | null) => ({
+  id,
+  title,
+  status: 'TODO',
+  priority: 'NORMAL',
+  progress: 0,
+  dueDate,
+  projectId: null,
+  tagIds: [],
+  hasSchedule: false,
+  createdAt: '2026-10-01T00:00:00Z',
+  updatedAt: '2026-10-01T00:00:00Z',
+  version: 0,
+})
+const tasks = [task('task-report', '9월 매출 보고서', '2026-10-06'), task('task-idea', '아이디어 정리', null)]
 
 beforeEach(() => {
   localStorage.setItem('worklog.mock.schedules', JSON.stringify([standup]))
@@ -111,5 +138,48 @@ describe('캘린더', () => {
     expect(screen.getByText('일정을 삭제했어요')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: '되돌리기' }))
     await waitFor(() => expect(screen.getAllByRole('button', { name: /^팀 스탠드업, / })).toHaveLength(3))
+  })
+
+  it('업무 패널: 마감순 카드, 날짜 없는 업무는 접고, "일정 잡기"로 업무에 연결된 일정을 만든다', async () => {
+    const fetchMock = stubServer()
+    const user = userEvent.setup()
+    renderApp('/calendar/week/2026-10-07', routes)
+    const panel = await screen.findByRole('complementary', { name: '할 일 상자' })
+    expect(await within(panel).findByText('9월 매출 보고서')).toBeInTheDocument()
+    expect(within(panel).queryByText('아이디어 정리')).not.toBeInTheDocument()
+    await user.click(within(panel).getByRole('button', { name: '날짜 없는 업무 1개 더 보기' }))
+    expect(within(panel).getByText('아이디어 정리')).toBeInTheDocument()
+
+    await user.click(within(panel).getByRole('button', { name: '9월 매출 보고서 일정 잡기' }))
+    const dialog = await screen.findByRole('dialog', { name: '새 일정' })
+    expect(within(dialog).getByLabelText('제목')).toHaveValue('9월 매출 보고서')
+    await user.click(within(dialog).getByRole('button', { name: '저장' }))
+
+    await waitFor(() => expect(within(panel).queryByText('9월 매출 보고서')).not.toBeInTheDocument())
+    const post = fetchMock.mock.calls.find(([, init]) => init?.method === 'POST')
+    expect(JSON.parse(String(post![1]!.body))).toMatchObject({ title: '9월 매출 보고서', taskId: 'task-report' })
+  })
+
+  it('P로 업무 패널을 닫고 연다', async () => {
+    stubServer()
+    const user = userEvent.setup()
+    renderApp('/calendar/week/2026-10-07', routes)
+    await screen.findByRole('complementary', { name: '할 일 상자' })
+    await user.keyboard('p')
+    expect(screen.queryByRole('complementary', { name: '할 일 상자' })).not.toBeInTheDocument()
+    await user.keyboard('p')
+    expect(screen.getByRole('complementary', { name: '할 일 상자' })).toBeInTheDocument()
+  })
+
+  it('업무 패널 빠른 입력으로 업무를 만들면 되돌리기 토스트가 뜬다', async () => {
+    const fetchMock = stubServer()
+    const user = userEvent.setup()
+    renderApp('/calendar/week/2026-10-07', routes)
+    const panel = await screen.findByRole('complementary', { name: '할 일 상자' })
+    await user.type(within(panel).getByLabelText('업무 빠른 입력'), '보고서 정리{Enter}')
+    expect(await screen.findByText('업무를 만들었어요')).toBeInTheDocument()
+    const post = fetchMock.mock.calls.find(([url, init]) => url === '/api/worklog/tasks' && init?.method === 'POST')
+    expect(JSON.parse(String(post![1]!.body))).toMatchObject({ title: '보고서 정리' })
+    expect(within(panel).getByLabelText('업무 빠른 입력')).toHaveValue('')
   })
 })

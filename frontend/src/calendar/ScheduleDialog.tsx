@@ -1,11 +1,12 @@
 // 일정 상세·편집 (SCR-CAL-07). 새로 만들 때와 고칠 때 같은 모달을 쓴다. 저장 버튼이 있는 모달이다.
 // 반복 일정은 저장·삭제할 때 범위를 묻는다(SCR-CAL-08). 종일 여부·반복 규칙을 바꾸면 "모든 일정"만 가능하다(계약 OccurrencePatch).
 // ④ 연결 업무는 업무 API(P1-03), ⑥ 기록 상태는 P2라 아직 없다(연결된 taskId는 그대로 둔다).
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useId, useState, type FormEvent } from 'react'
 import { toastForError } from '../api/errorToast'
 import { ApiError } from '../api/problem'
 import { useToast } from '../components/useToast'
+import { TASKS_QUERY_KEY } from '../tasks/api'
 import { Modal } from './Modal'
 import {
   scheduleApi,
@@ -163,6 +164,7 @@ export function ScheduleDialog({ timeZone, draft, occurrence, askScope, onDelete
   const id = useId()
   const { showToast } = useToast()
   const invalidate = useInvalidateOccurrences()
+  const queryClient = useQueryClient()
   const schedule = useQuery({
     queryKey: ['schedule', occurrence?.scheduleId],
     queryFn: () => scheduleApi.get(occurrence!.scheduleId),
@@ -222,8 +224,11 @@ export function ScheduleDialog({ timeZone, draft, occurrence, askScope, onDelete
       ...timeOf(f, timeZone),
       recurrence: recurrenceOf(f),
       memo: f.memo.trim() || null,
+      taskId: draft?.taskId ?? null,
     }
     await scheduleApi.create(body)
+    // 업무 패널에서 연 일정이면 그 업무가 패널(일정 없는 업무)에서 빠진다
+    if (body.taskId) void queryClient.invalidateQueries({ queryKey: TASKS_QUERY_KEY })
     showToast('일정을 만들었어요')
   }
 
