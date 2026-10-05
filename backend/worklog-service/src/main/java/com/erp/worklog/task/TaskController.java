@@ -122,7 +122,7 @@ class TaskController {
 					schema = @Schema(ref = OpenApiAutoConfiguration.PROBLEM_REF)))
 	TaskList list(@Parameter(hidden = true) CurrentUser user,
 			@Parameter(description = "이전 응답의 nextCursor. 처음이면 생략.") @RequestParam(required = false) String cursor,
-			@Parameter(schema = @Schema(minimum = "1", maximum = "100", defaultValue = "50"))
+			@Parameter(schema = @Schema(type = "integer", format = "int32", minimum = "1", maximum = "100", defaultValue = "50"))
 			@RequestParam(defaultValue = "50") int limit,
 			@Parameter(description = "여러 개면 OR (?status=TODO&status=IN_PROGRESS)",
 					array = @ArraySchema(schema = @Schema(allowableValues = { "TODO", "IN_PROGRESS", "DONE", "ON_HOLD" })))

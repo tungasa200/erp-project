@@ -1791,10 +1791,11 @@
           "name" : "limit",
           "required" : false,
           "schema" : {
-            "default" : "50",
+            "default" : 50,
+            "format" : "int32",
             "maximum" : 100,
             "minimum" : 1,
-            "type" : "string"
+            "type" : "integer"
           }
         }, {
           "description" : "여러 개면 OR (?status=TODO&status=IN_PROGRESS)",
