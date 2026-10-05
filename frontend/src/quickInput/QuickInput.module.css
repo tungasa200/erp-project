@@ -44,6 +44,11 @@
   background: transparent;
 }
 
+/* 포커스 표시는 바깥 둥근 상자(.field:focus-within) 하나만 쓴다. 전역 :focus-visible과 겹치지 않게 덮는다 */
+.input:focus-visible {
+  outline: none;
+}
+
 .input::placeholder {
   color: #8a8fa3;
   font-weight: 400;
@@ -117,9 +122,17 @@
   color: var(--color-accent-ink);
 }
 
+/* 프로젝트 칩은 그 프로젝트 색을 쓴다(P1-02에서 프로젝트 목록과 연결). 그때까지 임시 색 */
 .project {
   background: var(--color-warning-soft);
   color: var(--color-warning-text);
+}
+
+/* 마감·우선순위 보통·낮음은 중립 회색. 마감이 지났어도 칩은 회색이다(빨강은 목록의 마감 초과 표시에만) */
+.due,
+.priority {
+  background: #eef0f6;
+  color: #4a4f63;
 }
 
 .priority.strong {

@@ -1,7 +1,7 @@
 // SCR-COM-03 명령 팔레트 (UX-01). 지금은 동작(업무 추가)·화면 이동·날짜 이동만 있다.
 // 업무·일지 검색, 하루 마감·타이머 같은 동작은 해당 기능 단계에서 COMMANDS에 더한다.
 import { Command } from 'cmdk'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { useAuth } from '../auth/useAuth'
 import { shortDate, todayIn, weekStartNumber } from '../quickInput/dates'
@@ -52,15 +52,6 @@ export function CommandPalette({ onClose, onQuickAdd }: Props) {
   const { user } = useAuth()
   const shortcutsEnabled = useShortcutsEnabled()
   const [query, setQuery] = useState('')
-  // 검색 입력이 autoFocus로 포커스를 가져가기 전(첫 렌더)에 원래 포커스를 기억해 닫을 때 돌려준다.
-  const [previousFocus] = useState(() => document.activeElement)
-
-  useEffect(
-    () => () => {
-      if (previousFocus instanceof HTMLElement) previousFocus.focus()
-    },
-    [previousFocus],
-  )
 
   const commands = useMemo<PaletteCommand[]>(() => {
     const go = (to: string) => () => navigate(to)

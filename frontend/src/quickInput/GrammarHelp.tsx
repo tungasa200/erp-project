@@ -8,16 +8,25 @@ const RULES = [
   { k: '#영업', v: '프로젝트 (없으면 새로 만들지 물어봐요)' },
   { k: '!높음 · !낮음', v: '우선순위 (기본 보통)' },
   { k: '~금 · ~10/12', v: '마감일' },
-  { k: '오늘 · 내일 · 다음주 수요일', v: '날짜' },
+  { k: '오늘 · 내일 · 다음주 수요일', v: '날짜 (시간 없이 쓰면 마감일)' },
 ]
 
-export function GrammarHelp({ onClose, onPick }: { onClose: () => void; onPick: (example: string) => void }) {
+export function GrammarHelp({
+  onClose,
+  onPick,
+}: {
+  onClose: (by: 'escape' | 'outside') => void
+  onPick: (example: string) => void
+}) {
   const ref = useRef<HTMLElement>(null)
 
   useEffect(() => {
     ref.current?.focus()
+  }, [])
+
+  useEffect(() => {
     const onPointerDown = (e: PointerEvent) => {
-      if (!ref.current?.parentElement?.contains(e.target as Node)) onClose()
+      if (!ref.current?.parentElement?.contains(e.target as Node)) onClose('outside')
     }
     document.addEventListener('pointerdown', onPointerDown)
     return () => document.removeEventListener('pointerdown', onPointerDown)
@@ -33,7 +42,7 @@ export function GrammarHelp({ onClose, onPick }: { onClose: () => void; onPick: 
       onKeyDown={(e) => {
         if (e.key === 'Escape') {
           e.stopPropagation()
-          onClose()
+          onClose('escape')
         }
       }}
     >

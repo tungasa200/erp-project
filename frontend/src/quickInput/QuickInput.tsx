@@ -1,7 +1,7 @@
 // SCR-COM-02 빠른 입력창. 입력하는 동안 해석 결과를 칩으로 미리 보여 준다(오해석 방지).
 // 저장(onSubmit)은 업무·일정 API가 생기면(P1-03·05) 연결한다. 칩 수정 드롭다운, 새 프로젝트 확인,
 // 자주 하는 업무 제안(④)도 프로젝트·업무 데이터가 필요해 그때 붙인다.
-import { useId, useMemo, useRef, useState } from 'react'
+import { useCallback, useId, useMemo, useRef, useState } from 'react'
 import { useAuth } from '../auth/useAuth'
 import { shortDate, todayIn, weekStartNumber } from './dates'
 import { GrammarHelp } from './GrammarHelp'
@@ -45,7 +45,13 @@ interface Props {
 export function QuickInput({ value, onChange, onSubmit, label = '빠른 입력' }: Props) {
   const { user } = useAuth()
   const inputRef = useRef<HTMLInputElement>(null)
+  const helpButtonRef = useRef<HTMLButtonElement>(null)
   const [helpOpen, setHelpOpen] = useState(false)
+  // Esc로 닫으면 포커스를 ? 버튼으로 돌려준다. 바깥을 눌러 닫을 때는 누른 곳에 포커스를 둔다.
+  const closeHelp = useCallback((by: 'escape' | 'outside') => {
+    setHelpOpen(false)
+    if (by === 'escape') helpButtonRef.current?.focus()
+  }, [])
   const id = useId()
 
   const today = todayIn(user?.timezone ?? 'Asia/Seoul')
@@ -94,6 +100,7 @@ export function QuickInput({ value, onChange, onSubmit, label = '빠른 입력' 
         )}
         <button
           type="button"
+          ref={helpButtonRef}
           className={styles.help}
           aria-label="문법 도움말"
           aria-expanded={helpOpen}
@@ -108,7 +115,10 @@ export function QuickInput({ value, onChange, onSubmit, label = '빠른 입력' 
           {chips.length > 0 && (
             <ul className={styles.chips} aria-label="해석 결과">
               {chips.map((c) => (
-                <li key={c.kind} className={`${styles.chip} ${styles[c.kind]} ${c.strong ? styles.strong : ''}`}>
+                <li
+                  key={c.kind}
+                  className={[styles.chip, styles[c.kind], c.strong && styles.strong].filter(Boolean).join(' ')}
+                >
                   {c.text}
                 </li>
               ))}
@@ -126,7 +136,7 @@ export function QuickInput({ value, onChange, onSubmit, label = '빠른 입력' 
 
       {helpOpen && (
         <GrammarHelp
-          onClose={() => setHelpOpen(false)}
+          onClose={closeHelp}
           onPick={(example) => {
             onChange(example)
             setHelpOpen(false)
