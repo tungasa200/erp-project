@@ -1,0 +1,21 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "https://api-gateway-production-9d89.up.railway.app/api/$1",
+      "headers": { "x-vercel-enable-rewrite-caching": "0" },
+      "transforms": [
+        {
+          "type": "request.headers",
+          "op": "set",
+          "target": { "key": "x-origin-secret" },
+          "args": "$ORIGIN_SECRET",
+          "env": ["ORIGIN_SECRET"]
+        }
+      ]
+    },
+    { "handle": "filesystem" },
+    { "src": "/((?!assets/).*)", "dest": "/index.html" }
+  ]
+}
