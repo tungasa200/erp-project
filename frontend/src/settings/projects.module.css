@@ -1,0 +1,258 @@
+/* SCR-SET-08 프로젝트·태그 (목업 SET-08) */
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.panel {
+  box-sizing: border-box;
+  padding: 22px;
+  border-radius: 22px;
+  background: var(--color-surface);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.title {
+  flex: 1;
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.meta {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+}
+
+.muted {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-danger);
+}
+
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-top: 1px solid #f0f1f6;
+}
+
+.item:first-child {
+  border-top: 0;
+}
+
+.swatch {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  border-radius: 6px;
+}
+
+.name {
+  flex: 1;
+  min-width: 0;
+  font-size: 15px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.count {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.smallButton {
+  min-height: 36px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 18px;
+  background: var(--color-ground);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.newProject {
+  margin-top: 10px;
+  padding: 16px;
+  border: 2px dashed var(--color-border);
+  border-radius: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.formLabel {
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.input {
+  height: 46px;
+  box-sizing: border-box;
+  padding: 0 14px;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-input);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.input:focus-visible {
+  outline: none;
+  border: 2px solid var(--color-accent);
+}
+
+.input[aria-invalid='true'] {
+  border-color: var(--color-danger);
+}
+
+.palette {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* 색 버튼은 44px 터치 영역 안에 34px 원을 그린다. 선택은 흰 띠 + 그 색 고리 */
+.colorOption {
+  width: 34px;
+  height: 34px;
+  margin: 5px;
+  border: 0;
+  border-radius: 17px;
+  cursor: pointer;
+}
+
+.colorOption[aria-checked='true'] {
+  box-shadow:
+    0 0 0 3px var(--color-surface),
+    0 0 0 5px currentColor;
+}
+
+.primary {
+  align-self: flex-end;
+  min-height: 44px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 22px;
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.primary:disabled {
+  background: var(--color-disabled);
+  cursor: default;
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tag {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 0 6px 0 14px;
+  border-radius: 18px;
+  background: var(--color-ground);
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+.tagEditing {
+  flex-wrap: wrap;
+  padding: 4px 6px 4px 14px;
+  box-shadow: inset 0 0 0 2px var(--color-accent);
+}
+
+.iconButton {
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 16px;
+  background: var(--color-surface);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.tagInput {
+  width: 9em;
+  min-height: 32px;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+}
+
+.tagDelete {
+  min-height: 32px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 16px;
+  background: var(--color-danger-soft);
+  color: var(--color-danger-text);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.tagError {
+  flex-basis: 100%;
+  padding-bottom: 4px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-danger);
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}

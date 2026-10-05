@@ -5,6 +5,9 @@ export interface UndoOptions {
   group: string
   message: (count: number) => string
   undo: () => void | Promise<void>
+  /** 되돌리지 않고 토스트가 닫힐 때(시간 끝, 닫기, 다른 동작의 토스트로 바뀜) 실행한다.
+   *  되돌릴 수 없는 API(태그 삭제)는 이때 보낸다(P1-02 결정 A안) */
+  commit?: () => void
 }
 
 export interface ToastValue {

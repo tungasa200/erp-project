@@ -18,6 +18,7 @@ interface UndoItem {
   count: number
   message: UndoOptions['message']
   undos: UndoOptions['undo'][]
+  commits: NonNullable<UndoOptions['commit']>[]
 }
 
 const DURATION_MS = 5000
@@ -66,12 +67,19 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     setUndoItem(item)
   }, [])
 
-  const closeUndo = useCallback(() => {
+  const clearUndo = useCallback(() => {
     clearTimeout(timer.current)
     pauseReasons.current.clear()
     setPaused(false)
     setUndo(null)
   }, [setUndo])
+
+  // 되돌리지 않고 닫으면 미뤄 둔 동작을 확정한다.
+  const closeUndo = useCallback(() => {
+    const item = undoRef.current
+    clearUndo()
+    item?.commits.forEach((commit) => commit())
+  }, [clearUndo])
 
   const startTimer = useCallback(
     (ms: number) => {
@@ -83,13 +91,22 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   )
 
   const showUndo = useCallback<ToastValue['showUndo']>(
-    ({ group, message, undo }) => {
+    ({ group, message, undo, commit }) => {
       const current = undoRef.current
-      setUndo(
-        current && current.group === group
-          ? { ...current, count: current.count + 1, message, undos: [...current.undos, undo] }
-          : { id: nextId.current++, group, count: 1, message, undos: [undo] },
-      )
+      const commits = commit ? [commit] : []
+      if (current && current.group === group) {
+        setUndo({
+          ...current,
+          count: current.count + 1,
+          message,
+          undos: [...current.undos, undo],
+          commits: [...current.commits, ...commits],
+        })
+      } else {
+        // 다른 동작의 토스트로 바뀌면 앞 동작은 더 되돌릴 수 없으니 확정한다.
+        current?.commits.forEach((c) => c())
+        setUndo({ id: nextId.current++, group, count: 1, message, undos: [undo], commits })
+      }
       remaining.current = DURATION_MS
       if (pauseReasons.current.size === 0) startTimer(DURATION_MS)
     },
@@ -99,14 +116,14 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const runUndo = useCallback(async () => {
     const item = undoRef.current
     if (!item) return
-    closeUndo()
+    clearUndo()
     try {
       // 나중에 한 동작부터 되돌린다.
       for (const undo of [...item.undos].reverse()) await undo()
     } catch {
       showToast('되돌리지 못했어요. 잠시 후 다시 시도해 주세요')
     }
-  }, [closeUndo, showToast])
+  }, [clearUndo, showToast])
 
   const pause = (reason: string) => {
     if (pauseReasons.current.size === 0) {

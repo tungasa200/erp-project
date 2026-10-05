@@ -46,7 +46,7 @@ describe('설정 화면 틀', () => {
     const { router } = renderApp('/settings')
     expect(await screen.findByRole('heading', { name: '프로필' })).toBeInTheDocument()
     expect(router.state.location.pathname).toBe('/settings/profile')
-    expect(within(screen.getByRole('navigation', { name: '설정 메뉴' })).getAllByRole('link')).toHaveLength(2)
+    expect(within(screen.getByRole('navigation', { name: '설정 메뉴' })).getAllByRole('link')).toHaveLength(3)
   })
 
   it('사이드바 프로필 영역을 누르면 프로필 설정으로 간다', async () => {

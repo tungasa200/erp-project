@@ -4,6 +4,7 @@
 // deleted@example.com: 로그인은 되지만 이후 요청은 401 USER_DELETED(다른 기기에서 탈퇴한 경우, 새로 고침하면 재현)
 // 프로필 수정(PATCH /api/users/me)은 localStorage에 남는다. 탭 두 개에서 고치면 409 VERSION_CONFLICT를 재현할 수 있다.
 import { EMAIL_PATTERN, passwordViolations } from '../auth/passwordRules'
+import { handleWorklog } from './mockWorklog'
 import type { FieldError, Problem } from './problem'
 import type { Me, ProfileUpdateRequest } from './types'
 
@@ -184,6 +185,15 @@ export const mockFetch: typeof fetch = async (input, init) => {
   if (method === 'POST' && path === '/api/worklog/me/profile/refresh') {
     if (!state.session) return problem(401, 'UNAUTHENTICATED')
     return json(200, {})
+  }
+
+  if (path.startsWith('/api/worklog/')) {
+    if (!state.session || state.session.accessExpiresAt < Date.now()) return problem(401, 'UNAUTHENTICATED')
+    const handled = handleWorklog(method, path, body, {
+      json,
+      problem: (s, c, e) => problem(s, c, e as Partial<Problem>),
+    })
+    if (handled) return handled
   }
 
   return problem(404, 'NOT_FOUND')

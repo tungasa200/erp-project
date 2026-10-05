@@ -9,6 +9,7 @@ import { PlaceholderPage } from '../pages/PlaceholderPage'
 import { SignupPage } from '../pages/SignupPage'
 import { GeneralSettings } from '../settings/GeneralSettings'
 import { ProfileSettings } from '../settings/ProfileSettings'
+import { ProjectSettings } from '../settings/ProjectSettings'
 import { SettingsIndex, SettingsLayout } from '../settings/SettingsLayout'
 
 export const routes = [
@@ -40,6 +41,7 @@ export const routes = [
                   { index: true, element: <SettingsIndex /> },
                   { path: 'profile', element: <ProfileSettings /> },
                   { path: 'general', element: <GeneralSettings /> },
+                  { path: 'projects', element: <ProjectSettings /> },
                 ],
               },
             ],

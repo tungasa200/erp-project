@@ -44,6 +44,32 @@
   --status-skipped-bg: #eceef4;
   --status-skipped-text: #8a8fa3;
 
+  /* 프로젝트 전용 팔레트 P1~P8 (테마와 무관). base: 색 점·확정 블록 채움, tint/ink: 칩·배지 배경/글자 (erp-design 확정) */
+  --project-p1: #2d5bd8; /* 파랑 */
+  --project-p1-tint: #e5ecfc;
+  --project-p1-ink: #1e3f9e;
+  --project-p2: #bc5711; /* 주황 */
+  --project-p2-tint: #fcebdd;
+  --project-p2-ink: #8a3d06;
+  --project-p3: #0e7f6c; /* 청록 */
+  --project-p3-tint: #ddf3ee;
+  --project-p3-ink: #0a5c4e;
+  --project-p4: #7a3fc9; /* 보라 */
+  --project-p4-tint: #eee6f8;
+  --project-p4-ink: #552c8d;
+  --project-p5: #c0392b; /* 빨강 */
+  --project-p5-tint: #f7e5e3;
+  --project-p5-ink: #86281e;
+  --project-p6: #6b7a1e; /* 올리브 */
+  --project-p6-tint: #eceee2;
+  --project-p6-ink: #4b5515;
+  --project-p7: #b8336a; /* 분홍 */
+  --project-p7-tint: #f6e4ec;
+  --project-p7-ink: #81244a;
+  --project-p8: #5e6377; /* 회색 */
+  --project-p8-tint: #eaebed;
+  --project-p8-ink: #424553;
+
   /* 모양 */
   --radius-input: 14px;
   --radius-card: 20px;
