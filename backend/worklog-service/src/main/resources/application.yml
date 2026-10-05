@@ -51,6 +51,15 @@ spring:
   config:
     activate:
       on-profile: prod
+  # 로컬 기본값을 지워 변수가 빠지면 common ProdDatasourceGuard가 기동을 막게 한다
+  datasource:
+    url: ${DB_URL:}
+    username: ${DB_USERNAME:}
+    password: ${DB_PASSWORD:}
+# 명세는 gateway가 라우팅하지 않아 외부에 안 보이지만, 운영에서는 생성 자체를 끈다
+springdoc:
+  api-docs:
+    enabled: false
 logging:
   structured:
     format:
