@@ -103,7 +103,7 @@ describe('parseQuickInput', () => {
 
     it('우선순위 세 가지', () => {
       expect(parse('a !높음').priority).toBe('HIGH')
-      expect(parse('a !보통').priority).toBe('MEDIUM')
+      expect(parse('a !보통').priority).toBe('NORMAL')
       expect(parse('a !낮음').priority).toBe('LOW')
     })
 

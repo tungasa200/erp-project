@@ -16,7 +16,7 @@ import { GrammarHelp } from './GrammarHelp'
 import { parseQuickInput, toDraft, type Priority, type QuickDraft } from './parse'
 import styles from './QuickInput.module.css'
 
-const PRIORITY_LABEL: Record<Priority, string> = { HIGH: '높음', MEDIUM: '보통', LOW: '낮음' }
+const PRIORITY_LABEL: Record<Priority, string> = { HIGH: '높음', NORMAL: '보통', LOW: '낮음' }
 
 type Chip =
   | { key: string; kind: 'time' | 'priority' | 'due'; text: string; strong?: boolean }

@@ -12,7 +12,8 @@
 //   우선순위 !높음 · !보통 · !낮음
 import { addDays, daysBetween, isoWeekday, makeDate, WEEKDAY_NAMES } from './dates'
 
-export type Priority = 'HIGH' | 'MEDIUM' | 'LOW'
+// 계약(worklog TaskPriority)과 같은 값
+export type Priority = 'HIGH' | 'NORMAL' | 'LOW'
 
 export interface QuickParse {
   title: string
@@ -35,7 +36,7 @@ export interface ParseOptions {
   weekStart?: number
 }
 
-const PRIORITY: Record<string, Priority> = { '!높음': 'HIGH', '!보통': 'MEDIUM', '!낮음': 'LOW' }
+const PRIORITY: Record<string, Priority> = { '!높음': 'HIGH', '!보통': 'NORMAL', '!낮음': 'LOW' }
 const RELATIVE_DAY: Record<string, number> = { 어제: -1, 오늘: 0, 내일: 1, 모레: 2 }
 const WEEK_OFFSET: Record<string, number> = { 지난: -1, 이번: 0, 다음: 1, 다다음: 2 }
 

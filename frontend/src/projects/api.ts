@@ -50,6 +50,8 @@ export const projectApi = {
 
 export const tagApi = {
   list: () => api.request<{ items: Tag[] }>('/api/worklog/tags'),
+  /** 같은 이름(대소문자 무시)이 있으면 그 태그를 돌려준다(200), 없으면 만든다(201) */
+  create: (name: string) => api.request<Tag>('/api/worklog/tags', { method: 'POST', body: { name } }),
   rename: (id: string, body: { version: number; name: string }) =>
     api.request<Tag>(`/api/worklog/tags/${id}`, { method: 'PATCH', body }),
   remove: (id: string, options: { keepalive?: boolean } = {}) =>
