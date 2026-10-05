@@ -601,7 +601,7 @@ export interface components {
              * Format: int32
              * @default 0
              */
-            progress: number;
+            progress?: number;
             /** Format: uuid */
             projectId?: string | null;
             /** @enum {string} */
