@@ -1,9 +1,12 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { AuthProvider } from '../auth/AuthContext'
 import { ToastProvider } from '../components/Toast'
 import { useToast } from '../components/useToast'
+import { QuickInput } from '../quickInput/QuickInput'
 import { json, ME, renderApp, stubFetch } from './renderApp'
 
 // 서울 2026-10-07(수) 12:00. 타이머는 진짜로 두고 Date만 고정한다.
@@ -55,6 +58,53 @@ describe('SCR-COM-02 빠른 입력창', () => {
     await userEvent.type(input, '다음주 수요일 보고서')
     expect(screen.getByRole('listitem')).toHaveTextContent('마감 10/14(수)')
     expect(screen.getByText('업무가 만들어져요')).toBeInTheDocument()
+  })
+
+  describe('Enter', () => {
+    async function renderQuick() {
+      stubFetch({ 'GET /api/users/me': () => json(200, ME) })
+      const onSubmit = vi.fn()
+      function Wrapper() {
+        const [value, setValue] = useState('')
+        return <QuickInput value={value} onChange={setValue} onSubmit={onSubmit} />
+      }
+      render(
+        <QueryClientProvider client={new QueryClient()}>
+          <AuthProvider>
+            <Wrapper />
+          </AuthProvider>
+        </QueryClientProvider>,
+      )
+      const input = await screen.findByRole('textbox', { name: '빠른 입력' })
+      return { onSubmit, input }
+    }
+
+    it('비었거나 공백뿐이면 안내 없이 무시한다', async () => {
+      const { onSubmit, input } = await renderQuick()
+      await userEvent.type(input, '   {Enter}')
+      expect(onSubmit).not.toHaveBeenCalled()
+      expect(screen.queryByText('할 일 이름을 적어 주세요')).not.toBeInTheDocument()
+      expect(screen.queryByRole('list', { name: '해석 결과' })).not.toBeInTheDocument()
+    })
+
+    it('제목 없이 문법 낱말만 있으면 안내하고 저장하지 않는다', async () => {
+      const { onSubmit, input } = await renderQuick()
+      await userEvent.type(input, '14-16 #영업{Enter}')
+      expect(onSubmit).not.toHaveBeenCalled()
+      expect(screen.getByText('할 일 이름을 적어 주세요')).toBeInTheDocument()
+      expect(input).toHaveValue('14-16 #영업')
+    })
+
+    it('제목이 있으면 해석 결과로 저장하고 입력을 비운다', async () => {
+      const { onSubmit, input } = await renderQuick()
+      await userEvent.type(input, '견적서 14-16 #영업{Enter}')
+      expect(onSubmit).toHaveBeenCalledWith({
+        title: '견적서',
+        project: '영업',
+        schedule: { date: '2026-10-07', start: '14:00', end: '16:00' },
+      })
+      await waitFor(() => expect(input).toHaveValue(''))
+    })
   })
 
   it('Esc로 입력을 비운다', async () => {

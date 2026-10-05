@@ -103,7 +103,11 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * 공통 프로필·화면 설정 수정 (AUTH-04·05, UX-09, P1-01)
+         * @description 보낸 칸만 바꾼다. version이 현재 값과 다르면 409. 프로필 칸이 바뀌면 사용자 변경 피드에 PROFILE_UPDATED를 남긴다.
+         */
+        patch: operations["updateMe"];
         trace?: never;
     };
     "/internal/deleted-users": {
@@ -206,6 +210,8 @@ export interface components {
             emailVerified: boolean;
             /** Format: uuid */
             id: string;
+            /** @description 키보드 단축키 사용 (UX-09, 기본 켬). 모듈에는 전달하지 않는다. */
+            keyboardShortcutsEnabled: boolean;
             name?: string | null;
             organization?: string | null;
             position?: string | null;
@@ -241,10 +247,38 @@ export interface components {
             organization?: string | null;
             position?: string | null;
             timezone: string;
+            /** Format: int64 */
+            version: number;
             /** @enum {string} */
             weekStart: "MONDAY" | "TUESDAY" | "WEDNESDAY" | "THURSDAY" | "FRIDAY" | "SATURDAY" | "SUNDAY";
             /** Format: int32 */
             workDays: number;
+        };
+        /** @description 보낸 칸만 수정한다. 칸 없음 = 그대로, null = 지움(이름·소속·직책만). 모르는 칸은 무시한다. */
+        ProfileUpdateRequest: {
+            /** @description 키보드 단축키 사용 (UX-09). 피드에는 남기지 않는다. */
+            keyboardShortcutsEnabled?: boolean;
+            name?: string | null;
+            organization?: string | null;
+            /** @description 표시용 직책 (권한용 역할과 별개) */
+            position?: string | null;
+            /**
+             * @description IANA 시간대 이름. 바꿔도 기존 기록 날짜는 그대로다 (D-40).
+             * @example Asia/Seoul
+             */
+            timezone?: string;
+            /**
+             * Format: int64
+             * @description 마지막으로 받은 Me.version
+             */
+            version: number;
+            /** @enum {string} */
+            weekStart?: "MONDAY" | "TUESDAY" | "WEDNESDAY" | "THURSDAY" | "FRIDAY" | "SATURDAY" | "SUNDAY";
+            /**
+             * Format: int32
+             * @description 비트마스크 월=1 … 일=64. 최소 하루는 골라야 한다.
+             */
+            workDays?: number;
         };
         RateLimitedProblem: components["schemas"]["Problem"] & {
             /** @description 다시 시도할 수 있을 때까지 남은 초. 잠금 안내 문구에 쓴다. */
@@ -493,6 +527,57 @@ export interface operations {
             };
             /** @description UNAUTHENTICATED 또는 USER_DELETED */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    updateMe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProfileUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description 수정 성공(또는 바뀐 값 없음). 새 version이 담긴 현재 사용자 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Me"];
+                };
+            };
+            /** @description VALIDATION_FAILED (errors[].code: REQUIRED·TOO_LONG·TIMEZONE_INVALID·WORK_DAYS_INVALID) 또는 BAD_REQUEST(형식 오류) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description UNAUTHENTICATED 또는 USER_DELETED */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description VERSION_CONFLICT (다른 곳에서 먼저 수정됨) */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

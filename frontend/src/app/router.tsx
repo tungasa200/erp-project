@@ -7,6 +7,9 @@ import { LoginPage } from '../pages/LoginPage'
 import { NotFoundPage } from '../pages/NotFoundPage'
 import { PlaceholderPage } from '../pages/PlaceholderPage'
 import { SignupPage } from '../pages/SignupPage'
+import { GeneralSettings } from '../settings/GeneralSettings'
+import { ProfileSettings } from '../settings/ProfileSettings'
+import { SettingsIndex, SettingsLayout } from '../settings/SettingsLayout'
 
 export const routes = [
   {
@@ -30,7 +33,15 @@ export const routes = [
               { path: '/tasks', element: <PlaceholderPage title="업무" /> },
               { path: '/logs', element: <PlaceholderPage title="업무일지" /> },
               { path: '/stats', element: <PlaceholderPage title="통계" /> },
-              { path: '/settings', element: <PlaceholderPage title="설정" /> },
+              {
+                path: '/settings',
+                element: <SettingsLayout />,
+                children: [
+                  { index: true, element: <SettingsIndex /> },
+                  { path: 'profile', element: <ProfileSettings /> },
+                  { path: 'general', element: <GeneralSettings /> },
+                ],
+              },
             ],
           },
         ],

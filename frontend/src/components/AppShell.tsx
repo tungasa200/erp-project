@@ -1,7 +1,7 @@
 // SCR-COM-01 앱 셸 (P0 골격). 알림(SCR-COM-05)·타이머(SCR-COM-06)·프로젝트 목록·빠른 기록은 이후 단계에서 채운다.
 // 명령 팔레트(Ctrl+K)와 빠른 입력 단축키(N)는 앱 화면 어디서든 동작한다 (P1-10).
-import { useCallback, useEffect, useState } from 'react'
-import { NavLink, Outlet, useNavigate } from 'react-router'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { Link, NavLink, Outlet, useNavigate } from 'react-router'
 import { useAuth } from '../auth/useAuth'
 import { CommandPalette } from '../palette/CommandPalette'
 import { useSingleKeyShortcuts } from '../shortcuts/useShortcuts'
@@ -66,7 +66,18 @@ export function AppShell() {
     },
     [navigate],
   )
-  const closePalette = useCallback(() => setPaletteOpen(false), [])
+  // 닫으면 열기 전 포커스로 돌려준다. 팔레트 effect cleanup에서 돌려주면 개발 모드(StrictMode)에서
+  // effect가 두 번 돌 때 열자마자 포커스를 빼앗기므로 여는 쪽에서 기억한다.
+  const lastFocus = useRef<Element | null>(null)
+  const openPalette = useCallback(() => {
+    lastFocus.current = document.activeElement
+    setPaletteOpen(true)
+  }, [])
+  const closePalette = useCallback(() => {
+    setPaletteOpen(false)
+    if (lastFocus.current instanceof HTMLElement) lastFocus.current.focus()
+    lastFocus.current = null
+  }, [])
 
   useSingleKeyShortcuts({ KeyN: () => quickAdd() })
 
@@ -74,11 +85,12 @@ export function AppShell() {
     const onKeyDown = (e: KeyboardEvent) => {
       if (!(e.ctrlKey || e.metaKey) || e.shiftKey || e.altKey || e.code !== 'KeyK') return
       e.preventDefault()
-      setPaletteOpen((open) => !open)
+      if (paletteOpen) closePalette()
+      else openPalette()
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [])
+  }, [paletteOpen, openPalette, closePalette])
 
   return (
     <div className={styles.shell}>
@@ -89,7 +101,8 @@ export function AppShell() {
           </span>
           <span className={styles.brandName}>worklog</span>
         </div>
-        <div className={styles.profile}>
+        {/* 프로필 영역을 누르면 프로필 설정으로 (SCR-SET-01 진입 경로) */}
+        <Link to="/settings/profile" className={styles.profile} title="프로필 설정">
           <span className={styles.avatar} aria-hidden="true">
             {(user?.name ?? '나').slice(0, 1)}
           </span>
@@ -97,7 +110,7 @@ export function AppShell() {
             <span className={styles.profileName}>{user?.name ?? user?.email}</span>
             {user?.organization && <span className={styles.profileOrg}>{user.organization}</span>}
           </span>
-        </div>
+        </Link>
         {MENU.map((item) => (
           <NavLink key={item.to} to={item.to} end={item.to === '/'} className={navClass} title={item.label}>
             <Icon d={item.icon} />

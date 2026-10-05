@@ -38,6 +38,7 @@ export const ME = {
   workDays: 31,
   themeAccent: '#4B3FD6',
   themeGround: '#F2F4FA',
+  keyboardShortcutsEnabled: true,
   version: 0,
 }
 

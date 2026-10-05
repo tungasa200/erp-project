@@ -20,8 +20,7 @@ export function modKey(key: string): string {
 
 export function useShortcutsEnabled(): boolean {
   const { user } = useAuth()
-  // TODO(P1-01): 확정 계약의 Me.keyboardShortcutsEnabled가 생성 타입에 들어오면 캐스팅을 지운다.
-  return (user as { keyboardShortcutsEnabled?: boolean } | null)?.keyboardShortcutsEnabled !== false
+  return user?.keyboardShortcutsEnabled !== false
 }
 
 /** 수식키 없는 한 글자 단축키. 키는 KeyboardEvent.code(예: 'KeyN') */

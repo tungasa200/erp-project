@@ -2,15 +2,16 @@
 // 체험용 계정: demo@example.com / worklog20
 // locked@example.com: 로그인 시 429 AUTH_LOCKED, error@example.com: 500, maintenance@example.com: 503 점검(30분)
 // deleted@example.com: 로그인은 되지만 이후 요청은 401 USER_DELETED(다른 기기에서 탈퇴한 경우, 새로 고침하면 재현)
+// 프로필 수정(PATCH /api/users/me)은 localStorage에 남는다. 탭 두 개에서 고치면 409 VERSION_CONFLICT를 재현할 수 있다.
 import { EMAIL_PATTERN, passwordViolations } from '../auth/passwordRules'
 import type { FieldError, Problem } from './problem'
-import type { Me } from './types'
+import type { Me, ProfileUpdateRequest } from './types'
 
 const STORE_KEY = 'worklog.mock'
 const ACCESS_TTL_MS = 10 * 60 * 1000
 
 interface MockState {
-  accounts: Record<string, { password: string; id: string }>
+  accounts: Record<string, { password: string; id: string; profile?: Partial<Me> }>
   session: { email: string; accessExpiresAt: number } | null
 }
 
@@ -53,7 +54,7 @@ function problem(status: number, code: string, extra: Partial<Problem> = {}) {
   return new Response(JSON.stringify(body), { status, headers })
 }
 
-function me(email: string, id: string): Me {
+function me(email: string, id: string, profile: Partial<Me> = {}): Me {
   return {
     id,
     email,
@@ -66,8 +67,41 @@ function me(email: string, id: string): Me {
     workDays: 31,
     themeAccent: '#4B3FD6',
     themeGround: '#F2F4FA',
+    keyboardShortcutsEnabled: true,
     version: 0,
+    ...profile,
   }
+}
+
+const TEXT_FIELDS = ['name', 'organization', 'position'] as const
+
+function updateProfile(current: Me, body: ProfileUpdateRequest): Me | Response {
+  if (body.version !== current.version) return problem(409, 'VERSION_CONFLICT')
+  const next: Me = { ...current }
+  const errors: FieldError[] = []
+  for (const field of TEXT_FIELDS) {
+    if (!(field in body)) continue
+    const value = body[field]?.trim() || null
+    if (value && value.length > 100) errors.push({ field, code: 'TOO_LONG' })
+    next[field] = value
+  }
+  if (body.timezone !== undefined) {
+    try {
+      new Intl.DateTimeFormat('en', { timeZone: body.timezone })
+      next.timezone = body.timezone
+    } catch {
+      errors.push({ field: 'timezone', code: 'TIMEZONE_INVALID' })
+    }
+  }
+  if (body.workDays !== undefined) {
+    if (body.workDays < 1 || body.workDays > 127) errors.push({ field: 'workDays', code: 'WORK_DAYS_INVALID' })
+    next.workDays = body.workDays
+  }
+  if (body.weekStart !== undefined) next.weekStart = body.weekStart
+  if (body.keyboardShortcutsEnabled !== undefined) next.keyboardShortcutsEnabled = body.keyboardShortcutsEnabled
+  if (errors.length) return problem(400, 'VALIDATION_FAILED', { errors })
+  const changed = JSON.stringify(next) !== JSON.stringify(current)
+  return changed ? { ...next, version: current.version + 1 } : current
 }
 
 function startSession(state: MockState, email: string) {
@@ -114,7 +148,7 @@ export const mockFetch: typeof fetch = async (input, init) => {
     const account = state.accounts[email]
     if (!account || account.password !== body.password) return problem(401, 'INVALID_CREDENTIALS')
     startSession(state, email)
-    return json(200, me(email, account.id))
+    return json(200, me(email, account.id, account.profile))
   }
 
   if (method === 'POST' && path === '/api/auth/refresh') {
@@ -133,7 +167,23 @@ export const mockFetch: typeof fetch = async (input, init) => {
     const session = state.session
     if (!session || session.accessExpiresAt < Date.now()) return problem(401, 'UNAUTHENTICATED')
     if (session.email === 'deleted@example.com') return problem(401, 'USER_DELETED')
-    return json(200, me(session.email, state.accounts[session.email]?.id ?? 'mock'))
+    const account = state.accounts[session.email]
+    return json(200, me(session.email, account?.id ?? 'mock', account?.profile))
+  }
+
+  if (method === 'PATCH' && path === '/api/users/me') {
+    const account = state.session && state.accounts[state.session.email]
+    if (!state.session || !account) return problem(401, 'UNAUTHENTICATED')
+    const result = updateProfile(me(state.session.email, account.id, account.profile), body as ProfileUpdateRequest)
+    if (result instanceof Response) return result
+    account.profile = result
+    save(state)
+    return json(200, result)
+  }
+
+  if (method === 'POST' && path === '/api/worklog/me/profile/refresh') {
+    if (!state.session) return problem(401, 'UNAUTHENTICATED')
+    return json(200, {})
   }
 
   return problem(404, 'NOT_FOUND')
