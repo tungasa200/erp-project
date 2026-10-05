@@ -16,7 +16,8 @@ MSA ERP 프로젝트. 이 파일은 git으로 공유되는 작업 규칙이다. 
 | `backend1` | identity-service, 공통 모듈(`backend/common`), `backend/` 루트 빌드, `infra/` |
 | `backend2` | worklog-service, api-gateway |
 | `frontend` | `frontend/` |
-| `browser-controller` | 브라우저 자동화: 구현 화면 검증, Railway·Vercel 콘솔 작업 |
+| `browser-controller` | 외부 서비스 콘솔 작업: Railway·Vercel 등 외부 도구 설정 |
+| `qa` | 사용성·기능 테스트: agent-browser로 구현 화면 검증, 코드를 읽어 요구사항·화면정의서와 대조 |
 
 - 세션 간 메시지(`ListAgents`/`SendMessage`)는 같은 PC 안의 세션끼리만 오간다. 위 역할 구성은 PC마다 따로 띄운다.
 - 메시지를 보내기 전에는 매번 `ListAgents`로 대상 세션이 있는지 확인한다. 이전 확인 결과를 재사용하지 않는다.
@@ -25,7 +26,7 @@ MSA ERP 프로젝트. 이 파일은 git으로 공유되는 작업 규칙이다. 
 
 ## 개발 총괄과 보고
 
-개발 세션(`backend1`, `backend2`, `frontend`, `erp-design`, `browser-controller`)은 `project-pm`의 지시로 일한다.
+개발 세션(`backend1`, `backend2`, `frontend`, `erp-design`, `browser-controller`, `qa`)은 `project-pm`의 지시로 일한다.
 
 - 지시받지 않은 작업은 시작하지 않는다. 사용자가 세션에 직접 시킨 일은 따르되, 끝나면 `project-pm`에 한 줄로 공유한다.
 - 중요 결정은 혼자 정하지 않고 `project-pm`에 보고한다. `project-pm`이 사용자에게 묻고 회신한다. 중요 결정: 아키텍처, API 계약, DB 스키마, 보안, 외부 서비스, 라이브러리 추가, 문서와 다른 구현, 다른 세션에 영향을 주는 변경. 구현 세부는 알아서 정하고 보고서에 가정으로 적는다.
@@ -33,6 +34,7 @@ MSA ERP 프로젝트. 이 파일은 git으로 공유되는 작업 규칙이다. 
 - 배정받은 디렉터리 밖은 수정하지 않는다. `backend1`·`backend2`는 공유 파일(루트 빌드 설정, docker-compose 등)을 고칠 때 서로 알리고, 서비스 간 계약과 프론트가 쓰는 계약은 확정 전에 `project-pm`에 보고한다.
 - API 계약 초안은 저장소 루트 `contracts/{모듈}.yaml`(OpenAPI)에 둔다. 구현 후에는 springdoc 출력이 기준이다.
 - `browser-controller`는 코드를 수정하지 않는다. 결제·삭제·실제 메일 발송처럼 외부에 영향을 주는 동작은 `project-pm`을 거쳐 사용자 승인을 받는다.
+- `qa`는 코드를 수정하지 않는다. 결함은 재현 절차·기대 결과·실제 결과와 함께 `project-pm`에 보고하고, `project-pm`이 담당 세션에 배정한다. agent-browser는 자기 세션 이름으로 따로 띄우고 `browser-controller`의 전용 Chrome(CDP 9222)에는 붙지 않는다. 디자인 목업 검증은 `erp-design` 몫이다.
 
 ## 커밋
 
