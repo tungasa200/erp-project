@@ -1,0 +1,13 @@
+.frame {
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 페이지는 이 영역의 높이(100%)를 기준으로 그린다. 앱 셸은 안쪽 콘텐츠만 스크롤한다. */
+.body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}

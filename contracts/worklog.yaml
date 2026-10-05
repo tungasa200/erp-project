@@ -1,0 +1,156 @@
+openapi: 3.1.0
+info:
+  title: worklog-service API
+  version: 0.1.0-draft
+  description: |
+    구현 전 합의용 초안 (P0 범위). 구현 후에는 springdoc 출력이 기준이다 (P0-10).
+    규약은 요구사항정의서 5.5를 따른다: /api/worklog/ 접두사, 버전 없음,
+    시각은 UTC ISO-8601, 날짜는 YYYY-MM-DD, 시간대는 IANA 이름, camelCase,
+    오류는 RFC 9457 Problem Details + code·errors[]·traceId.
+
+    인증: 브라우저는 access_token 쿠키(Path=/api)만 보낸다. Gateway가 쿠키를
+    Authorization: Bearer로 옮겨 전달하고, worklog-service가 JWT를 다시 검증해
+    sub(사용자 ID)로 사용자를 식별한다 (D-19). 검증: iss=erp-identity, aud=erp-api, exp.
+    서비스 토큰(aud=erp-internal)은 사용자 API에서 거부한다.
+servers:
+  - url: /
+tags:
+  - name: me
+    description: 현재 사용자 (worklog 사본 프로필과 worklog 전용 설정)
+paths:
+  /api/worklog/me:
+    get:
+      tags: [me]
+      operationId: getMe
+      summary: 현재 사용자의 worklog 프로필 조회
+      description: |
+        P0 완료 기준의 "인증이 필요한 API 호출"에 쓰는 첫 엔드포인트이자 P1-01의 프로필 재조회 대상.
+        worklog에 사용자 사본이 없으면(가입 직후) 이 요청 안에서 identity를 조회해 사본을 만든 뒤 응답한다 (P0-11).
+        worklog 전용 설정이 아직 없으면 기본값으로 응답한다.
+      security:
+        - accessTokenCookie: []
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorklogMe'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          description: 사본이 없고 identity 조회도 실패함 (code=PROFILE_UNAVAILABLE). 잠시 후 재시도.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+components:
+  securitySchemes:
+    accessTokenCookie:
+      type: apiKey
+      in: cookie
+      name: access_token
+  responses:
+    Unauthorized:
+      description: |
+        토큰 없음·만료·서명 오류(code=UNAUTHENTICATED), 또는 탈퇴한 사용자(code=USER_DELETED).
+        프론트는 UNAUTHENTICATED일 때 refresh 1회 후 재시도한다 (P0-07).
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+  schemas:
+    WorklogMe:
+      type: object
+      required: [userId, profile, settings]
+      properties:
+        userId:
+          type: string
+          format: uuid
+          description: UUIDv7, JWT sub와 같음
+        profile:
+          $ref: '#/components/schemas/ProfileSnapshot'
+        settings:
+          $ref: '#/components/schemas/WorklogSettings'
+    ProfileSnapshot:
+      type: object
+      description: identity 공통 프로필의 읽기 전용 사본 (UserSnapshot). worklog에서는 수정하지 않는다.
+      required: [timezone, weekStart, workDays]
+      properties:
+        name:
+          type: [string, 'null']
+        organization:
+          type: [string, 'null']
+        position:
+          type: [string, 'null']
+          description: 표시용 직책
+        timezone:
+          type: string
+          example: Asia/Seoul
+        weekStart:
+          type: string
+          enum: [MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY, SUNDAY]
+          example: MONDAY
+        workDays:
+          type: integer
+          minimum: 0
+          maximum: 127
+          description: 비트마스크 월=1 … 일=64, 기본 31(월~금)
+          example: 31
+        syncedAt:
+          type: string
+          format: date-time
+          description: 사본을 마지막으로 갱신한 시각 (UTC)
+    WorklogSettings:
+      type: object
+      description: worklog 전용 설정 (UserSetting). 수정 API는 P1-01에서 추가.
+      required: [timeTrackingEnabled]
+      properties:
+        timeTrackingEnabled:
+          type: boolean
+          default: false
+        workHoursStart:
+          type: [string, 'null']
+          pattern: '^\d{2}:\d{2}$'
+          example: '09:00'
+        workHoursEnd:
+          type: [string, 'null']
+          pattern: '^\d{2}:\d{2}$'
+          example: '18:00'
+        dailyCloseTime:
+          type: [string, 'null']
+          pattern: '^\d{2}:\d{2}$'
+          example: '18:00'
+    Problem:
+      type: object
+      description: RFC 9457 Problem Details + 확장 필드 (P0-10 공통 모듈 형식)
+      required: [type, title, status, code, traceId]
+      properties:
+        type:
+          type: string
+          format: uri-reference
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+        code:
+          type: string
+          description: 기계 판독용 오류 코드
+        errors:
+          type: array
+          items:
+            type: object
+            required: [field, code]
+            properties:
+              field:
+                type: string
+              code:
+                type: string
+              message:
+                type: string
+        traceId:
+          type: string

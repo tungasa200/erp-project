@@ -1,0 +1,78 @@
+server:
+  port: ${PORT:8081}
+
+spring:
+  application:
+    name: identity-service
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/erp}
+    username: ${DB_USERNAME:identity_app}
+    password: ${DB_PASSWORD:identity_app_local}
+    hikari:
+      # JdbcTemplate SQL도 identity schema를 보게 연결마다 지정한다. DB 계정 search_path에 기대지 않는다(테스트 DB 계정에는 없다).
+      schema: identity
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        default_schema: identity
+        jdbc:
+          time_zone: UTC
+  flyway:
+    schemas: identity
+    default-schema: identity
+
+identity:
+  jwt:
+    # PKCS#8 PEM. 비어 있으면 실행할 때마다 임시 키를 만든다(로컬 전용). 운영은 아래 prod 프로필에서 필수.
+    private-key: ${JWT_PRIVATE_KEY:}
+    key-id: ${JWT_KEY_ID:local}
+  # 서비스 토큰 클라이언트 (D-29). 기동 시 BCrypt 해시로 service_clients에 반영한다(ServiceClientRegistrar).
+  # 로컬 기본 비밀값은 worklog의 IDENTITY_CLIENT_SECRET 기본값과 같다. 운영은 prod 프로필에서 기본값 없이 받는다.
+  service-clients:
+    worklog:
+      secret: ${WORKLOG_CLIENT_SECRET:worklog-local-secret}
+      scopes: user-events:read users:read
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  tracing:
+    sampling:
+      probability: 0.0 # 내보내는 곳(exporter)이 없으므로 수집하지 않고 traceId 전파·로그 표시만 쓴다
+
+---
+# 운영(Railway)은 JSON 로그 한 줄 = 이벤트 하나 (D-35). 로컬은 사람이 읽기 쉬운 기본 형식.
+spring:
+  config:
+    activate:
+      on-profile: prod
+  # 로컬 기본값(localhost·identity_app_local)으로 조용히 넘어가지 않게 기본값을 비운다. 비어 있으면 common의 ProdDatasourceGuard가 기동을 막는다.
+  datasource:
+    url: ${DB_URL:}
+    username: ${DB_USERNAME:}
+    password: ${DB_PASSWORD:}
+# 명세는 gateway가 라우팅하지 않아 외부에 안 보이지만, 운영에서는 생성 자체를 끈다
+springdoc:
+  api-docs:
+    enabled: false
+logging:
+  structured:
+    format:
+      console: logstash
+identity:
+  jwt:
+    # 기본값이 없으므로 환경 변수가 없으면 기동에 실패한다. 재시작마다 키가 바뀌면 모든 로그인이 끊긴다.
+    private-key: ${JWT_PRIVATE_KEY}
+    key-id: ${JWT_KEY_ID}
+  service-clients:
+    worklog:
+      secret: ${WORKLOG_CLIENT_SECRET}

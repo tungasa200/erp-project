@@ -1,0 +1,6 @@
+rootProject.name = 'erp-backend'
+
+include 'common'
+include 'api-gateway'
+include 'identity-service'
+include 'worklog-service'

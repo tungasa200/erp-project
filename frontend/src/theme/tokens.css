@@ -1,0 +1,54 @@
+/* 색·모양 토큰 (화면정의서 2.2·2.3). 사용자 설정값은 --color-accent·--color-ground 2개뿐이고
+   applyTheme()이 바꾼다. 파생 색은 color-mix로 계산한다. */
+:root {
+  /* 사용자 설정 (기본값) */
+  --color-accent: #4b3fd6;
+  --color-on-accent: #ffffff;
+  --color-ground: #f2f4fa;
+
+  /* 파생 색 9종 (화면정의서 2.2). 괄호는 기본 키 컬러일 때 값 */
+  --color-accent-soft: color-mix(in srgb, var(--color-accent) 12%, white); /* 흰색 88% (#E9E8FA) */
+  --color-accent-softer: color-mix(in srgb, var(--color-accent) 8%, white); /* 흰색 92% (#F1F0FC) */
+  --color-accent-faint: color-mix(in srgb, var(--color-accent) 5%, white); /* 흰색 95% (#F6F5FD) */
+  --color-accent-light: color-mix(in srgb, var(--color-accent) 55%, white); /* 흰색 45% (#9C95E8) */
+  --color-accent-ink: color-mix(in srgb, var(--color-accent) 80%, black); /* 검정 20% (#3C32AB) */
+  --color-accent-ink-strong: color-mix(in srgb, var(--color-accent) 55%, black); /* 검정 45% (#292376) */
+  --color-accent-shadow: color-mix(in srgb, var(--color-accent) 30%, transparent);
+  --shadow-accent: 0 6px 16px var(--color-accent-shadow);
+
+  /* 고정 색 */
+  --color-surface: #ffffff;
+  --color-text: #1a1c2b;
+  --color-text-muted: #5e6377;
+  --color-text-body: #4a4f63;
+  --color-border: #d5d8e5;
+  --color-divider: #e1e4ee;
+  --color-skeleton: #e1e4ee;
+  --color-disabled: #c9ccdb;
+  --color-danger: #a02613;
+  --color-danger-soft: #fde2dd;
+  --color-danger-text: #7a1c0e;
+  --color-warning-soft: #fff0c7;
+  --color-warning-text: #6b4500;
+  --color-success-text: #0a5c4e;
+  --color-banner: #1a1c2b;
+
+  /* 기록 상태 색: 테마와 무관하게 고정 (화면정의서 2.3). 계획·진행 중·확정은 프로젝트 색을 쓴다(P1). */
+  --status-pending-bg: #ffe9b8;
+  --status-pending-border: #e0a100;
+  --status-pending-text: #4a3000;
+  --status-pending-tag-bg: #e0a100;
+  --status-pending-tag-text: #2a1b00;
+  --status-pending-card-bg: #fff7e3;
+  --status-pending-card-border: #f2c54a;
+  --status-skipped-bg: #eceef4;
+  --status-skipped-text: #8a8fa3;
+
+  /* 모양 */
+  --radius-input: 14px;
+  --radius-card: 20px;
+  --radius-pill: 999px;
+  --font-sans:
+    'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, system-ui, 'Apple SD Gothic Neo',
+    'Noto Sans KR', 'Malgun Gothic', sans-serif;
+}

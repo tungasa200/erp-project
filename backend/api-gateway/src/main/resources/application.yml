@@ -1,0 +1,50 @@
+server:
+  port: ${PORT:8080}
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      server:
+        webflux:
+          # /internal/**, /.well-known/**, 내부 서비스의 /actuator/**는 라우트가 없어 외부로 나가지 않는다 (404)
+          routes:
+            - id: identity
+              uri: ${IDENTITY_URI:http://localhost:8081}
+              predicates:
+                - Path=/api/auth/**,/api/users/me,/api/users/me/**
+            - id: worklog
+              uri: ${WORKLOG_URI:http://localhost:8082}
+              predicates:
+                - Path=/api/worklog/**
+
+gateway:
+  jwk-set-uri: ${IDENTITY_JWKS_URI:http://localhost:8081/.well-known/jwks.json}
+  issuer: erp-identity
+  audience: erp-api
+  allowed-origins: ${ALLOWED_ORIGINS:http://localhost:5173}
+  origin-secret: ${ORIGIN_SECRET:} # 운영은 Vercel 프로젝트와 같은 값. 비우면 직접 접근 차단을 끈다(로컬)
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  tracing:
+    sampling:
+      probability: 0.0 # 내보내는 곳(exporter)이 없으므로 수집하지 않고 traceId 생성·전파만 쓴다
+---
+# 운영(Railway): SPRING_PROFILES_ACTIVE=prod. JSON 로그. ORIGIN_SECRET이 없으면 OriginSecretFilter가 기동을 막는다
+spring:
+  config:
+    activate:
+      on-profile: prod
+logging:
+  structured:
+    format:
+      console: logstash

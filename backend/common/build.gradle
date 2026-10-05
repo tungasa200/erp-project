@@ -1,0 +1,25 @@
+plugins {
+	id 'java-library'
+	id 'java-test-fixtures'
+}
+
+dependencies {
+	// 공통 모듈을 쓰는 서비스는 servlet(MVC) 기반이다. gateway(WebFlux)는 이 모듈을 쓰지 않는다.
+	api 'org.springframework.boot:spring-boot-starter-webmvc'
+	api 'org.springframework.boot:spring-boot-starter-validation'
+	// Boot 4는 자동 설정이 기능별 모듈로 나뉘어, 추적 자동 설정 모듈과 Brave 브리지를 둘 다 넣어야 traceId가 생긴다.
+	api 'org.springframework.boot:spring-boot-micrometer-tracing-brave'
+	api 'io.micrometer:micrometer-tracing-bridge-brave'
+	api libs.shedlock.spring
+	api libs.shedlock.jdbc
+
+	compileOnly 'org.springframework.boot:spring-boot-starter-security'
+	compileOnly 'org.springframework.boot:spring-boot-starter-jdbc'
+	compileOnly libs.springdoc.webmvc.api
+
+	testFixturesApi 'org.springframework.security:spring-security-oauth2-jose'
+
+	testImplementation 'org.springframework.boot:spring-boot-starter-security'
+	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+	testImplementation libs.springdoc.webmvc.api
+}

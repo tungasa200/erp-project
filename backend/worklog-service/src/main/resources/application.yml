@@ -1,0 +1,66 @@
+server:
+  port: ${PORT:8082}
+
+spring:
+  application:
+    name: worklog-service
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/erp}
+    username: ${DB_USERNAME:worklog_app}
+    password: ${DB_PASSWORD:worklog_app_local}
+    hikari:
+      schema: worklog # 계정 search_path에 기대지 않는다 (Testcontainers·Railway 계정에는 없음). JdbcClient SQL이 이 schema를 쓴다
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        default_schema: worklog
+        jdbc:
+          time_zone: UTC
+  flyway:
+    schemas: worklog
+    default-schema: worklog
+
+worklog:
+  jwt:
+    jwk-set-uri: ${IDENTITY_JWKS_URI:http://localhost:8081/.well-known/jwks.json}
+    issuer: erp-identity
+    audience: erp-api
+  identity:
+    base-uri: ${IDENTITY_URI:http://localhost:8081}
+    client-id: ${IDENTITY_CLIENT_ID:worklog}
+    client-secret: ${IDENTITY_CLIENT_SECRET:worklog-local-secret} # identity non-prod 기본값과 같다. 운영은 Railway 환경변수
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  tracing:
+    sampling:
+      probability: 0.0 # 내보내는 곳(exporter)이 없으므로 수집하지 않고 traceId 전파·로그 표시만 쓴다
+---
+# 운영(Railway): SPRING_PROFILES_ACTIVE=prod. JSON 로그. IDENTITY_CLIENT_SECRET이 없거나 로컬 기본값이면 IdentityClient가 기동을 막는다
+spring:
+  config:
+    activate:
+      on-profile: prod
+  # 로컬 기본값을 지워 변수가 빠지면 common ProdDatasourceGuard가 기동을 막게 한다
+  datasource:
+    url: ${DB_URL:}
+    username: ${DB_USERNAME:}
+    password: ${DB_PASSWORD:}
+# 명세는 gateway가 라우팅하지 않아 외부에 안 보이지만, 운영에서는 생성 자체를 끈다
+springdoc:
+  api-docs:
+    enabled: false
+logging:
+  structured:
+    format:
+      console: logstash
