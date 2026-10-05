@@ -36,11 +36,13 @@ public class TaskQueries {
 	}
 
 	public record Filter(boolean deleted, List<String> statuses, List<UUID> projectIds, List<UUID> tagIds,
-			LocalDate dueFrom, LocalDate dueTo, Instant completedSince, String q, Sort sort) {
+			LocalDate dueFrom, LocalDate dueTo, Instant completedSince, String q, Boolean scheduled, Sort sort) {
 	}
 
 	public record Page(List<TaskInfo> items, String nextCursor) {
 	}
+
+	private static final String HAS_SCHEDULE = "EXISTS (SELECT 1 FROM schedule s WHERE s.task_id = t.id)";
 
 	private final JdbcClient jdbc;
 
@@ -83,6 +85,10 @@ public class TaskQueries {
 			where.append(" AND (t.status <> 'DONE' OR t.completed_at >= :completedSince)");
 			params.put("completedSince", OffsetDateTime.ofInstant(f.completedSince(), ZoneOffset.UTC));
 		}
+		if (f.scheduled() != null) {
+			// 일정 연결은 시리즈 단위(schedule.task_id). SCH-07 캘린더 업무 패널은 scheduled=false
+			where.append(f.scheduled() ? " AND " : " AND NOT ").append(HAS_SCHEDULE);
+		}
 		if (f.q() != null && !f.q().isBlank()) {
 			where.append(" AND t.title ILIKE :q ESCAPE '\\'");
 			params.put("q", "%" + f.q().strip().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%");
@@ -112,11 +118,12 @@ public class TaskQueries {
 
 		List<TaskInfo> rows = jdbc.sql("""
 						SELECT t.*,
-						       ARRAY(SELECT tt.tag_id FROM task_tag tt WHERE tt.task_id = t.id ORDER BY tt.tag_id) AS tag_ids
+						       ARRAY(SELECT tt.tag_id FROM task_tag tt WHERE tt.task_id = t.id ORDER BY tt.tag_id) AS tag_ids,
+						       %s AS has_schedule
 						FROM task t
 						WHERE %s
 						ORDER BY %s
-						LIMIT :limit""".formatted(where, order))
+						LIMIT :limit""".formatted(HAS_SCHEDULE, where, order))
 				.params(params)
 				.query((rs, i) -> row(rs))
 				.list();
@@ -136,7 +143,8 @@ public class TaskQueries {
 		List<UUID> tagIds = Arrays.stream((Object[]) tagArray.getArray()).map(UUID.class::cast).toList();
 		return new TaskInfo(rs.getObject("id", UUID.class), rs.getString("title"), rs.getString("status"),
 				rs.getString("priority"), rs.getObject("due_date", LocalDate.class), rs.getInt("progress"),
-				instant(rs, "completed_at"), rs.getObject("project_id", UUID.class), tagIds, rs.getString("memo"),
+				instant(rs, "completed_at"), rs.getObject("project_id", UUID.class), tagIds,
+				rs.getBoolean("has_schedule"), rs.getString("memo"),
 				rs.getObject("carried_over_from", UUID.class), instant(rs, "deleted_at"), instant(rs, "created_at"),
 				instant(rs, "updated_at"), rs.getLong("version"));
 	}

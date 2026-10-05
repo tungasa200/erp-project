@@ -47,6 +47,7 @@ class ProjectTagApiTest {
 
 	@BeforeEach
 	void reset() {
+		jdbc.sql("DELETE FROM schedule").update(); // 일정이 업무를 가리킨다 (schedule.task_id)
 		jdbc.sql("DELETE FROM task").update();
 		jdbc.sql("DELETE FROM tag").update();
 		jdbc.sql("DELETE FROM project").update();

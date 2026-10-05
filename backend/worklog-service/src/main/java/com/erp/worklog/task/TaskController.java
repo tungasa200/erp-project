@@ -62,6 +62,9 @@ class TaskController {
 			Instant completedAt,
 			@Schema(types = { "string", "null" }, format = "uuid") UUID projectId,
 			@Schema(requiredMode = RequiredMode.REQUIRED) List<UUID> tagIds,
+			@Schema(requiredMode = RequiredMode.REQUIRED,
+					description = "일정이 하나 이상 연결돼 있음 (반복 일정은 시리즈 하나로 센다). 업무 행의 일정 배치 아이콘(SCR-TASK-01 ⑤)")
+			boolean hasSchedule,
 			@Schema(types = { "string", "null" }, maxLength = 5000) String memo,
 			@Schema(types = { "string", "null" }, format = "uuid", description = "이월 원본 업무 (읽기 전용, 이월 기능은 P3)")
 			UUID carriedOverFromId,
@@ -73,7 +76,7 @@ class TaskController {
 
 		static TaskView of(TaskInfo t) {
 			return new TaskView(t.id(), t.title(), t.status(), t.priority(), t.dueDate(), t.progress(), t.completedAt(),
-					t.projectId(), t.tagIds(), t.memo(), t.carriedOverFromId(), t.deletedAt(), t.createdAt(),
+					t.projectId(), t.tagIds(), t.hasSchedule(), t.memo(), t.carriedOverFromId(), t.deletedAt(), t.createdAt(),
 					t.updatedAt(), t.version());
 		}
 	}
@@ -136,6 +139,8 @@ class TaskController {
 			@Parameter(description = "제목 부분 일치 검색 (대소문자 무시)", schema = @Schema(maxLength = 100))
 			@RequestParam(required = false) String q,
 			@Parameter(description = "true면 보관(소프트 삭제)한 업무만 돌려준다") @RequestParam(defaultValue = "false") boolean deleted,
+			@Parameter(description = "false면 일정이 연결되지 않은 업무만(캘린더 업무 패널, SCH-07), true면 연결된 업무만. 생략하면 거르지 않는다")
+			@RequestParam(required = false) Boolean scheduled,
 			@Parameter(schema = @Schema(allowableValues = { "due", "created" }, defaultValue = "due"))
 			@RequestParam(defaultValue = "due") String sort) {
 		if (limit < 1 || limit > 100) {
@@ -155,7 +160,7 @@ class TaskController {
 			throw Errors.invalid("sort", "INVALID_FORMAT", "sort는 due 또는 created예요.");
 		}
 		var filter = new TaskQueries.Filter(deleted, statusList, projectIds == null ? List.of() : projectIds,
-				tagIds == null ? List.of() : tagIds, dueFrom, dueTo, completedSince, q, order);
+				tagIds == null ? List.of() : tagIds, dueFrom, dueTo, completedSince, q, scheduled, order);
 		TaskQueries.Page page = queries.list(user.id(), filter, cursor, limit);
 		return new TaskList(page.items().stream().map(TaskView::of).toList(), page.nextCursor());
 	}

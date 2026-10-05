@@ -54,6 +54,7 @@ class TaskApiTest {
 
 	@BeforeEach
 	void reset() {
+		jdbc.sql("DELETE FROM schedule").update(); // 일정이 업무를 가리킨다 (schedule.task_id)
 		jdbc.sql("DELETE FROM task").update();
 		jdbc.sql("DELETE FROM tag").update();
 		jdbc.sql("DELETE FROM project").update();
@@ -225,6 +226,24 @@ class TaskApiTest {
 	}
 
 	@Test
+	void hasScheduleAndScheduledFilterFollowScheduleLinks() throws Exception {
+		String placed = id(send(ALICE, post("/api/worklog/tasks"), "{\"title\":\"배치됨\"}"));
+		String unplaced = id(send(ALICE, post("/api/worklog/tasks"), "{\"title\":\"안 배치됨\"}"
+				).andExpect(jsonPath("$.hasSchedule").value(false)));
+		// 반복 일정 두 개가 같은 업무를 가리켜도 연결 하나로 본다
+		insertSchedule(placed, "FREQ=WEEKLY");
+		insertSchedule(placed, null);
+
+		mvc.perform(get("/api/worklog/tasks/" + placed).with(user(ALICE))).andExpect(jsonPath("$.hasSchedule").value(true));
+		expectIds("scheduled=false", unplaced);
+		expectIds("scheduled=true", placed);
+		expectIds("", placed, unplaced);
+		mvc.perform(get("/api/worklog/tasks").with(user(ALICE)))
+				.andExpect(jsonPath("$.items[?(@.id == '" + placed + "')].hasSchedule").value(true));
+		expectFieldError(mvc.perform(get("/api/worklog/tasks?scheduled=maybe").with(user(ALICE))), "scheduled", "INVALID_FORMAT");
+	}
+
+	@Test
 	void purgeRemovesTasksProjectsAndTags() throws Exception {
 		String project = id(send(ALICE, post("/api/worklog/projects"), "{\"name\":\"p\",\"color\":\"P1\"}"));
 		String tag = id(send(ALICE, post("/api/worklog/tags"), "{\"name\":\"t\"}"));
@@ -239,6 +258,15 @@ class TaskApiTest {
 					.query(Long.class).single()).as(table).isZero();
 		}
 		assertThat(jdbc.sql("SELECT count(*) FROM task WHERE owner_id = ?").param(BOB).query(Long.class).single()).isOne();
+	}
+
+	private void insertSchedule(String taskId, String rrule) {
+		jdbc.sql("""
+						INSERT INTO schedule (id, owner_id, task_id, title, all_day, start_at, end_at, timezone, recurrence_rule,
+						                      span_start, version, created_at, updated_at)
+						VALUES (?, ?, ?, 's', false, now(), now() + interval '1 hour', 'Asia/Seoul', ?, now(), 0, now(), now())""")
+				.params(UUID.randomUUID(), ALICE, UUID.fromString(taskId), rrule)
+				.update();
 	}
 
 	private List<String> pageThrough(String query, int limit) throws Exception {

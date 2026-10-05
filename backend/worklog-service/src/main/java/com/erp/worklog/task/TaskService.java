@@ -23,7 +23,7 @@ import java.util.UUID;
 public class TaskService {
 
 	public record TaskInfo(UUID id, String title, String status, String priority, LocalDate dueDate, int progress,
-			Instant completedAt, UUID projectId, List<UUID> tagIds, String memo, UUID carriedOverFromId,
+			Instant completedAt, UUID projectId, List<UUID> tagIds, boolean hasSchedule, String memo, UUID carriedOverFromId,
 			Instant deletedAt, Instant createdAt, Instant updatedAt, long version) {
 	}
 
@@ -161,9 +161,15 @@ public class TaskService {
 		return ids;
 	}
 
-	static TaskInfo info(Task t) {
+	private TaskInfo info(Task t) {
 		return new TaskInfo(t.id(), t.title(), t.status().name(), t.priority().name(), t.dueDate(), t.progress(),
-				t.completedAt(), t.projectId(), t.tagIds().stream().sorted().toList(), t.memo(), t.carriedOverFromId(),
-				t.deletedAt(), t.createdAt(), t.updatedAt(), t.version());
+				t.completedAt(), t.projectId(), t.tagIds().stream().sorted().toList(), hasSchedule(t.id()), t.memo(),
+				t.carriedOverFromId(), t.deletedAt(), t.createdAt(), t.updatedAt(), t.version());
+	}
+
+	/** 일정이 업무에 연결돼 있는지 (반복 일정은 시리즈 하나로 센다). 목록은 TaskQueries가 같은 조건으로 한 번에 구한다. */
+	private boolean hasSchedule(UUID taskId) {
+		return jdbc.sql("SELECT EXISTS (SELECT 1 FROM schedule s WHERE s.task_id = ?)").param(taskId)
+				.query(Boolean.class).single();
 	}
 }

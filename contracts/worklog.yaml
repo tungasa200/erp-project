@@ -389,6 +389,13 @@ paths:
           schema:
             type: boolean
             default: false
+        - name: scheduled
+          in: query
+          description: |
+            false면 일정이 연결되지 않은 업무만(캘린더 업무 패널, SCH-07), true면 연결된 업무만. 생략하면 거르지 않는다.
+            연결은 schedule.task_id 기준이며 반복 일정은 시리즈 하나로 센다. (2026-10-06 추가)
+          schema:
+            type: boolean
         - name: sort
           in: query
           schema:
@@ -1034,6 +1041,9 @@ components:
           items:
             type: string
             format: uuid
+        hasSchedule:
+          type: boolean
+          description: 일정이 하나 이상 연결돼 있음 (반복 일정은 시리즈 하나로 센다). 업무 행의 일정 배치 아이콘(SCR-TASK-01 ⑤). 2026-10-06 추가
         memo:
           type: [string, 'null']
           maxLength: 5000
