@@ -21,6 +21,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/worklog/me/profile/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 공통 프로필 사본 즉시 갱신 (P1-01)
+         * @description identity에서 프로필을 저장한 직후 호출한다. identity 값이 사본보다 새것(version)일 때만 바꾼다.
+         */
+        post: operations["refreshMyProfile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/worklog/me/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * worklog 전용 설정 수정 (P1-01, 항목별 자동 저장)
+         * @description 보낸 칸만 바꾼다. 설정 행이 없으면 version=0으로 보낸다.
+         */
+        patch: operations["updateMySettings"];
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -68,10 +108,35 @@ export interface components {
             userId: string;
         };
         WorklogSettings: {
-            dailyCloseTime?: string | null;
+            /**
+             * @description 사용자 시간대 기준 하루 마감 시각
+             * @example 18:00
+             */
+            dailyCloseTime: string;
             timeTrackingEnabled: boolean;
-            workHoursEnd?: string | null;
-            workHoursStart?: string | null;
+            /** Format: int64 */
+            version: number;
+            /**
+             * @description workHoursStart보다 늦어야 한다 (자정 넘는 업무 시간대 없음)
+             * @example 18:00
+             */
+            workHoursEnd: string;
+            /**
+             * @description 사용자 시간대 기준 HH:mm
+             * @example 09:00
+             */
+            workHoursStart: string;
+        };
+        WorklogSettingsPatch: {
+            dailyCloseTime?: string;
+            timeTrackingEnabled?: boolean;
+            /**
+             * Format: int64
+             * @description 마지막으로 받은 version (행이 없으면 0)
+             */
+            version: number;
+            workHoursEnd?: string;
+            workHoursStart?: string;
         };
     };
     responses: {
@@ -116,6 +181,79 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             /** @description 사본이 없고 identity 조회도 실패함 (code=PROFILE_UNAVAILABLE). 잠시 후 재시도. */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    refreshMyProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 갱신 후 현재 값 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorklogMe"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description identity 조회 실패 (code=PROFILE_UNAVAILABLE). 잠시 후 재시도. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    updateMySettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorklogSettingsPatch"];
+            };
+        };
+        responses: {
+            /** @description 수정 후 설정 전체 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorklogSettings"];
+                };
+            };
+            /** @description 입력 오류 (code=VALIDATION_FAILED). errors[].code: REQUIRED, INVALID_FORMAT, INVALID_ORDER */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description 다른 곳에서 먼저 수정됨 (code=VERSION_CONFLICT) */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
