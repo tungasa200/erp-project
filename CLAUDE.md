@@ -15,7 +15,8 @@ MSA ERP 프로젝트. 이 파일은 git으로 공유되는 작업 규칙이다. 
 | `project-pm` | 개발 총괄: 작업 지시, 보고 취합, 중요 결정을 사용자에게 올림 |
 | `backend1` | identity-service, 공통 모듈(`backend/common`), `backend/` 루트 빌드, `infra/` |
 | `backend2` | worklog-service, api-gateway |
-| `frontend` | `frontend/` |
+| `frontend` | `frontend/` (공용 파일: 라우터, AppShell, API 연결·mock, 생성 타입, 디자인 토큰 포함) |
+| `frontend2` | `frontend/`의 캘린더 영역(`frontend/src/calendar/`). 공용 파일 변경은 `frontend`에 요청 |
 | `browser-controller` | 외부 서비스 콘솔 작업: Railway·Vercel 등 외부 도구 설정 |
 | `qa` | 사용성·기능 테스트: agent-browser로 구현 화면 검증, 코드를 읽어 요구사항·화면정의서와 대조 |
 
@@ -26,7 +27,7 @@ MSA ERP 프로젝트. 이 파일은 git으로 공유되는 작업 규칙이다. 
 
 ## 개발 총괄과 보고
 
-개발 세션(`backend1`, `backend2`, `frontend`, `erp-design`, `browser-controller`, `qa`)은 `project-pm`의 지시로 일한다.
+개발 세션(`backend1`, `backend2`, `frontend`, `frontend2`, `erp-design`, `browser-controller`, `qa`)은 `project-pm`의 지시로 일한다.
 
 - 지시받지 않은 작업은 시작하지 않는다. 사용자가 세션에 직접 시킨 일은 따르되, 끝나면 `project-pm`에 한 줄로 공유한다.
 - 중요 결정은 혼자 정하지 않고 `project-pm`에 보고한다. `project-pm`이 사용자에게 묻고 회신한다. 중요 결정: 아키텍처, API 계약, DB 스키마, 보안, 외부 서비스, 라이브러리 추가, 문서와 다른 구현, 다른 세션에 영향을 주는 변경. 구현 세부는 알아서 정하고 보고서에 가정으로 적는다.
@@ -34,6 +35,7 @@ MSA ERP 프로젝트. 이 파일은 git으로 공유되는 작업 규칙이다. 
 - 배정받은 디렉터리 밖은 수정하지 않는다. `backend1`·`backend2`는 공유 파일(루트 빌드 설정, docker-compose 등)을 고칠 때 서로 알리고, 서비스 간 계약과 프론트가 쓰는 계약은 확정 전에 `project-pm`에 보고한다.
 - API 계약 초안은 저장소 루트 `contracts/{모듈}.yaml`(OpenAPI)에 둔다. 구현 후에는 springdoc 출력이 기준이다.
 - `browser-controller`는 코드를 수정하지 않는다. 결제·삭제·실제 메일 발송처럼 외부에 영향을 주는 동작은 `project-pm`을 거쳐 사용자 승인을 받는다.
+- 메모리가 작은 PC(8GB)에서 여러 세션이 함께 돈다. gradle 빌드, vite 개발 서버, 전체 테스트, 브라우저 자동화처럼 무거운 작업은 시작 전에 여유 메모리를 확인하고(PowerShell `(Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory`), 1GB 미만이면 시작하지 말고 `project-pm`에 알린다. 끝나면 띄운 개발 서버·브라우저를 바로 끈다. 개발 서버는 꼭 필요할 때만 띄우고, 테스트는 바뀐 파일 위주로 돌린다.
 - `qa`는 코드를 수정하지 않는다. 결함은 재현 절차·기대 결과·실제 결과와 함께 `project-pm`에 보고하고, `project-pm`이 담당 세션에 배정한다. agent-browser는 자기 세션 이름으로 따로 띄우고 `browser-controller`의 전용 Chrome(CDP 9222)에는 붙지 않는다. 디자인 목업 검증은 `erp-design` 몫이다.
 
 ## 커밋
