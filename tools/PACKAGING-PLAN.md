@@ -1,6 +1,6 @@
 # 운영 도구 패키지화 계획 (확정)
 
-작성: WY-backend2, 2026-10-07. 상태: **확정**(2026-10-07 사용자 결정, 7장). 패키지 이름: `wy-ops`. 진행: 1단계 완료(f8b6cfa). 2단계 완료(커밋 대기): session.ps1·대시보드·가드 훅이 설정을 읽고, 없으면 지금 값으로 대체. 3단계부터는 WY-pm 지시 후.
+작성: WY-backend2, 2026-10-07. 상태: **확정**(2026-10-07 사용자 결정, 7장). 패키지 이름: `wy-ops`. 진행: 1단계 완료(f8b6cfa). 2단계 완료(324eab0, 설치본 v0.3.0 배포): session.ps1·대시보드·가드 훅이 설정을 읽고, 없으면 지금 값으로 대체. 4단계 완료(커밋 대기): `tools/wy-ops/gen-agents.js` + `.claude/ops/agent.md`·`roles/*.md` → 지금 역할 파일 10개와 글자 단위로 같음. 역할 파일은 아직 손으로 고치는 원본이고, 생성기로 넘길지는 WY-pm 결정. 3단계는 WY-pm 지시 후.
 
 목표: erp-project에 묶인 운영 도구(세션 현황 대시보드·WY 승인 센터, session.ps1·pm-ops 스킬, 역할 파일, 승인 가드 훅과 승인 규약)를 다른 프로젝트에도 설치해 쓰는 패키지 하나로 만든다. 이 프로젝트는 옮기는 동안 계속 지금처럼 돌아가야 한다.
 
@@ -177,7 +177,8 @@ PowerShell 5.1 함정(지금 session.ps1에서 겪은 것 포함):
 
 ## 8. 위험과 대응
 
-- **설정 파일로 가드 우회**(2단계에서 생김): 가드 훅이 `commitRole`을 저장소의 `.claude/wy-ops.json`에서 읽으므로, 세션이 이 파일을 고치면 자기 이름을 커밋 세션으로 바꿀 수 있다. `.claude/settings.local.json`(훅 설정)을 고쳐 훅을 빼는 것과 같은 종류의 구멍이다. 대응: settings.local.json의 deny에 `Edit(/.claude/wy-ops.json)`, `Edit(/.claude/wy-ops.local.json)`, `Edit(/.claude/settings.local.json)`을 더한다(사용자 설정 변경). 대가: 이 파일들은 사람이 직접 고쳐야 한다.
+- **설정 파일로 가드 우회**(2단계에서 생김): 가드 훅이 `commitRole`을 저장소의 `.claude/wy-ops.json`에서 읽으므로, 세션이 이 파일을 고치면 자기 이름을 커밋 세션으로 바꿀 수 있다. `.claude/settings.local.json`(훅 설정)을 고쳐 훅을 빼는 것과 같은 종류의 구멍이다. 대응: settings.local.json의 deny에 `Edit(/.claude/wy-ops.json)`, `Edit(/.claude/wy-ops.local.json)`, `Edit(/.claude/settings.local.json)`을 더한다(사용자 설정 변경). 대가: 이 파일들은 사람이 직접 고쳐야 한다. **2026-10-07 사용자 결정 A로 적용됨.** 남은 구멍: Edit 규칙은 Bash·PowerShell로 쓰는 것(node 스크립트, `Set-Content` 등)까지는 막지 못한다 → 3단계에서 가드 훅의 쓰기 차단 경로에 이 세 파일을 넣는 것을 검토한다(대가: 이 경로를 언급하는 node·powershell 명령은 읽기 목적이어도 막힌다).
+- **역할 파일과 원본이 어긋남**(4단계 이후): 생성기를 도입한 뒤 누군가 `.claude/agents/*.md`를 직접 고치면 원본(`.claude/ops/`)과 달라진다 → 원본을 고치고 생성하는 것을 규칙으로 하고, `gen-agents.js --check`로 어긋남을 찾는다(커밋 전 WY-commit 점검 항목 후보).
 
 - **훅이 조용히 통과**: 경로가 틀리거나 node가 없으면 Claude Code가 훅을 건너뛴다 → `doctor` 필수 점검, 경로 전환은 파일 확인 뒤.
 - **승인 폴더 전환 중 대기 요청 유실**: 대기열이 빈 시점에 전환하고, 확장은 전환 기간 동안 옛 폴더도 읽는다.
