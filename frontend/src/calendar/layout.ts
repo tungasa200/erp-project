@@ -2,6 +2,15 @@
 import type { Occurrence } from './api'
 import { MINUTES_PER_DAY, addDays, diffDays, toZoned } from './time'
 
+/** 블록을 그리는 최소 길이. 15분 일정도 30분 높이로 그려 누르는 영역 24px 기준을 맞춘다(D-76) */
+export const MIN_BLOCK_MINUTES = 30
+
+/** 블록이 그려지는 [시작, 끝] 분. 최소 MIN_BLOCK_MINUTES이고, 그날을 넘으면 위로 올린다(23:45 → 23:30) */
+export function drawnRange(start: number, end: number): [number, number] {
+  const drawnStart = Math.min(start, MINUTES_PER_DAY - MIN_BLOCK_MINUTES)
+  return [drawnStart, Math.max(end, drawnStart + MIN_BLOCK_MINUTES)]
+}
+
 export interface TimedSegment {
   occurrence: Occurrence
   date: string
@@ -61,9 +70,12 @@ export function timedSegments(occurrences: Occurrence[], days: string[], timeZon
   return result
 }
 
-/** 겹치는 조각끼리 묶어 열을 나눈다. 묶음 안의 열 수는 묶음에서 가장 많이 겹친 수 */
+/** 겹치는 조각끼리 묶어 열을 나눈다. 묶음 안의 열 수는 묶음에서 가장 많이 겹친 수.
+ *  겹침은 그려지는 범위(drawnRange)로 판단해 이어진 짧은 블록은 나란히 놓는다 */
 function packColumns(segments: TimedSegment[]) {
-  segments.sort((a, b) => a.start - b.start || b.end - a.end)
+  const drawnStart = (s: TimedSegment) => drawnRange(s.start, s.end)[0]
+  const drawnEnd = (s: TimedSegment) => drawnRange(s.start, s.end)[1]
+  segments.sort((a, b) => drawnStart(a) - drawnStart(b) || b.end - a.end)
   let cluster: TimedSegment[] = []
   let clusterEnd = -1
   const flush = () => {
@@ -72,13 +84,13 @@ function packColumns(segments: TimedSegment[]) {
     cluster = []
   }
   for (const seg of segments) {
-    if (seg.start >= clusterEnd) flush()
-    const used = new Set(cluster.filter((s) => s.end > seg.start).map((s) => s.column))
+    if (drawnStart(seg) >= clusterEnd) flush()
+    const used = new Set(cluster.filter((s) => drawnEnd(s) > drawnStart(seg)).map((s) => s.column))
     let column = 0
     while (used.has(column)) column++
     seg.column = column
     cluster.push(seg)
-    clusterEnd = Math.max(clusterEnd, seg.end)
+    clusterEnd = Math.max(clusterEnd, drawnEnd(seg))
   }
   flush()
 }

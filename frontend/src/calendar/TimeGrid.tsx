@@ -13,7 +13,7 @@ import {
 import { occurrenceKey, type Occurrence } from './api'
 import { colorVars, type BlockColor } from './colors'
 import { holidayName } from './holidays'
-import { allDayBars, timedSegments, type TimedSegment } from './layout'
+import { allDayBars, drawnRange, timedSegments, type TimedSegment } from './layout'
 import type { TimeChange } from './useScheduleActions'
 import {
   MINUTES_PER_DAY,
@@ -120,17 +120,24 @@ export function TimeGrid(props: Props) {
     return () => window.removeEventListener('keydown', onKey)
   }, [drag])
 
-  /** 화면 좌표 → 날짜 칸 번호·분 */
+  /** 화면 좌표 → 날짜 칸 번호·분·칸 안 가로 위치(0~1) */
   const locate = (clientX: number, clientY: number) => {
     const el = columnsRef.current!
     const rect = el.getBoundingClientRect()
-    const dayIndex = Math.max(
-      0,
-      Math.min(days.length - 1, Math.floor(((clientX - rect.left) / rect.width) * days.length)),
-    )
+    const x = ((clientX - rect.left) / rect.width) * days.length
+    const dayIndex = Math.max(0, Math.min(days.length - 1, Math.floor(x)))
     const minutes = Math.max(0, Math.min(MINUTES_PER_DAY, (clientY - rect.top) / PX_PER_MINUTE))
-    return { dayIndex, minutes }
+    return { dayIndex, minutes, xInDay: x - dayIndex }
   }
+
+  /** 블록이 그려진 범위 안이지만 블록 밖인 곳(블록 사이 틈). 누름을 빈 칸으로 받으면 24px 간격 예외가 깨진다(D-76) */
+  const inBlockGap = (dayIndex: number, minutes: number, xInDay: number) =>
+    segments.get(days[dayIndex])!.some((s) => {
+      const [start, end] = drawnRange(s.start, s.end)
+      return (
+        minutes >= start && minutes <= end && xInDay >= s.column / s.columns && xInDay <= (s.column + 1) / s.columns
+      )
+    })
 
   const locateAllDay = (clientX: number) => {
     const rect = allDayRef.current!.getBoundingClientRect()
@@ -141,7 +148,7 @@ export function TimeGrid(props: Props) {
     if (e.button !== 0) return
     const target = e.target as HTMLElement
     const blockEl = target.closest<HTMLElement>('[data-segment]')
-    const { dayIndex, minutes } = locate(e.clientX, e.clientY)
+    const { dayIndex, minutes, xInDay } = locate(e.clientX, e.clientY)
     if (blockEl) {
       const [date, key] = blockEl.dataset.segment!.split('#')
       const segment = segments.get(date)?.find((s) => occurrenceKey(s.occurrence) === key)
@@ -163,6 +170,7 @@ export function TimeGrid(props: Props) {
         })
       return
     }
+    if (inBlockGap(dayIndex, minutes, xInDay)) return
     e.currentTarget.setPointerCapture(e.pointerId)
     const slot = floorSlot(minutes)
     setDrag({ kind: 'create', dayIndex, anchor: slot, current: slot, x: e.clientX, y: e.clientY, moved: false })
@@ -458,7 +466,9 @@ function Block({
 }) {
   const o = segment.occurrence
   const end = drag?.kind === 'resize' && drag.segment === segment ? drag.end : segment.end
-  const height = Math.max(SLOT_MINUTES, end - segment.start) * PX_PER_MINUTE - 2
+  const [drawnStart, drawnEnd] = drawnRange(segment.start, end)
+  const top = drawnStart * PX_PER_MINUTE + 1
+  const height = (drawnEnd - drawnStart) * PX_PER_MINUTE - 2
   const active = Date.parse(o.startAt!) <= now && now < Date.parse(o.endAt!)
   const dragging = drag?.kind === 'move' && drag.moved && drag.segment.occurrence === o
   return (
@@ -468,7 +478,7 @@ function Block({
       className={styles.block}
       data-now={active || undefined}
       data-dragging={dragging || undefined}
-      style={blockStyle(color, segment.start * PX_PER_MINUTE + 1, height, segment.column, segment.columns)}
+      style={blockStyle(color, top, height, segment.column, segment.columns)}
       onClick={(e) => e.detail === 0 && onOpen(o)}
       aria-label={`${o.title}, ${timeLabel(o, timeZone)}${o.recurring ? ', 반복' : ''}`}
     >
@@ -499,10 +509,11 @@ function MoveGhost({
   if (days[targetIndex] !== date) return null
   const start = Math.max(0, Math.min(MINUTES_PER_DAY - SLOT_MINUTES, seg.start + drag.deltaMinutes))
   const end = Math.min(MINUTES_PER_DAY, start + (seg.end - seg.start))
+  const [drawnStart, drawnEnd] = drawnRange(start, end)
   return (
     <div
       className={styles.ghostBlock}
-      style={blockStyle(color, start * PX_PER_MINUTE + 1, (end - start) * PX_PER_MINUTE - 2)}
+      style={blockStyle(color, drawnStart * PX_PER_MINUTE + 1, (drawnEnd - drawnStart) * PX_PER_MINUTE - 2)}
       aria-hidden="true"
     >
       <strong>{seg.occurrence.title}</strong>

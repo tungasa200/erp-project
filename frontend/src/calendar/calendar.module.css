@@ -1,14 +1,12 @@
 /* 캘린더 (SCR-CAL-01~09). 값은 목업 CAL-01~09와 화면정의서 2.2·2.3·2.4를 따른다. */
 
-/* 누르는 영역 44px (2.5): 보이는 크기는 그대로 두고 투명 영역을 넓힌다 */
+/* 누르는 영역 44px (2.5): 보이는 크기는 그대로 두고 투명 영역을 넓힌다.
+   이웃 컨트롤과 붙어 있는 월 칸 날짜 숫자·더보기는 넓히지 않는다(넓히면 이웃을 덮음, 24px 기준 D-76) */
 .pillButton,
 .iconButton,
 .viewSwitch a,
 .segment button,
 .timeChip,
-.miniNav,
-.moreButton,
-.dateNumber,
 .dayHeadButton,
 .yearMonthName,
 .link {
@@ -20,9 +18,6 @@
 .viewSwitch a::after,
 .segment button::after,
 .timeChip::after,
-.miniNav::after,
-.moreButton::after,
-.dateNumber::after,
 .dayHeadButton::after,
 .yearMonthName::after,
 .link::after {
@@ -383,6 +378,7 @@
   opacity: 0.92;
 }
 
+/* 24px 미만이지만 상세 모달의 시작·종료 칸이 같은 일을 하는 동등 컨트롤이라 예외(WCAG 2.5.8, D-76) */
 .resizeHandle {
   position: absolute;
   left: 0;
@@ -548,6 +544,8 @@
   background: var(--block-tint, var(--color-accent-soft));
   color: var(--block-ink, var(--color-accent-ink));
   border: 1.5px dashed var(--block-base, var(--color-accent));
+  box-sizing: border-box;
+  min-height: 24px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -564,6 +562,7 @@
   border: 0;
   background: transparent;
   color: var(--color-accent);
+  min-height: 24px;
   padding: 0 4px;
   cursor: pointer;
 }
@@ -850,10 +849,10 @@
 
 .miniNav {
   font: inherit;
-  width: 32px;
-  height: 32px;
+  width: 44px;
+  height: 44px;
   border: 0;
-  border-radius: 16px;
+  border-radius: 22px;
   background: transparent;
   font-weight: 800;
   cursor: pointer;
