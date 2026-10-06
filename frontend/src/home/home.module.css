@@ -366,6 +366,11 @@
 }
 
 @media (max-width: 767px) {
+  /* 묶음 전환 누르는 영역 44px (P1-X-10) */
+  .segmentButton {
+    min-height: var(--size-touch, 44px);
+  }
+
   .cards {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 8px;
