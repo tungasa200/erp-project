@@ -107,6 +107,7 @@ switch ($Cmd) {
     $h = if ($Prompt) { $Prompt } else { (Get-Handoff 'WY-pm').FullName }
     if (-not $h) { throw 'WY-pm 인수인계 파일이 없습니다. 먼저 /ecc:save-session (short-id WY-pm)을 실행하세요.' }
     "아래 한 줄을 새 터미널(또는 VS Code 새 Claude 패널)에서 실행하면 WY-pm이 이어집니다. 이전 pm 창은 닫으세요."
-    "cd $Repo; claude --name WY-pm `"/ecc:resume-session $($h -replace '\\','/')`""
+    # 기본 실행 정책에서는 npm의 claude.ps1이 막히므로 claude.cmd로 부른다
+    "cd $Repo; claude.cmd --name WY-pm `"/ecc:resume-session $($h -replace '\\','/')`""
   }
 }
