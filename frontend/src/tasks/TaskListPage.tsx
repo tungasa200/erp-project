@@ -32,6 +32,11 @@ import {
 
 const DAY_MS = 86_400_000
 
+/** 상세 패널(TaskDetailPanel)에 넘기는 것: 보관 등으로 행이 빠지기 직전에 부른다 */
+export interface TaskListOutletContext {
+  leave: (taskId: string) => void
+}
+
 export function TaskListPage() {
   const { user } = useAuth()
   const { taskId } = useParams()
@@ -57,11 +62,53 @@ export function TaskListPage() {
   const groups = groupTasks(main.items, params.group, { today, weekStart, projects: projects.data ?? [] })
   const empty = !main.isPending && !main.isError && main.items.length === 0 && done.items.length === 0
 
+  // 완료 체크·Delete 보관으로 행이 목록에서 빠지면 포커스를 이웃 행의 완료 체크(없으면 제목)로 옮긴다.
+  // 그대로 두면 BODY로 빠진다. 행은 다시 받은 목록에서 빠지므로 빠진 것을 확인한 뒤 옮긴다.
+  const headingRef = useRef<HTMLHeadingElement>(null)
+  const focusAfter = useRef<{ gone: string; list: 'main' | 'done'; next: string | null } | null>(null)
+  useEffect(() => {
+    const pending = focusAfter.current
+    if (!pending) return
+    if ((pending.list === 'main' ? main.items : done.items).some((t) => t.id === pending.gone)) return
+    focusAfter.current = null
+    const next = pending.next && document.querySelector<HTMLElement>(`[data-complete="${pending.next}"]`)
+    ;(next || headingRef.current)?.focus()
+  }, [main.items, done.items])
+  const leaving = (list: 'main' | 'done', visible: Task[], task: Task) => ({
+    onLeave: () => {
+      const index = visible.findIndex((t) => t.id === task.id)
+      const next = visible[index + 1] ?? visible[index - 1]
+      focusAfter.current = { gone: task.id, list, next: next?.id ?? null }
+    },
+    onStay: () => {
+      focusAfter.current = null
+    },
+  })
+  const mainVisible = groups.flatMap((g) => g.items)
+
+  // 상세 패널을 닫으면 그 업무 행의 제목으로 포커스를 돌려준다(행이 없으면 목록 제목).
+  // 패널에서 보관하면 패널이 leave를 먼저 불러, 행이 빠진 뒤 이웃 행으로 옮겨 간다.
+  const openedTaskId = useRef(taskId)
+  useEffect(() => {
+    const closed = openedTaskId.current
+    openedTaskId.current = taskId
+    if (!closed || taskId) return
+    const row = document.querySelector<HTMLElement>(`[data-row-link="${closed}"]`)
+    ;(row ?? headingRef.current)?.focus()
+  }, [taskId])
+  const outletContext: TaskListOutletContext = {
+    leave: (id) => {
+      const inMain = main.items.some((t) => t.id === id)
+      const task = (inMain ? main.items : done.items).find((t) => t.id === id)
+      if (task) leaving(inMain ? 'main' : 'done', inMain ? mainVisible : done.items, task).onLeave()
+    },
+  }
+
   return (
     <div className={styles.layout}>
       <div className={styles.page}>
         <div className={styles.head}>
-          <h1 className={styles.title}>
+          <h1 ref={headingRef} tabIndex={-1} className={styles.title}>
             업무{' '}
             {mainEnabled && !main.isPending && (
               <span className={styles.count}>
@@ -168,7 +215,14 @@ export function TaskListPage() {
           {main.isError && (
             <p role="alert" className={styles.error}>
               업무를 불러오지 못했어요
-              <button type="button" className={styles.smallButton} onClick={() => void main.refetch()}>
+              <button
+                type="button"
+                className={styles.smallButton}
+                onClick={() => {
+                  headingRef.current?.focus()
+                  void main.refetch()
+                }}
+              >
                 다시 시도
               </button>
             </p>
@@ -176,7 +230,14 @@ export function TaskListPage() {
           {!mainEnabled && (
             <div className={styles.emptyState}>
               <p>상태를 하나 이상 골라 주세요</p>
-              <button type="button" className={styles.smallButton} onClick={() => update({ status: DEFAULT_STATUSES })}>
+              <button
+                type="button"
+                className={styles.smallButton}
+                onClick={() => {
+                  headingRef.current?.focus()
+                  update({ status: DEFAULT_STATUSES })
+                }}
+              >
                 기본 상태로
               </button>
             </div>
@@ -188,7 +249,10 @@ export function TaskListPage() {
               <button
                 type="button"
                 className={styles.smallButton}
-                onClick={() => update({ project: [], tag: [], due: '', q: '' })}
+                onClick={() => {
+                  headingRef.current?.focus()
+                  update({ project: [], tag: [], due: '', q: '' })
+                }}
               >
                 필터 지우기
               </button>
@@ -205,12 +269,26 @@ export function TaskListPage() {
                   projects={projects.data ?? []}
                   tagNames={new Map((tags.data ?? []).map((x) => [x.id, x.name]))}
                   selected={t.id === taskId}
+                  {...leaving('main', mainVisible, t)}
                 />
               ))}
             </TaskGroupList>
           ))}
           {main.hasNextPage && (
-            <button type="button" className={styles.more} onClick={() => void main.fetchNextPage()}>
+            <button
+              type="button"
+              className={styles.more}
+              onClick={() => {
+                // 마지막 쪽이면 버튼이 사라지므로 새로 받은 첫 행의 완료 체크로 포커스를 옮긴다
+                const before = mainVisible.length
+                void main
+                  .fetchNextPage()
+                  // 새 행은 다음 렌더에 그려진다
+                  .then(() =>
+                    setTimeout(() => document.querySelectorAll<HTMLElement>('[data-complete]')[before]?.focus()),
+                  )
+              }}
+            >
               더 보기
             </button>
           )}
@@ -236,6 +314,7 @@ export function TaskListPage() {
                       projects={projects.data ?? []}
                       tagNames={new Map((tags.data ?? []).map((x) => [x.id, x.name]))}
                       selected={t.id === taskId}
+                      {...leaving('done', done.items, t)}
                     />
                   ))}
                 </TaskGroupList>
@@ -244,7 +323,7 @@ export function TaskListPage() {
           )}
         </section>
       </div>
-      <Outlet />
+      <Outlet context={outletContext} />
     </div>
   )
 }
@@ -409,9 +488,13 @@ interface RowProps {
   projects: Project[]
   tagNames: Map<string, string>
   selected: boolean
+  /** 동작 직전에 부른다(행이 빠지면 포커스를 옮길 준비) */
+  onLeave: () => void
+  /** 동작이 실패하면 부른다 */
+  onStay: () => void
 }
 
-function TaskRow({ task, today, weekStart, projects, tagNames, selected }: RowProps) {
+function TaskRow({ task, today, weekStart, projects, tagNames, selected, onLeave, onStay }: RowProps) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const [search] = useSearchParams()
@@ -423,6 +506,7 @@ function TaskRow({ task, today, weekStart, projects, tagNames, selected }: RowPr
   const refresh = () => refreshTasks(queryClient)
 
   const failed = (error: unknown) => {
+    onStay()
     if (error instanceof ApiError && error.code === 'VERSION_CONFLICT') {
       refresh()
       showToast('다른 곳에서 먼저 수정돼서 새로 불러왔어요. 다시 해 주세요')
@@ -434,6 +518,7 @@ function TaskRow({ task, today, weekStart, projects, tagNames, selected }: RowPr
 
   const toggleDone = async () => {
     const before = task.status
+    onLeave()
     try {
       const updated = await taskApi.update(task.id, { version: task.version, status: done ? 'TODO' : 'DONE' })
       refresh()
@@ -453,6 +538,7 @@ function TaskRow({ task, today, weekStart, projects, tagNames, selected }: RowPr
   }
 
   const archive = async () => {
+    onLeave()
     try {
       await taskApi.remove(task.id)
       refresh()
@@ -492,6 +578,7 @@ function TaskRow({ task, today, weekStart, projects, tagNames, selected }: RowPr
         role="checkbox"
         aria-checked={done}
         aria-label={`${task.title} 완료`}
+        data-complete={task.id}
         className={styles.checkbox}
         style={color ? { borderColor: color.base, background: done ? color.base : undefined } : undefined}
         onClick={() => void toggleDone()}
@@ -500,6 +587,7 @@ function TaskRow({ task, today, weekStart, projects, tagNames, selected }: RowPr
       </button>
       <Link
         to={{ pathname: `/tasks/${task.id}`, search: search.toString() }}
+        data-row-link={task.id}
         className={done ? `${styles.rowTitle} ${styles.doneTitle}` : styles.rowTitle}
         title={task.title}
       >
@@ -508,7 +596,7 @@ function TaskRow({ task, today, weekStart, projects, tagNames, selected }: RowPr
       <span className={task.priority === 'HIGH' ? `${styles.priority} ${styles.danger}` : styles.priority}>
         {PRIORITY_LABEL[task.priority]}
       </span>
-      <span>
+      <span className={styles.projectCell}>
         {project && color && (
           <span className={styles.projectChip} style={{ background: color.tint, color: color.ink }}>
             {project.name}

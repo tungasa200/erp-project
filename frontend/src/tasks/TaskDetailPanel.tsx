@@ -3,13 +3,15 @@
 // 기록 이력(⑥)은 P2, 이월 이력(⑦)은 P3에서 채운다. 연결 일정 목록(⑤)은 업무별 일정 조회 API가 없어 배치 여부와 캘린더 링크만 둔다.
 import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
+import { Link, useNavigate, useOutletContext, useParams, useSearchParams } from 'react-router'
 import { toastForError } from '../api/errorToast'
 import { ApiError } from '../api/problem'
+import { isValidDate } from '../calendar/time'
 import { useToast } from '../components/useToast'
 import { TAGS_QUERY_KEY, tagApi, useProjects, useTags } from '../projects/api'
 import { projectColor } from '../projects/palette'
 import { refreshTasks, taskApi, taskKey, useTask, type Task, type TaskPatch } from './api'
+import type { TaskListOutletContext } from './TaskListPage'
 import styles from './tasks.module.css'
 import { PRIORITY_LABEL, STATUS_LABEL, STATUSES } from './view'
 
@@ -116,6 +118,8 @@ export function TaskDetailPanel() {
                 onClick={async () => {
                   const fresh = await reload()
                   if (fresh) setReloaded((prev) => ({ task: fresh, count: (prev?.count ?? 0) + 1 }))
+                  // 폼을 다시 만들어 버튼이 사라지므로 패널로 포커스를 옮긴다
+                  panelRef.current?.focus()
                 }}
               >
                 새로 불러오기
@@ -140,6 +144,7 @@ function TaskForm({
 }) {
   const id = useId()
   const queryClient = useQueryClient()
+  const listContext = useOutletContext<TaskListOutletContext | undefined>()
   const { showToast, showUndo } = useToast()
   const projects = useProjects()
   const tags = useTags()
@@ -150,6 +155,12 @@ function TaskForm({
   const [status, setStatus] = useState(task.status)
   const [priority, setPriority] = useState(task.priority)
   const [due, setDue] = useState(task.dueDate ?? '')
+  const [savedDue, setSavedDue] = useState(task.dueDate ?? '')
+  // 키보드로 날짜를 치는 중이면 중간값(예: 1013-06-06)마다 저장하지 않고 blur·Enter에서 한 번 저장한다.
+  // 키 입력 없이 바뀌면(달력에서 고름) 바로 저장한다
+  const dueTyping = useRef(false)
+  // Enter로 보낸 뒤 이어지는 blur가 같은 값을 한 번 더 보내지 않게
+  const dueSending = useRef<string | null>(null)
   const [projectId, setProjectId] = useState(task.projectId ?? '')
   const [tagIds, setTagIds] = useState(task.tagIds)
   const [progress, setProgress] = useState(task.progress)
@@ -164,7 +175,18 @@ function TaskForm({
     if (result.ok) {
       setError(null)
       after?.()
-    } else if (result.message) setError(result.message)
+      return
+    }
+    // 저장이 거부되면 바꾼 칸을 서버 값으로 되돌린다. 그대로 두면 화면과 서버(목록)가 어긋난다 (P1-03-09)
+    if ('status' in patch) setStatus(task.status)
+    if ('priority' in patch) setPriority(task.priority)
+    if ('dueDate' in patch) setDue(savedDue)
+    if ('projectId' in patch) setProjectId(task.projectId ?? '')
+    if ('tagIds' in patch) setTagIds(task.tagIds)
+    if ('progress' in patch) setProgress(savedProgress)
+    if ('memo' in patch) setMemo(savedMemo)
+    if ('title' in patch) setTitle(savedTitle)
+    if (result.message) setError(result.message)
   }
 
   const saveTitle = () => {
@@ -178,9 +200,40 @@ function TaskForm({
     void commit({ title: next }, () => setSavedTitle(next))
   }
 
+  const saveDue = (value: string) => {
+    dueTyping.current = false
+    if (value === savedDue || value === dueSending.current) return
+    // 완성되지 않았거나 말이 안 되는 날짜면 저장하지 않고 서버 값으로 되돌린다. 비우면 마감일을 지운다(null)
+    if (value && !(isValidDate(value) && value >= '1900-01-01' && value <= '2100-12-31')) {
+      setDue(savedDue)
+      return
+    }
+    dueSending.current = value
+    void commit({ dueDate: value || null }, () => setSavedDue(value)).finally(() => {
+      dueSending.current = null
+    })
+  }
+
   const saveTags = (next: string[]) => {
     setTagIds(next)
     void commit({ tagIds: next })
+  }
+
+  // 태그를 빼면 누른 ×가 사라지므로 이웃 태그의 ×(없으면 태그 추가 칸)로 포커스를 옮긴다 (P1-03-07)
+  const tagEditor = useRef<HTMLDivElement>(null)
+  const tagFocus = useRef<string | null>(null)
+  useEffect(() => {
+    const target = tagFocus.current
+    if (target === null) return
+    tagFocus.current = null
+    const selector = target ? `[data-tag-remove="${target}"]` : 'input'
+    tagEditor.current?.querySelector<HTMLElement>(selector)?.focus()
+  }, [tagIds])
+  const removeTag = (tagId: string) => {
+    const index = tagIds.indexOf(tagId)
+    const rest = tagIds.filter((x) => x !== tagId)
+    tagFocus.current = rest[index] ?? rest[index - 1] ?? ''
+    saveTags(rest)
   }
 
   const addTag = async () => {
@@ -203,6 +256,8 @@ function TaskForm({
   const archive = async () => {
     try {
       await taskApi.remove(task.id)
+      // 목록에서 행이 빠지면 이웃 행으로 포커스가 가도록 목록에 먼저 알린다
+      listContext?.leave(task.id)
       refreshTasks(queryClient)
       onClose()
       showUndo({
@@ -222,6 +277,8 @@ function TaskForm({
   const restore = async () => {
     try {
       const restored = await taskApi.restore(task.id)
+      // [복원] 버튼이 사라지므로 포커스를 제목 칸으로 옮긴다
+      document.getElementById(`${id}-title`)?.focus()
       queryClient.setQueryData(taskKey(task.id), restored)
       refreshTasks(queryClient)
       showToast('업무를 복원했어요')
@@ -325,11 +382,17 @@ function TaskForm({
           type="date"
           className={styles.select}
           value={due}
+          // fieldset이 막아도 칸 자체도 막는다(값을 직접 넣는 경로까지, P1-03-09)
+          disabled={archived}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') saveDue(e.currentTarget.value)
+            else if (e.key !== 'Tab' && e.key !== 'Shift') dueTyping.current = true
+          }}
           onChange={(e) => {
             setDue(e.target.value)
-            // 비우면 마감일을 지운다(null)
-            void commit({ dueDate: e.target.value || null })
+            if (!dueTyping.current) saveDue(e.target.value)
           }}
+          onBlur={(e) => saveDue(e.currentTarget.value)}
         />
 
         <label htmlFor={`${id}-project`} className={styles.fieldLabel}>
@@ -357,7 +420,7 @@ function TaskForm({
         <span id={`${id}-tags`} className={styles.fieldLabel}>
           태그
         </span>
-        <div className={styles.tagEditor} role="group" aria-labelledby={`${id}-tags`}>
+        <div ref={tagEditor} className={styles.tagEditor} role="group" aria-labelledby={`${id}-tags`}>
           {tagIds.map((t) => (
             <span key={t} className={styles.tagChip}>
               #{tagName.get(t) ?? '…'}
@@ -365,7 +428,8 @@ function TaskForm({
                 type="button"
                 className={styles.tagRemove}
                 aria-label={`${tagName.get(t) ?? ''} 태그 빼기`}
-                onClick={() => saveTags(tagIds.filter((x) => x !== t))}
+                data-tag-remove={t}
+                onClick={() => removeTag(t)}
               >
                 ×
               </button>

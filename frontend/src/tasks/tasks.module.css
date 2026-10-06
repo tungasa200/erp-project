@@ -189,6 +189,7 @@
 }
 
 .listCard {
+  container: tasklist / inline-size;
   padding: 10px 20px 16px;
   border-radius: 22px;
   background: var(--color-surface);
@@ -307,6 +308,12 @@
   font-size: 12.5px;
   font-weight: 700;
   color: #3b3f52;
+}
+
+/* 마감 초과 날짜·높음 우선순위. .danger가 위에 있어 같은 우선순위면 .due·.priority의 색이 이기므로 결합 선택자로 쓴다 (P1-03-05) */
+.due.danger,
+.priority.danger {
+  color: var(--color-danger);
 }
 
 .progressBar {
@@ -648,5 +655,31 @@
 
   .listCard {
     padding: 6px 12px 12px;
+  }
+}
+
+/* 목록 폭 기준. 상세 패널이 열리면 창이 넓어도 목록이 좁아져 제목 칸이 0이 되므로(P1-03-01),
+   창 폭 규칙과 같은 칸을 목록 폭으로도 숨긴다. 패널을 연 1280px ≈ 510px, 1024px ≈ 260px */
+@container tasklist (max-width: 740px) {
+  .row {
+    grid-template-columns: 44px minmax(0, 1fr) auto auto;
+  }
+
+  .priority,
+  .tags,
+  .progress,
+  .schedule {
+    display: none;
+  }
+}
+
+/* 아주 좁으면 프로젝트 칩도 숨기고 완료·제목·마감만 */
+@container tasklist (max-width: 480px) {
+  .row {
+    grid-template-columns: 44px minmax(0, 1fr) auto;
+  }
+
+  .projectCell {
+    display: none;
   }
 }

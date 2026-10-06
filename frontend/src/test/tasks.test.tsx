@@ -28,7 +28,10 @@ const PROJECTS = [
     version: 0,
   },
 ]
-const TAGS = [{ id: 't-quote', name: '견적', usageCount: 1, createdAt: '2026-10-01T00:00:00Z', version: 0 }]
+const TAGS = [
+  { id: 't-quote', name: '견적', usageCount: 1, createdAt: '2026-10-01T00:00:00Z', version: 0 },
+  { id: 't-pay', name: '결제', usageCount: 0, createdAt: '2026-10-01T00:00:00Z', version: 0 },
+]
 
 const task = (id: string, title: string, extra: Partial<Task> = {}): Task => ({
   id,
@@ -50,7 +53,7 @@ const task = (id: string, title: string, extra: Partial<Task> = {}): Task => ({
   ...extra,
 })
 
-function server(initial: Task[], options: { conflictOn?: string } = {}) {
+function server(initial: Task[], options: { conflictOn?: string; rejectWith?: string } = {}) {
   let tasks = initial.map((t) => ({ ...t }))
   const calls: { method: string; url: string; body?: Record<string, unknown> }[] = []
   const handlers: Parameters<typeof stubFetch>[0] = {
@@ -97,6 +100,7 @@ function server(initial: Task[], options: { conflictOn?: string } = {}) {
         return new Response(null, { status: 204 })
       }
       if (method === 'PATCH') {
+        if (options.rejectWith) return problem(409, options.rejectWith)
         if (options.conflictOn === current.id || body?.version !== current.version)
           return problem(409, 'VERSION_CONFLICT')
         const { version: _, ...fields } = body!
@@ -179,12 +183,39 @@ describe('SCR-TASK-01 업무 목록', () => {
     )
   })
 
+  it('완료·보관으로 행이 빠지면 포커스를 이웃 행의 완료 체크로, 마지막이면 목록 제목으로 옮긴다', async () => {
+    server(SAMPLE)
+    renderApp('/tasks')
+    // 키보드로 완료 → 다음 행(결제 API 문서화)
+    ;(await screen.findByRole('checkbox', { name: '견적서 작성 완료' })).focus()
+    await userEvent.keyboard('{Enter}')
+    await waitFor(() => expect(screen.queryByRole('link', { name: '견적서 작성' })).not.toBeInTheDocument())
+    expect(screen.getByRole('checkbox', { name: '결제 API 문서화 완료' })).toHaveFocus()
+
+    // Delete로 보관 → 다음 행(팀 회고 정리)
+    fireEvent.keyDown(screen.getByRole('link', { name: '결제 API 문서화' }), { key: 'Delete' })
+    await waitFor(() => expect(screen.queryByRole('link', { name: '결제 API 문서화' })).not.toBeInTheDocument())
+    expect(screen.getByRole('checkbox', { name: '팀 회고 정리 완료' })).toHaveFocus()
+  })
+
+  it('남은 행이 없으면 포커스를 목록 제목(h1)으로 옮긴다', async () => {
+    server([task('only', '혼자 남은 업무')])
+    renderApp('/tasks')
+    ;(await screen.findByRole('checkbox', { name: '혼자 남은 업무 완료' })).focus()
+    await userEvent.keyboard('{Enter}')
+    await waitFor(() => expect(screen.queryByRole('link', { name: '혼자 남은 업무' })).not.toBeInTheDocument())
+    expect(screen.getByRole('heading', { level: 1 })).toHaveFocus()
+    expect(document.activeElement).not.toBe(document.body)
+  })
+
   it('업무가 하나도 없으면 문법 안내, 필터 결과가 없으면 필터 지우기', async () => {
     server([])
     const { router } = renderApp('/tasks?due=overdue')
     expect(await screen.findByText('조건에 맞는 업무가 없어요')).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: '필터 지우기' }))
     expect(router.state.location.search).toBe('')
+    // P1-04-04 버튼이 사라져도 포커스는 목록 제목으로
+    expect(screen.getByRole('heading', { level: 1 })).toHaveFocus()
     expect(await screen.findByText('아직 업무가 없어요')).toBeInTheDocument()
   })
 
@@ -223,6 +254,17 @@ describe('SCR-TASK-01 업무 목록', () => {
 })
 
 describe('SCR-TASK-02 업무 상세', () => {
+  it('P1-03-07 태그 ×를 누르면 다음 태그의 ×로, 다 빼면 태그 추가 칸으로 포커스가 간다', async () => {
+    server([task('two', '태그 둘', { tagIds: ['t-quote', 't-pay'] })])
+    renderApp('/tasks/two')
+    ;(await screen.findByRole('button', { name: '견적 태그 빼기' })).focus()
+    await userEvent.keyboard('{Enter}')
+    expect(screen.getByRole('button', { name: '결제 태그 빼기' })).toHaveFocus()
+    await userEvent.keyboard('{Enter}')
+    expect(screen.getByRole('textbox', { name: '태그 추가' })).toHaveFocus()
+    expect(document.activeElement).not.toBe(document.body)
+  })
+
   it('행을 누르면 상세 패널이 열리고 항목마다 자동 저장한다', async () => {
     const { calls } = server(SAMPLE)
     const { router } = renderApp('/tasks')
@@ -256,6 +298,94 @@ describe('SCR-TASK-02 업무 상세', () => {
     await userEvent.selectOptions(await screen.findByRole('combobox', { name: '상태' }), 'ON_HOLD')
     expect(await screen.findByText('다른 곳에서 먼저 수정됐어요. 이 변경은 저장되지 않았어요')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '새로 불러오기' })).toBeInTheDocument()
+  })
+
+  it('P1-03-13 Esc·닫기(×)로 닫으면 패널을 연 행의 제목 링크로 포커스가 돌아온다', async () => {
+    server(SAMPLE)
+    renderApp('/tasks')
+    const link = await screen.findByRole('link', { name: '견적서 작성' })
+    link.focus()
+    await userEvent.keyboard('{Enter}')
+    await screen.findByRole('combobox', { name: '상태' })
+    await userEvent.keyboard('{Escape}')
+    await waitFor(() => expect(screen.getByRole('link', { name: '견적서 작성' })).toHaveFocus())
+
+    await userEvent.click(screen.getByRole('link', { name: '견적서 작성' }))
+    await userEvent.click(await screen.findByRole('button', { name: '닫기' }))
+    await waitFor(() => expect(screen.getByRole('link', { name: '견적서 작성' })).toHaveFocus())
+  })
+
+  it('패널에서 보관하면 행이 빠진 뒤 이웃 행의 완료 체크로 포커스가 간다', async () => {
+    server(SAMPLE)
+    renderApp('/tasks/later')
+    await userEvent.click(await screen.findByRole('button', { name: '보관' }))
+    await waitFor(() => expect(screen.queryByRole('link', { name: '결제 API 문서화' })).not.toBeInTheDocument())
+    expect(screen.getByRole('checkbox', { name: '팀 회고 정리 완료' })).toHaveFocus()
+  })
+
+  it('P1-03-09 보관한 업무는 마감일도 막고, 복원하면 제목 칸으로 포커스를 옮긴다', async () => {
+    server([task('arch', '보관한 업무', { deletedAt: '2026-10-07T00:00:00Z', dueDate: '2026-10-05' })])
+    renderApp('/tasks/arch')
+    expect(await screen.findByLabelText('마감일')).toBeDisabled()
+    await userEvent.click(screen.getByRole('button', { name: '복원' }))
+    expect(screen.getByRole('textbox', { name: '제목' })).toHaveFocus()
+  })
+
+  it('마감일을 키보드로 치면 중간값은 저장하지 않고 blur·Enter에서 한 번 저장하며, 말이 안 되는 날짜는 되돌린다', async () => {
+    const { calls } = server(SAMPLE)
+    renderApp('/tasks/today')
+    const due = await screen.findByLabelText('마감일')
+    const patches = () => calls.filter((c) => c.method === 'PATCH').map((c) => c.body)
+
+    // 연도를 치는 중의 중간값(1013-06-06) → 저장하지 않고, 그대로 떠나면 서버 값으로
+    fireEvent.keyDown(due, { key: '1' })
+    fireEvent.change(due, { target: { value: '1013-06-06' } })
+    expect(patches()).toEqual([])
+    fireEvent.focusOut(due)
+    expect(due).toHaveValue('2026-10-07')
+    expect(patches()).toEqual([])
+
+    // 다 치고 Enter → 한 번만 저장(이어지는 blur는 다시 보내지 않음)
+    fireEvent.keyDown(due, { key: '2' })
+    fireEvent.change(due, { target: { value: '2026-10-20' } })
+    fireEvent.keyDown(due, { key: 'Enter' })
+    fireEvent.focusOut(due)
+    await waitFor(() => expect(patches()).toEqual([{ version: 0, dueDate: '2026-10-20' }]))
+  })
+
+  it('달력에서 고르면(키 입력 없이 바뀜) 바로 저장한다', async () => {
+    const { calls } = server(SAMPLE)
+    renderApp('/tasks/today')
+    fireEvent.change(await screen.findByLabelText('마감일'), { target: { value: '2026-10-21' } })
+    await waitFor(() =>
+      expect(calls.filter((c) => c.method === 'PATCH').map((c) => c.body)).toEqual([
+        { version: 0, dueDate: '2026-10-21' },
+      ]),
+    )
+  })
+
+  it('P1-03-09 저장이 거부되면 바꾼 칸을 서버 값으로 되돌린다', async () => {
+    server(SAMPLE, { rejectWith: 'TASK_DELETED' })
+    renderApp('/tasks/today')
+    const due = await screen.findByLabelText('마감일')
+    fireEvent.change(due, { target: { value: '2026-10-20' } })
+    expect(await screen.findByText('보관한 업무라 바꿀 수 없어요')).toBeInTheDocument()
+    expect(due).toHaveValue('2026-10-07')
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: '상태' }), 'ON_HOLD')
+    await waitFor(() => expect(screen.getByRole('combobox', { name: '상태' })).toHaveValue('TODO'))
+  })
+
+  it('되돌리기 토스트 버튼을 누르면 토스트를 띄운 곳(없어졌으면 화면 제목)으로 포커스가 간다', async () => {
+    server(SAMPLE)
+    renderApp('/tasks')
+    ;(await screen.findByRole('checkbox', { name: '팀 회고 정리 완료' })).focus()
+    await userEvent.keyboard('{Enter}')
+    const undo = await screen.findByRole('button', { name: '되돌리기' })
+    undo.focus()
+    await userEvent.keyboard('{Enter}')
+    expect(screen.queryByRole('button', { name: '되돌리기' })).not.toBeInTheDocument()
+    expect(document.activeElement).not.toBe(document.body)
+    expect(document.activeElement?.closest('[role="status"]')).toBeNull()
   })
 
   it('보관하면 패널을 닫고 목록으로 돌아간다', async () => {
