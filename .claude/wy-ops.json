@@ -13,6 +13,7 @@
     { "name": "WY-pm", "summary": "개발 총괄: 작업 지시, 보고 취합, 중요 결정을 사용자에게 올림", "agent": false },
     { "name": "WY-backend1", "summary": "identity-service, 공통 모듈(backend/common), backend/ 루트 빌드, infra/", "agent": true },
     { "name": "WY-backend2", "summary": "worklog-service, api-gateway, 개발 도구(tools/)", "agent": true },
+    { "name": "WY-backend3", "summary": "개발 도구(tools/) 병렬 작업 보조: WY-pm이 배정한 범위만", "agent": true },
     { "name": "WY-frontend", "summary": "frontend/ 공용(라우터, AppShell, API 연결·mock, 생성 타입, 디자인 토큰)", "agent": true },
     { "name": "WY-frontend2", "summary": "frontend/src/calendar/ 캘린더 영역", "agent": true },
     { "name": "WY-browser", "summary": "외부 서비스 콘솔 작업: Railway·Vercel 등 외부 도구 설정", "agent": true },
