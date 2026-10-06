@@ -430,10 +430,17 @@
     count.textContent = String(c.total);
     count.classList.toggle('has-pending', c.total > 0);
 
+    // 배너: 읽기 오류 > 경고(출처 불명 결정·커밋 세션 역할 누락, B2-1) > 안내. 카드 형태는 B2-5
     const banner = $('banner');
-    const bannerText = state.error ? '승인 파일을 읽지 못했습니다: ' + state.error : state.notice || '';
-    banner.hidden = !bannerText;
-    if (bannerText) banner.replaceChildren(icon('i-error'), el('span', null, bannerText));
+    const alerts = state.error ? ['승인 파일을 읽지 못했습니다: ' + state.error] : [...(state.alerts || []), ...(state.notice ? [state.notice] : [])];
+    banner.hidden = !alerts.length;
+    if (alerts.length) {
+      const items = alerts.map((t) => el('span', null, t));
+      const untrusted = state.error ? [] : state.untrusted || [];
+      const acks = untrusted.map((id) => button('ghost', `확인함: ${id}`, () => vscode.postMessage({ type: 'ackUntrusted', id }), null, `ack-${id}`));
+      banner.replaceChildren(icon('i-error'), el('span', 'banner-lines', null), ...acks);
+      banner.querySelector('.banner-lines').replaceChildren(...items.flatMap((s, i) => (i ? [document.createElement('br'), s] : [s])));
+    }
 
     // 다시 그려도 포커스와 입력 위치를 잃지 않게 id로 되살린다
     const focused = document.activeElement;

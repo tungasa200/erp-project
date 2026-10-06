@@ -5,9 +5,22 @@ const path = require('path');
 const crypto = require('crypto');
 const store = require('./approvalStore');
 
+const { loadOpsConfig } = require('./opsConfig');
+
 const VIEW_TYPE = 'wyApprovals';
 const OPEN_COMMAND = 'wyApprovals.open';
 const POLL = 15000; // 파일 감시가 놓친 변경을 잡는 느린 주기
+const ROLE_POLL = 30000; // 커밋 세션 역할 확인 주기(claude agents)
+
+// 세션 상태 읽기(WY-backend1 agentsReader). 아직 없으면 역할 경고를 건너뛴다
+function sessionStatusReader() {
+  try {
+    const m = require('./agentsReader');
+    return typeof m.readSessionStatus === 'function' ? m.readSessionStatus : null;
+  } catch {
+    return null;
+  }
+}
 
 class ApprovalCenter {
   constructor(context) {
@@ -36,10 +49,60 @@ class ApprovalCenter {
     // 이 창의 워크스페이스가 속한 프로젝트의 승인 폴더(설정이 없으면 이전처럼 바탕 폴더)
     const folder = vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders[0];
     this.root = store.rootFor(folder && folder.uri.fsPath);
+    this.ops = folder ? loadOpsConfig(folder.uri.fsPath) : null;
     store.ensureDirs(this.root);
+    this.loadLedger();
+    this.roleWarnings = [];
     this.watch();
     this.timer = setInterval(() => this.reload(), POLL);
+    this.roleTimer = setInterval(() => this.checkRoles(), ROLE_POLL);
     this.reload();
+    this.checkRoles();
+  }
+
+  // 출처 대조(B2-1, Q3): 확장이 쓴 결정의 지문을 VS Code globalState에 남긴다. 세션은 globalState를 쓸 수 없다.
+  // 원장을 처음 만들 때 이미 있던 결정은 그때의 내용 그대로 신뢰한다(baselineAt).
+  loadLedger() {
+    this.ledgerKey = `wyApprovals.ledger:${this.root.toLowerCase()}`;
+    const state = this.context.globalState;
+    let ledger = state && state.get(this.ledgerKey);
+    if (!ledger || typeof ledger !== 'object' || !ledger.entries) {
+      ledger = { baselineAt: new Date().toISOString(), entries: {}, ack: {} };
+      for (const d of store.listDecisionDigests(this.root)) ledger.entries[d.id] = d.digest;
+      if (state) state.update(this.ledgerKey, ledger);
+    }
+    this.ledger = ledger;
+  }
+
+  remember(id) {
+    const file = path.join(store.paths(this.root).decisions, `${id}.json`);
+    this.ledger.entries[id] = store.decisionDigest(fs.readFileSync(file, 'utf8'));
+    if (this.context.globalState) this.context.globalState.update(this.ledgerKey, this.ledger);
+  }
+
+  // 원장에 없거나 내용이 바뀐 결정 파일. 사용자가 '확인함'을 누른 것(ack)은 같은 내용이면 다시 띄우지 않는다
+  untrustedDecisions() {
+    return store
+      .listDecisionDigests(this.root)
+      .filter((d) => this.ledger.entries[d.id] !== d.digest && this.ledger.ack[d.id] !== d.digest)
+      .map((d) => d.id);
+  }
+
+  // 커밋 세션 역할 누락(OPS-06 2): 커밋 세션 이름인데 --agent 없이 뜬 세션
+  async checkRoles() {
+    const read = sessionStatusReader();
+    const commitRole = (this.ops && this.ops.commitRole) || 'WY-commit';
+    if (!read) return;
+    try {
+      const rows = await read({ root: this.root, ops: this.ops });
+      const next = (rows || []).filter((r) => r.name === commitRole && r.roleMissing && r.alive !== false).map((r) => ({ name: r.name, id: r.id || null, sessionId: r.sessionId || null }));
+      if (JSON.stringify(next) !== JSON.stringify(this.roleWarnings)) {
+        this.roleWarnings = next;
+        this.reload();
+      }
+    } catch {
+      // 세션 목록을 못 읽으면 다음 주기에
+    }
   }
 
   watch() {
@@ -63,6 +126,12 @@ class ApprovalCenter {
     try {
       state = store.readState(this.root);
       state.notice = this.legacyNotice();
+      state.untrusted = this.untrustedDecisions();
+      state.roleWarnings = this.roleWarnings;
+      state.alerts = [
+        ...state.untrusted.map((id) => `출처 불명 결정: decisions/${id}.json — 승인 센터가 쓰지 않은 결정입니다. 위조일 수 있으니 확인하세요.`),
+        ...state.roleWarnings.map((w) => `커밋 세션 역할 누락: ${w.name}(${w.id || '?'})이 --agent ${w.name} 없이 떠 있습니다. 커밋이 가드 훅에 막히니 session.ps1 rotate ${w.name} none으로 교대하세요.`),
+      ];
       state.error = '';
     } catch (err) {
       state = { ...(this.state || { pending: [], recent: [], root: this.root }), error: String(err.message || err) };
@@ -125,9 +194,19 @@ class ApprovalCenter {
       }
       else if (msg.type === 'decide') {
         store.decide(msg.id, msg.decision, { reason: msg.reason, root: this.root });
+        this.remember(msg.id);
         this.reload();
       } else if (msg.type === 'answer') {
         store.answer(msg.id, msg.answers, { note: msg.note, root: this.root });
+        this.remember(msg.id);
+        this.reload();
+      } else if (msg.type === 'ackUntrusted' && typeof msg.id === 'string') {
+        // 사용자가 출처 불명 결정을 확인했다(신뢰하는 것은 아니고, 같은 내용이면 다시 띄우지 않는다)
+        const hit = store.listDecisionDigests(this.root).find((d) => d.id === msg.id);
+        if (hit) {
+          this.ledger.ack[msg.id] = hit.digest;
+          if (this.context.globalState) this.context.globalState.update(this.ledgerKey, this.ledger);
+        }
         this.reload();
       } else if (msg.type === 'openFolder') {
         vscode.env.openExternal(vscode.Uri.file(this.root));
@@ -156,6 +235,7 @@ class ApprovalCenter {
 
   dispose() {
     clearInterval(this.timer);
+    clearInterval(this.roleTimer);
     clearTimeout(this.debounce);
     this.watchers.forEach((w) => w.close());
     this.watchers = [];

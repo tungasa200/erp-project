@@ -79,7 +79,14 @@ function install({ workspace = null } = {}) {
   };
   fake.makePanel = makePanel;
   fake.vscode = vscode;
-  fake.context = { extensionUri: { fsPath: EXT }, subscriptions: fake.subscriptions };
+  // globalState: 메모리에 두는 Memento(같은 fake 안에서 확장을 다시 켜도 남는다)
+  const memento = new Map();
+  fake.globalState = memento;
+  fake.context = {
+    extensionUri: { fsPath: EXT },
+    subscriptions: fake.subscriptions,
+    globalState: { get: (k, d) => (memento.has(k) ? JSON.parse(JSON.stringify(memento.get(k))) : d), update: async (k, v) => memento.set(k, JSON.parse(JSON.stringify(v))), keys: () => [...memento.keys()] },
+  };
 
   const orig = Module._load;
   Module._load = (req, ...a) => (req === 'vscode' ? vscode : orig(req, ...a));

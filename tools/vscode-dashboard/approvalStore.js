@@ -219,10 +219,45 @@ function listPermissionRequests(root = ROOT) {
   return [];
 }
 
-// 세션 등록 기록(sessions/<sessionId>.json, SessionStart 훅이 씀). B2-1에서 채운다.
+// 세션 등록 기록(sessions/<sessionId>.json, SessionStart 훅이 씀). 형식: 운영 도구 구현 계획 2.2
 //   Map<sessionId, { sessionId, agentType, startedAt, cwd, source }>
 function readSessionRegistry(root = ROOT) {
-  return new Map();
+  const dir = path.join(root, 'sessions');
+  const out = new Map();
+  let files = [];
+  try {
+    files = fs.readdirSync(dir).filter((f) => f.endsWith('.json'));
+  } catch {
+    return out;
+  }
+  for (const f of files) {
+    try {
+      const r = readJson(path.join(dir, f));
+      if (r && typeof r.sessionId === 'string') out.set(r.sessionId, r);
+    } catch {
+      // 쓰는 중인 파일은 다음에 읽는다
+    }
+  }
+  return out;
 }
 
-module.exports = { listPermissionRequests, readSessionRegistry, ROOT, KINDS, GIT_KINDS, ROUTINE_KINDS, LIMITS, ID_RE, rootFor, paths, ensureDirs, readJson, writeJsonAtomic, readState, countPending, readRequest, decide, answer, normalize };
+// 결정 파일 내용의 지문. 확장이 자기가 쓴 결정을 기억해 두었다가 출처를 대조한다(B2-1, Q3)
+function decisionDigest(content) {
+  return require('crypto').createHash('sha256').update(String(content).replace(/\r\n/g, '\n')).digest('hex');
+}
+
+// 결정 파일마다 { id, digest }. 출처 대조용
+function listDecisionDigests(root = ROOT) {
+  const p = paths(root);
+  const out = [];
+  for (const f of listJson(p.decisions)) {
+    try {
+      out.push({ id: f.slice(0, -5), digest: decisionDigest(fs.readFileSync(path.join(p.decisions, f), 'utf8')) });
+    } catch {
+      // 읽을 수 없으면 다음에
+    }
+  }
+  return out;
+}
+
+module.exports = { listPermissionRequests, readSessionRegistry, decisionDigest, listDecisionDigests, ROOT, KINDS, GIT_KINDS, ROUTINE_KINDS, LIMITS, ID_RE, rootFor, paths, ensureDirs, readJson, writeJsonAtomic, readState, countPending, readRequest, decide, answer, normalize };
