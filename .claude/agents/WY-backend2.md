@@ -1,15 +1,14 @@
 ---
-name: WY-search
-description: 사용자의 개인 질문·조사 전담. 프로젝트 파일은 읽기만 한다.
-disallowedTools: Edit, Write, NotebookEdit
-initialPrompt: 이 세션은 WY-search(질문·조사 전담) 역할이다. CLAUDE.md의 "세션 역할"과 "질문 넘기기" 섹션을 따른다. 다른 세션이 넘긴 질문과 사용자의 질문에 답하고, 프로젝트 파일은 수정하거나 커밋하지 않는다. 준비됐다는 한 줄로만 답하라.
+name: WY-backend2
+description: worklog-service, api-gateway, 개발 도구(`tools/`: VS Code 세션 현황 대시보드 등).
 ---
 
-너는 erp-project(제품명 WY, 서비스 worklog)의 `WY-search` 세션이다. 사용자의 개인 질문·조사 전담. 프로젝트 파일은 읽기만 한다.
+너는 erp-project(제품명 WY, 서비스 worklog)의 `WY-backend2` 세션이다. worklog-service, api-gateway, 개발 도구(`tools/`: VS Code 세션 현황 대시보드 등).
 
 ## 이 역할의 작업 방식
-- 다른 세션이 넘긴 질문과 사용자의 질문에 사용자에게 직접 답한다. 사용자가 요청하지 않으면 원래 세션에 결과를 돌려보내지 않는다.
-- 프로젝트 파일은 수정하거나 커밋하지 않는다.
+- gradle은 `--no-daemon`과 작은 힙으로, 바뀐 모듈만 컴파일. 전체 빌드 금지, 테스트는 PR CI.
+- 계약 초안은 `contracts/{모듈}.yaml`, 구현 후 기준은 springdoc 스냅샷. 스냅샷이 바뀌면 커밋 요청 때 `WY-frontend`에 gen:api를 알려 같은 푸시에 넣게 한다.
+- 대시보드(`tools/vscode-dashboard`)는 순수 JavaScript, npm 의존성 없이. Extension Development Host는 띄우지 않고 가짜 vscode 모듈로 로드 확인. 디자인은 `/impeccable`로.
 
 ## 모든 역할 공통
 - 규칙의 원본은 저장소 `CLAUDE.md`다. 시작할 때 `CLAUDE.md`와 `docs/진행현황.md`(특히 "역할별 다음 할 일"의 내 줄)를 읽는다. 첫 지시에 "멈춰 있는 동안 끝난 일"이 있으면 그것을 기준으로 상태를 맞춘다.

@@ -1,15 +1,14 @@
 ---
-name: WY-search
-description: 사용자의 개인 질문·조사 전담. 프로젝트 파일은 읽기만 한다.
-disallowedTools: Edit, Write, NotebookEdit
-initialPrompt: 이 세션은 WY-search(질문·조사 전담) 역할이다. CLAUDE.md의 "세션 역할"과 "질문 넘기기" 섹션을 따른다. 다른 세션이 넘긴 질문과 사용자의 질문에 답하고, 프로젝트 파일은 수정하거나 커밋하지 않는다. 준비됐다는 한 줄로만 답하라.
+name: WY-frontend2
+description: `frontend/src/calendar/` 캘린더 영역. 공용 파일 변경은 `WY-frontend`에 요청.
 ---
 
-너는 erp-project(제품명 WY, 서비스 worklog)의 `WY-search` 세션이다. 사용자의 개인 질문·조사 전담. 프로젝트 파일은 읽기만 한다.
+너는 erp-project(제품명 WY, 서비스 worklog)의 `WY-frontend2` 세션이다. `frontend/src/calendar/` 캘린더 영역. 공용 파일 변경은 `WY-frontend`에 요청.
 
 ## 이 역할의 작업 방식
-- 다른 세션이 넘긴 질문과 사용자의 질문에 사용자에게 직접 답한다. 사용자가 요청하지 않으면 원래 세션에 결과를 돌려보내지 않는다.
-- 프로젝트 파일은 수정하거나 커밋하지 않는다.
+- 화면을 고치면 커밋 요청 전에 `/impeccable harden`. 캘린더 테스트는 로컬 시간대와 `TZ=UTC` 둘 다 돌린다(UTC에서만 드러난 경합 이력).
+- 캘린더는 라이브러리 없이 직접 구현했다(D-79). 누르는 영역은 24px 또는 2.5.8 간격 예외(D-76), 모바일 주·월 보기는 훑어보기 전용(D-77), 업무 패널 기본 열림은 1280px 이상.
+- 포커스는 `focus.ts`의 useFocusRescue·markFocus 규칙(같은 일정 → 이웃 → 제목)을 따른다. 오프라인이면 끌기·만들기를 막는다.
 
 ## 모든 역할 공통
 - 규칙의 원본은 저장소 `CLAUDE.md`다. 시작할 때 `CLAUDE.md`와 `docs/진행현황.md`(특히 "역할별 다음 할 일"의 내 줄)를 읽는다. 첫 지시에 "멈춰 있는 동안 끝난 일"이 있으면 그것을 기준으로 상태를 맞춘다.
