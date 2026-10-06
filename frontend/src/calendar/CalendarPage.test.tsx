@@ -92,7 +92,7 @@ describe('캘린더', () => {
     expect(await screen.findAllByRole('button', { name: /^팀 스탠드업, 10:00–11:00, 반복$/ })).toHaveLength(3)
   })
 
-  it('단축키 M으로 월 보기, J로 이전 달', async () => {
+  it('단축키 M으로 월 보기, J로 다음 달, K로 이전 달', async () => {
     stubServer()
     const user = userEvent.setup()
     renderApp('/calendar/week/2026-10-07', routes)
@@ -100,6 +100,9 @@ describe('캘린더', () => {
     await user.keyboard('m')
     expect(await screen.findByRole('heading', { level: 1, name: '2026년 10월' })).toBeInTheDocument()
     await user.keyboard('j')
+    expect(await screen.findByRole('heading', { level: 1, name: '2026년 11월' })).toBeInTheDocument()
+    await user.keyboard('k')
+    await user.keyboard('k')
     expect(await screen.findByRole('heading', { level: 1, name: '2026년 9월' })).toBeInTheDocument()
   })
 

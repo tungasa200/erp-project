@@ -29,6 +29,36 @@ beforeEach(() => {
 })
 
 describe('가짜 일정 서버', () => {
+  it('회차의 projectId는 연결된 업무의 프로젝트, 업무가 없으면 null (D-73)', async () => {
+    localStorage.setItem(
+      'worklog.mock.worklog',
+      JSON.stringify({
+        tasks: [
+          { id: 'task-a', projectId: 'project-dev' },
+          { id: 'task-b', projectId: null },
+        ],
+      }),
+    )
+    await call('POST', '/api/worklog/schedules', { ...daily, title: '연결', taskId: 'task-a' })
+    await call('POST', '/api/worklog/schedules', { ...daily, title: '프로젝트 없는 업무', taskId: 'task-b' })
+    await call('POST', '/api/worklog/schedules', { ...daily, title: '업무 없음' })
+    const items = await list('2026-10-05T00:00:00Z', '2026-10-06T00:00:00Z')
+    expect(Object.fromEntries(items.map((o) => [o.title, o.projectId]))).toEqual({
+      연결: 'project-dev',
+      '프로젝트 없는 업무': null,
+      '업무 없음': null,
+    })
+
+    // "이 일정만" 수정 응답에도 채운다
+    const linked = items.find((o) => o.title === '연결')!
+    const patched = await call(
+      'PATCH',
+      `/api/worklog/schedules/${linked.scheduleId}/occurrences/${encodeURIComponent(linked.occurrenceStart)}`,
+      { title: '연결(수정)', version: linked.version },
+    )
+    expect(patched.body.projectId).toBe('project-dev')
+  })
+
   it('반복 일정을 기간 안 회차로 전개하고 count에서 멈춘다', async () => {
     await call('POST', '/api/worklog/schedules', daily)
     const items = await list('2026-10-01T00:00:00Z', '2026-10-31T00:00:00Z')

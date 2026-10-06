@@ -4,6 +4,8 @@ import type { Occurrence, OccurrencePatch, Recurrence, Schedule } from './api'
 import { WEEKDAYS, addDays, diffDays, fromZoned, toZoned, todayIn, weekdayIndex } from './time'
 
 const STORE_KEY = 'worklog.mock.schedules'
+/** 업무는 api/mockWorklog가 이 키에 둔다(처음 불러올 때 저장) */
+const WORKLOG_STORE_KEY = 'worklog.mock.worklog'
 
 type Override = Partial<Pick<Occurrence, 'title' | 'memo' | 'startAt' | 'endAt' | 'startDate' | 'endDate'>> & {
   deleted?: boolean
@@ -164,6 +166,21 @@ function baseOccurrence(s: MockSchedule, date: string): Occurrence {
   }
 }
 
+/** 업무 id → 프로젝트 id. 회차의 projectId는 연결된 업무의 프로젝트다(D-73) */
+function taskProjects(): Map<string, string | null> {
+  try {
+    const tasks: { id: string; projectId?: string | null }[] =
+      JSON.parse(localStorage.getItem(WORKLOG_STORE_KEY) ?? '{}').tasks ?? []
+    return new Map(tasks.map((t) => [t.id, t.projectId ?? null]))
+  } catch {
+    return new Map()
+  }
+}
+
+function withProject(o: Occurrence, projects: Map<string, string | null>): Occurrence {
+  return { ...o, projectId: o.taskId ? (projects.get(o.taskId) ?? null) : null }
+}
+
 function applyOverride(o: Occurrence, override: Override | undefined): Occurrence | null {
   if (!override) return o
   if (override.deleted) return null
@@ -264,8 +281,10 @@ export function handleScheduleMock(
       const to = Date.parse(params.get('to') ?? '')
       if (Number.isNaN(from) || Number.isNaN(to) || to <= from || to - from > 400 * 86_400_000)
         return invalid([{ field: 'to', code: 'OUT_OF_RANGE' }])
+      const projects = taskProjects()
       const items = state
         .flatMap((s) => expand(s, from, to))
+        .map((o) => withProject(o, projects))
         .sort((a, b) => bounds(a, 'UTC')[0] - bounds(b, 'UTC')[0] || a.title.localeCompare(b.title))
       return r.json(200, { items })
     }
@@ -309,7 +328,7 @@ export function handleScheduleMock(
       s.overrides[key] = override
       s.version++
       save(state)
-      return r.json(200, { ...result, version: s.version })
+      return r.json(200, { ...withProject(result, taskProjects()), version: s.version })
     }
     return null
   }

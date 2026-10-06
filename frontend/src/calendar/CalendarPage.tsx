@@ -231,8 +231,9 @@ function Calendar({ view, date, today, timeZone, weekStart }: CalendarProps) {
     KeyY: () => go('year', date),
     KeyA: () => go('list', date),
     KeyT: () => go(view, today),
-    KeyJ: () => step(-1),
-    KeyK: () => step(1),
+    // 관례(Google 캘린더·vim)대로 J=다음, K=이전
+    KeyJ: () => step(1),
+    KeyK: () => step(-1),
     KeyC: () => openCreate(),
     KeyP: () => setPanelOpen((open) => !open),
   })
@@ -347,7 +348,7 @@ function Calendar({ view, date, today, timeZone, weekStart }: CalendarProps) {
                 type="button"
                 className={styles.iconButton}
                 aria-label={`이전 ${unit}`}
-                title="단축키 J"
+                title="단축키 K"
                 onClick={() => step(-1)}
               >
                 ‹
@@ -356,7 +357,7 @@ function Calendar({ view, date, today, timeZone, weekStart }: CalendarProps) {
                 type="button"
                 className={styles.iconButton}
                 aria-label={`다음 ${unit}`}
-                title="단축키 K"
+                title="단축키 J"
                 onClick={() => step(1)}
               >
                 ›
@@ -412,6 +413,7 @@ function Calendar({ view, date, today, timeZone, weekStart }: CalendarProps) {
             onOpenDay={(d) => go('day', d)}
             onCreateAllDay={createAllDay}
             onMoveDays={(o, n) => void actions.move(o, shiftByDays(o, n, timeZone))}
+            overview={mobile}
           />
         )}
         {view === 'year' && (

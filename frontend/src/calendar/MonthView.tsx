@@ -11,6 +11,7 @@ import { WEEKDAY_LABELS, diffDays, formatMinutes, toZoned, weekdayIndex } from '
 import styles from './calendar.module.css'
 
 const MAX_CHIPS = 3
+const MAX_DOTS = 3
 const DRAG_THRESHOLD = 4
 
 interface Props {
@@ -24,6 +25,8 @@ interface Props {
   onOpenDay: (date: string) => void
   onCreateAllDay: (date: string) => void
   onMoveDays: (o: Occurrence, days: number) => void
+  /** 모바일: 훑어보기 전용(D-77과 같은 방식). 날짜 칸 전체가 일 보기로 가는 버튼이고 칩 대신 색 점을 그린다 */
+  overview?: boolean
 }
 
 type Drag = { occurrence: Occurrence; from: string; over: string; x: number; y: number; moved: boolean }
@@ -32,7 +35,7 @@ function chipLabel(o: Occurrence, timeZone: string) {
   return o.allDay ? o.title : `${formatMinutes(toZoned(o.startAt!, timeZone).minutes)} ${o.title}`
 }
 
-export function MonthView({ days, month, occurrences, timeZone, today, colorOf, ...props }: Props) {
+export function MonthView({ days, month, occurrences, timeZone, today, colorOf, overview = false, ...props }: Props) {
   const byDate = useMemo(() => occurrencesByDate(occurrences, days, timeZone), [occurrences, days, timeZone])
   const [drag, setDrag] = useState<Drag | null>(null)
   const [popover, setPopover] = useState<{ date: string; x: number; y: number; opener: HTMLElement } | null>(null)
@@ -83,7 +86,7 @@ export function MonthView({ days, month, occurrences, timeZone, today, colorOf, 
 
   return (
     <div className={styles.monthWrap}>
-      <div className={styles.monthGrid}>
+      <div>
         <div className={styles.monthHeads} aria-hidden="true">
           {heads.map((wd) => (
             <span key={wd} style={wd === 0 ? { color: 'var(--color-danger)' } : undefined}>
@@ -93,9 +96,9 @@ export function MonthView({ days, month, occurrences, timeZone, today, colorOf, 
         </div>
         <div
           className={styles.monthCells}
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
+          onPointerDown={overview ? undefined : onPointerDown}
+          onPointerMove={overview ? undefined : onPointerMove}
+          onPointerUp={overview ? undefined : onPointerUp}
           onPointerCancel={() => setDrag(null)}
           role="presentation"
         >
@@ -104,6 +107,29 @@ export function MonthView({ days, month, occurrences, timeZone, today, colorOf, 
             const holiday = holidayName(date)
             const wd = weekdayIndex(date)
             const shown = list.slice(0, list.length > MAX_CHIPS ? MAX_CHIPS - 1 : MAX_CHIPS)
+            if (overview)
+              return (
+                <button
+                  key={date}
+                  type="button"
+                  className={styles.monthCell}
+                  data-overview
+                  data-out={!date.startsWith(month) || undefined}
+                  data-today={date === today || undefined}
+                  data-holiday={!!holiday || undefined}
+                  data-rest={wd === 0 || wd === 6 || !!holiday || undefined}
+                  aria-label={`${Number(date.slice(5, 7))}월 ${Number(date.slice(8))}일 ${WEEKDAY_LABELS[wd]}요일${holiday ? ` ${holiday}` : ''}, 일정 ${list.length}개`}
+                  onClick={() => props.onOpenDay(date)}
+                >
+                  <span className={styles.dateNumber}>{Number(date.slice(8))}</span>
+                  <span className={styles.monthDots} aria-hidden="true">
+                    {list.slice(0, MAX_DOTS).map((o) => (
+                      <span key={occurrenceKey(o)} className={styles.monthDot} style={colorVars(colorOf(o))} />
+                    ))}
+                    {list.length > MAX_DOTS && <span>+{list.length - MAX_DOTS}</span>}
+                  </span>
+                </button>
+              )
             return (
               <div
                 key={date}
@@ -138,7 +164,7 @@ export function MonthView({ days, month, occurrences, timeZone, today, colorOf, 
                     onClick={(e) => e.detail === 0 && props.onOpen(o)}
                   >
                     {o.recurring && <RepeatIcon />}
-                    {chipLabel(o, timeZone)}
+                    <span className={styles.chipText}>{chipLabel(o, timeZone)}</span>
                   </button>
                 ))}
                 {list.length > shown.length && (
@@ -186,7 +212,7 @@ export function MonthView({ days, month, occurrences, timeZone, today, colorOf, 
                 }}
               >
                 {o.recurring && <RepeatIcon />}
-                {chipLabel(o, timeZone)}
+                <span className={styles.chipText}>{chipLabel(o, timeZone)}</span>
               </button>
             ))}
           </div>
