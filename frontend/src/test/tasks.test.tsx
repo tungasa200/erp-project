@@ -79,7 +79,9 @@ function server(initial: Task[], options: { conflictOn?: string; rejectWith?: st
           (t) =>
             !t.deletedAt &&
             (statuses.length === 0 || statuses.includes(t.status)) &&
-            (!q.getAll('projectId').length || q.getAll('projectId').includes(t.projectId ?? '')),
+            (!q.getAll('projectId').length || q.getAll('projectId').includes(t.projectId ?? '')) &&
+            // 계약: completedSince는 완료 업무만 거른다
+            (!q.get('completedSince') || t.status !== 'DONE' || (t.completedAt ?? '') >= q.get('completedSince')!),
         )
         return json(200, { items, nextCursor: null })
       }
@@ -219,6 +221,28 @@ describe('SCR-TASK-01 업무 목록', () => {
     expect(await screen.findByText('아직 업무가 없어요')).toBeInTheDocument()
   })
 
+  it('P1-11-02 상태에 완료가 있으면 완료 업무를 본문에 보이고, 홈 카드의 이번 주 조건으로 개수를 맞춘다', async () => {
+    const { calls } = server([
+      task('d-this', '이번 주에 끝낸 일', { status: 'DONE', completedAt: '2026-10-06T01:00:00Z' }),
+      task('d-last', '지난주에 끝낸 일', { status: 'DONE', completedAt: '2026-10-02T01:00:00Z' }),
+      task('todo', '아직 할 일'),
+    ])
+    const { router } = renderApp('/tasks?status=DONE&completed=week')
+    expect(await screen.findByRole('link', { name: '이번 주에 끝낸 일' })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: '지난주에 끝낸 일' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: '아직 할 일' })).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('업무 1')
+    expect(screen.queryByText('상태를 하나 이상 골라 주세요')).not.toBeInTheDocument()
+    // 완료를 골랐으면 아래 '완료 n개 (최근 7일)' 접힌 묶음은 없다
+    expect(screen.queryByRole('button', { name: /최근 7일/ })).not.toBeInTheDocument()
+    // 이번 주 첫날(월 10-05) 서울 0시부터
+    expect(calls.some((c) => c.url.includes('completedSince=2026-10-04T15%3A00%3A00.000Z'))).toBe(true)
+
+    await userEvent.click(screen.getByRole('button', { name: '완료 기간 조건 지우기: 이번 주부터' }))
+    expect(router.state.location.search).toBe('?status=DONE')
+    expect(await screen.findByRole('link', { name: '지난주에 끝낸 일' })).toBeInTheDocument()
+  })
+
   it('상태를 모두 끄면 빈 목록 대신 상태를 고르라고 알리고, 기본 상태로 되돌린다', async () => {
     server([task('a', '견적서 회신')])
     const { router } = renderApp('/tasks?status=')
@@ -313,6 +337,18 @@ describe('SCR-TASK-02 업무 상세', () => {
     await userEvent.click(screen.getByRole('link', { name: '견적서 작성' }))
     await userEvent.click(await screen.findByRole('button', { name: '닫기' }))
     await waitFor(() => expect(screen.getByRole('link', { name: '견적서 작성' })).toHaveFocus())
+  })
+
+  it('진행률 슬라이더에 포커스가 있어도 Esc로 닫히고, 제목 칸에서는 닫히지 않는다', async () => {
+    server(SAMPLE)
+    const { router } = renderApp('/tasks/today')
+    ;(await screen.findByRole('textbox', { name: '제목' })).focus()
+    await userEvent.keyboard('{Escape}')
+    expect(router.state.location.pathname).toBe('/tasks/today')
+
+    screen.getByRole('slider').focus()
+    await userEvent.keyboard('{Escape}')
+    await waitFor(() => expect(router.state.location.pathname).toBe('/tasks'))
   })
 
   it('패널에서 보관하면 행이 빠진 뒤 이웃 행의 완료 체크로 포커스가 간다', async () => {

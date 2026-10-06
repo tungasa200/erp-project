@@ -6,6 +6,7 @@ import type { Me } from '../api/types'
 import { useAuth } from '../auth/useAuth'
 import { ME_QUERY_KEY } from '../auth/session'
 import { focusPageHeading } from '../components/focusFallback'
+import { Skeleton } from '../components/Skeleton'
 import { useToast } from '../components/useToast'
 import { verificationApi, type CodeTimes } from './api'
 import { CodeStep } from './CodeStep'
@@ -80,7 +81,7 @@ export function EmailVerificationDialog({ onClose }: { onClose: () => void }) {
           <b className={styles.email}>{user?.email}</b>으로 보낸 6자리 숫자를 입력하세요.
         </p>
 
-        {status.isPending && <p className={styles.muted}>불러오는 중…</p>}
+        {status.isPending && <Skeleton count={2} />}
         {status.isError && (
           <p role="alert" className={styles.error}>
             인증 상태를 불러오지 못했어요

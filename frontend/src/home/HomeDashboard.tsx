@@ -9,6 +9,7 @@ import { holidayName } from '../calendar/holidays'
 import { occurrencesByDate } from '../calendar/layout'
 import { formatMinutes, fromZoned, toZoned } from '../calendar/time'
 import { focusSectionHeading } from '../components/focusFallback'
+import { Skeleton } from '../components/Skeleton'
 import { useProjects, type Project } from '../projects/api'
 import { projectColor } from '../projects/palette'
 import { addDays, isoWeekday, shortDate, todayIn, WEEKDAY_NAMES, weekStartNumber } from '../quickInput/dates'
@@ -68,7 +69,7 @@ export function HomeDashboard({ empty }: { empty: ReactNode }) {
           sub={todayList.length === 0 ? '일정 없음' : todayLeft === 0 ? '모두 끝났어요' : `${todayLeft}개 남았어요`}
         />
         <SummaryCard
-          to="/tasks?status=DONE"
+          to="/tasks?status=DONE&completed=week"
           label="이번 주 완료"
           value={cardValue(doneThisWeek, `${doneThisWeek.items.length}${more(doneThisWeek)}`)}
           sub={`${shortDate(weekFirst)}부터`}
@@ -104,10 +105,10 @@ export function HomeDashboard({ empty }: { empty: ReactNode }) {
   )
 }
 
-/** 불러오는 중은 …, 실패하면 0 대신 — (없는 것으로 오해하지 않게) */
-function cardValue(query: { isPending: boolean; isError: boolean }, value: string) {
+/** 첫 로딩은 스켈레톤(0.3초 뒤), 실패하면 0 대신 — (없는 것으로 오해하지 않게) */
+function cardValue(query: { isPending: boolean; isError: boolean }, value: string): ReactNode {
   if (query.isError) return '—'
-  return query.isPending ? '…' : value
+  return query.isPending ? <Skeleton shape="line" /> : value
 }
 
 /** 1분마다 바뀌는 현재 시각 (남은 일정 수·날짜 넘김) */
@@ -120,7 +121,7 @@ function useNow() {
   return now
 }
 
-function SummaryCard(props: { to: string; label: string; value: string; sub: string; accent?: boolean }) {
+function SummaryCard(props: { to: string; label: string; value: ReactNode; sub: string; accent?: boolean }) {
   return (
     <li>
       <Link to={props.to} className={props.accent ? `${styles.card} ${styles.cardAccent}` : styles.card}>
@@ -196,7 +197,7 @@ function RemainingTasks({ tasks, loading, failed, onRetry, today, weekStart, pro
           ))}
         </div>
       </div>
-      {loading && <p className={styles.muted}>불러오는 중…</p>}
+      {loading && <Skeleton count={4} />}
       {failed && (
         <p role="alert" className={styles.error}>
           업무를 불러오지 못했어요
@@ -338,7 +339,7 @@ function Upcoming({ days, byDate, today, timeZone, isLive, loading, failed, onRe
       <h2 id="home-upcoming" className={styles.panelTitle}>
         다가오는 일정
       </h2>
-      {loading && <p className={styles.muted}>불러오는 중…</p>}
+      {loading && <Skeleton count={4} />}
       {failed && (
         <p role="alert" className={styles.error}>
           일정을 불러오지 못했어요

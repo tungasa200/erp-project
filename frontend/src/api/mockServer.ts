@@ -113,8 +113,22 @@ function startSession(state: MockState, email: string) {
   save(state)
 }
 
+// 응답 지연(개발 확인용). 기본 300ms. 스켈레톤처럼 느린 응답을 보려면 주소에 ?mockDelay=2000을 붙이거나
+// localStorage 'worklog.mock.delayMs'에 ms를 넣는다(주소 값은 저장돼 다음 요청에도 쓴다). dev:mock에서만 쓰인다.
+const DELAY_KEY = 'worklog.mock.delayMs'
+function mockDelay(): number {
+  try {
+    const fromUrl = new URLSearchParams(window.location.search).get('mockDelay')
+    if (fromUrl !== null) localStorage.setItem(DELAY_KEY, fromUrl)
+    const ms = Number(localStorage.getItem(DELAY_KEY) ?? 300)
+    return Number.isFinite(ms) && ms >= 0 ? Math.min(ms, 30_000) : 300
+  } catch {
+    return 300
+  }
+}
+
 export const mockFetch: typeof fetch = async (input, init) => {
-  await new Promise((r) => setTimeout(r, 300))
+  await new Promise((r) => setTimeout(r, mockDelay()))
   const path = typeof input === 'string' ? input : input instanceof URL ? input.pathname : input.url
   const method = init?.method ?? 'GET'
   const body = init?.body ? JSON.parse(init.body as string) : {}

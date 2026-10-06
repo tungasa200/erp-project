@@ -7,6 +7,7 @@ import { Link, useNavigate, useOutletContext, useParams, useSearchParams } from 
 import { toastForError } from '../api/errorToast'
 import { ApiError } from '../api/problem'
 import { isValidDate } from '../calendar/time'
+import { Skeleton } from '../components/Skeleton'
 import { useToast } from '../components/useToast'
 import { TAGS_QUERY_KEY, tagApi, useProjects, useTags } from '../projects/api'
 import { projectColor } from '../projects/palette'
@@ -88,13 +89,16 @@ export function TaskDetailPanel() {
       aria-labelledby="task-detail-title"
       className={styles.panel}
       onKeyDown={(e) => {
-        if (e.key === 'Escape' && !(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement)) {
+        // 입력칸·메모 안의 Esc는 닫지 않는다. 진행률 슬라이더(range)는 Esc 동작이 없으니 닫는다
+        const typing =
+          (e.target instanceof HTMLInputElement && e.target.type !== 'range') || e.target instanceof HTMLTextAreaElement
+        if (e.key === 'Escape' && !typing) {
           e.preventDefault()
           close()
         }
       }}
     >
-      {task.isPending && <p className={styles.muted}>불러오는 중…</p>}
+      {task.isPending && <Skeleton count={6} />}
       {task.isError && (
         <div className={styles.panelBody}>
           <p role="alert" className={styles.error}>

@@ -6,6 +6,7 @@ import { Link, Outlet, useNavigate, useParams, useSearchParams } from 'react-rou
 import { toastForError } from '../api/errorToast'
 import { ApiError } from '../api/problem'
 import { useAuth } from '../auth/useAuth'
+import { Skeleton } from '../components/Skeleton'
 import { useToast } from '../components/useToast'
 import { useProjects, useTags, type Project } from '../projects/api'
 import { projectColor } from '../projects/palette'
@@ -42,25 +43,33 @@ export function TaskListPage() {
   const { taskId } = useParams()
   const [search, setSearch] = useSearchParams()
   const params = readParams(search)
-  const today = todayIn(user?.timezone ?? 'Asia/Seoul')
+  const timeZone = user?.timezone ?? 'Asia/Seoul'
+  const today = todayIn(timeZone)
   const weekStart = weekStartNumber(user?.weekStart)
   const [quickText, setQuickText] = useState('')
   const quickSave = useQuickSave()
 
   const projects = useProjects()
   const tags = useTags()
-  const filter = toFilter(params, today, weekStart)
+  const filter = toFilter(params, today, weekStart, timeZone)
   const mainEnabled = (filter.status?.length ?? 0) > 0
   const main = useTasks(filter, { enabled: mainEnabled })
-  // 완료 업무 접기(최근 7일) — 상태 필터와 별도로 받는다
+  // 완료 업무 접기(최근 7일) — 상태 필터에 완료가 없을 때만. 완료를 골랐으면 본문에 바로 보인다 (P1-11-02)
+  const showsDone = params.status.includes('DONE')
   const [since] = useState(() => new Date(Date.now() - 7 * DAY_MS).toISOString())
-  const done = useTasks({ ...filter, status: ['DONE'], completedSince: since, sort: 'created' })
+  const done = useTasks(
+    { ...filter, status: ['DONE'], completedSince: since, sort: 'created' },
+    { enabled: !showsDone },
+  )
+  const doneItems = showsDone ? [] : done.items
   const [doneOpen, setDoneOpen] = useState(false)
 
   const update = (next: Partial<ListParams>) => setSearch(writeParams({ ...params, ...next }), { replace: true })
-  const filtered = params.project.length + params.tag.length + (params.due ? 1 : 0) + (params.q ? 1 : 0) > 0
+  const filtered =
+    params.project.length + params.tag.length + (params.due ? 1 : 0) + (params.completed ? 1 : 0) + (params.q ? 1 : 0) >
+    0
   const groups = groupTasks(main.items, params.group, { today, weekStart, projects: projects.data ?? [] })
-  const empty = !main.isPending && !main.isError && main.items.length === 0 && done.items.length === 0
+  const empty = !main.isPending && !main.isError && main.items.length === 0 && doneItems.length === 0
 
   // 완료 체크·Delete 보관으로 행이 목록에서 빠지면 포커스를 이웃 행의 완료 체크(없으면 제목)로 옮긴다.
   // 그대로 두면 BODY로 빠진다. 행은 다시 받은 목록에서 빠지므로 빠진 것을 확인한 뒤 옮긴다.
@@ -190,6 +199,17 @@ export function TaskListPage() {
               />
             ))}
           </FilterMenu>
+          {params.completed === 'week' && (
+            // 홈 '이번 주 완료' 카드에서 온 기간 조건. 눌러서 지운다
+            <button
+              type="button"
+              className={`${styles.filterButton} ${styles.filterActive}`}
+              aria-label="완료 기간 조건 지우기: 이번 주부터"
+              onClick={() => update({ completed: '' })}
+            >
+              완료: 이번 주부터 ×
+            </button>
+          )}
           <div className={styles.spacer} />
           <div role="group" aria-label="묶기" className={styles.segment}>
             {(
@@ -213,7 +233,7 @@ export function TaskListPage() {
         </div>
 
         <section aria-label="업무 목록" className={styles.listCard}>
-          {main.isPending && mainEnabled && <p className={styles.muted}>불러오는 중…</p>}
+          {main.isPending && mainEnabled && <Skeleton count={5} />}
           {main.isError && (
             <p role="alert" className={styles.error}>
               업무를 불러오지 못했어요
@@ -253,7 +273,7 @@ export function TaskListPage() {
                 className={styles.smallButton}
                 onClick={() => {
                   headingRef.current?.focus()
-                  update({ project: [], tag: [], due: '', q: '' })
+                  update({ project: [], tag: [], due: '', completed: '', q: '' })
                 }}
               >
                 필터 지우기
@@ -294,7 +314,7 @@ export function TaskListPage() {
               더 보기
             </button>
           )}
-          {done.items.length > 0 && (
+          {doneItems.length > 0 && (
             <div className={styles.doneBlock}>
               <button
                 type="button"

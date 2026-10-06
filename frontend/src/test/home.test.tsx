@@ -121,6 +121,11 @@ describe('SCR-HOME-01 홈 대시보드 1차', () => {
     expect(within(cards).getByRole('link', { name: /오늘 일정/ })).toHaveTextContent('오늘 일정21개 남았어요')
     expect(within(cards).getByRole('link', { name: /오늘 일정/ })).toHaveAttribute('href', '/calendar/day/2026-10-07')
     expect(within(cards).getByRole('link', { name: /이번 주 완료/ })).toHaveTextContent('이번 주 완료110/5(월)부터')
+    // P1-11-02 이번 주 완료 카드는 같은 조건(완료·이번 주부터)의 목록으로
+    expect(within(cards).getByRole('link', { name: /이번 주 완료/ })).toHaveAttribute(
+      'href',
+      '/tasks?status=DONE&completed=week',
+    )
     // 확인 대기 카드는 P2
     expect(within(cards).queryByText('확인 대기')).not.toBeInTheDocument()
   })

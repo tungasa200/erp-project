@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { toastForError } from '../api/errorToast'
 import { ApiError } from '../api/problem'
 import { focusSectionHeading } from '../components/focusFallback'
+import { Skeleton } from '../components/Skeleton'
 import { useToast } from '../components/useToast'
 import {
   PROJECTS_QUERY_KEY,
@@ -94,7 +95,7 @@ function ProjectSection() {
         {archivedCount > 0 && <span className={styles.meta}>보관한 프로젝트 {archivedCount}</span>}
       </div>
 
-      {isPending && <p className={styles.muted}>불러오는 중…</p>}
+      {isPending && <Skeleton count={3} />}
       {isError && (
         <p role="alert" className={styles.error}>
           프로젝트를 불러오지 못했어요
@@ -269,7 +270,7 @@ function TagSection() {
       <h2 id="settings-tags" ref={headingRef} tabIndex={-1} className={styles.title}>
         태그
       </h2>
-      {isPending && <p className={styles.muted}>불러오는 중…</p>}
+      {isPending && <Skeleton shape="chip" count={5} />}
       {isError && (
         <p role="alert" className={styles.error}>
           태그를 불러오지 못했어요

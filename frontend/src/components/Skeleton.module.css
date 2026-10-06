@@ -1,0 +1,87 @@
+/* 로딩 스켈레톤. 색은 --color-skeleton 토큰 */
+.group {
+  display: flex;
+  gap: 10px;
+}
+
+.lines,
+.card,
+.block {
+  flex-direction: column;
+  padding: 10px 0;
+}
+
+.chip {
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.bar {
+  display: block;
+  background: var(--color-skeleton);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+/* 줄 길이를 조금씩 달리해 글처럼 보이게 */
+.linesItem {
+  height: 14px;
+  border-radius: 7px;
+}
+
+.linesItem:nth-of-type(3n + 1) {
+  width: 92%;
+}
+
+.linesItem:nth-of-type(3n + 2) {
+  width: 74%;
+}
+
+.linesItem:nth-of-type(3n) {
+  width: 56%;
+}
+
+.line {
+  display: inline-block;
+  width: 1.6em;
+  height: 0.8em;
+  border-radius: 0.4em;
+  vertical-align: middle;
+}
+
+.chipItem {
+  width: 64px;
+  height: 22px;
+  border-radius: 11px;
+}
+
+.cardItem {
+  height: 88px;
+  border-radius: 16px;
+}
+
+.blockItem {
+  height: 120px;
+  border-radius: 12px;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+/* 움직임 줄이기 설정이면 반짝이지 않는다 */
+@media (prefers-reduced-motion: reduce) {
+  .bar {
+    animation: none;
+  }
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
