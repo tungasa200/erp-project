@@ -1,7 +1,7 @@
 // SCR-TASK-01 업무 목록 (P1-03·04). 필터는 URL에 둔다. 행을 누르면 오른쪽 상세 패널(/tasks/:id)이 열린다.
 // 완료 체크·Delete 보관은 확인창 없이 바로 하고 되돌리기 토스트를 띄운다(UX-03). 완료 결과 입력(SCR-TASK-03)은 P2.
 import { useQueryClient } from '@tanstack/react-query'
-import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { Link, Outlet, useNavigate, useParams, useSearchParams } from 'react-router'
 import { toastForError } from '../api/errorToast'
 import { ApiError } from '../api/problem'
@@ -606,8 +606,8 @@ function TaskRow({ task, today, weekStart, projects, tagNames, selected, onLeave
         aria-checked={done}
         aria-label={`${task.title} 완료`}
         data-complete={task.id}
-        className={styles.checkbox}
-        style={color ? { borderColor: color.base, background: done ? color.base : undefined } : undefined}
+        className={done ? `${styles.checkbox} ${styles.checkboxDone}` : styles.checkbox}
+        style={color ? ({ '--check-color': color.base } as CSSProperties) : undefined}
         onClick={() => void toggleDone()}
       >
         {done && '✓'}

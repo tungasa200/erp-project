@@ -236,13 +236,16 @@
   background: var(--color-accent-faint);
 }
 
+/* 완료 체크: 버튼 자체가 누르는 영역 44px(모든 폭), 보이는 원 22px은 ::before로 그린다(홈 완료 원과 같은 방식).
+   원 색은 --check-color(프로젝트 색, 없으면 키 컬러) */
 .checkbox {
   position: relative;
+  z-index: 0;
   box-sizing: border-box;
-  width: 22px;
-  height: 22px;
-  margin: 11px;
-  border: 2px solid var(--color-accent);
+  width: var(--size-touch);
+  height: var(--size-touch);
+  padding: 0;
+  border: 0;
   border-radius: 50%;
   background: transparent;
   display: flex;
@@ -254,12 +257,18 @@
   cursor: pointer;
 }
 
-/* 보이는 원은 22px, 누르는 영역은 44px */
-.checkbox::after {
+.checkbox::before {
   content: '';
   position: absolute;
-  /* 테두리(2px) 안쪽 기준이라 -13px이어야 누르는 영역이 44px (P1-X-10) */
-  inset: -13px;
+  z-index: -1;
+  inset: 11px;
+  box-sizing: border-box;
+  border: 2px solid var(--check-color, var(--color-accent));
+  border-radius: 50%;
+}
+
+.checkboxDone::before {
+  background: var(--check-color, var(--color-accent));
 }
 
 .rowTitle {

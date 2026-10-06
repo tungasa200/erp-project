@@ -61,9 +61,17 @@ interface Props {
   onChange: (value: string) => void
   onSubmit?: (draft: QuickDraft) => void | Promise<void>
   label?: string
+  /** 좁은 곳(캘린더 업무 패널 등)에서 짧은 안내로 바꿀 때 */
+  placeholder?: string
 }
 
-export function QuickInput({ value, onChange, onSubmit, label = '빠른 입력' }: Props) {
+export function QuickInput({
+  value,
+  onChange,
+  onSubmit,
+  label = '빠른 입력',
+  placeholder = '무엇을 하셨나요? 한 줄로 적어 보세요',
+}: Props) {
   const { user } = useAuth()
   const inputRef = useRef<HTMLInputElement>(null)
   const helpButtonRef = useRef<HTMLButtonElement>(null)
@@ -148,7 +156,7 @@ export function QuickInput({ value, onChange, onSubmit, label = '빠른 입력' 
           id={id}
           type="text"
           className={styles.input}
-          placeholder="무엇을 하셨나요? 한 줄로 적어 보세요"
+          placeholder={placeholder}
           autoComplete="off"
           value={value}
           onChange={(e) => onChange(e.target.value)}

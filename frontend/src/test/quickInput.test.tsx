@@ -71,6 +71,11 @@ describe('SCR-HOME-01 첫 화면 (UX-04)', () => {
 })
 
 describe('SCR-COM-02 빠른 입력창', () => {
+  it('안내 문구를 바꾸지 않으면 기본 문구를 쓴다(캘린더 업무 패널은 짧은 문구를 넘긴다)', async () => {
+    const { input } = await openHome()
+    expect(input).toHaveAttribute('placeholder', '무엇을 하셨나요? 한 줄로 적어 보세요')
+  })
+
   it('알약의 빈 곳을 눌러도 입력칸에 포커스가 간다 (P1-X-10)', async () => {
     const { input } = await openHome()
     input.blur()
