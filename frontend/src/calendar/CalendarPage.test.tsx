@@ -48,6 +48,11 @@ function stubServer() {
       const body = JSON.parse(String(init!.body))
       return json(201, task('task-new', body.title, body.dueDate ?? null))
     }
+    const detail = /^\/api\/worklog\/tasks\/([^/?]+)$/.exec(url)
+    if (detail) {
+      const found = tasks.find((t) => t.id === detail[1])
+      return found ? json(200, found) : problem(404, 'NOT_FOUND')
+    }
     if (url.startsWith('/api/worklog/tasks?')) {
       // 일정 없는 업무만(scheduled=false) — 일정이 연결된 업무는 빠진다
       const linked = new Set(
@@ -344,6 +349,64 @@ describe('캘린더', () => {
     await user.keyboard('c')
     expect(screen.queryByRole('dialog', { name: '새 일정' })).not.toBeInTheDocument()
     onLine.mockRestore()
+  })
+
+  it('상세 모달에서 업무를 검색해 연결하면 저장 때 taskId를 보낸다 (P1-05-06)', async () => {
+    const review = { ...standup, id: 'schedule-review', title: '주간 리뷰', recurrence: null }
+    Object.assign(review, { startAt: '2026-10-08T05:00:00.000Z', endAt: '2026-10-08T06:00:00.000Z' })
+    localStorage.setItem('worklog.mock.schedules', JSON.stringify([standup, review]))
+    const fetchMock = stubServer()
+    const user = userEvent.setup()
+    renderApp('/calendar/week/2026-10-07', routes)
+    ;(await screen.findByRole('button', { name: /^주간 리뷰, / })).focus()
+    await user.keyboard('{Enter}')
+    const dialog = await screen.findByRole('dialog', { name: '일정 편집' })
+    await user.type(await within(dialog).findByRole('combobox', { name: '연결 업무' }), '보고')
+    await user.click(await within(dialog).findByRole('option', { name: '9월 매출 보고서' }))
+    expect(await within(dialog).findByRole('link', { name: '9월 매출 보고서' })).toHaveAttribute(
+      'href',
+      '/tasks/task-report',
+    )
+    await user.click(within(dialog).getByRole('button', { name: '저장' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: '일정 편집' })).not.toBeInTheDocument())
+    const patch = fetchMock.mock.calls.find(
+      ([url, init]) => init?.method === 'PATCH' && String(url).endsWith('schedule-review'),
+    )
+    expect(JSON.parse(String(patch![1]!.body))).toMatchObject({ taskId: 'task-report' })
+  })
+
+  it('반복 회차를 "이 일정만" 바꾸며 업무를 연결할 때 시리즈 연결이 실패하면 서버 값으로 다시 맞추고 알린다', async () => {
+    const fetchMock = stubServer()
+    const base = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (input, init) =>
+      init?.method === 'PATCH' && String(input) === '/api/worklog/schedules/schedule-standup'
+        ? problem(500, 'INTERNAL_ERROR')
+        : base(input, init),
+    )
+    const user = userEvent.setup()
+    renderApp('/calendar/week/2026-10-07', routes)
+    ;(await screen.findAllByRole('button', { name: /^팀 스탠드업, 10:00–11:00/ }))[0].focus()
+    await user.keyboard('{Enter}')
+    const dialog = await screen.findByRole('dialog', { name: '일정 편집' })
+    await waitFor(() => expect(within(dialog).getByLabelText('시작')).toHaveValue('10:00'))
+    fireEvent.change(within(dialog).getByLabelText('시작'), { target: { value: '11:00' } })
+    fireEvent.change(within(dialog).getByLabelText('종료'), { target: { value: '12:00' } })
+    await user.type(within(dialog).getByRole('combobox', { name: '연결 업무' }), '보고')
+    await user.click(await within(dialog).findByRole('option', { name: '9월 매출 보고서' }))
+    await user.click(within(dialog).getByRole('button', { name: '저장' }))
+    const scope = await screen.findByRole('alertdialog', { name: '반복 일정을 수정할까요?' })
+    await user.click(within(scope).getByRole('button', { name: '확인' }))
+
+    expect(await screen.findByText(/이 일정은 바꿨지만 업무 연결은 저장하지 못했어요/)).toBeInTheDocument()
+    // 회차 변경 응답의 version으로 시리즈 연결을 보냈다
+    const calls = fetchMock.mock.calls.filter(([, init]) => init?.method === 'PATCH')
+    const occurrence = calls.find(([url]) => String(url).includes('/occurrences/'))!
+    const series = calls.find(([url]) => String(url) === '/api/worklog/schedules/schedule-standup')!
+    expect(JSON.parse(String(series[1]!.body))).toEqual({ version: 1, taskId: 'task-report' })
+    expect(JSON.parse(String(occurrence[1]!.body)).version).toBe(0)
+    // 모달은 열린 채 서버 값(바뀐 시각, 연결 없음)으로 다시 채운다
+    await waitFor(() => expect(within(dialog).getByLabelText('시작')).toHaveValue('11:00'))
+    expect(within(dialog).getByRole('combobox', { name: '연결 업무' })).toBeInTheDocument()
   })
 
   it('업무 패널: 마감순 카드, 날짜 없는 업무는 접고, "일정 잡기"로 업무에 연결된 일정을 만든다', async () => {

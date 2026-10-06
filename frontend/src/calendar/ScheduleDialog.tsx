@@ -1,6 +1,6 @@
 // 일정 상세·편집 (SCR-CAL-07). 새로 만들 때와 고칠 때 같은 모달을 쓴다. 저장 버튼이 있는 모달이다.
 // 반복 일정은 저장·삭제할 때 범위를 묻는다(SCR-CAL-08). 종일 여부·반복 규칙을 바꾸면 "모든 일정"만 가능하다(계약 OccurrencePatch).
-// ④ 연결 업무는 업무 API(P1-03), ⑥ 기록 상태는 P2라 아직 없다(연결된 taskId는 그대로 둔다).
+// ④ 연결 업무는 TaskLinkField(P1-05-06, 반복 일정은 시리즈 전체에 연결 D-71). ⑥ 기록 상태는 P2라 아직 없다.
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { toastForError } from '../api/errorToast'
@@ -10,6 +10,7 @@ import { useToast } from '../components/useToast'
 import { TASKS_QUERY_KEY } from '../tasks/api'
 import { occurrenceFocusId } from './focus'
 import { Modal } from './Modal'
+import { TaskLinkField } from './TaskLinkField'
 import {
   OCCURRENCES_QUERY_KEY,
   scheduleApi,
@@ -54,6 +55,7 @@ interface Form {
   until: string
   count: string
   memo: string
+  taskId: string | null
 }
 
 type TimeField = 'date' | 'endDate' | 'start' | 'end'
@@ -101,6 +103,7 @@ function formFromDraft(d: ScheduleDraft): Form {
     until: '',
     count: '',
     memo: '',
+    taskId: d.taskId ?? null,
   }
 }
 
@@ -123,6 +126,7 @@ function formFromOccurrence(o: Occurrence, schedule: Schedule | undefined, timeZ
     until: r?.until ?? '',
     count: r?.count ? String(r.count) : '',
     memo: o.memo ?? '',
+    taskId: o.taskId ?? null,
   }
 }
 
@@ -240,11 +244,16 @@ export function ScheduleDialog({ timeZone, draft, occurrence, askScope, onDelete
     setConflict(false)
     setForm(null)
     setErrors({})
+    const startedAt = Date.now()
     await Promise.all([schedule.refetch(), invalidate()])
     const key = latest && occurrenceFocusId(latest)
+    // 이번에 다시 받은 기간에서만 찾는다. 안 쓰는 기간의 캐시(다시 받지 않음)에는 옛 값이 남아 있다
     const fresh = queryClient
-      .getQueriesData<Occurrence[]>({ queryKey: OCCURRENCES_QUERY_KEY })
-      .flatMap(([, data]) => (Array.isArray(data) ? data : []))
+      .getQueryCache()
+      .findAll({ queryKey: OCCURRENCES_QUERY_KEY })
+      .filter((q) => q.state.dataUpdatedAt >= startedAt)
+      .sort((a, b) => b.state.dataUpdatedAt - a.state.dataUpdatedAt)
+      .flatMap((q) => (Array.isArray(q.state.data) ? (q.state.data as Occurrence[]) : []))
       .find((o) => occurrenceFocusId(o) === key)
     if (fresh) setLatest(fresh)
   }
@@ -274,7 +283,7 @@ export function ScheduleDialog({ timeZone, draft, occurrence, askScope, onDelete
       ...timeOf(f, timeZone),
       recurrence: recurrenceOf(f),
       memo: f.memo.trim() || null,
-      taskId: draft?.taskId ?? null,
+      taskId: f.taskId,
     }
     await scheduleApi.create(body)
     // 업무 패널에서 연 일정이면 그 업무가 패널(일정 없는 업무)에서 빠진다
@@ -298,22 +307,39 @@ export function ScheduleDialog({ timeZone, draft, occurrence, askScope, onDelete
       ...(title !== o.title && { title }),
       ...(memo !== (o.memo ?? null) && { memo }),
     }
-    if (!timeChanged && !kindChanged && !recurrenceChanged && Object.keys(textPatch).length === 0) return true
+    const taskChanged = f.taskId !== before.taskId
+    const otherChanged = timeChanged || kindChanged || recurrenceChanged || Object.keys(textPatch).length > 0
+    if (!otherChanged && !taskChanged) return true
+    // 연결이 바뀌면 업무 패널(일정 없는 업무)·회차 색(프로젝트, D-73)이 바뀐다
+    if (taskChanged) void queryClient.invalidateQueries({ queryKey: TASKS_QUERY_KEY })
 
-    if (o.recurring) {
+    // 반복 일정의 업무 연결은 시리즈 전체에만 한다(D-71). 연결만 바꾸면 범위를 묻지 않는다
+    if (o.recurring && otherChanged) {
       const scope = await askScope(o, kindChanged || recurrenceChanged ? 'editSeries' : 'edit')
       if (!scope) return false
       if (scope === 'this') {
-        await scheduleApi.updateOccurrence(o.scheduleId, o.occurrenceStart, {
+        const updated = await scheduleApi.updateOccurrence(o.scheduleId, o.occurrenceStart, {
           version: o.version,
           ...textPatch,
           ...(timeChanged && timeOf(f, timeZone)),
         })
+        if (taskChanged) {
+          // 회차 변경이 version을 올렸으므로 그 응답의 version으로 시리즈에 연결한다
+          try {
+            await scheduleApi.update(o.scheduleId, { version: updated.version, taskId: f.taskId })
+          } catch (error) {
+            // 회차만 바뀌고 연결은 실패: 화면을 서버 값으로 맞추고 알린다
+            await reload()
+            const { message, traceId } = toastForError(error)
+            showToast(`이 일정은 바꿨지만 업무 연결은 저장하지 못했어요. ${message}`, { traceId })
+            return false
+          }
+        }
         showToast('이 일정만 바꿨어요')
         return true
       }
     }
-    const patch: SchedulePatch = { version: s.version, ...textPatch }
+    const patch: SchedulePatch = { version: s.version, ...textPatch, ...(taskChanged && { taskId: f.taskId }) }
     if (kindChanged) Object.assign(patch, { allDay: f.allDay, ...timeOf(f, timeZone) })
     else if (timeChanged)
       Object.assign(patch, o.recurring ? shiftSchedule(s, o, timeOf(f, timeZone)) : timeOf(f, timeZone))
@@ -566,6 +592,12 @@ export function ScheduleDialog({ timeZone, draft, occurrence, askScope, onDelete
               </p>
             )}
           </fieldset>
+
+          <TaskLinkField
+            taskId={current.taskId}
+            onChange={(taskId) => update({ taskId })}
+            recurring={current.frequency !== 'NONE'}
+          />
 
           <label className={styles.field}>
             메모
