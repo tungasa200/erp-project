@@ -12,9 +12,11 @@
     <symbol id="i-commit" viewBox="0 0 16 16"><circle cx="8" cy="8" r="2.75" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M1.5 8h3.75M10.75 8h3.75" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
     <symbol id="i-push" viewBox="0 0 16 16"><path d="M8 13.5V3M4 6.5 8 2.5l4 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="i-pm" viewBox="0 0 16 16"><path d="M8 1.75 14.75 13.75H1.25Z" fill="currentColor"/><path d="M8 6v3.5" stroke="var(--on-warn)" stroke-width="1.6" stroke-linecap="round"/><circle cx="8" cy="11.6" r=".9" fill="var(--on-warn)"/></symbol>
+    <symbol id="i-choice" viewBox="0 0 16 16"><path d="M8 14V9.5M8 9.5 3.5 5V2.5M8 9.5 12.5 5V2.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="3.5" cy="2.5" r="1.25" fill="currentColor"/><circle cx="12.5" cy="2.5" r="1.25" fill="currentColor"/></symbol>
     <symbol id="i-check" viewBox="0 0 16 16"><path d="m3.5 8.25 3 3 6-6.5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="i-x" viewBox="0 0 16 16"><path d="m4.5 4.5 7 7m0-7-7 7" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></symbol>
-    <symbol id="i-auto" viewBox="0 0 16 16"><path d="M9 1.75 3.5 9H8l-1 5.25L12.5 7H8Z" fill="currentColor"/></symbol>
+    <symbol id="i-send" viewBox="0 0 16 16"><path d="M2 8h10.5M8.5 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-star" viewBox="0 0 16 16"><path d="m8 2 1.75 3.7 4 .5-2.95 2.75.75 4L8 11l-3.55 1.95.75-4L2.25 6.2l4-.5Z" fill="currentColor"/></symbol>
     <symbol id="i-error" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.25" fill="currentColor"/><path d="M8 4.75v3.75" stroke="var(--on-err)" stroke-width="1.6" stroke-linecap="round"/><circle cx="8" cy="11" r=".9" fill="var(--on-err)"/></symbol>
     <symbol id="i-folder" viewBox="0 0 16 16"><path d="M1.75 4.25c0-.55.45-1 1-1h3.4l1.5 1.5h5.6c.55 0 1 .45 1 1v6.5c0 .55-.45 1-1 1H2.75c-.55 0-1-.45-1-1Z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></symbol>
   </svg>
@@ -32,25 +34,7 @@
     <p class="sr-only" id="announce" role="status"></p>
     <p class="banner" id="banner" hidden></p>
 
-    <section class="toggles" aria-labelledby="h-auto">
-      <h2 id="h-auto">자동 승인</h2>
-      <div class="toggle-row">
-        <button type="button" class="switch" role="switch" aria-checked="false" data-kind="commit" id="t-commit" aria-describedby="d-commit"><span class="knob"></span></button>
-        <div>
-          <label class="t-label" for="t-commit">커밋 자동 승인</label>
-          <p class="t-desc" id="d-commit">git commit 요청을 기다리지 않고 바로 승인합니다.</p>
-        </div>
-      </div>
-      <div class="toggle-row">
-        <button type="button" class="switch" role="switch" aria-checked="false" data-kind="push" id="t-push" aria-describedby="d-push"><span class="knob"></span></button>
-        <div>
-          <label class="t-label" for="t-push">푸시 자동 승인</label>
-          <p class="t-desc" id="d-push">일반 push만 바로 승인합니다. 강제 푸시·병합·브랜치·reset·rebase·태그 삭제는 토글과 상관없이 늘 카드로 확인합니다.</p>
-        </div>
-      </div>
-    </section>
-
-    <section aria-labelledby="h-pending">
+    <section aria-labelledby="h-pending" class="first">
       <div class="sec-head">
         <h2 id="h-pending" tabindex="-1">대기</h2>
         <span class="count" id="pending-count">0</span>

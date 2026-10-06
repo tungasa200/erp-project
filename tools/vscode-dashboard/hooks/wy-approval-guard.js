@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 // WY 승인 가드(PreToolUse 훅, Bash·PowerShell). 초안 — 적용은 사용자 설정에서 한다.
-// - 잠금 대상 git 명령: commit·push(토글로 자동 승인 가능), 강제 푸시·브랜치 생성/삭제·merge(gh pr merge)·reset·rebase·태그 삭제(항상 승인 결정 필요).
+// - 잠금 대상 git 명령: commit·push·강제 푸시·브랜치 생성/삭제·merge(gh pr merge)·reset·rebase·태그 삭제. 모두 승인 센터의 승인 결정이 있어야 한다.
 // - 잠금 대상은 WY-commit(agent_type)만 실행한다. agent_type이 없는 세션도 거부한다.
 // - 승인 한 건은 한 번만 쓴다(used/<id>.json).
-// - 세션이 승인 파일(config.json·decisions·used)을 셸로 건드리는 명령은 막는다.
+// - 승인 파일(decisions/·decisions.log·used/)과 설치본(~/.wy-tools)에 쓰는 셸 명령은 막는다. 읽기(cat·ls·tail·test, 감시 루프)는 통과한다.
 // 훅은 오류·시간 초과 때 통과시키므로(fail open), 여기서는 어떤 오류든 종료 코드 2로 막는다.
 const fs = require('fs');
 const path = require('path');
@@ -13,6 +13,14 @@ const APPROVAL_TTL = 60 * 60 * 1000; // 결정 후 60분 안에만 쓸 수 있�
 const COMMIT_SESSION = 'WY-commit';
 const GIT_OPTS_WITH_VALUE = new Set(['-C', '-c', '--git-dir', '--work-tree', '--namespace', '--exec-path']);
 const PROTECTED = ['wy-approvals/config.json', 'wy-approvals/decisions', 'wy-approvals/used', '.wy-tools/'];
+// 파일을 쓰거나 지울 수 있는 프로그램(PowerShell 별칭 포함). 인터프리터는 무엇이든 쓸 수 있어 함께 막는다
+const WRITERS = new Set([
+  'cp', 'mv', 'rm', 'rmdir', 'del', 'erase', 'copy', 'move', 'ren', 'rename', 'touch', 'mkdir', 'tee', 'truncate', 'dd', 'install', 'ln', 'chmod', 'chown', 'xargs',
+  'set-content', 'sc', 'add-content', 'ac', 'out-file', 'new-item', 'ni', 'remove-item', 'ri', 'rd', 'copy-item', 'cpi', 'move-item', 'mi',
+  'rename-item', 'rni', 'clear-content', 'clc', 'set-item', 'si', 'tee-object',
+  'node', 'python', 'python3', 'py', 'perl', 'ruby', 'deno', 'bun', 'powershell', 'pwsh', 'cmd', 'bash', 'sh', 'invoke-expression', 'iex',
+]);
+const LEADING_KEYWORDS = new Set(['do', 'then', 'else', 'elif', 'until', 'while', 'if', '!', '{', '(', 'time', 'exec', 'sudo', 'env', '&']);
 
 // 명령을 &&, ||, ;, |, 줄바꿈으로 나눈다(따옴표 안은 나누지 않는다)
 function segments(command) {
@@ -85,13 +93,33 @@ function classify(segment) {
   }
 }
 
-function touchesApprovalFiles(command) {
-  const c = command.replace(/\\/g, '/').toLowerCase();
+const mentionsProtected = (t) => {
+  const c = t.replace(/\\/g, '/').toLowerCase();
   return PROTECTED.some((p) => c.includes(p));
+};
+
+// 보호 경로에 쓰는 명령인지 본다. 경로를 읽기만 하는 명령은 통과시킨다
+function writesApprovalFiles(command) {
+  if (!mentionsProtected(command)) return false;
+  // 리다이렉트 대상(> >> 2> *>)
+  for (const m of command.matchAll(/>{1,2}\s*("[^"]*"|'[^']*'|[^\s|;&<>]+)/g)) if (mentionsProtected(m[1])) return true;
+  for (const seg of segments(command)) {
+    if (!mentionsProtected(seg)) continue;
+    let t = tokens(seg);
+    while (t.length && (LEADING_KEYWORDS.has(t[0]) || /^[A-Za-z_][A-Za-z0-9_]*=/.test(t[0]))) t = t.slice(1);
+    if (!t.length) continue;
+    if (/^\[[\w.]+\]::/.test(t[0])) return true; // [IO.File]::WriteAllText 같은 .NET 호출
+    const prog = path.basename(t[0]).toLowerCase().replace(/\.(exe|cmd|bat|ps1)$/, '');
+    const rest = t.slice(1);
+    if (WRITERS.has(prog)) return true;
+    if (prog === 'sed' && rest.some((a) => a.startsWith('-i') || a === '--in-place')) return true;
+    if (prog === 'find' && rest.some((a) => ['-delete', '-exec', '-execdir', '-ok'].includes(a))) return true;
+  }
+  return false;
 }
 
-// 같은 종류·같은 명령으로 승인된, 아직 쓰지 않은 결정을 찾아 사용 표시를 남긴다
-function consumeApproval(kind, segment, input, root) {
+// 같은 종류·같은 명령으로 승인된, 아직 쓰지 않은 결정을 찾는다(taken에 든 것은 건너뛴다)
+function findApproval(kind, segment, taken, root) {
   const p = store.paths(root);
   const want = store.normalize(segment);
   let files = [];
@@ -102,7 +130,7 @@ function consumeApproval(kind, segment, input, root) {
   }
   for (const f of files) {
     const id = f.slice(0, -5);
-    if (!store.ID_RE.test(id) || fs.existsSync(path.join(p.used, f))) continue;
+    if (!store.ID_RE.test(id) || taken.has(id) || fs.existsSync(path.join(p.used, f))) continue;
     let d;
     try {
       d = store.readJson(path.join(p.decisions, f));
@@ -110,20 +138,24 @@ function consumeApproval(kind, segment, input, root) {
       continue;
     }
     const fresh = Date.now() - Date.parse(d.decidedAt) < APPROVAL_TTL;
-    if (d.decision === 'approved' && d.kind === kind && store.normalize(d.command) === want && fresh) {
-      fs.mkdirSync(p.used, { recursive: true });
-      fs.writeFileSync(path.join(p.used, f), JSON.stringify({ id, usedAt: new Date().toISOString(), session_id: input.session_id || null }) + '\n');
-      return id;
-    }
+    if (d.decision === 'approved' && d.kind === kind && store.normalize(d.command) === want && fresh) return id;
   }
   return null;
+}
+
+function markUsed(ids, input, root) {
+  const p = store.paths(root);
+  fs.mkdirSync(p.used, { recursive: true });
+  for (const id of ids) {
+    fs.writeFileSync(path.join(p.used, `${id}.json`), JSON.stringify({ id, usedAt: new Date().toISOString(), session_id: input.session_id || null }) + '\n');
+  }
 }
 
 function evaluate(input, root = store.ROOT) {
   const command = String((input.tool_input && input.tool_input.command) || '');
   if (!command) return null;
-  if (touchesApprovalFiles(command)) {
-    return { decision: 'deny', reason: '승인 파일(~/.claude/wy-approvals의 config·decisions·used)과 설치본(~/.wy-tools)은 셸 명령으로 건드릴 수 없습니다. 요청은 requests/에만 쓰세요.' };
+  if (writesApprovalFiles(command)) {
+    return { decision: 'deny', reason: '승인 파일(~/.claude/wy-approvals의 decisions·decisions.log·used)과 설치본(~/.wy-tools)에는 셸 명령으로 쓸 수 없습니다. 읽기(cat·ls·tail·test)는 됩니다. 요청은 requests/에만 쓰세요.' };
   }
   const guarded = segments(command).map((s) => ({ segment: s, kind: classify(s) })).filter((g) => g.kind);
   if (!guarded.length) return null;
@@ -131,20 +163,20 @@ function evaluate(input, root = store.ROOT) {
     const who = input.agent_type || 'agent_type 없음';
     return { decision: 'deny', reason: `'${store.KINDS[guarded[0].kind]}' 명령은 ${COMMIT_SESSION}(--agent ${COMMIT_SESSION}로 띄운 세션)만 실행합니다(이 세션: ${who}). 커밋 요청은 ${COMMIT_SESSION}에 보내세요.` };
   }
-  const config = store.readConfig(root);
-  const used = [];
+  // 조각마다 승인을 먼저 다 찾고, 모두 있을 때만 한꺼번에 사용 표시를 남긴다(일부만 쓰고 막히면 승인이 헛되이 사라진다)
+  const taken = new Set();
   for (const g of guarded) {
-    if (store.AUTO_KINDS.includes(g.kind) && config.autoApprove[g.kind]) continue;
-    const id = consumeApproval(g.kind, g.segment, input, root);
+    const id = findApproval(g.kind, g.segment, taken, root);
     if (!id) {
       return {
         decision: 'deny',
         reason: `승인이 없습니다: ${store.KINDS[g.kind]} "${store.normalize(g.segment)}". ~/.claude/wy-approvals/requests/에 요청 파일을 쓰고(command에 이 명령 그대로) 승인 센터의 결정을 기다린 뒤 다시 실행하세요.`,
       };
     }
-    used.push(id);
+    taken.add(id);
   }
-  return { decision: 'allow', reason: used.length ? `승인 센터 결정 ${used.join(', ')}` : '승인 센터 자동 승인 토글' };
+  markUsed(taken, input, root);
+  return { decision: 'allow', reason: `승인 센터 결정 ${[...taken].join(', ')}` };
 }
 
 function respond(result) {
@@ -173,4 +205,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { segments, classify, evaluate, touchesApprovalFiles };
+module.exports = { segments, classify, evaluate, writesApprovalFiles };

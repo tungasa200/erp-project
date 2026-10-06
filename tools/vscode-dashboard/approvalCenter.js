@@ -1,4 +1,4 @@
-// WY 승인 센터: 작업창 탭 + 상태 표시줄 '승인 대기 N'. 데이터는 approvals.js의 파일 저장소.
+// WY 승인 센터: 작업창 탭 + 상태 표시줄 '승인 대기 N'. 데이터는 approvalStore.js의 파일 저장소.
 const vscode = require('vscode');
 const fs = require('fs');
 const path = require('path');
@@ -58,23 +58,24 @@ class ApprovalCenter {
     let state;
     try {
       state = store.readState();
-      // 토글이 켜진 종류는 바로 승인하고 다시 읽는다
-      if (store.autoApprove(state).length) state = store.readState();
       state.error = '';
     } catch (err) {
-      state = { ...(this.state || { pending: [], recent: [], config: store.readConfig(), root: store.ROOT }), error: String(err.message || err) };
+      state = { ...(this.state || { pending: [], recent: [], root: store.ROOT }), error: String(err.message || err) };
     }
     this.state = state;
     this.renderStatus();
-    this.post({ type: 'state', state: { ...state, kinds: store.KINDS, autoKinds: store.AUTO_KINDS } });
+    this.post({ type: 'state', state: { ...state, kinds: store.KINDS, routineKinds: store.ROUTINE_KINDS } });
   }
 
   renderStatus() {
     const n = this.state.pending.length;
+    const choices = this.state.pending.filter((r) => r.kind === 'choice').length;
+    const broken = this.state.pending.filter((r) => r.broken).length;
+    const parts = [n - choices - broken && `승인 ${n - choices - broken}건`, choices && `결정 ${choices}건`, broken && `형식 오류 ${broken}건`].filter(Boolean).join(' · ');
     this.status.text = n ? `$(bell-dot) 승인 대기 ${n}` : '$(check) 승인 대기 없음';
-    this.status.tooltip = n ? `WY 승인 센터: 대기 ${n}건 — 눌러서 열기` : 'WY 승인 센터 열기';
+    this.status.tooltip = n ? `WY 승인 센터: ${parts} — 눌러서 열기` : 'WY 승인 센터 열기';
     this.status.backgroundColor = n ? new vscode.ThemeColor('statusBarItem.warningBackground') : undefined;
-    this.status.accessibilityInformation = { label: n ? `승인 대기 ${n}건, 승인 센터 열기` : '승인 대기 없음, 승인 센터 열기' };
+    this.status.accessibilityInformation = { label: n ? `승인 대기 ${parts}, 승인 센터 열기` : '승인 대기 없음, 승인 센터 열기' };
     this.status.show();
   }
 
@@ -105,14 +106,11 @@ class ApprovalCenter {
   onMessage(msg) {
     try {
       if (msg.type === 'ready') this.reload();
-      else if (msg.type === 'toggle') {
-        if (!store.AUTO_KINDS.includes(msg.kind)) throw new Error('자동 승인할 수 없는 종류');
-        const config = store.readConfig();
-        config.autoApprove[msg.kind] = !!msg.value;
-        store.writeConfig(config);
+      else if (msg.type === 'decide') {
+        store.decide(msg.id, msg.decision, { reason: msg.reason });
         this.reload();
-      } else if (msg.type === 'decide') {
-        store.decide(msg.id, msg.decision, { reason: msg.reason, by: 'user' });
+      } else if (msg.type === 'answer') {
+        store.answer(msg.id, msg.answers, { note: msg.note });
         this.reload();
       } else if (msg.type === 'openFolder') {
         vscode.env.openExternal(vscode.Uri.file(store.ROOT));
