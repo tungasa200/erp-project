@@ -98,6 +98,8 @@ export function QuickInput({ value, onChange, onSubmit, label = '빠른 입력' 
   const typing = value.trim() !== ''
 
   const createProject = async (name: string) => {
+    // 만들면 이 칩이 프로젝트 칩으로 바뀌어 사라지므로 입력창으로 포커스를 돌려준다
+    inputRef.current?.focus()
     try {
       const created = await projectApi.create({ name, color: nextColor(projects.data ?? []) })
       queryClient.setQueryData<Project[]>(PROJECTS_QUERY_KEY, (list) => [...(list ?? []), created])

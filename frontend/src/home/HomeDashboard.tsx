@@ -8,6 +8,7 @@ import { occurrenceKey, useOccurrences, type Occurrence } from '../calendar/api'
 import { holidayName } from '../calendar/holidays'
 import { occurrencesByDate } from '../calendar/layout'
 import { formatMinutes, fromZoned, toZoned } from '../calendar/time'
+import { focusSectionHeading } from '../components/focusFallback'
 import { useProjects, type Project } from '../projects/api'
 import { projectColor } from '../projects/palette'
 import { addDays, isoWeekday, shortDate, todayIn, WEEKDAY_NAMES, weekStartNumber } from '../quickInput/dates'
@@ -199,7 +200,14 @@ function RemainingTasks({ tasks, loading, failed, onRetry, today, weekStart, pro
       {failed && (
         <p role="alert" className={styles.error}>
           업무를 불러오지 못했어요
-          <button type="button" className={styles.smallButton} onClick={onRetry}>
+          <button
+            type="button"
+            className={styles.smallButton}
+            onClick={(e) => {
+              focusSectionHeading(e.currentTarget)
+              onRetry()
+            }}
+          >
             다시 시도
           </button>
         </p>
@@ -334,7 +342,14 @@ function Upcoming({ days, byDate, today, timeZone, isLive, loading, failed, onRe
       {failed && (
         <p role="alert" className={styles.error}>
           일정을 불러오지 못했어요
-          <button type="button" className={styles.smallButton} onClick={onRetry}>
+          <button
+            type="button"
+            className={styles.smallButton}
+            onClick={(e) => {
+              focusSectionHeading(e.currentTarget)
+              onRetry()
+            }}
+          >
             다시 시도
           </button>
         </p>

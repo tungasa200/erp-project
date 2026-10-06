@@ -1,6 +1,7 @@
 // SCR-COM-07 미인증 배너. 사용을 막지 않고(UX-04) 인증을 부드럽게 안내한다. 닫으면 이번 로그인 동안 숨긴다.
 import { useRef, useState } from 'react'
 import { useAuth } from '../auth/useAuth'
+import { focusPageHeading } from '../components/focusFallback'
 import { hideBanner, isBannerHidden } from './bannerState'
 import styles from './dialog.module.css'
 import { EmailVerificationDialog } from './EmailVerificationDialog'
@@ -42,6 +43,8 @@ export function UnverifiedBanner() {
           className={styles.bannerClose}
           aria-label="이번 로그인 동안 숨기기"
           onClick={() => {
+            // 배너가 사라지므로 포커스를 화면 제목으로 옮긴다
+            focusPageHeading()
             hideBanner(user.id)
             setHidden(true)
           }}

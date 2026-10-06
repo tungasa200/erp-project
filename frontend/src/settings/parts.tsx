@@ -1,5 +1,6 @@
 // 설정 화면 공통 조각: 항목별 저장 오류, 동시 수정 충돌 띠 (화면정의서 2.5)
 import { CopyCodeButton } from '../components/CopyCodeButton'
+import { focusSectionHeading } from '../components/focusFallback'
 import styles from './settings.module.css'
 import type { SaveResult } from './useProfileSaver'
 
@@ -24,7 +25,15 @@ export function SaveError({ id, failure, onRetry }: { id: string; failure: Failu
   return (
     <div id={id} role="alert" className={styles.error}>
       <span>{failure.reason === 'network' ? '연결이 끊겨 저장하지 못했어요' : '저장하지 못했어요'}</span>
-      <button type="button" className={styles.retry} onClick={onRetry}>
+      <button
+        type="button"
+        className={styles.retry}
+        onClick={() => {
+          // 성공하면 이 안내가 사라지므로 이 안내를 가리키는 입력칸으로 포커스를 옮긴다
+          document.querySelector<HTMLElement>(`[aria-describedby~="${id}"]`)?.focus()
+          onRetry()
+        }}
+      >
         다시 시도
       </button>
       {failure.traceId && <CopyCodeButton code={failure.traceId} />}
@@ -36,7 +45,14 @@ export function ConflictBanner({ onReload }: { onReload: () => void }) {
   return (
     <div role="alert" className={styles.conflict}>
       <span>다른 곳에서 먼저 수정됐어요. 이 변경은 저장되지 않았어요</span>
-      <button type="button" className={styles.reload} onClick={onReload}>
+      <button
+        type="button"
+        className={styles.reload}
+        onClick={(e) => {
+          focusSectionHeading(e.currentTarget)
+          onReload()
+        }}
+      >
         새로 불러오기
       </button>
     </div>

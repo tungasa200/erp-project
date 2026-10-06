@@ -1,8 +1,9 @@
 // 오류 알림 토스트 (화면정의서 2.5: 저장·통신 오류는 토스트, 5xx는 문의 코드와 복사 버튼)와
 // 되돌리기 토스트(SCR-COM-04: 5초 노출, 마우스를 올리거나 포커스가 있으면 유지, Ctrl+Z로 복원, 연속 동작은 하나로 누적).
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from 'react'
 import { isEditable } from '../shortcuts/useShortcuts'
 import { CopyCodeButton } from './CopyCodeButton'
+import { focusPageHeading } from './focusFallback'
 import styles from './Toast.module.css'
 import { ToastContext, type ToastValue, type UndoOptions } from './useToast'
 
@@ -52,14 +53,24 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
   const dismiss = useCallback((id: number) => setItems((list) => list.filter((t) => t.id !== id)), [])
 
+  // 토스트를 띄울 때 포커스가 있던 요소 (토스트 안이나 BODY면 바꾸지 않는다)
+  const originRef = useRef<HTMLElement | null>(null)
+  const regionRef = useRef<HTMLDivElement>(null)
+  const rememberOrigin = useCallback(() => {
+    const active = document.activeElement
+    if (active instanceof HTMLElement && active !== document.body && !regionRef.current?.contains(active))
+      originRef.current = active
+  }, [])
+
   const showToast = useCallback<ToastValue['showToast']>(
     (message, options) => {
+      rememberOrigin()
       const id = nextId.current++
       setItems((list) => [...list, { id, message, traceId: options?.traceId }])
       // 문의 코드가 있으면 복사할 시간을 주기 위해 자동으로 닫지 않는다.
       if (!options?.traceId) setTimeout(() => dismiss(id), DURATION_MS)
     },
-    [dismiss],
+    [dismiss, rememberOrigin],
   )
 
   const setUndo = useCallback((item: UndoItem | null) => {
@@ -92,6 +103,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
   const showUndo = useCallback<ToastValue['showUndo']>(
     ({ group, message, undo, commit }) => {
+      rememberOrigin()
       const current = undoRef.current
       const commits = commit ? [commit] : []
       if (current && current.group === group) {
@@ -110,7 +122,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       remaining.current = DURATION_MS
       if (pauseReasons.current.size === 0) startTimer(DURATION_MS)
     },
-    [setUndo, startTimer],
+    [setUndo, startTimer, rememberOrigin],
   )
 
   const runUndo = useCallback(async () => {
@@ -176,15 +188,31 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo(() => ({ showToast, showUndo }), [showToast, showUndo])
 
+  // 토스트 버튼을 누르면 토스트가 사라지므로, 그 버튼에 포커스가 있었으면 토스트를 띄울 때 포커스가 있던 곳으로
+  // 먼저 옮긴다. 그 요소가 사라졌으면(완료·보관한 행) 화면 제목으로
+  const leave = (e: MouseEvent<HTMLButtonElement>, action: () => void) => {
+    if (e.currentTarget === document.activeElement) {
+      const origin = originRef.current
+      if (origin?.isConnected) origin.focus()
+      else focusPageHeading()
+    }
+    action()
+  }
+
   return (
     <ToastContext value={value}>
       {children}
-      <div className={styles.region} role="status" aria-live="polite">
+      <div ref={regionRef} className={styles.region} role="status" aria-live="polite">
         {items.map((t) => (
           <div key={t.id} className={styles.toast}>
             <span className={styles.message}>{t.message}</span>
             {t.traceId && <CopyCodeButton code={t.traceId} inverted />}
-            <button type="button" className={styles.close} aria-label="닫기" onClick={() => dismiss(t.id)}>
+            <button
+              type="button"
+              className={styles.close}
+              aria-label="닫기"
+              onClick={(e) => leave(e, () => dismiss(t.id))}
+            >
               <CloseIcon />
             </button>
           </div>
@@ -200,10 +228,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             }}
           >
             <span className={styles.message}>{undoItem.message(undoItem.count)}</span>
-            <button type="button" className={styles.undoButton} onClick={() => void runUndo()}>
+            <button type="button" className={styles.undoButton} onClick={(e) => leave(e, () => void runUndo())}>
               되돌리기
             </button>
-            <button type="button" className={styles.close} aria-label="닫기" onClick={closeUndo}>
+            <button type="button" className={styles.close} aria-label="닫기" onClick={(e) => leave(e, closeUndo)}>
               <CloseIcon />
             </button>
             {/* 합쳐질 때마다 key가 바뀌어 남은 시간 막대를 처음부터 다시 그린다 */}

@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { toastForError } from '../api/errorToast'
 import { ApiError } from '../api/problem'
+import { focusSectionHeading } from '../components/focusFallback'
 import { useToast } from '../components/useToast'
 import {
   PROJECTS_QUERY_KEY,
@@ -49,9 +50,13 @@ function ProjectSection() {
   }
 
   const archive = async (project: Project) => {
+    const index = active.findIndex((p) => p.id === project.id)
+    const next = active[index + 1] ?? active[index - 1]
+    focusAfter.current = { gone: project.id, next: next?.id ?? null }
     try {
       replace(await projectApi.update(project.id, { version: project.version, archived: true }))
     } catch (error) {
+      focusAfter.current = null
       failed(error)
       return
     }
@@ -69,10 +74,21 @@ function ProjectSection() {
   const active = projects?.filter((p) => !p.archived) ?? []
   const archivedCount = (projects?.length ?? 0) - active.length
 
+  // 보관하면 행이 목록에서 빠지므로 이웃 프로젝트의 [보관](없으면 제목)으로 포커스를 옮긴다
+  const headingRef = useRef<HTMLHeadingElement>(null)
+  const focusAfter = useRef<{ gone: string; next: string | null } | null>(null)
+  useEffect(() => {
+    const pending = focusAfter.current
+    if (!pending || projects?.some((p) => p.id === pending.gone && !p.archived)) return
+    focusAfter.current = null
+    const next = pending.next && document.querySelector<HTMLElement>(`[data-project-archive="${pending.next}"]`)
+    ;(next || headingRef.current)?.focus()
+  }, [projects])
+
   return (
     <section aria-labelledby="settings-projects" className={styles.panel}>
       <div className={styles.head}>
-        <h2 id="settings-projects" className={styles.title}>
+        <h2 id="settings-projects" ref={headingRef} tabIndex={-1} className={styles.title}>
           프로젝트
         </h2>
         {archivedCount > 0 && <span className={styles.meta}>보관한 프로젝트 {archivedCount}</span>}
@@ -82,7 +98,14 @@ function ProjectSection() {
       {isError && (
         <p role="alert" className={styles.error}>
           프로젝트를 불러오지 못했어요
-          <button type="button" className={styles.smallButton} onClick={() => void refetch()}>
+          <button
+            type="button"
+            className={styles.smallButton}
+            onClick={(e) => {
+              focusSectionHeading(e.currentTarget)
+              void refetch()
+            }}
+          >
             다시 시도
           </button>
         </p>
@@ -101,6 +124,7 @@ function ProjectSection() {
                 type="button"
                 className={styles.smallButton}
                 aria-label={`${p.name} 보관`}
+                data-project-archive={p.id}
                 onClick={() => void archive(p)}
               >
                 보관
@@ -249,7 +273,14 @@ function TagSection() {
       {isError && (
         <p role="alert" className={styles.error}>
           태그를 불러오지 못했어요
-          <button type="button" className={styles.smallButton} onClick={() => void refetch()}>
+          <button
+            type="button"
+            className={styles.smallButton}
+            onClick={(e) => {
+              focusSectionHeading(e.currentTarget)
+              void refetch()
+            }}
+          >
             다시 시도
           </button>
         </p>

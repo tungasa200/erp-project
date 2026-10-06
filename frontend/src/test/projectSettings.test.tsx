@@ -138,6 +138,16 @@ describe('SCR-SET-08 프로젝트', () => {
   })
 })
 
+describe('SCR-SET-08 프로젝트 보관 포커스', () => {
+  it('보관하면 이웃 프로젝트의 [보관]으로 포커스가 간다', async () => {
+    setup()
+    ;(await screen.findByRole('button', { name: '개발 보관' })).focus()
+    await userEvent.keyboard('{Enter}')
+    await waitFor(() => expect(screen.queryByRole('button', { name: '개발 보관' })).not.toBeInTheDocument())
+    expect(screen.getByRole('button', { name: '영업 보관' })).toHaveFocus()
+  })
+})
+
 describe('SCR-SET-08 태그', () => {
   it('이름을 바꾸고, 같은 이름이면 알린다', async () => {
     const { calls } = setup()

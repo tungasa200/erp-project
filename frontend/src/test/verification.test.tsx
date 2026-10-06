@@ -160,6 +160,8 @@ describe('SCR-COM-07 미인증 배너 · SCR-AUTH-08 이메일 인증', () => {
     await userEvent.click(within(banner).getByRole('button', { name: '이번 로그인 동안 숨기기' }))
     expect(screen.queryByRole('region', { name: '이메일 인증 안내' })).not.toBeInTheDocument()
     expect(sessionStorage.getItem('worklog.unverifiedBanner.hiddenFor')).toBe(ME.id)
+    // 배너가 사라지면 포커스를 화면 제목으로 옮긴다(BODY로 빠지지 않게)
+    expect(screen.getByRole('heading', { level: 1 })).toHaveFocus()
   })
 
   it('인증하기 → 코드를 맞히면 모달과 배너가 사라지고 토스트로 알린다', async () => {

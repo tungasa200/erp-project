@@ -5,6 +5,7 @@ import { ApiError } from '../api/problem'
 import type { Me } from '../api/types'
 import { useAuth } from '../auth/useAuth'
 import { ME_QUERY_KEY } from '../auth/session'
+import { focusPageHeading } from '../components/focusFallback'
 import { useToast } from '../components/useToast'
 import { verificationApi, type CodeTimes } from './api'
 import { CodeStep } from './CodeStep'
@@ -19,6 +20,8 @@ export function EmailVerificationDialog({ onClose }: { onClose: () => void }) {
   const finish = (me: Me) => {
     queryClient.setQueryData(ME_QUERY_KEY, me)
     onClose()
+    // 인증하면 배너(포커스를 돌려줄 [인증하기])가 사라지므로 화면 제목으로 옮긴다
+    focusPageHeading()
     showToast('이메일 인증을 마쳤어요')
   }
 
@@ -26,6 +29,7 @@ export function EmailVerificationDialog({ onClose }: { onClose: () => void }) {
   const alreadyVerified = () => {
     void queryClient.refetchQueries({ queryKey: ME_QUERY_KEY })
     onClose()
+    focusPageHeading()
     showToast('이미 인증한 이메일이에요')
   }
 
