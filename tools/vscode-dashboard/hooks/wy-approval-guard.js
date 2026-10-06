@@ -126,18 +126,46 @@ const mentionsProtected = (t) => {
   return PROTECTED.some((re) => re.test(c));
 };
 
+// 대상을 알 수 없는 인자(변수·명령 치환). 보호 경로가 나오는 명령에서 이런 대상에 쓰면 우회일 수 있어 막는다
+const UNKNOWN_TARGET = /[$`%]/;
+// 디렉터리 이동. 보호 경로(또는 알 수 없는 값)로 들어가면 이후 상대 경로 쓰기가 보호 경로에 쓰는 것이 된다
+const CHDIR = new Set(['cd', 'pushd', 'chdir', 'set-location', 'sl', 'push-location']);
+
+function leadingTokens(seg) {
+  let t = tokens(seg);
+  while (t.length && (LEADING_KEYWORDS.has(t[0]) || /^[A-Za-z_][A-Za-z0-9_]*=/.test(t[0]) || /^\$\w+\s*=/.test(t[0]))) t = t.slice(1);
+  return t;
+}
+
+// 보호 파일을 담은 폴더(.claude, 승인 폴더, 설치 폴더). 이 안으로 이동하면 상대 경로로 보호 파일에 닿는다
+const PROTECTED_DIR = /(?:^|\/)\.claude(?:\/|$)|wy-approvals|\.wy-tools/;
+
+// 명령 안에 보호 폴더(또는 알 수 없는 곳)로 들어가는 이동이 있는지
+function movesIntoProtected(command) {
+  return segments(command).some((seg) => {
+    const t = leadingTokens(seg);
+    if (!t.length || !CHDIR.has(path.basename(t[0]).toLowerCase())) return false;
+    const args = t.slice(1).filter((a) => !/^-/.test(a));
+    return args.some((a) => PROTECTED_DIR.test(a.replace(/\\/g, '/').toLowerCase()) || UNKNOWN_TARGET.test(a));
+  });
+}
+
 // 보호 경로에 쓸 수 있는 명령인지 본다. 보호 경로가 나오는 명령에서
-//  - 리다이렉트(버리는 대상 제외), 쓰기 프로그램, 쓰기 API는 어느 조각에 있든 막는다(변수 경로로 우회하는 것까지)
+//  - 리다이렉트·쓰기 프로그램은 대상이 보호 경로이거나 알 수 없는 값(변수 등)일 때 막는다.
+//    다른 파일에 쓰는 것은 통과(커밋 메시지 본문에 보호 파일 이름이 들어 있는 경우 등)
 //  - 인터프리터는 코드가 읽기 API만 쓸 때만 통과시키고, 판단할 수 없으면 막는다
 function writesApprovalFiles(command) {
-  if (!mentionsProtected(command)) return false;
+  // 보호 폴더로 cd 등을 했으면 그 뒤의 모든 쓰기(상대 경로)를 보호 경로 쓰기로 본다
+  const moved = movesIntoProtected(command);
+  if (!moved && !mentionsProtected(command)) return false;
   // 리다이렉트(> >> 2> *>). =>(화살표 함수)·->·>=는 리다이렉트가 아니다
   for (const m of command.matchAll(/(?<![=\-<])(?:\d|\*)?>{1,2}(?!=)\s*("[^"]*"|'[^']*'|[^\s|;&<>)]+)/g)) {
-    if (!NULL_TARGET.test(m[1].replace(/^["']|["']$/g, ''))) return true;
+    const target = m[1].replace(/^["']|["']$/g, '');
+    if (NULL_TARGET.test(target)) continue;
+    if (moved || mentionsProtected(target) || UNKNOWN_TARGET.test(target)) return true;
   }
   for (const seg of segments(command)) {
-    let t = tokens(seg);
-    while (t.length && (LEADING_KEYWORDS.has(t[0]) || /^[A-Za-z_][A-Za-z0-9_]*=/.test(t[0]) || /^\$\w+\s*=/.test(t[0]))) t = t.slice(1);
+    const t = leadingTokens(seg);
     if (!t.length) continue;
     if (/^\[[\w.]+\]::/.test(t[0])) {
       // [IO.File]::ReadAllText 같은 읽기만 통과
@@ -146,9 +174,11 @@ function writesApprovalFiles(command) {
     }
     const prog = path.basename(t[0]).toLowerCase().replace(/\.(exe|cmd|bat|ps1)$/, '');
     const rest = t.slice(1);
-    if (WRITERS.has(prog)) return true;
-    if (prog === 'sed' && rest.some((a) => a.startsWith('-i') || a === '--in-place')) return true;
-    if (prog === 'find' && rest.some((a) => ['-delete', '-exec', '-execdir', '-ok'].includes(a))) return true;
+    // 쓰기 프로그램은 인자에 보호 경로나 알 수 없는 값이 있을 때만 막는다
+    const risky = moved || mentionsProtected(seg) || rest.some((a) => UNKNOWN_TARGET.test(a));
+    if (WRITERS.has(prog) && risky) return true;
+    if (prog === 'sed' && risky && rest.some((a) => a.startsWith('-i') || a === '--in-place')) return true;
+    if (prog === 'find' && risky && rest.some((a) => ['-delete', '-exec', '-execdir', '-ok'].includes(a))) return true;
     if (INTERPRETERS.has(prog)) {
       const code = rest.join(' ');
       if (WRITE_API.test(code) || OBFUSCATION.test(code) || !READ_API.test(code)) return true;
