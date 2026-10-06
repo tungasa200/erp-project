@@ -33,6 +33,12 @@
 ### 6-1. 세션
 - `claude attach`로 깨운 세션이 `--agent` 없이 뜬 사례: 2026-10-07 WY-commit이 이렇게 떠서 가드 훅에 커밋이 막혔다.
 
+### 6-2. 터미널(이 PC, 2026-10-07)
+- 계기: 메모리 절감을 위해 WY-pm을 패널 대신 터미널로 옮겼다. 긴 pm 패널을 닫자 VS Code가 약 3.5GB에서 1.4GB로 줄었다.
+- 터미널 글꼴: Sarasa Mono K(사용자 글꼴 폴더에 설치, 한글·영문 폭 2:1), 대체 글꼴 D2Coding. 크기 14, 줄 간격 1.35, 커서 line, scrollback 10000.
+- `terminal.integrated.gpuAcceleration`은 "on"이다. `/terminal-setup`은 글자 깨짐을 막으려고 "off"로 바꾸는데, 사용자 선택으로 다시 켰다. 깨짐·깜빡임이 생기면 "off"로 되돌린다.
+- 기본 실행 정책에서는 npm의 claude.ps1이 막혀서, 스크립트와 안내 명령은 `claude.cmd`로 부른다.
+
 ### 7. 단계 마무리 (P1 끝 등)
 - PR(feature/P<n> → main)은 merge commit으로 병합(WY-commit, 사용자 승인).
 - 병합 직전 WY-browser로 운영 변수 이름 확인, 병합 직후 WY-qa로 운영 확인(진행현황 "다음 작업"의 병합 직후 항목).

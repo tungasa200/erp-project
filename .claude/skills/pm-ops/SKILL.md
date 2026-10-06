@@ -95,6 +95,17 @@ WY-pm은 코드를 직접 고치지 않고, 역할 세션(`.claude/wy-ops.json`�
 - 백그라운드 세션의 권한 확인 창은 사용자가 승인할 수 없다. 지시에 "권한 확인이 필요한 동작은 하지 말고 [차단]"을 넣고(역할 파일에도 있음), 대시보드의 승인 대기(노랑 삼각형)는 진짜 승인 대기다. 입력 대기(초록 점)는 일을 마치고 쉬는 상태.
 - `claude attach`로 깨운 백그라운드 세션은 `--agent` 없이 다시 뜰 수 있다. 그러면 가드 훅이 그 세션을 WY-commit로 보지 않아 커밋이 막힌다. 사용자가 권한 확인 때문에 attach했으면 그 뒤 WY-commit은 `rotate WY-commit none`으로 교대한다. attach는 `!`로는 안 되고 별도 터미널에서 해야 한다.
 - VS Code Reload Window를 하면 패널 세션 이름이 풀린다. 백그라운드 세션은 영향 없다.
+- 권한 확인 대기는 사용자가 알아채지 못한다. 역할 세션을 띄워 둔 동안에는 `claude agents --json --all`에서 `state`가 `blocked`인 세션을 20초 간격으로 감시(Monitor)하고, 새로 걸리면 바로 알린다.
+
+## 6-2. WY-pm을 터미널에서 쓸 때
+
+WY-pm은 VS Code Claude 패널 대신 터미널의 `claude`로 띄운다. 패널은 웹뷰라 대화 전체를 화면 요소로 들고 있어서 대화가 길수록 메모리가 계속 는다. 긴 pm 대화가 열린 패널 하나가 VS Code 메모리 2GB를 더 쓴 적이 있다. 터미널은 출력을 한 번 그린 뒤 글자 버퍼만 남긴다.
+- 처음 한 번: claude 안에서 `/terminal-setup`(Shift+Enter 줄바꿈, 스크롤 감도), `/tui fullscreen`(보이는 메시지만 그려 대화 길이와 상관없이 화면 메모리가 일정). 여러 줄 입력은 어느 터미널에서나 Ctrl+J.
+- `pm-cmd` 출력은 터미널용 명령이다. 패널에서 이어야 하면 새 대화에 `/ecc:resume-session <경로>`를 넣고 `/rename WY-pm`.
+- `!`로 실행한 명령은 화면을 주고받지 못한다. `claude attach`처럼 대화형 화면이 필요한 명령은 사용자에게 별도 터미널에서 실행하게 한다.
+- VS Code Reload Window: 터미널 세션 유지(`terminal.integrated.enablePersistentSessions`, 기본 켜짐) 덕에 WY-pm 대화는 이어진다. 프로세스가 다시 떠서 `ListAgents`의 ref가 바뀔 수 있다. 꺼졌으면 `claude --resume`으로 WY-pm을 골라 잇는다. `claude --continue`는 같은 폴더의 백그라운드 세션이 더 최근이면 그쪽을 열므로 쓰지 않는다.
+- 리로드나 VS Code 재시작 뒤에는 WY-pm이 걸어 둔 감시(Monitor: 결정 수신, 권한 확인 대기)가 끊긴다. 다시 건다.
+- 터미널 글꼴·색 설정은 사용자 VS Code 설정(settings.json)의 `terminal.integrated.*`다. 새 글꼴을 설치했으면 Reload가 아니라 VS Code를 완전히 다시 열어야 반영된다.
 
 ## 7. 단계 마무리 체크
 
@@ -136,6 +147,12 @@ WY-pm은 코드를 직접 고치지 않고, 역할 세션(`.claude/wy-ops.json`�
 
 ### 6-1. 세션
 - `claude attach`로 깨운 세션이 `--agent` 없이 뜬 사례: 2026-10-07 WY-commit이 이렇게 떠서 가드 훅에 커밋이 막혔다.
+
+### 6-2. 터미널(이 PC, 2026-10-07)
+- 계기: 메모리 절감을 위해 WY-pm을 패널 대신 터미널로 옮겼다. 긴 pm 패널을 닫자 VS Code가 약 3.5GB에서 1.4GB로 줄었다.
+- 터미널 글꼴: Sarasa Mono K(사용자 글꼴 폴더에 설치, 한글·영문 폭 2:1), 대체 글꼴 D2Coding. 크기 14, 줄 간격 1.35, 커서 line, scrollback 10000.
+- `terminal.integrated.gpuAcceleration`은 "on"이다. `/terminal-setup`은 글자 깨짐을 막으려고 "off"로 바꾸는데, 사용자 선택으로 다시 켰다. 깨짐·깜빡임이 생기면 "off"로 되돌린다.
+- 기본 실행 정책에서는 npm의 claude.ps1이 막혀서, 스크립트와 안내 명령은 `claude.cmd`로 부른다.
 
 ### 7. 단계 마무리 (P1 끝 등)
 - PR(feature/P<n> → main)은 merge commit으로 병합(WY-commit, 사용자 승인).
