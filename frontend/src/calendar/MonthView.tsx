@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, type PointerEvent } from 'react'
 import { occurrenceKey, type Occurrence } from './api'
 import { colorVars, type BlockColor } from './colors'
-import { markFocus, occurrenceFocusId, restoreFocus } from './focus'
+import { focusGroup, markFocus, occurrenceFocusId, restoreFocus } from './focus'
 import { holidayName } from './holidays'
 import { occurrencesByDate } from './layout'
 import { RepeatIcon } from './TimeGrid'
@@ -159,6 +159,7 @@ export function MonthView({ days, month, occurrences, timeZone, today, colorOf, 
                     type="button"
                     data-chip={`${date}#${occurrenceKey(o)}`}
                     data-focus-id={occurrenceFocusId(o)}
+                    data-focus-group={focusGroup(o, date)}
                     className={styles.chip}
                     style={colorVars(colorOf(o))}
                     onClick={(e) => e.detail === 0 && props.onOpen(o)}

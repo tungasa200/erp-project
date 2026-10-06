@@ -1,6 +1,6 @@
-import { fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ME, json, problem, renderApp } from '../test/renderApp'
 import { CalendarPage } from './CalendarPage'
 import { handleScheduleMock } from './mockSchedules'
@@ -81,12 +81,18 @@ beforeEach(() => {
   localStorage.setItem('worklog.mock.schedules', JSON.stringify([standup]))
 })
 
+// matchMedia 등 테스트에서 바꾼 전역을 다음 테스트로 넘기지 않는다
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
+
 describe('캘린더', () => {
   it('주 보기: 주 시작 요일·공휴일·반복 회차를 그린다', async () => {
     stubServer()
     renderApp('/calendar/week/2026-10-07', routes)
     expect(await screen.findByRole('heading', { name: '2026년 10월 5일 – 11일' })).toBeInTheDocument()
-    expect(screen.getByText('대체공휴일(개천절)')).toBeInTheDocument()
+    // 그리드는 첫 로딩(스켈레톤) 뒤에 그려진다
+    expect(await screen.findByText('대체공휴일(개천절)')).toBeInTheDocument()
     expect(screen.getByText('한글날')).toBeInTheDocument()
     // until 10/9까지 수·목·금 3회
     expect(await screen.findAllByRole('button', { name: /^팀 스탠드업, 10:00–11:00, 반복$/ })).toHaveLength(3)
@@ -162,6 +168,60 @@ describe('캘린더', () => {
 
     const moved = await screen.findByRole('button', { name: /^주간 리뷰, 16:00–17:00/ })
     await waitFor(() => expect(moved).toHaveFocus())
+  })
+
+  it.each([
+    ['이 일정만', /^팀 스탠드업, 11:00–12:00/, 1],
+    ['모든 일정', /^팀 스탠드업, 11:00–12:00/, 3],
+  ])(
+    '반복 회차 시간을 범위 대화상자(%s)를 거쳐 저장하면 포커스는 그날의 같은 일정 블록으로',
+    async (label, moved, count) => {
+      stubServer()
+      const user = userEvent.setup()
+      renderApp('/calendar/week/2026-10-07', routes)
+      // 10-07(수) 회차
+      ;(await screen.findAllByRole('button', { name: /^팀 스탠드업, 10:00–11:00/ }))[0].focus()
+      await user.keyboard('{Enter}')
+      const dialog = await screen.findByRole('dialog', { name: '일정 편집' })
+      fireEvent.change(within(dialog).getByLabelText('시작'), { target: { value: '11:00' } })
+      fireEvent.change(within(dialog).getByLabelText('종료'), { target: { value: '12:00' } })
+      await user.click(within(dialog).getByRole('button', { name: '저장' }))
+      const scope = await screen.findByRole('alertdialog', { name: '반복 일정을 수정할까요?' })
+      await user.click(within(scope).getByLabelText(label))
+      await user.click(within(scope).getByRole('button', { name: '확인' }))
+
+      await waitFor(() => expect(screen.getAllByRole('button', { name: moved })).toHaveLength(count))
+      await waitFor(() =>
+        expect(document.activeElement).toHaveAttribute('data-focus-group', 'schedule-standup@2026-10-07'),
+      )
+      expect(document.activeElement).toHaveAccessibleName(moved)
+    },
+  )
+
+  it('데스크톱에서 연 업무 패널은 창이 태블릿·모바일 폭으로 줄면 접힌다', async () => {
+    let width = 1280
+    const listeners = new Set<() => void>()
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn((query: string) => ({
+        get matches() {
+          const max = /max-width: (\d+)px/.exec(query)
+          const min = /min-width: (\d+)px/.exec(query)
+          return (!max || width <= Number(max[1])) && (!min || width >= Number(min[1]))
+        },
+        addEventListener: (_: string, l: () => void) => listeners.add(l),
+        removeEventListener: (_: string, l: () => void) => listeners.delete(l),
+      })),
+    )
+    stubServer()
+    renderApp('/calendar/week/2026-10-07', routes)
+    expect(await screen.findByRole('complementary', { name: '할 일 상자' })).toBeInTheDocument()
+
+    act(() => {
+      width = 390
+      listeners.forEach((l) => l())
+    })
+    expect(screen.queryByRole('complementary', { name: '할 일 상자' })).not.toBeInTheDocument()
   })
 
   it('업무 패널: 마감순 카드, 날짜 없는 업무는 접고, "일정 잡기"로 업무에 연결된 일정을 만든다', async () => {

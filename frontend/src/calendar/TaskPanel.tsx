@@ -1,6 +1,7 @@
 // 캘린더 업무 패널 (SCR-CAL-09, P1-08): 일정이 없는 업무를 그리드로 끌어 놓으면 1시간 일정이 생기고 업무와 연결된다.
 // 마감 있는 업무는 마감순(초과 강조), 마감 없는 업무는 접어 둔다. 키보드는 카드의 "일정 잡기" 버튼으로 같은 일을 한다.
 import { useState, type ReactNode } from 'react'
+import { Skeleton } from '../components/Skeleton'
 import type { Project } from '../projects/api'
 import type { Task } from '../tasks/api'
 import { TASK_DRAG_TYPE } from './TimeGrid'
@@ -12,7 +13,10 @@ interface Props {
   tasks: Task[]
   projects: Project[]
   today: string
-  loading: boolean
+  /** 첫 로딩(isPending): 스켈레톤 */
+  pending: boolean
+  /** 다음 쪽 불러오는 중 */
+  loadingMore: boolean
   /** 서버에 더 있으면 */
   hasMore: boolean
   onLoadMore: () => void
@@ -31,7 +35,17 @@ function dueLabel(due: string, today: string) {
   return `${Number(due.slice(5, 7))}/${Number(due.slice(8))} ${WEEKDAY_LABELS[weekdayIndex(due)]}`
 }
 
-export function TaskPanel({ tasks, projects, today, loading, hasMore, onLoadMore, onPlace, quickInput }: Props) {
+export function TaskPanel({
+  tasks,
+  projects,
+  today,
+  pending,
+  loadingMore,
+  hasMore,
+  onLoadMore,
+  onPlace,
+  quickInput,
+}: Props) {
   const [showUndated, setShowUndated] = useState(false)
   const dated = tasks.filter((t) => t.dueDate).sort((a, b) => a.dueDate!.localeCompare(b.dueDate!))
   const undated = tasks.filter((t) => !t.dueDate)
@@ -89,8 +103,8 @@ export function TaskPanel({ tasks, projects, today, loading, hasMore, onLoadMore
       </div>
       <p className={styles.muted}>끌어다 놓으면 1시간 일정이 돼요</p>
       {quickInput}
-      {!loading && tasks.length === 0 && <p className={styles.empty}>배치할 업무가 없어요</p>}
-      {loading && tasks.length === 0 && <p className={styles.muted}>불러오는 중…</p>}
+      {!pending && tasks.length === 0 && <p className={styles.empty}>배치할 업무가 없어요</p>}
+      {pending && <Skeleton shape="card" count={3} height={64} />}
       <ul className={panel.list}>{dated.map(card)}</ul>
       {undated.length > 0 &&
         (showUndated ? (
@@ -103,8 +117,8 @@ export function TaskPanel({ tasks, projects, today, loading, hasMore, onLoadMore
           </button>
         ))}
       {hasMore && (
-        <button type="button" className={panel.more} onClick={onLoadMore} disabled={loading}>
-          {loading ? '불러오는 중…' : '더 불러오기'}
+        <button type="button" className={panel.more} onClick={onLoadMore} disabled={loadingMore}>
+          {loadingMore ? '불러오는 중…' : '더 불러오기'}
         </button>
       )}
     </aside>

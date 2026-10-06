@@ -882,6 +882,11 @@ button.monthCell {
   color: var(--color-text-muted);
 }
 
+/* 첫 로딩 스켈레톤(2장): 보기 자리 */
+.viewSkeleton {
+  padding: 0 18px 18px;
+}
+
 .empty {
   margin: 0;
   padding: 40px 0;

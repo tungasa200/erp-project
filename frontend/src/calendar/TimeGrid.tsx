@@ -12,7 +12,7 @@ import {
 } from 'react'
 import { occurrenceKey, type Occurrence } from './api'
 import { colorVars, type BlockColor } from './colors'
-import { occurrenceFocusId } from './focus'
+import { focusGroup, occurrenceFocusId } from './focus'
 import { holidayName } from './holidays'
 import { allDayBars, drawnRange, timedSegments, type TimedSegment } from './layout'
 import type { TimeChange } from './useScheduleActions'
@@ -369,6 +369,7 @@ export function TimeGrid(props: Props) {
                 type="button"
                 data-bar={occurrenceKey(bar.occurrence)}
                 data-focus-id={occurrenceFocusId(bar.occurrence)}
+                data-focus-group={focusGroup(bar.occurrence, bar.occurrence.startDate!)}
                 className={styles.allDayBar}
                 data-dragging={shift !== 0 || undefined}
                 style={{
@@ -524,6 +525,7 @@ function Block({
       type="button"
       data-segment={`${segment.date}#${occurrenceKey(o)}`}
       data-focus-id={occurrenceFocusId(o)}
+      data-focus-group={focusGroup(o, segment.date)}
       className={styles.block}
       data-now={active || undefined}
       data-dragging={dragging || undefined}

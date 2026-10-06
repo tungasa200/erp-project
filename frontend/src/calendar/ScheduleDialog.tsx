@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useId, useState, type FormEvent } from 'react'
 import { toastForError } from '../api/errorToast'
 import { ApiError } from '../api/problem'
+import { Skeleton } from '../components/Skeleton'
 import { useToast } from '../components/useToast'
 import { TASKS_QUERY_KEY } from '../tasks/api'
 import { Modal } from './Modal'
@@ -295,7 +296,7 @@ export function ScheduleDialog({ timeZone, draft, occurrence, askScope, onDelete
         schedule.isError ? (
           <p className={styles.muted}>일정을 불러오지 못했어요. 이미 삭제됐을 수 있어요</p>
         ) : (
-          <p className={styles.muted}>불러오는 중…</p>
+          <Skeleton shape="lines" count={4} />
         )
       ) : (
         <form className={styles.fieldset} onSubmit={(e) => void submit(e)} noValidate>

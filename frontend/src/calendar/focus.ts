@@ -6,10 +6,19 @@ export function occurrenceFocusId(o: Occurrence) {
   return o.recurring ? occurrenceKey(o) : o.scheduleId
 }
 
+/**
+ * 같은 일정 묶음의 같은 날짜. 반복 일정 전체의 시각을 바꾸면 회차 키가 모두 바뀌므로(범위 "모든 일정"), 같은 날짜의
+ * 같은 일정으로 찾는다. 지운 회차는 그날 같은 일정이 남지 않아 제목으로 간다
+ */
+export function focusGroup(o: Occurrence, date: string) {
+  return `${o.scheduleId}@${date}`
+}
+
 /** 포커스 자리 기록. 요소가 사라져도 같은 일정([data-focus-id])·목록([data-focus-list]) 안 같은 자리로 찾아갈 수 있게 남긴다 */
 export interface FocusMark {
   target: HTMLElement | null
   id?: string
+  group?: string
   list: HTMLElement | null
   index: number
 }
@@ -18,22 +27,31 @@ const listItems = (list: HTMLElement) => Array.from(list.querySelectorAll<HTMLEl
 
 export function markFocus(target = document.activeElement as HTMLElement | null): FocusMark {
   const list = target?.matches('[data-focus-item]') ? target.closest<HTMLElement>('[data-focus-list]') : null
-  return { target, id: target?.dataset.focusId, list, index: list ? listItems(list).indexOf(target!) : -1 }
+  const data = target?.dataset
+  return {
+    target,
+    id: data?.focusId,
+    group: data?.focusGroup,
+    list,
+    index: list ? listItems(list).indexOf(target!) : -1,
+  }
 }
 
 /**
- * 기록한 자리로 포커스를 돌린다(P1-07-18). 그 요소가 사라졌으면 다시 그려진 같은 일정 → 같은 목록의 같은 자리 이웃
- * → 캘린더 제목([data-focus-fallback]) 순으로 찾는다. 일 보기의 제목은 그날 날짜다
+ * 기록한 자리로 포커스를 돌린다(P1-07-18). 그 요소가 사라졌으면 다시 그려진 같은 일정 → 같은 날짜의 같은 일정 묶음
+ * → 같은 목록의 같은 자리 이웃 → 캘린더 제목([data-focus-fallback]) 순으로 찾는다. 일 보기의 제목은 그날 날짜다
  */
 export function restoreFocus(mark: FocusMark | null) {
-  const { target, id, list, index } = mark ?? { target: null, list: null, index: -1 }
-  const same = id
-    ? Array.from(document.querySelectorAll<HTMLElement>('[data-focus-id]')).find((e) => e.dataset.focusId === id)
-    : undefined
+  const { target, id, group, list, index } = mark ?? { target: null, list: null, index: -1 }
+  const find = (attr: 'focusId' | 'focusGroup', value: string | undefined) =>
+    value
+      ? Array.from(document.querySelectorAll<HTMLElement>('[data-focus-id]')).find((e) => e.dataset[attr] === value)
+      : undefined
   const neighbors = list?.isConnected ? listItems(list) : []
   const candidates = [
     target?.isConnected && target !== document.body ? target : undefined,
-    same,
+    find('focusId', id),
+    find('focusGroup', group),
     neighbors[Math.min(index, neighbors.length - 1)],
     document.querySelector<HTMLElement>('[data-focus-fallback]') ?? undefined,
   ]

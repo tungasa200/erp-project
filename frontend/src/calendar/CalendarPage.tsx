@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from 'react'
 import { Navigate, useLocation, useNavigate, useParams } from 'react-router'
 import { useAuth } from '../auth/useAuth'
+import { Skeleton } from '../components/Skeleton'
 import { useSingleKeyShortcuts } from '../shortcuts/useShortcuts'
 import { useProjects } from '../projects/api'
 import { useOccurrences, type Occurrence } from './api'
@@ -157,6 +158,13 @@ function Calendar({ view, date, today, timeZone, weekStart }: CalendarProps) {
   useFocusRescue(pageRef)
   // 업무 패널(SCR-CAL-09): 데스크톱은 기본 열림, 태블릿·모바일은 접힘(2.4). P로 열고 닫는다
   const [panelOpen, setPanelOpen] = useState(() => window.matchMedia?.(DESKTOP_QUERY).matches ?? true)
+  // 데스크톱 폭을 넘나들면 그 폭의 기본으로 맞춘다(데스크톱 열림, 태블릿·모바일 접힘). 새로고침 없이 줄여도 패널이 캘린더를 덮지 않게
+  const desktop = useMediaQuery(DESKTOP_QUERY)
+  const [prevDesktop, setPrevDesktop] = useState(desktop)
+  if (desktop !== prevDesktop) {
+    setPrevDesktop(desktop)
+    setPanelOpen(desktop)
+  }
   // 모바일 주 보기는 훑어보기 전용(D-77)
   const mobile = useMediaQuery(MOBILE_QUERY)
 
@@ -383,7 +391,16 @@ function Calendar({ view, date, today, timeZone, weekStart }: CalendarProps) {
           </nav>
         </div>
 
-        {(view === 'day' || view === 'week') && (
+        {query.isPending && (
+          <div className={styles.viewSkeleton}>
+            {view === 'list' ? (
+              <Skeleton shape="lines" count={6} />
+            ) : (
+              <Skeleton shape="block" count={1} height={view === 'day' || view === 'week' ? 480 : 600} />
+            )}
+          </div>
+        )}
+        {!query.isPending && (view === 'day' || view === 'week') && (
           <TimeGrid
             days={days}
             occurrences={occurrences}
@@ -401,7 +418,7 @@ function Calendar({ view, date, today, timeZone, weekStart }: CalendarProps) {
             overview={view === 'week' && mobile}
           />
         )}
-        {view === 'month' && (
+        {!query.isPending && view === 'month' && (
           <MonthView
             days={days}
             month={date.slice(0, 7)}
@@ -416,7 +433,7 @@ function Calendar({ view, date, today, timeZone, weekStart }: CalendarProps) {
             overview={mobile}
           />
         )}
-        {view === 'year' && (
+        {!query.isPending && view === 'year' && (
           <YearView
             year={Number(date.slice(0, 4))}
             occurrences={occurrences}
@@ -427,7 +444,7 @@ function Calendar({ view, date, today, timeZone, weekStart }: CalendarProps) {
             onOpenMonth={(d) => go('month', d)}
           />
         )}
-        {view === 'list' && (
+        {!query.isPending && view === 'list' && (
           <ListView
             days={days}
             occurrences={occurrences}
@@ -456,7 +473,8 @@ function Calendar({ view, date, today, timeZone, weekStart }: CalendarProps) {
           tasks={panel.tasks.items}
           projects={projects.data ?? []}
           today={today}
-          loading={panel.tasks.isFetching}
+          pending={panel.tasks.isPending}
+          loadingMore={panel.tasks.isFetchingNextPage}
           hasMore={!!panel.tasks.hasNextPage}
           onLoadMore={() => void panel.tasks.fetchNextPage()}
           onPlace={(task) => openCreate(task)}
