@@ -8,13 +8,26 @@
   const STATES = {
     working: { label: '작업 중', icon: 'i-working' },
     idle: { label: '대기', icon: 'i-idle' },
-    blocked: { label: '입력 대기', icon: 'i-blocked' },
+    waiting: { label: '입력 대기', icon: 'i-waiting' },
+    approval: { label: '승인 대기', icon: 'i-approval' },
     stopped: { label: '멈춤', icon: 'i-stopped' },
     failed: { label: '오류', icon: 'i-failed' },
     none: { label: '없음', icon: 'i-none' },
   };
-  const ORDER_RUNNING = { blocked: 0, working: 1, idle: 2, failed: 3, stopped: 4, none: 5 };
+  // 진행 중 > 대기 > 멈춤 > 오류 > 없음. 같은 그룹 안은 역할 표 순서
+  const GROUP = { working: 0, idle: 1, waiting: 1, approval: 1, stopped: 2, failed: 3, none: 4 };
+  // waitingFor 중 사람이 승인·선택해야 하는 것. 'input needed'는 다음 지시를 기다리는 상태
+  const NEEDS_APPROVAL = ['permission prompt', 'sandbox request', 'worker request', 'dialog open'];
+  const WAITING_FOR = {
+    'permission prompt': '권한 승인 요청',
+    'sandbox request': '샌드박스 허용 요청',
+    'worker request': '작업자 요청',
+    'dialog open': '선택 대화상자 열림',
+    'input needed': '다음 지시를 기다림',
+  };
 
+  const saved = vscode.getState() || {};
+  const folded = new Set(saved.folded || []);
   let roles = [];
   let lastSessions = null;
   let wasLow = false;
@@ -36,16 +49,32 @@
     return Math.floor(h / 24) + '일 ' + (h % 24) + '시간';
   }
 
-  // 백그라운드는 state(working·stopped·done·failed…), VS Code 세션은 status(busy·idle·waiting…)
+  // 백그라운드는 state(working·blocked·done·failed·stopped)+waitingFor, VS Code 세션은 status(busy·waiting·idle)
   function stateOf(s) {
     const v = String(s.state || s.status || '').toLowerCase();
     const st = String(s.status || '').toLowerCase();
+    const wf = String(s.waitingFor || '').toLowerCase();
     if (['stopped', 'done', 'exited', 'killed'].includes(v)) return 'stopped';
     if (['failed', 'error', 'crashed'].includes(v)) return 'failed';
-    if (/block|wait|input|permission|approval/.test(v) || /block|wait|input|permission|approval/.test(st)) return 'blocked';
-    if (['idle'].includes(st) || v === 'idle') return 'idle';
+    if (NEEDS_APPROVAL.includes(wf)) return 'approval';
+    if (v === 'blocked') return 'waiting';
+    if (st === 'waiting') return wf === 'input needed' ? 'waiting' : 'approval';
     if (['busy', 'working', 'running', 'starting'].includes(v) || st === 'busy') return 'working';
     return 'idle';
+  }
+
+  function sortRows(rows) {
+    const rank = (n) => {
+      const i = roles.indexOf(n);
+      return i < 0 ? roles.length : i;
+    };
+    return rows.sort(
+      (a, b) =>
+        GROUP[a.st] - GROUP[b.st] ||
+        rank(a.name) - rank(b.name) ||
+        a.name.localeCompare(b.name) ||
+        ((b.s && b.s.startedAt) || 0) - ((a.s && a.s.startedAt) || 0),
+    );
   }
 
   function el(tag, cls, text) {
@@ -76,6 +105,14 @@
     return p;
   }
 
+  // 블록 본문 대신 오류 한 줄을 보여 준다. 다음에 성공하면 본문이 돌아온다
+  function showError(boxId, errId, text) {
+    $(boxId).hidden = !!text;
+    const err = $(errId);
+    err.hidden = !text;
+    if (text) err.replaceChildren(...errLine(text).childNodes);
+  }
+
   function stamp() {
     const s = $('stamp');
     if (failed.size) {
@@ -89,14 +126,9 @@
 
   function renderMemory(msg) {
     const box = $('mem');
-    const err = $('mem-err');
     box.classList.remove('is-loading');
-    box.hidden = !!msg.error;
-    err.hidden = !msg.error;
-    if (msg.error) {
-      err.replaceWith(Object.assign(errLine('메모리를 읽지 못했습니다: ' + msg.error), { id: 'mem-err' }));
-      return;
-    }
+    showError('mem', 'mem-err', msg.error && '메모리를 읽지 못했습니다: ' + msg.error);
+    if (msg.error) return;
     const { total, free } = msg.data;
     const used = total - free;
     const pct = Math.round((used / total) * 100);
@@ -149,7 +181,7 @@
 
   function sessionRow(name, s, state) {
     const tr = el('tr');
-    if (state === 'blocked') tr.className = 'is-blocked';
+    if (state === 'approval') tr.className = 'is-approval';
     if (state === 'none') tr.className = 'is-absent';
     const who = el('td');
     const nm = el('span', 's-name', name);
@@ -164,6 +196,8 @@
     const st = el('td');
     const chip = el('span', 'state st-' + state);
     chip.append(icon(STATES[state].icon), el('span', null, STATES[state].label));
+    const wf = s && s.waitingFor;
+    if (wf) chip.title = WAITING_FOR[String(wf).toLowerCase()] || wf;
     st.append(chip);
     const age = el('td', 'num elapsed', s && state !== 'stopped' ? fmtElapsed(s.startedAt) : '—');
     if (s && s.startedAt) age.title = new Date(s.startedAt).toLocaleString('ko-KR') + ' 시작';
@@ -185,15 +219,9 @@
       $('sess-sum').textContent = '';
       return;
     }
-    const sessions = msg.data.map((s) => ({ ...s, st: stateOf(s) }));
-    const rank = (n) => {
-      const i = roles.indexOf(n);
-      return i < 0 ? roles.length : i;
-    };
-    sessions.sort((a, b) => rank(a.name) - rank(b.name) || a.name.localeCompare(b.name) || ORDER_RUNNING[a.st] - ORDER_RUNNING[b.st] || (b.startedAt || 0) - (a.startedAt || 0));
-    const seen = new Set(sessions.map((s) => s.name));
-    const rows = [...sessions.map((s) => ({ name: s.name, s, st: s.st })), ...roles.filter((r) => !seen.has(r)).map((r) => ({ name: r, s: null, st: 'none' }))];
-    rows.sort((a, b) => rank(a.name) - rank(b.name));
+    const sessions = msg.data.map((s) => ({ name: s.name, s, st: stateOf(s) }));
+    const seen = new Set(sessions.map((r) => r.name));
+    const rows = sortRows([...sessions, ...roles.filter((r) => !seen.has(r)).map((r) => ({ name: r, s: null, st: 'none' }))]);
     for (const r of rows) body.append(sessionRow(r.name, r.s, r.st));
     if (!rows.length) {
       const td = el('td', 'empty', '실행 중인 Claude 세션이 없습니다');
@@ -203,12 +231,31 @@
       body.append(tr);
     }
 
-    const live = sessions.filter((s) => s.st === 'working' || s.st === 'idle' || s.st === 'blocked').length;
-    const blocked = sessions.filter((s) => s.st === 'blocked').length;
-    $('sess-sum').textContent = `실행 ${live}` + (blocked ? ` · 입력 대기 ${blocked}` : '') + (roles.length ? ` / 역할 ${roles.length}` : '');
+    const live = sessions.filter((r) => GROUP[r.st] <= 1).length;
+    const approval = sessions.filter((r) => r.st === 'approval').length;
+    $('sess-sum').textContent = `실행 ${live}` + (approval ? ` · 승인 대기 ${approval}` : '') + (roles.length ? ` / 역할 ${roles.length}` : '');
   }
 
   const RENDER = { memory: renderMemory, processes: renderProcesses, sessions: renderSessions };
+
+  // 접기: 상태는 webview state에 남기고, 접힌 블록은 확장이 읽지 않는다
+  function applyFold(source, btnId, bodyId) {
+    const btnEl = $(btnId);
+    const isFolded = folded.has(source);
+    btnEl.setAttribute('aria-expanded', String(!isFolded));
+    $(bodyId).hidden = isFolded;
+    btnEl.closest('.block').classList.toggle('is-folded', isFolded);
+  }
+
+  $('proc-fold').addEventListener('click', () => {
+    const isFolded = !folded.has('processes');
+    if (isFolded) folded.add('processes');
+    else folded.delete('processes');
+    vscode.setState({ ...saved, folded: [...folded] });
+    applyFold('processes', 'proc-fold', 'proc-body');
+    vscode.postMessage({ type: 'fold', source: 'processes', folded: isFolded });
+  });
+  applyFold('processes', 'proc-fold', 'proc-body');
 
   window.addEventListener('message', ({ data: msg }) => {
     if (msg.type === 'refreshed') {
@@ -243,5 +290,5 @@
     vscode.postMessage({ type: 'refresh' });
   });
 
-  vscode.postMessage({ type: 'ready' });
+  vscode.postMessage({ type: 'ready', folded: [...folded] });
 })();

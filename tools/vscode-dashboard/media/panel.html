@@ -11,10 +11,12 @@
   <svg class="sprite" aria-hidden="true">
     <symbol id="i-working" viewBox="0 0 16 16"><path d="M8 2.5a5.5 5.5 0 1 1-5.5 5.5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></symbol>
     <symbol id="i-idle" viewBox="0 0 16 16"><circle cx="8" cy="8" r="4.75" fill="none" stroke="currentColor" stroke-width="1.75"/></symbol>
-    <symbol id="i-blocked" viewBox="0 0 16 16"><path d="M8 1.75 14.75 13.75H1.25Z" fill="currentColor"/><path d="M8 6v3.5" stroke="var(--on-warn)" stroke-width="1.6" stroke-linecap="round"/><circle cx="8" cy="11.6" r=".9" fill="var(--on-warn)"/></symbol>
+    <symbol id="i-waiting" viewBox="0 0 16 16"><circle cx="8" cy="8" r="4.75" fill="none" stroke="currentColor" stroke-width="1.75"/><circle cx="8" cy="8" r="1.6" fill="currentColor"/></symbol>
     <symbol id="i-stopped" viewBox="0 0 16 16"><rect x="3.75" y="3.75" width="8.5" height="8.5" rx="1.5" fill="currentColor"/></symbol>
     <symbol id="i-failed" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.25" fill="currentColor"/><path d="m5.75 5.75 4.5 4.5m0-4.5-4.5 4.5" stroke="var(--on-err)" stroke-width="1.6" stroke-linecap="round"/></symbol>
     <symbol id="i-none" viewBox="0 0 16 16"><circle cx="8" cy="8" r="4.75" fill="none" stroke="currentColor" stroke-width="1.5" stroke-dasharray="2.2 2.2"/></symbol>
+    <symbol id="i-approval" viewBox="0 0 16 16"><path d="M8 1.75 14.75 13.75H1.25Z" fill="currentColor"/><path d="M8 6v3.5" stroke="var(--on-warn)" stroke-width="1.6" stroke-linecap="round"/><circle cx="8" cy="11.6" r=".9" fill="var(--on-warn)"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 16 16"><path d="m6 4 4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="i-refresh" viewBox="0 0 16 16"><path d="M13 8a5 5 0 1 1-1.46-3.54M13 2.5v2.75h-2.75" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="i-warn" viewBox="0 0 16 16"><path d="M8 1.75 14.75 13.75H1.25Z" fill="currentColor"/><path d="M8 6v3.5" stroke="var(--on-warn)" stroke-width="1.6" stroke-linecap="round"/><circle cx="8" cy="11.6" r=".9" fill="var(--on-warn)"/></symbol>
     <symbol id="i-error" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.25" fill="currentColor"/><path d="M8 4.75v3.75" stroke="var(--on-err)" stroke-width="1.6" stroke-linecap="round"/><circle cx="8" cy="11" r=".9" fill="var(--on-err)"/></symbol>
@@ -46,12 +48,18 @@
 
   <section class="block" aria-labelledby="h-proc">
     <div class="head">
-      <h2 id="h-proc">프로세스</h2>
+      <h2 id="h-proc">
+        <button type="button" class="fold" id="proc-fold" aria-expanded="true" aria-controls="proc-body">
+          <svg class="ico chev" aria-hidden="true"><use href="#i-chev"/></svg>프로세스
+        </button>
+      </h2>
       <span class="aside">상위 5개 그룹</span>
     </div>
-    <ol class="procs is-loading" id="procs">
-      <li class="skel"></li><li class="skel"></li><li class="skel"></li>
-    </ol>
+    <div id="proc-body">
+      <ol class="procs is-loading" id="procs">
+        <li class="skel"></li><li class="skel"></li><li class="skel"></li>
+      </ol>
+    </div>
   </section>
 
   <section class="block" aria-labelledby="h-sess">

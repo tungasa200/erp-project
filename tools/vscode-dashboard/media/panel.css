@@ -226,14 +226,15 @@ h2 {
 .st-working { color: var(--accent); }
 .st-working .ico { animation: spin 1.4s linear infinite; }
 .st-idle { color: var(--ok); }
-.st-blocked { color: var(--warn); font-weight: 600; }
+.st-waiting { color: var(--ok); }
+.st-approval { color: var(--warn); font-weight: 600; }
 .st-stopped { color: var(--dim); }
 .st-failed { color: var(--err); }
 .st-none { color: var(--dim); }
 
-tr.is-blocked td { background: color-mix(in srgb, var(--warn) 9%, transparent); }
-tr.is-blocked td:first-child { padding-left: 6px; border-radius: var(--r) 0 0 var(--r); }
-tr.is-blocked td:last-child { padding-right: 6px; border-radius: 0 var(--r) var(--r) 0; }
+tr.is-approval td { background: color-mix(in srgb, var(--warn) 9%, transparent); }
+tr.is-approval td:first-child { padding-left: 6px; border-radius: var(--r) 0 0 var(--r); }
+tr.is-approval td:last-child { padding-right: 6px; border-radius: 0 var(--r) var(--r) 0; }
 tr.is-absent .s-name { color: var(--dim); font-weight: 400; }
 
 .elapsed { font-size: 12px; color: var(--dim); white-space: nowrap; }
@@ -252,7 +253,7 @@ tr.is-absent .s-name { color: var(--dim); font-weight: 400; }
 
 body.vscode-high-contrast .meter,
 body.vscode-high-contrast .proc-bar { outline: 1px solid var(--vscode-contrastBorder, #6fc3df); }
-body.vscode-high-contrast tr.is-blocked td { outline: 1px dashed var(--warn); outline-offset: -1px; }
+body.vscode-high-contrast tr.is-approval td { outline: 1px dashed var(--warn); outline-offset: -1px; }
 
 @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -263,3 +264,24 @@ body.vscode-high-contrast tr.is-blocked td { outline: 1px dashed var(--warn); ou
 ::-webkit-scrollbar { width: 10px; }
 ::-webkit-scrollbar-thumb { background: var(--vscode-scrollbarSlider-background, rgba(121,121,121,.4)); }
 ::-webkit-scrollbar-thumb:hover { background: var(--vscode-scrollbarSlider-hoverBackground, rgba(100,100,100,.7)); }
+
+/* 접기 버튼: 블록 제목 자체가 버튼 */
+.fold {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: -2px 0 -2px -4px;
+  padding: 2px 6px 2px 2px;
+  border: 0;
+  border-radius: var(--r);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+}
+.fold:hover { background: var(--vscode-toolbar-hoverBackground, var(--raise)); }
+.chev { width: 12px; height: 12px; transform: rotate(90deg); transition: transform 150ms ease-out; }
+.fold[aria-expanded="false"] .chev { transform: rotate(0deg); }
+.block.is-folded { padding-bottom: 6px; }
+.block.is-folded .head { margin-bottom: 0; }

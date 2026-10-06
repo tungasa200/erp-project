@@ -63,6 +63,7 @@ async function readSessions() {
     kind: s.kind,
     status: s.status,
     state: s.state,
+    waitingFor: s.waitingFor,
     id: s.id || (s.sessionId || '').slice(0, 8),
     startedAt: s.startedAt,
   }));
@@ -90,6 +91,7 @@ class Provider {
     this.timers = [];
     this.inflight = {};
     this.cache = {};
+    this.folded = new Set(); // 접어 둔 블록은 읽지 않는다
   }
 
   resolveWebviewView(view) {
@@ -100,11 +102,18 @@ class Provider {
     view.webview.onDidReceiveMessage((msg) => {
       // 숨겼다 다시 보이면 webview가 새로 뜨므로 ready마다 마지막 값을 다시 보낸다
       if (msg.type === 'ready') {
+        this.folded = new Set(msg.folded || []);
         this.post({ type: 'roles', data: readRoles() });
         Object.values(this.cache).forEach((m) => this.post(m));
         if (view.visible) this.start();
       } else if (msg.type === 'refresh') {
         this.refreshAll().then(() => this.post({ type: 'refreshed' }));
+      } else if (msg.type === 'fold') {
+        if (msg.folded) this.folded.add(msg.source);
+        else {
+          this.folded.delete(msg.source);
+          this.update(msg.source);
+        }
       }
     });
     view.onDidChangeVisibility(() => (view.visible ? this.start() : this.stop()));
@@ -154,14 +163,14 @@ class Provider {
   }
 
   refreshAll() {
-    return Promise.all(Object.keys(READERS).map((s) => this.update(s)));
+    return Promise.all(Object.keys(READERS).filter((s) => !this.folded.has(s)).map((s) => this.update(s)));
   }
 
   // 패널이 보일 때만 폴링한다
   start() {
     this.stop();
     this.refreshAll();
-    this.timers = Object.keys(READERS).map((s) => setInterval(() => this.update(s), INTERVAL[s]));
+    this.timers = Object.keys(READERS).map((s) => setInterval(() => this.folded.has(s) || this.update(s), INTERVAL[s]));
   }
 
   stop() {
