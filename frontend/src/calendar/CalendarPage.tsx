@@ -80,15 +80,15 @@ function calendarPath(view: CalendarView, date: string) {
   return `/calendar/${view}/${date}`
 }
 
-/** 화면 폭 조건. 창 크기가 바뀌면 다시 그린다 */
-function useMediaQuery(query: string) {
+/** 화면 폭 조건. 창 크기가 바뀌면 다시 그린다. matchMedia가 없으면(jsdom 등) fallback */
+function useMediaQuery(query: string, fallback = false) {
   return useSyncExternalStore(
     (onChange) => {
       const list = window.matchMedia?.(query)
       list?.addEventListener('change', onChange)
       return () => list?.removeEventListener('change', onChange)
     },
-    () => window.matchMedia?.(query).matches ?? false,
+    () => window.matchMedia?.(query).matches ?? fallback,
   )
 }
 
@@ -167,12 +167,24 @@ function Calendar({ view, date, today, timeZone, weekStart }: CalendarProps) {
   // 업무 패널(SCR-CAL-09): 1280px 이상은 기본 열림, 그보다 좁으면 접힘(P로 열면 떠서 보임). P로 열고 닫는다
   const [panelOpen, setPanelOpen] = useState(() => window.matchMedia?.(PANEL_OPEN_QUERY).matches ?? true)
   // 그 폭을 넘나들면 폭의 기본으로 맞춘다. 새로고침 없이 줄여도 패널이 캘린더를 덮지 않게
-  const wide = useMediaQuery(PANEL_OPEN_QUERY)
+  const wide = useMediaQuery(PANEL_OPEN_QUERY, true)
   const [prevWide, setPrevWide] = useState(wide)
   if (wide !== prevWide) {
     setPrevWide(wide)
     setPanelOpen(wide)
   }
+  // 떠 있는 패널(1279px 이하)은 Esc로 닫고 연 곳(P 단축키 → 캘린더 제목)으로 포커스를 돌린다.
+  // 모달·팝오버가 열려 있으면 그쪽 Esc가 먼저다. 그리드 옆에 붙은 패널(1280px 이상)은 P로만 닫는다
+  useEffect(() => {
+    if (!panelOpen || wide) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || document.querySelector('[role="dialog"], [role="alertdialog"]')) return
+      setPanelOpen(false)
+      document.querySelector<HTMLElement>('[data-focus-fallback]')?.focus()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [panelOpen, wide])
   // 모바일 주 보기는 훑어보기 전용(D-77)
   const mobile = useMediaQuery(MOBILE_QUERY)
   // 오프라인이면 끌기·만들기를 막는다(SCR-SYS-02, P1-X-04). 버튼·입력은 앱의 fieldset이 끈다

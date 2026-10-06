@@ -65,7 +65,8 @@ describe('일정 상세 연결 업무 (P1-05-06)', () => {
     const linked = await screen.findByRole('link', { name: '9월 매출 보고서' })
     expect(linked).toHaveAttribute('href', '/tasks/task-report')
     await user.click(screen.getByRole('button', { name: '해제' }))
-    expect(await screen.findByRole('combobox', { name: '연결 업무' })).toBeInTheDocument()
+    // 사라진 [해제] 대신 검색 칸으로 포커스
+    expect(await screen.findByRole('combobox', { name: '연결 업무' })).toHaveFocus()
   })
 
   it('맞는 업무가 없으면 안내하고, [새 업무]는 입력한 제목으로 업무를 만들어 연결한다', async () => {

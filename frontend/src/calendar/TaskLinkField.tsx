@@ -21,13 +21,22 @@ interface Props {
 
 export function TaskLinkField({ taskId, onChange, recurring }: Props) {
   const id = useId()
+  // [해제]를 누르면 그 버튼이 사라지므로 이어서 나타나는 검색 칸으로 포커스를 옮긴다
+  const [unlinked, setUnlinked] = useState(false)
   return (
     <div className={styles.field}>
       <span id={`${id}-label`}>연결 업무</span>
       {taskId ? (
-        <Linked taskId={taskId} labelId={`${id}-label`} onUnlink={() => onChange(null)} />
+        <Linked
+          taskId={taskId}
+          labelId={`${id}-label`}
+          onUnlink={() => {
+            setUnlinked(true)
+            onChange(null)
+          }}
+        />
       ) : (
-        <Search labelId={`${id}-label`} onPick={onChange} />
+        <Search labelId={`${id}-label`} onPick={onChange} autoFocus={unlinked} />
       )}
       {recurring && <span className={styles.muted}>반복 일정은 모든 회차에 연결돼요</span>}
     </div>
@@ -52,7 +61,15 @@ function Linked({ taskId, labelId, onUnlink }: { taskId: string; labelId: string
   )
 }
 
-function Search({ labelId, onPick }: { labelId: string; onPick: (taskId: string) => void }) {
+function Search({
+  labelId,
+  onPick,
+  autoFocus,
+}: {
+  labelId: string
+  onPick: (taskId: string) => void
+  autoFocus: boolean
+}) {
   const id = useId()
   const queryClient = useQueryClient()
   const { showToast } = useToast()
@@ -126,6 +143,7 @@ function Search({ labelId, onPick }: { labelId: string; onPick: (taskId: string)
           aria-activedescendant={expanded ? `${id}-option-${active}` : undefined}
           placeholder="업무 이름으로 찾기"
           autoComplete="off"
+          autoFocus={autoFocus}
           value={text}
           onChange={(e) => {
             setText(e.target.value)

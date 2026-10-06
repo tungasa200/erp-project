@@ -6,6 +6,7 @@ import { toastForError } from '../api/errorToast'
 import { ApiError } from '../api/problem'
 import { useToast } from '../components/useToast'
 import { OCCURRENCES_QUERY_KEY, occurrenceKey, scheduleApi, type Occurrence, type Schedule } from './api'
+import { restoreFocus } from './focus'
 import { WEEKDAYS, addDays, diffDays, fromZoned, toZoned, type Weekday } from './time'
 
 export type Scope = 'this' | 'all'
@@ -157,6 +158,11 @@ export function useScheduleActions(askScope: AskScope) {
       if (!scope) return
       const hideKey = scope === 'all' ? o.scheduleId : occurrenceKey(o)
       setHidden((prev) => new Set(prev).add(hideKey))
+      // 지운 블록에 있던 포커스가 body로 빠지면 캘린더 제목으로(P1-07-18, P1-06-04). 대화상자 두 겹(상세 → 범위)을
+      // 거치면 브라우저에 따라 useFocusRescue가 못 받는 경우가 있어, 블록이 사라진 다음 프레임에 한 번 더 확인한다
+      requestAnimationFrame(() => {
+        if (!document.activeElement || document.activeElement === document.body) restoreFocus(null)
+      })
       const show = () =>
         setHidden((prev) => {
           const next = new Set(prev)

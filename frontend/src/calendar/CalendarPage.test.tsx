@@ -409,6 +409,61 @@ describe('캘린더', () => {
     expect(within(dialog).getByRole('combobox', { name: '연결 업무' })).toBeInTheDocument()
   })
 
+  it('1279px 이하에서 떠 있는 업무 패널은 Esc로 닫히고 포커스는 캘린더 제목으로, 1280px 이상은 그대로', async () => {
+    let width = 1024
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn((query: string) => ({
+        get matches() {
+          const max = /max-width: (\d+)px/.exec(query)
+          const min = /min-width: (\d+)px/.exec(query)
+          return (!max || width <= Number(max[1])) && (!min || width >= Number(min[1]))
+        },
+        addEventListener: () => {},
+        removeEventListener: () => {},
+      })),
+    )
+    stubServer()
+    const user = userEvent.setup()
+    renderApp('/calendar/week/2026-10-07', routes)
+    await screen.findByRole('heading', { name: '2026년 10월 5일 – 11일' })
+    expect(screen.queryByRole('complementary', { name: '할 일 상자' })).not.toBeInTheDocument()
+    await user.keyboard('p')
+    expect(screen.getByRole('complementary', { name: '할 일 상자' })).toBeInTheDocument()
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('complementary', { name: '할 일 상자' })).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1 })).toHaveFocus()
+  })
+
+  it('1280px 이상에서 그리드 옆 업무 패널은 Esc로 닫히지 않는다', async () => {
+    stubServer()
+    const user = userEvent.setup()
+    renderApp('/calendar/week/2026-10-07', routes)
+    await screen.findByRole('complementary', { name: '할 일 상자' })
+    await user.keyboard('{Escape}')
+    expect(screen.getByRole('complementary', { name: '할 일 상자' })).toBeInTheDocument()
+  })
+
+  it.each(['이 일정만', '모든 일정'])(
+    '반복 일정을 키보드로 범위 대화상자(%s)를 거쳐 삭제하면 포커스는 캘린더 제목으로 (P1-06-04)',
+    async (label) => {
+      stubServer()
+      const user = userEvent.setup()
+      renderApp('/calendar/week/2026-10-07', routes)
+      ;(await screen.findAllByRole('button', { name: /^팀 스탠드업, / }))[0].focus()
+      await user.keyboard('{Enter}')
+      const dialog = await screen.findByRole('dialog', { name: '일정 편집' })
+      within(dialog).getByRole('button', { name: '삭제' }).focus()
+      await user.keyboard('{Enter}')
+      const scope = await screen.findByRole('alertdialog', { name: '반복 일정을 삭제할까요?' })
+      await user.click(within(scope).getByLabelText(label))
+      within(scope).getByRole('button', { name: '확인' }).focus()
+      await user.keyboard('{Enter}')
+      await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
+      await waitFor(() => expect(document.activeElement).toHaveAttribute('data-focus-fallback'))
+    },
+  )
+
   it('업무 패널: 마감순 카드, 날짜 없는 업무는 접고, "일정 잡기"로 업무에 연결된 일정을 만든다', async () => {
     const fetchMock = stubServer()
     const user = userEvent.setup()
