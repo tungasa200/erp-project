@@ -28,16 +28,29 @@ public class UserProfileService {
 	 */
 	public UserSnapshot snapshotOf(UUID userId, String userToken) {
 		return snapshots.find(userId).orElseGet(() -> {
-			try {
-				snapshots.insertIfAbsent(userId, identity.me(userToken));
-			} catch (IdentityClient.UserDeletedException e) {
-				throw DeletedUserInterceptor.userDeleted();
-			} catch (IdentityClient.IdentityUnavailableException e) {
-				log.warn("사본이 없고 identity 조회도 실패: {}", e.toString());
-				throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "PROFILE_UNAVAILABLE",
-						"프로필을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.");
-			}
+			snapshots.insertIfAbsent(userId, fetch(userToken, "사본이 없고 identity 조회도 실패"));
 			return snapshots.find(userId).orElseThrow();
 		});
+	}
+
+	/**
+	 * 프로필 저장 직후 프론트가 부른다 (5.4 "프로필 재조회"). identity 값이 사본보다 새것일 때만 바꾼다.
+	 * 피드가 먼저 더 새 값을 넣었으면 그것을 둔다.
+	 */
+	public UserSnapshot refresh(UUID userId, String userToken) {
+		snapshots.upsert(userId, fetch(userToken, "프로필 즉시 갱신 중 identity 조회 실패"), 0);
+		return snapshots.find(userId).orElseThrow();
+	}
+
+	private Profile fetch(String userToken, String failureLog) {
+		try {
+			return identity.me(userToken);
+		} catch (IdentityClient.UserDeletedException e) {
+			throw DeletedUserInterceptor.userDeleted();
+		} catch (IdentityClient.IdentityUnavailableException e) {
+			log.warn("{}: {}", failureLog, e.toString());
+			throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "PROFILE_UNAVAILABLE",
+					"프로필을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.");
+		}
 	}
 }

@@ -68,7 +68,8 @@ public class SecurityConfig {
 			.sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 			.authorizeHttpRequests(auth -> auth
 				.requestMatchers(HttpMethod.POST, "/api/auth/signup", "/api/auth/login", "/api/auth/refresh",
-						"/api/auth/logout")
+						"/api/auth/logout", "/api/auth/password-reset", "/api/auth/password-reset/verify",
+						"/api/auth/password-reset/confirm")
 				.permitAll()
 				// Gateway가 외부로 라우팅하지 않는 경로 (내부 전용)
 				.requestMatchers(HttpMethod.GET, "/.well-known/jwks.json", "/v3/api-docs", "/v3/api-docs/**")

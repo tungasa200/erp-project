@@ -4,3 +4,12 @@ replay_pid*.log
 
 # 이전 버전 문서 임시 보관 (사용자가 직접 비움, CLAUDE.md 문서 절)
 docs/trashcan/
+
+# 로컬 환경변수·비밀값 (비밀값 원본은 저장소 밖 C:\projects\worklog-secret\)
+.env
+.env.*
+!.env.mock
+*.pem
+
+# impeccable 캐시
+.impeccable/

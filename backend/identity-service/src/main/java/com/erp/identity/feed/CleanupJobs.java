@@ -14,13 +14,14 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 정리 작업 (P0-11, D-31). 인스턴스 하나에서만 돈다(ShedLock).
- * 인증 코드 정리는 이메일 인증(AUTH-08)을 만들 때 추가한다.
  * ShedLock 프록시는 잠금을 못 잡으면 실행을 건너뛰므로 반환값을 두지 않는다.
  */
 @Component
 public class CleanupJobs {
 
 	static final Duration FEED_RETENTION = Duration.ofDays(30);
+
+	static final Duration VERIFICATION_CODE_RETENTION = Duration.ofHours(24);
 
 	private final JdbcTemplate jdbc;
 
@@ -37,6 +38,16 @@ public class CleanupJobs {
 	@Transactional
 	public void purgeExpiredRefreshTokens() {
 		jdbc.update("DELETE FROM refresh_tokens WHERE expires_at < ?", now());
+	}
+
+	/**
+	 * 인증·재설정 코드 (AUTH-08·03). 만료된 코드도 24시간 발송 한도를 세는 데 쓰므로 발급 후 24시간이 지난 행만 지운다.
+	 */
+	@Scheduled(cron = "${identity.cleanup.cron:0 17 * * * *}", zone = "UTC")
+	@SchedulerLock(name = "identity.purgeVerificationCodes")
+	@Transactional
+	public void purgeVerificationCodes() {
+		jdbc.update("DELETE FROM verification_codes WHERE created_at < ?", now().minus(VERIFICATION_CODE_RETENTION));
 	}
 
 	/**

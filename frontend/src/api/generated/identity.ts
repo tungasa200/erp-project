@@ -55,6 +55,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/auth/password-reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 비밀번호 재설정 코드 메일 요청 (AUTH-03, P1-13, SCR-AUTH-04)
+         * @description 가입 여부와 관계없이 같은 202. 가입된 이메일이면 새 코드를 커밋 뒤 메일로 보낸다(이전 코드 무효).
+         */
+        post: operations["requestPasswordReset"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/password-reset/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 코드로 새 비밀번호 저장
+         * @description 저장하면 이메일 인증 완료, 모든 로그인 세션 폐기와 쿠키 삭제, 로그인 잠금 해제, 코드 사용 처리.
+         */
+        post: operations["confirmPasswordReset"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/password-reset/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 재설정 코드 확인 (새 비밀번호 입력 단계로 넘어가기 전)
+         * @description 코드가 맞는지만 확인하고 쓰지 않는다. 틀리면 시도 횟수가 준다(5회).
+         */
+        post: operations["verifyPasswordResetCode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/refresh": {
         parameters: {
             query?: never;
@@ -100,6 +160,51 @@ export interface paths {
         get: operations["getMe"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * 공통 프로필·화면 설정 수정 (AUTH-04·05, UX-09, P1-01)
+         * @description 보낸 칸만 바꾼다. version이 현재 값과 다르면 409. 프로필 칸이 바뀌면 사용자 변경 피드에 PROFILE_UPDATED를 남긴다.
+         */
+        patch: operations["updateMe"];
+        trace?: never;
+    };
+    "/api/users/me/email-verification": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 이메일 인증 진행 상태 (SCR-AUTH-08 모달을 열 때) */
+        get: operations["getEmailVerification"];
+        put?: never;
+        /**
+         * 인증번호 메일 발송·재발송 (AUTH-08, P1-12)
+         * @description 새 코드를 발급하고 커밋 뒤 메일로 보낸다. 이전 코드는 무효. 가입 직후 첫 코드는 서버가 자동으로 보낸다.
+         */
+        post: operations["sendEmailVerificationCode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/users/me/email-verification/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 인증 코드 확인
+         * @description 맞으면 인증을 완료하고 현재 사용자를 준다. 이미 인증된 사용자는 코드와 관계없이 200.
+         */
+        post: operations["confirmEmailVerification"];
         delete?: never;
         options?: never;
         head?: never;
@@ -187,6 +292,27 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        CodeCheckRequest: {
+            code: string;
+            email: string;
+        };
+        /** @description 코드를 새로 발급했을 때 화면의 카운트다운용 시각 (UTC) */
+        CodeIssued: {
+            /**
+             * Format: date-time
+             * @description 코드 만료 시각 (발급 + 10분)
+             */
+            expiresAt?: string;
+            /**
+             * Format: date-time
+             * @description 다시 받기를 누를 수 있는 시각 (발급 + 60초)
+             */
+            resendAvailableAt?: string;
+        };
+        CodeRejectedProblem: components["schemas"]["Problem"] & {
+            /** @description CODE_MISMATCH일 때만. 남은 시도 횟수 (0이면 다음부터 CODE_EXPIRED) */
+            attemptsRemaining?: number;
+        };
         DeletedUser: {
             /** Format: date-time */
             deletedAt: string;
@@ -197,6 +323,28 @@ export interface components {
             items: components["schemas"]["DeletedUser"][];
             nextCursor?: string | null;
         };
+        EmailVerificationConfirmRequest: {
+            /** @description 메일로 받은 6자리 숫자 */
+            code: string;
+        };
+        EmailVerificationStatus: {
+            /**
+             * Format: int32
+             * @description 유효한 코드의 남은 시도 횟수. 유효한 코드가 없으면 null
+             */
+            attemptsRemaining?: number | null;
+            /**
+             * Format: date-time
+             * @description 유효한 코드의 만료 시각. 유효한 코드가 없으면 null
+             */
+            expiresAt?: string | null;
+            /**
+             * Format: date-time
+             * @description 다시 받을 수 있는 시각. 지금 받을 수 있으면 null. 하루 한도에 닿았으면 한도가 풀리는 시각
+             */
+            resendAvailableAt?: string | null;
+            verified: boolean;
+        };
         LoginRequest: {
             email: string;
             password: string;
@@ -206,6 +354,8 @@ export interface components {
             emailVerified: boolean;
             /** Format: uuid */
             id: string;
+            /** @description 키보드 단축키 사용 (UX-09, 기본 켬). 모듈에는 전달하지 않는다. */
+            keyboardShortcutsEnabled: boolean;
             name?: string | null;
             organization?: string | null;
             position?: string | null;
@@ -218,6 +368,16 @@ export interface components {
             weekStart: "MONDAY" | "TUESDAY" | "WEDNESDAY" | "THURSDAY" | "FRIDAY" | "SATURDAY" | "SUNDAY";
             /** Format: int32 */
             workDays: number;
+        };
+        PasswordResetConfirmRequest: {
+            code: string;
+            email: string;
+            /** @description 8~64자, UTF-8 72바이트 이하, 영문·숫자 포함, 이메일과 다른 문자열 (D-38). errors[].field는 newPassword */
+            newPassword: string;
+        };
+        PasswordResetRequest: {
+            /** @description 가입과 같이 앞뒤 공백 제거·소문자로 비교한다 */
+            email: string;
         };
         /** @description RFC 9457 Problem Details + 확장 필드 (P0-10 공통 모듈 형식) */
         Problem: {
@@ -241,10 +401,42 @@ export interface components {
             organization?: string | null;
             position?: string | null;
             timezone: string;
+            /** Format: int64 */
+            version: number;
             /** @enum {string} */
             weekStart: "MONDAY" | "TUESDAY" | "WEDNESDAY" | "THURSDAY" | "FRIDAY" | "SATURDAY" | "SUNDAY";
             /** Format: int32 */
             workDays: number;
+        };
+        /** @description 보낸 칸만 수정한다. 칸 없음 = 그대로, null = 지움(이름·소속·직책만). 모르는 칸은 무시한다. */
+        ProfileUpdateRequest: {
+            /** @description 키보드 단축키 사용 (UX-09). 피드에는 남기지 않는다. */
+            keyboardShortcutsEnabled?: boolean;
+            name?: string | null;
+            organization?: string | null;
+            /** @description 표시용 직책 (권한용 역할과 별개) */
+            position?: string | null;
+            /**
+             * @description IANA 시간대 이름. 바꿔도 기존 기록 날짜는 그대로다 (D-40).
+             * @example Asia/Seoul
+             */
+            timezone?: string;
+            /**
+             * Format: int64
+             * @description 마지막으로 받은 Me.version
+             */
+            version: number;
+            /** @enum {string} */
+            weekStart?: "MONDAY" | "TUESDAY" | "WEDNESDAY" | "THURSDAY" | "FRIDAY" | "SATURDAY" | "SUNDAY";
+            /**
+             * Format: int32
+             * @description 비트마스크 월=1 … 일=64. 최소 하루는 골라야 한다.
+             */
+            workDays?: number;
+        };
+        RateLimitedProblem: components["schemas"]["Problem"] & {
+            /** @description 다시 시도할 수 있을 때까지 남은 초. 잠금 안내 문구에 쓴다. */
+            retryAfterSeconds: number;
         };
         SignupRequest: {
             agreePrivacy: boolean;
@@ -364,6 +556,16 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            /** @description 계정 잠금(AUTH_LOCKED) 또는 IP 단위 시도 제한(TOO_MANY_REQUESTS). 남은 시간은 Retry-After(초)와 retryAfterSeconds */
+            429: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["RateLimitedProblem"];
+                };
+            };
         };
     };
     logout: {
@@ -383,6 +585,111 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    requestPasswordReset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordResetRequest"];
+            };
+        };
+        responses: {
+            /** @description 접수 (가입 여부 비노출) */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CodeIssued"];
+                };
+            };
+            /** @description VALIDATION_FAILED */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description RESEND_TOO_SOON(60초) · DAILY_SEND_LIMIT(24시간 10통) · TOO_MANY_REQUESTS(IP 1시간 10회) */
+            429: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["RateLimitedProblem"];
+                };
+            };
+        };
+    };
+    confirmPasswordReset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordResetConfirmRequest"];
+            };
+        };
+        responses: {
+            /** @description 저장 완료. 쿠키 2종을 지운다 */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 코드 오류(CODE_MISMATCH·CODE_EXPIRED) 또는 VALIDATION_FAILED(비밀번호 규칙, errors[].field=newPassword) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["CodeRejectedProblem"];
+                };
+            };
+        };
+    };
+    verifyPasswordResetCode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CodeCheckRequest"];
+            };
+        };
+        responses: {
+            /** @description 코드가 맞음 */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description CODE_MISMATCH(attemptsRemaining) · CODE_EXPIRED · VALIDATION_FAILED(CODE_FORMAT) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["CodeRejectedProblem"];
+                };
             };
         };
     };
@@ -486,6 +793,152 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+        };
+    };
+    updateMe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProfileUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description 수정 성공(또는 바뀐 값 없음). 새 version이 담긴 현재 사용자 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Me"];
+                };
+            };
+            /** @description VALIDATION_FAILED (errors[].code: REQUIRED·TOO_LONG·TIMEZONE_INVALID·WORK_DAYS_INVALID) 또는 BAD_REQUEST(형식 오류) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description UNAUTHENTICATED 또는 USER_DELETED */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description VERSION_CONFLICT (다른 곳에서 먼저 수정됨) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getEmailVerification: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 조회 성공 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["EmailVerificationStatus"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    sendEmailVerificationCode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 새 코드 발급, 메일 발송 예약 */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CodeIssued"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description EMAIL_ALREADY_VERIFIED */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description RESEND_TOO_SOON(60초) · DAILY_SEND_LIMIT(24시간 10통) · TOO_MANY_REQUESTS(IP 1시간 10회) */
+            429: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["RateLimitedProblem"];
+                };
+            };
+        };
+    };
+    confirmEmailVerification: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmailVerificationConfirmRequest"];
+            };
+        };
+        responses: {
+            /** @description 인증 완료 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Me"];
+                };
+            };
+            /** @description CODE_MISMATCH(attemptsRemaining) · CODE_EXPIRED · VALIDATION_FAILED(CODE_FORMAT) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["CodeRejectedProblem"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
         };
     };
     listDeletedUsers: {

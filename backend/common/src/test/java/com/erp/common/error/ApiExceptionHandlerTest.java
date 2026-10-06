@@ -7,8 +7,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -22,9 +24,12 @@ import org.springframework.http.MediaType;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 class ApiExceptionHandlerTest {
@@ -89,6 +94,23 @@ class ApiExceptionHandlerTest {
 			.andExpect(jsonPath("$.traceId").value("trace-1"));
 	}
 
+	@Test
+	void 쿼리_경로_값의_형식_오류는_VALIDATION_FAILED와_INVALID_FORMAT으로_응답한다() throws Exception {
+		mvc.perform(get("/items/not-a-uuid"))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.code").value("VALIDATION_FAILED"))
+			.andExpect(jsonPath("$.errors[0].field").value("id"))
+			.andExpect(jsonPath("$.errors[0].code").value("INVALID_FORMAT"))
+			.andExpect(jsonPath("$.traceId").value("trace-1"));
+		mvc.perform(get("/items").param("from", "yesterday"))
+			.andExpect(jsonPath("$.code").value("VALIDATION_FAILED"))
+			.andExpect(jsonPath("$.errors[0].field").value("from"));
+		// 값 누락은 그대로 BAD_REQUEST
+		mvc.perform(get("/items"))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.code").value("BAD_REQUEST"));
+	}
+
 	record SignupBody(@NotBlank(message = "REQUIRED") String email) {
 	}
 
@@ -113,6 +135,14 @@ class ApiExceptionHandlerTest {
 		@GetMapping("/boom")
 		void boom() {
 			throw new IllegalStateException("내부 정보");
+		}
+
+		@GetMapping("/items/{id}")
+		void item(@PathVariable UUID id) {
+		}
+
+		@GetMapping("/items")
+		void items(@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from) {
 		}
 
 	}

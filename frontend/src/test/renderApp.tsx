@@ -38,15 +38,26 @@ export const ME = {
   workDays: 31,
   themeAccent: '#4B3FD6',
   themeGround: '#F2F4FA',
+  keyboardShortcutsEnabled: true,
   version: 0,
 }
 
-// "METHOD /path" → 응답. 등록하지 않은 요청은 401 UNAUTHENTICATED(비로그인)로 본다.
+// "METHOD /path" → 응답. 쿼리까지 같은 키가 없으면 쿼리를 뺀 "METHOD /path"로 찾는다.
+// 등록하지 않은 요청은 401 UNAUTHENTICATED(비로그인)로 본다.
+const EMPTY_LISTS = [
+  'GET /api/worklog/projects',
+  'GET /api/worklog/tags',
+  'GET /api/worklog/tasks',
+  'GET /api/worklog/schedules',
+]
+
 export function stubFetch(handlers: Record<string, Handler>) {
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const key = `${init?.method ?? 'GET'} ${String(input)}`
-    const handler = handlers[key]
+    const handler = handlers[key] ?? handlers[key.split('?')[0]]
     if (handler) return handler(init)
+    // 앱 셸(사이드바 프로젝트 목록)·캘린더처럼 여러 화면이 함께 받는 목록은 등록하지 않았으면 빈 목록으로 답한다
+    if (EMPTY_LISTS.includes(key.split('?')[0])) return json(200, { items: [], nextCursor: null })
     if (key === 'POST /api/auth/refresh') return problem(401, 'REFRESH_INVALID')
     return problem(401, 'UNAUTHENTICATED')
   })

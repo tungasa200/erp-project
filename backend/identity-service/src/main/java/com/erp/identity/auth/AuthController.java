@@ -1,8 +1,10 @@
 package com.erp.identity.auth;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.headers.Header;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -61,9 +63,10 @@ public class AuthController {
 	@ApiResponse(responseCode = "200", description = "로그인 성공. 쿠키 2종 발급")
 	@ApiResponse(responseCode = "400", description = "VALIDATION_FAILED", content = @Content(mediaType = "application/problem+json", schema = @Schema(ref = "#/components/schemas/Problem")))
 	@ApiResponse(responseCode = "401", description = "INVALID_CREDENTIALS", content = @Content(mediaType = "application/problem+json", schema = @Schema(ref = "#/components/schemas/Problem")))
+	@ApiResponse(responseCode = "429", description = "계정 잠금(AUTH_LOCKED) 또는 IP 단위 시도 제한(TOO_MANY_REQUESTS). 남은 시간은 Retry-After(초)와 retryAfterSeconds", headers = @Header(name = HttpHeaders.RETRY_AFTER, schema = @Schema(type = "integer")), content = @Content(mediaType = "application/problem+json", schema = @Schema(ref = AuthOpenApi.RATE_LIMITED_PROBLEM_REF)))
 	@PostMapping("/login")
-	public ResponseEntity<Me> login(@Valid @RequestBody LoginRequest request) {
-		AuthService.Session session = auth.login(request);
+	public ResponseEntity<Me> login(@Valid @RequestBody LoginRequest request, HttpServletRequest httpRequest) {
+		AuthService.Session session = auth.login(request, IpLoginLimiter.clientIp(httpRequest));
 		return ResponseEntity.ok().headers(sessionCookies(session)).body(Me.of(session.user()));
 	}
 

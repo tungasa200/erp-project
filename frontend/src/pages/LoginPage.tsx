@@ -10,7 +10,10 @@ import { useToast } from '../components/useToast'
 import { AuthLayout } from './auth/AuthLayout'
 import styles from './auth/auth.module.css'
 
-type Notice = { kind: 'invalid' } | { kind: 'locked' | 'throttled'; until: number }
+type Notice = { kind: 'invalid'; slowed: boolean } | { kind: 'locked' | 'throttled'; until: number }
+
+// 서버는 연속 실패 3회부터 응답을 1초 이상 늦춘다(AUTH-09 점진 지연). 그만큼 늦게 온 실패 응답이면 지연 중으로 본다.
+const SLOWED_MS = 900
 
 function formatRemaining(ms: number) {
   const total = Math.max(0, Math.ceil(ms / 1000))
@@ -41,6 +44,7 @@ export function LoginPage() {
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault()
+    if (submitting || waiting) return
     const next: typeof errors = {}
     if (!email.trim()) next.email = '입력해 주세요'
     else if (!EMAIL_PATTERN.test(email.trim())) next.email = '이메일 형식이 맞지 않아요'
@@ -50,11 +54,12 @@ export function LoginPage() {
 
     setSubmitting(true)
     setNotice(null)
+    const startedAt = performance.now()
     try {
       await login({ email: email.trim(), password })
     } catch (error) {
       if (error instanceof ApiError && error.code === 'INVALID_CREDENTIALS') {
-        setNotice({ kind: 'invalid' })
+        setNotice({ kind: 'invalid', slowed: performance.now() - startedAt >= SLOWED_MS })
       } else if (error instanceof ApiError && error.status === 429) {
         const seconds = error.problem?.retryAfterSeconds ?? 60
         setNow(Date.now())
@@ -105,7 +110,15 @@ export function LoginPage() {
         {notice?.kind === 'invalid' && (
           <div role="alert" className={`${styles.alert} ${styles.alertDanger}`}>
             <span className={styles.alertMark}>!</span>
-            <span>이메일 또는 비밀번호가 맞지 않아요</span>
+            <span>
+              이메일 또는 비밀번호가 맞지 않아요
+              {notice.slowed && (
+                <>
+                  <br />
+                  잠시 후 다시 시도해 주세요
+                </>
+              )}
+            </span>
           </div>
         )}
         {notice?.kind === 'locked' && waiting && (
@@ -114,7 +127,8 @@ export function LoginPage() {
             <span>
               <b>15분 동안 로그인할 수 없어요.</b>
               <br />
-              비밀번호를 10번 잘못 입력했어요. 비밀번호가 기억나지 않으면 재설정하세요.
+              비밀번호를 10번 잘못 입력했어요. 비밀번호가 기억나지 않으면{' '}
+              <Link to="/password/forgot">재설정하세요</Link>.
             </span>
           </div>
         )}
@@ -189,13 +203,18 @@ export function LoginPage() {
           )}
         </div>
 
-        <button type="submit" className={styles.submit} disabled={submitting || waiting} aria-busy={submitting}>
+        <button
+          type="submit"
+          className={styles.submit}
+          // 보내는 중·잠김에는 disabled 대신 aria-disabled로 막는다. disabled면 누른 버튼에서 포커스가 BODY로 빠진다
+          aria-disabled={submitting || waiting}
+          aria-busy={submitting}
+        >
           {waiting ? `로그인 · ${formatRemaining(waitUntil - now)} 후 가능` : submitting ? '로그인 중…' : '로그인'}
         </button>
 
-        {/* 비밀번호 찾기 링크는 P1-13에서 추가 (화면정의서 SCR-AUTH-02 ④) */}
         <div className={styles.links}>
-          <span />
+          <Link to="/password/forgot">비밀번호 찾기</Link>
           <Link to="/signup">회원가입</Link>
         </div>
       </form>

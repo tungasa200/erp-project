@@ -1,9 +1,11 @@
 openapi: 3.1.0
 info:
   title: worklog-service API
-  version: 0.1.0-draft
+  version: 0.3.0
   description: |
-    구현 전 합의용 초안 (P0 범위). 구현 후에는 springdoc 출력이 기준이다 (P0-10).
+    구현 전 합의용 계약. P0 범위(GET /api/worklog/me)는 구현 완료, P1-01~03 범위는 2026-10-05 확정(구현 전).
+    P1-05·06 일정 범위(schedules)는 2026-10-06 확정.
+    구현 후에는 springdoc 출력(contracts/generated/worklog.json)이 기준이다 (D-47).
     규약은 요구사항정의서 5.5를 따른다: /api/worklog/ 접두사, 버전 없음,
     시각은 UTC ISO-8601, 날짜는 YYYY-MM-DD, 시간대는 IANA 이름, camelCase,
     오류는 RFC 9457 Problem Details + code·errors[]·traceId.
@@ -12,11 +14,28 @@ info:
     Authorization: Bearer로 옮겨 전달하고, worklog-service가 JWT를 다시 검증해
     sub(사용자 ID)로 사용자를 식별한다 (D-19). 검증: iss=erp-identity, aud=erp-api, exp.
     서비스 토큰(aud=erp-internal)은 사용자 API에서 거부한다.
+
+    P1 공통 규칙:
+    - 소유자: 모든 리소스는 요청한 사용자 것만 보인다. 다른 사용자의 ID는 없는 ID와 같게 404(NOT_FOUND)다.
+    - 수정(PATCH): 보낸 칸만 바꾼다. nullable 칸은 null을 보내면 비운다. 본문의 version이 현재 값과
+      다르면 409(VERSION_CONFLICT)이며 아무것도 바꾸지 않는다. 성공 응답의 version을 다음 PATCH에 쓴다.
+      자동 저장은 같은 리소스의 PATCH를 앞 요청의 응답을 받은 뒤 보낸다(동시에 보내면 뒤 요청이 409).
+    - 트랜잭션: 요청 하나가 한 트랜잭션이다 (D-53).
+security:
+  - accessTokenCookie: []
 servers:
   - url: /
 tags:
   - name: me
-    description: 현재 사용자 (worklog 사본 프로필과 worklog 전용 설정)
+    description: 현재 사용자 (worklog 사본 프로필과 worklog 전용 설정) — P0, P1-01
+  - name: projects
+    description: 프로젝트 — P1-02 (TASK-04, SCR-SET-08)
+  - name: tags
+    description: 태그 — P1-02 (TASK-04, SCR-SET-08)
+  - name: tasks
+    description: 업무 — P1-03 (TASK-01·02·03·05, SCR-TASK-01·02), 목록 필터는 P1-04 (TASK-06)
+  - name: schedules
+    description: 일정 — P1-05 일정 CRUD·종일 (SCH-02), P1-06 반복 (SCH-03, D-24), SCR-CAL-07·08
 paths:
   /api/worklog/me:
     get:
@@ -24,11 +43,8 @@ paths:
       operationId: getMe
       summary: 현재 사용자의 worklog 프로필 조회
       description: |
-        P0 완료 기준의 "인증이 필요한 API 호출"에 쓰는 첫 엔드포인트이자 P1-01의 프로필 재조회 대상.
         worklog에 사용자 사본이 없으면(가입 직후) 이 요청 안에서 identity를 조회해 사본을 만든 뒤 응답한다 (P0-11).
-        worklog 전용 설정이 아직 없으면 기본값으로 응답한다.
-      security:
-        - accessTokenCookie: []
+        worklog 전용 설정이 아직 없으면 기본값(version=0)으로 응답한다.
       responses:
         '200':
           description: 조회 성공
@@ -39,22 +55,761 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
         '503':
-          description: 사본이 없고 identity 조회도 실패함 (code=PROFILE_UNAVAILABLE). 잠시 후 재시도.
+          $ref: '#/components/responses/ProfileUnavailable'
+  /api/worklog/me/profile/refresh:
+    post:
+      tags: [me]
+      operationId: refreshMyProfile
+      summary: 공통 프로필 사본 즉시 갱신 (P1-01)
+      description: |
+        identity에서 프로필(이름·소속·직책·시간대·주 시작 요일·업무 요일)을 저장한 직후 프론트가 호출한다 (요구사항 5.4 "프로필 재조회").
+        worklog가 사용자 토큰으로 identity GET /api/users/me를 조회해 사본을 갱신하고 WorklogMe를 돌려준다.
+        사본은 identity User의 version(프로필과 같은 행의 낙관적 잠금 값)이 사본에 저장된 version보다 클 때만 바꾼다.
+        피드 이벤트도 payload의 version으로 같은 비교를 하므로, 나중에 도착하는 오래된 피드 이벤트가 새 값을 되돌리지 않는다.
+        (전제: identity Profile 스키마에 version 추가 — 피드 CREATED·PROFILE_UPDATED payload, /internal/users, /api/users/me)
+        본문 없음. 쓰기 요청이므로 Gateway Origin 검사 대상이다.
+      responses:
+        '200':
+          description: 갱신 후 현재 값
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorklogMe'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          $ref: '#/components/responses/ProfileUnavailable'
+  /api/worklog/me/settings:
+    patch:
+      tags: [me]
+      operationId: updateMySettings
+      summary: worklog 전용 설정 수정 (P1-01, 항목별 자동 저장)
+      description: |
+        SCR-SET-02의 ④ 업무 시간대 ⑤ 하루 마감 시각과 SCR-SET-03의 시간 기록 사용 여부.
+        설정 행이 아직 없으면 version=0으로 보내고, 이 요청이 기본값 위에 보낸 칸을 반영해 행을 만든다.
+        dailyCloseTime이 바뀌면 다음 알림 시각(next_notify_at)을 다시 계산한다 (5.6, 알림 발송은 P4).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorklogSettingsPatch'
+      responses:
+        '200':
+          description: 수정 후 설정 전체
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorklogSettings'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/VersionConflict'
+
+  /api/worklog/projects:
+    get:
+      tags: [projects]
+      operationId: listProjects
+      summary: 프로젝트 목록
+      description: |
+        페이지 없이 전체를 돌려준다 (사용자별 개수가 작고 사이드바·필터·설정 화면이 전체를 쓴다). 만든 순서.
+      parameters:
+        - name: includeArchived
+          in: query
+          description: true면 보관한 프로젝트도 포함
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Project'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [projects]
+      operationId: createProject
+      summary: 프로젝트 추가
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectCreate'
+      responses:
+        '201':
+          description: 생성됨
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/DuplicateName'
+  /api/worklog/projects/{projectId}:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+    get:
+      tags: [projects]
+      operationId: getProject
+      summary: 프로젝트 조회
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [projects]
+      operationId: updateProject
+      summary: 프로젝트 수정·보관·보관 해제
+      description: |
+        삭제 API는 두지 않는다. 화면(SCR-SET-08)은 보관만 있고, 업무가 프로젝트를 계속 가리키게 하기 위함이다.
+        보관한 프로젝트의 업무는 업무 목록 기본 조회에서 빠진다(목록의 projectId 필터로는 조회 가능).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectPatch'
+      responses:
+        '200':
+          description: 수정 후 전체
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: version 불일치(code=VERSION_CONFLICT) 또는 같은 이름의 프로젝트가 있음(code=DUPLICATE_NAME)
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
+
+  /api/worklog/tags:
+    get:
+      tags: [tags]
+      operationId: listTags
+      summary: 태그 목록 (사용 수 포함)
+      description: 페이지 없이 전체를 돌려준다. 이름순.
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Tag'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [tags]
+      operationId: createTag
+      summary: 태그 추가 (같은 이름이 있으면 그 태그를 돌려줌)
+      description: |
+        빠른 입력의 #태그처럼 "없으면 만들고 있으면 쓴다"를 한 번에 하기 위해, 같은 이름(대소문자 무시)이 이미 있으면
+        새로 만들지 않고 200으로 기존 태그를 돌려준다. 새로 만들면 201.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TagCreate'
+      responses:
+        '200':
+          description: 같은 이름의 기존 태그
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tag'
+        '201':
+          description: 생성됨
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tag'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/worklog/tags/{tagId}:
+    parameters:
+      - $ref: '#/components/parameters/TagId'
+    patch:
+      tags: [tags]
+      operationId: updateTag
+      summary: 태그 이름 변경
+      description: 다른 태그와 이름이 같아지면 409(DUPLICATE_NAME). 합치기는 하지 않는다.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TagPatch'
+      responses:
+        '200':
+          description: 수정 후 전체
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tag'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: version 불일치(code=VERSION_CONFLICT) 또는 같은 이름의 태그가 있음(code=DUPLICATE_NAME)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+    delete:
+      tags: [tags]
+      operationId: deleteTag
+      summary: 태그 삭제
+      description: 태그를 실제로 지우고 모든 업무에서 뗀다 (보관한 업무 포함). 되돌릴 수 없다.
+      responses:
+        '204':
+          description: 삭제됨
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/worklog/tasks:
+    get:
+      tags: [tasks]
+      operationId: listTasks
+      summary: 업무 목록 (cursor, 필터·검색)
+      description: |
+        기본 조회는 보관(소프트 삭제)하지 않은 업무 중 보관한 프로젝트에 속하지 않은 것이다.
+        projectId로 거르면 그 프로젝트가 보관 상태여도 업무를 돌려준다.
+        정렬: sort=due는 마감일 오름차순(마감일 없음은 뒤) → 생성순, sort=created는 생성 역순. 같은 조건에서 id로 순서를 고정한다.
+        필터를 바꾸면 cursor 없이 처음부터 조회한다(다른 조건의 cursor는 400 INVALID_CURSOR일 수 있다).
+      parameters:
+        - name: cursor
+          in: query
+          description: 이전 응답의 nextCursor. 처음이면 생략.
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+        - name: status
+          in: query
+          description: 여러 개면 OR (?status=TODO&status=IN_PROGRESS)
+          explode: true
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/TaskStatus'
+        - name: projectId
+          in: query
+          description: 여러 개면 OR
+          explode: true
+          schema:
+            type: array
+            items:
+              type: string
+              format: uuid
+        - name: tagId
+          in: query
+          description: 여러 개면 OR (태그 중 하나라도 붙은 업무)
+          explode: true
+          schema:
+            type: array
+            items:
+              type: string
+              format: uuid
+        - name: dueFrom
+          in: query
+          description: 마감일 >= dueFrom
+          schema:
+            type: string
+            format: date
+        - name: dueTo
+          in: query
+          description: 마감일 <= dueTo
+          schema:
+            type: string
+            format: date
+        - name: completedSince
+          in: query
+          description: |
+            완료 업무는 완료 시각이 이 시각 이후인 것만 (완료가 아닌 업무에는 영향 없음).
+            "완료 업무 접기(최근 7일)"에 쓴다.
+          schema:
+            type: string
+            format: date-time
+        - name: q
+          in: query
+          description: 제목 부분 일치 검색 (대소문자 무시)
+          schema:
+            type: string
+            maxLength: 100
+        - name: deleted
+          in: query
+          description: true면 보관(소프트 삭제)한 업무만 돌려준다 (보관함, SCR-TASK-04)
+          schema:
+            type: boolean
+            default: false
+        - name: scheduled
+          in: query
+          description: |
+            false면 일정이 연결되지 않은 업무만(캘린더 업무 패널, SCH-07), true면 연결된 업무만. 생략하면 거르지 않는다.
+            연결은 schedule.task_id 기준이며 반복 일정은 시리즈 하나로 센다. (2026-10-06 추가)
+          schema:
+            type: boolean
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [due, created]
+            default: due
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Task'
+                  nextCursor:
+                    type: [string, 'null']
+                    description: 다음 페이지가 없으면 null
+        '400':
+          description: 값 형식 오류(code=VALIDATION_FAILED) 또는 cursor 형식이 틀림(code=INVALID_CURSOR)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [tasks]
+      operationId: createTask
+      summary: 업무 추가
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskCreate'
+      responses:
+        '201':
+          description: 생성됨
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/worklog/tasks/{taskId}:
+    parameters:
+      - $ref: '#/components/parameters/TaskId'
+    get:
+      tags: [tasks]
+      operationId: getTask
+      summary: 업무 조회 (보관한 업무 포함)
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [tasks]
+      operationId: updateTask
+      summary: 업무 수정 (항목별 자동 저장)
+      description: |
+        상태를 DONE으로 바꾸면 completedAt을 지금 시각으로 기록하고, DONE에서 다른 상태로 바꾸면 completedAt을 비운다.
+        상태 전이에 제한은 없다(네 상태 사이 어느 쪽으로든). 진행률은 상태에 따라 자동으로 바꾸지 않는다.
+        tagIds는 보낸 목록으로 통째로 바꾼다.
+        보관한 업무는 수정할 수 없다(409 TASK_DELETED, 먼저 복원).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskPatch'
+      responses:
+        '200':
+          description: 수정 후 전체
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: version 불일치(code=VERSION_CONFLICT) 또는 보관한 업무(code=TASK_DELETED)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+    delete:
+      tags: [tasks]
+      operationId: deleteTask
+      summary: 업무 보관 (소프트 삭제)
+      description: |
+        deletedAt을 기록한다. 이미 보관한 업무면 그대로 204 (되돌리기 토스트와 Delete 키 중복 대비).
+        version을 받지 않는다(다른 곳에서 고친 업무도 보관할 수 있다).
+      responses:
+        '204':
+          description: 보관됨
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/worklog/tasks/{taskId}/restore:
+    parameters:
+      - $ref: '#/components/parameters/TaskId'
+    post:
+      tags: [tasks]
+      operationId: restoreTask
+      summary: 보관한 업무 복원 (되돌리기 토스트, 보관함)
+      description: deletedAt을 비운다. 보관하지 않은 업무면 그대로 200.
+      responses:
+        '200':
+          description: 복원 후 전체
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/worklog/schedules:
+    get:
+      tags: [schedules]
+      operationId: listOccurrences
+      summary: 기간 안의 일정 회차 (캘린더 일·주·월·연·목록 보기)
+      description: |
+        [from, to)와 겹치는 회차를 시작 시각순으로 준다. 반복 일정은 이 기간의 회차로 전개하고,
+        "이 일정만"으로 바꾼 회차는 바뀐 값으로, 삭제한 회차는 빼고 준다.
+        겹침 판단: 시간 일정은 [startAt, endAt), 종일 일정은 일정 시간대(timezone)의 [startDate 0시, endDate 다음 날 0시).
+        기간은 최대 400일(연 보기 대비). 페이지네이션 없이 한 번에 준다.
+        taskId를 주면 그 업무에 연결된 일정의 회차만 준다(업무 상세의 연결 일정). 다른 사용자의 업무이거나
+        없는 업무면 빈 목록이다(존재 여부를 드러내지 않음).
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          required: true
+          description: from보다 뒤, from + 400일 이내
+          schema:
+            type: string
+            format: date-time
+        - name: taskId
+          in: query
+          required: false
+          description: 이 업무에 연결된 일정의 회차만
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Occurrence'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [schedules]
+      operationId: createSchedule
+      summary: 일정 추가 (반복 포함)
+      description: |
+        timezone은 사용자 프로필의 현재 시간대로 정해지며 바꿀 수 없다(반복 전개·종일 날짜의 기준, D-40).
+        프로필 사본이 없으면 identity에서 바로 가져온다(실패하면 503).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScheduleCreate'
+      responses:
+        '201':
+          description: 생성됨
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Schedule'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          $ref: '#/components/responses/ProfileUnavailable'
+  /api/worklog/schedules/{scheduleId}:
+    parameters:
+      - $ref: '#/components/parameters/ScheduleId'
+    get:
+      tags: [schedules]
+      operationId: getSchedule
+      summary: 일정 조회 (반복 일정은 원본 규칙)
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Schedule'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [schedules]
+      operationId: updateSchedule
+      summary: 일정 수정 — 반복 일정이면 "모든 일정" (SCR-CAL-08)
+      description: |
+        보낸 칸만 바꾼다. 종일 여부를 바꾸면 새 종류의 시각 칸(startAt·endAt 또는 startDate·endDate)을 함께 보내야 한다.
+        반복 일정에서 시각(startAt·endAt·startDate·endDate·allDay)이나 recurrence를 바꾸면 "이 일정만"으로 바꾸거나 삭제한 회차 기록을 모두 지운다
+        (회차의 기준 시각이 달라지기 때문). 제목·메모·연결 업무만 바꾸면 회차 기록은 남고, 회차에서 따로 바꾼 칸은 회차 값이 그대로 보인다.
+        recurrence에 null을 보내면 반복을 없앤다(원본 시각의 일정 하나만 남는다).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SchedulePatch'
+      responses:
+        '200':
+          description: 수정 후 전체
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Schedule'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/VersionConflict'
+    delete:
+      tags: [schedules]
+      operationId: deleteSchedule
+      summary: 일정 삭제 — 반복 일정이면 "모든 일정"
+      description: 일정과 회차 기록을 함께 지운다(되돌릴 수 없음). 이미 없으면 404. version을 받지 않는다.
+      responses:
+        '204':
+          description: 삭제됨
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/worklog/schedules/{scheduleId}/occurrences/{occurrenceStart}:
+    parameters:
+      - $ref: '#/components/parameters/ScheduleId'
+      - $ref: '#/components/parameters/OccurrenceStart'
+    patch:
+      tags: [schedules]
+      operationId: updateOccurrence
+      summary: 반복 일정의 한 회차만 수정 — "이 일정만" (SCR-CAL-08, 블록 이동 포함)
+      description: |
+        제목·메모·시각만 바꿀 수 있다(종일 여부·반복·연결 업무는 일정 전체 수정으로).
+        시각은 일정의 종류에 맞는 칸(시간 일정: startAt·endAt, 종일: startDate·endDate)만 받는다. 다른 회차와 겹치게 옮겨도 된다.
+        version은 일정(Schedule)의 version이다. 성공하면 일정의 version이 오른다.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OccurrencePatch'
+      responses:
+        '200':
+          description: 수정한 회차
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Occurrence'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: 일정이 없거나 occurrenceStart가 그 일정의 회차가 아님(이미 삭제한 회차 포함) (code=NOT_FOUND)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: version 불일치(code=VERSION_CONFLICT) 또는 반복 일정이 아님(code=NOT_RECURRING, 일정 전체 API를 쓴다)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+    delete:
+      tags: [schedules]
+      operationId: deleteOccurrence
+      summary: 반복 일정의 한 회차만 삭제 — "이 일정만"
+      description: 그 회차를 목록에서 뺀다. 일정의 version이 오른다. version을 받지 않는다. 이미 삭제한 회차면 204.
+      responses:
+        '204':
+          description: 삭제됨
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: 반복 일정이 아님 (code=NOT_RECURRING)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+
 components:
   securitySchemes:
     accessTokenCookie:
       type: apiKey
       in: cookie
       name: access_token
+  parameters:
+    ProjectId:
+      name: projectId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    TagId:
+      name: tagId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    TaskId:
+      name: taskId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ScheduleId:
+      name: scheduleId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    OccurrenceStart:
+      name: occurrenceStart
+      in: path
+      required: true
+      description: 회차 키 (Occurrence.occurrenceStart를 그대로, 예 2026-10-06T00:00:00Z)
+      schema:
+        type: string
+        format: date-time
   responses:
     Unauthorized:
       description: |
         토큰 없음·만료·서명 오류(code=UNAUTHENTICATED), 또는 탈퇴한 사용자(code=USER_DELETED).
         프론트는 UNAUTHENTICATED일 때 refresh 1회 후 재시도한다 (P0-07).
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    ProfileUnavailable:
+      description: identity 조회 실패 (code=PROFILE_UNAVAILABLE). 잠시 후 재시도.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    ValidationFailed:
+      description: |
+        입력 오류 (code=VALIDATION_FAILED). errors[]에 칸별 오류.
+        errors[].code: REQUIRED, TOO_LONG, INVALID_FORMAT, OUT_OF_RANGE, NOT_FOUND(참조한 프로젝트·태그·업무가 없음),
+        INVALID_ORDER(업무 시간대 종료가 시작보다 앞서거나 같음, 일정 종료가 시작보다 앞서거나 같음·종일 일정 endDate가 startDate보다 앞섬,
+        목록 조회 to가 from보다 앞서거나 같음).
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    VersionConflict:
+      description: 다른 곳에서 먼저 수정됨 (code=VERSION_CONFLICT). 화면은 새로 불러오기를 안내한다 (화면정의서 2.5).
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    DuplicateName:
+      description: 같은 이름이 이미 있음 (code=DUPLICATE_NAME). 이름은 앞뒤 공백을 빼고 대소문자를 무시해 비교한다.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    NotFound:
+      description: 없거나 다른 사용자의 리소스 (code=NOT_FOUND)
       content:
         application/problem+json:
           schema:
@@ -103,24 +858,526 @@ components:
           description: 사본을 마지막으로 갱신한 시각 (UTC)
     WorklogSettings:
       type: object
-      description: worklog 전용 설정 (UserSetting). 수정 API는 P1-01에서 추가.
-      required: [timeTrackingEnabled]
+      description: |
+        worklog 전용 설정 (UserSetting). 행이 없으면 기본값과 version=0.
+        P1에서 바뀐 점: 시각 칸은 null 없이 기본값을 준다(화면정의서 SCR-SET-02 기본값), version 추가.
+      required: [timeTrackingEnabled, workHoursStart, workHoursEnd, dailyCloseTime, version]
       properties:
         timeTrackingEnabled:
           type: boolean
           default: false
         workHoursStart:
-          type: [string, 'null']
-          pattern: '^\d{2}:\d{2}$'
-          example: '09:00'
+          type: string
+          pattern: '^([01]\d|2[0-3]):[0-5]\d$'
+          default: '09:00'
+          description: 사용자 시간대 기준 HH:mm
         workHoursEnd:
-          type: [string, 'null']
-          pattern: '^\d{2}:\d{2}$'
-          example: '18:00'
+          type: string
+          pattern: '^([01]\d|2[0-3]):[0-5]\d$'
+          default: '18:00'
+          description: workHoursStart보다 늦어야 한다 (자정 넘는 업무 시간대 없음)
         dailyCloseTime:
+          type: string
+          pattern: '^([01]\d|2[0-3]):[0-5]\d$'
+          default: '18:00'
+          description: 사용자 시간대 기준 하루 마감 시각
+        version:
+          type: integer
+          format: int64
+          minimum: 0
+    WorklogSettingsPatch:
+      type: object
+      required: [version]
+      properties:
+        version:
+          type: integer
+          format: int64
+          description: 마지막으로 받은 version (행이 없으면 0)
+        timeTrackingEnabled:
+          type: boolean
+        workHoursStart:
+          type: string
+          pattern: '^([01]\d|2[0-3]):[0-5]\d$'
+        workHoursEnd:
+          type: string
+          pattern: '^([01]\d|2[0-3]):[0-5]\d$'
+        dailyCloseTime:
+          type: string
+          pattern: '^([01]\d|2[0-3]):[0-5]\d$'
+
+    ProjectColor:
+      type: string
+      description: 프로젝트 전용 팔레트 8색의 키 (테마와 무관, 실제 색 값은 프론트 디자인 토큰). SCR-SET-08 ②
+      enum: [P1, P2, P3, P4, P5, P6, P7, P8]
+    Project:
+      type: object
+      required: [id, name, color, archived, taskCount, openTaskCount, createdAt, version]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+        color:
+          $ref: '#/components/schemas/ProjectColor'
+        archived:
+          type: boolean
+        archivedAt:
           type: [string, 'null']
-          pattern: '^\d{2}:\d{2}$'
-          example: '18:00'
+          format: date-time
+        taskCount:
+          type: integer
+          minimum: 0
+          description: 보관(소프트 삭제)하지 않은 업무 수 (상태 무관)
+        openTaskCount:
+          type: integer
+          minimum: 0
+          description: 남은 업무 수. 보관하지 않았고 완료(DONE)가 아닌 업무 (사이드바 프로젝트 목록, SCR-COM-01). 2026-10-06 추가
+        createdAt:
+          type: string
+          format: date-time
+        version:
+          type: integer
+          format: int64
+    ProjectCreate:
+      type: object
+      required: [name, color]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+          description: 앞뒤 공백은 빼고 저장한다
+        color:
+          $ref: '#/components/schemas/ProjectColor'
+    ProjectPatch:
+      type: object
+      required: [version]
+      properties:
+        version:
+          type: integer
+          format: int64
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+        color:
+          $ref: '#/components/schemas/ProjectColor'
+        archived:
+          type: boolean
+
+    Tag:
+      type: object
+      required: [id, name, usageCount, createdAt, version]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          description: '#은 붙이지 않는다'
+        usageCount:
+          type: integer
+          minimum: 0
+          description: 이 태그가 붙은 업무 중 보관하지 않은 업무 수
+        createdAt:
+          type: string
+          format: date-time
+        version:
+          type: integer
+          format: int64
+    TagName:
+      type: string
+      minLength: 1
+      maxLength: 30
+      pattern: '^[^\s#]+$'
+      description: 공백과 '#' 없음 (빠른 입력의 #태그 문법과 맞춤)
+    TagCreate:
+      type: object
+      required: [name]
+      properties:
+        name:
+          $ref: '#/components/schemas/TagName'
+    TagPatch:
+      type: object
+      required: [version, name]
+      properties:
+        version:
+          type: integer
+          format: int64
+        name:
+          $ref: '#/components/schemas/TagName'
+
+    TaskStatus:
+      type: string
+      description: 할 일 / 진행 중 / 완료 / 보류 (TASK-02)
+      enum: [TODO, IN_PROGRESS, DONE, ON_HOLD]
+    TaskPriority:
+      type: string
+      description: 높음 / 보통 / 낮음 (TASK-03)
+      enum: [HIGH, NORMAL, LOW]
+    Task:
+      type: object
+      required: [id, title, status, priority, progress, tagIds, createdAt, updatedAt, version]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        status:
+          $ref: '#/components/schemas/TaskStatus'
+        priority:
+          $ref: '#/components/schemas/TaskPriority'
+        dueDate:
+          type: [string, 'null']
+          format: date
+          description: 마감 임박·초과 표시는 프론트가 사용자 시간대의 오늘과 비교해 계산한다
+        progress:
+          type: integer
+          minimum: 0
+          maximum: 100
+          multipleOf: 10
+        completedAt:
+          type: [string, 'null']
+          format: date-time
+          description: status가 DONE일 때만 값이 있다
+        projectId:
+          type: [string, 'null']
+          format: uuid
+        tagIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        hasSchedule:
+          type: boolean
+          description: 일정이 하나 이상 연결돼 있음 (반복 일정은 시리즈 하나로 센다). 업무 행의 일정 배치 아이콘(SCR-TASK-01 ⑤). 2026-10-06 추가
+        memo:
+          type: [string, 'null']
+          maxLength: 5000
+        carriedOverFromId:
+          type: [string, 'null']
+          format: uuid
+          description: 이월 원본 업무 (읽기 전용, 이월 기능은 P3 LOG-13)
+        deletedAt:
+          type: [string, 'null']
+          format: date-time
+          description: 보관(소프트 삭제) 시각. 값이 있으면 읽기 전용
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        version:
+          type: integer
+          format: int64
+    TaskCreate:
+      type: object
+      required: [title]
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: 앞뒤 공백은 빼고 저장한다
+        status:
+          $ref: '#/components/schemas/TaskStatus'
+        priority:
+          $ref: '#/components/schemas/TaskPriority'
+        dueDate:
+          type: [string, 'null']
+          format: date
+        progress:
+          type: integer
+          minimum: 0
+          maximum: 100
+          multipleOf: 10
+          default: 0
+        projectId:
+          type: [string, 'null']
+          format: uuid
+        tagIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        memo:
+          type: [string, 'null']
+          maxLength: 5000
+      description: status 기본 TODO, priority 기본 NORMAL. status=DONE으로 만들면 completedAt을 기록한다.
+    TaskPatch:
+      type: object
+      required: [version]
+      properties:
+        version:
+          type: integer
+          format: int64
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        status:
+          $ref: '#/components/schemas/TaskStatus'
+        priority:
+          $ref: '#/components/schemas/TaskPriority'
+        dueDate:
+          type: [string, 'null']
+          format: date
+        progress:
+          type: integer
+          minimum: 0
+          maximum: 100
+          multipleOf: 10
+        projectId:
+          type: [string, 'null']
+          format: uuid
+        tagIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        memo:
+          type: [string, 'null']
+          maxLength: 5000
+
+    Recurrence:
+      type: object
+      description: |
+        반복 규칙 (SCH-03, SCR-CAL-07 ③). 저장은 RFC 5545 RRULE 문자열로 하고(FREQ·BYDAY·UNTIL·COUNT, INTERVAL=1), API는 이 형태로 주고받는다.
+        첫 회차는 항상 일정의 시작이다. 그래서 매주는 weekdays에 시작일(일정 시간대)의 요일이 들어 있어야 한다(아니면 OUT_OF_RANGE).
+        매월은 시작일과 같은 날짜이며, 그 날짜가 없는 달(예 31일)은 건너뛴다.
+        회차 시각은 일정 시간대(timezone)의 벽시계 시각으로 유지한다(서머타임이 있는 시간대에서도 같은 현지 시각).
+        until과 count는 함께 쓸 수 없다. 둘 다 없으면 끝없이 반복한다.
+      required: [frequency]
+      properties:
+        frequency:
+          type: string
+          enum: [DAILY, WEEKLY, MONTHLY]
+        weekdays:
+          type: array
+          description: WEEKLY에서만, 1개 이상 필수
+          items:
+            type: string
+            enum: [MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY, SUNDAY]
+        until:
+          type: [string, 'null']
+          format: date
+          description: 이 날짜(일정 시간대)까지의 회차 포함. 시작일보다 앞서면 OUT_OF_RANGE
+        count:
+          type: [integer, 'null']
+          minimum: 1
+          maximum: 999
+          description: 회차 수 (삭제한 회차도 센다)
+    Schedule:
+      type: object
+      description: |
+        일정 원본 (SCH-02). allDay=false면 startAt·endAt, true면 startDate·endDate(포함)가 값을 갖고 나머지 두 칸은 null이다.
+      required: [id, title, allDay, timezone, createdAt, updatedAt, version]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        allDay:
+          type: boolean
+        startAt:
+          type: [string, 'null']
+          format: date-time
+        endAt:
+          type: [string, 'null']
+          format: date-time
+        startDate:
+          type: [string, 'null']
+          format: date
+        endDate:
+          type: [string, 'null']
+          format: date
+          description: 마지막 날 포함 (하루짜리 종일 일정은 startDate와 같다)
+        timezone:
+          type: string
+          description: 반복 전개와 종일 날짜의 기준 IANA 시간대. 만들 때 사용자 시간대로 정해지며 바뀌지 않는다
+          example: Asia/Seoul
+        recurrence:
+          oneOf:
+            - $ref: '#/components/schemas/Recurrence'
+            - type: 'null'
+        taskId:
+          type: [string, 'null']
+          format: uuid
+          description: 연결 업무 (SCR-CAL-07 ④). 프로젝트는 업무를 따른다
+        memo:
+          type: [string, 'null']
+          maxLength: 5000
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        version:
+          type: integer
+          format: int64
+    ScheduleCreate:
+      type: object
+      required: [title, allDay]
+      description: |
+        allDay=false면 startAt·endAt 필수(endAt > startAt), true면 startDate·endDate 필수(endDate >= startDate).
+        다른 종류의 두 칸은 보내지 않거나 null이어야 한다(아니면 INVALID_FORMAT). 제목은 앞뒤 공백을 빼고 저장한다.
+        taskId는 보관하지 않은 내 업무여야 한다(아니면 NOT_FOUND). 15분 단위는 화면 조작 규칙이며 서버는 강제하지 않는다.
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        allDay:
+          type: boolean
+        startAt:
+          type: [string, 'null']
+          format: date-time
+        endAt:
+          type: [string, 'null']
+          format: date-time
+        startDate:
+          type: [string, 'null']
+          format: date
+        endDate:
+          type: [string, 'null']
+          format: date
+        recurrence:
+          oneOf:
+            - $ref: '#/components/schemas/Recurrence'
+            - type: 'null'
+        taskId:
+          type: [string, 'null']
+          format: uuid
+        memo:
+          type: [string, 'null']
+          maxLength: 5000
+    SchedulePatch:
+      type: object
+      required: [version]
+      description: 보낸 칸만 바꾼다. 검증 규칙은 ScheduleCreate와 같다(바꾼 뒤의 전체 값으로 검사).
+      properties:
+        version:
+          type: integer
+          format: int64
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        allDay:
+          type: boolean
+        startAt:
+          type: [string, 'null']
+          format: date-time
+        endAt:
+          type: [string, 'null']
+          format: date-time
+        startDate:
+          type: [string, 'null']
+          format: date
+        endDate:
+          type: [string, 'null']
+          format: date
+        recurrence:
+          oneOf:
+            - $ref: '#/components/schemas/Recurrence'
+            - type: 'null'
+        taskId:
+          type: [string, 'null']
+          format: uuid
+        memo:
+          type: [string, 'null']
+          maxLength: 5000
+    OccurrencePatch:
+      type: object
+      required: [version]
+      description: 보낸 칸만 바꾼다. memo에 null을 보내면 이 회차의 메모만 비운다.
+      properties:
+        version:
+          type: integer
+          format: int64
+          description: 일정(Schedule)의 version
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        startAt:
+          type: string
+          format: date-time
+        endAt:
+          type: string
+          format: date-time
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        memo:
+          type: [string, 'null']
+          maxLength: 5000
+    Occurrence:
+      type: object
+      description: |
+        캘린더에 그리는 일정 회차 하나. 반복이 없는 일정도 회차 하나로 준다.
+        occurrenceStart는 회차 키다: 원래(바꾸기 전) 시작 시각 — 종일 일정은 원래 시작일의 일정 시간대 0시.
+        회차를 옮겨도 키는 바뀌지 않는다. 기록 연결(P2, WorkRecord)도 이 키를 쓴다.
+      required: [scheduleId, occurrenceStart, recurring, modified, title, allDay, version]
+      properties:
+        scheduleId:
+          type: string
+          format: uuid
+        occurrenceStart:
+          type: string
+          format: date-time
+        recurring:
+          type: boolean
+          description: 반복 일정의 회차인지 (반복 아이콘, 수정 시 범위 선택 SCR-CAL-08)
+        modified:
+          type: boolean
+          description: '"이 일정만"으로 바꾼 회차인지'
+        title:
+          type: string
+        allDay:
+          type: boolean
+        startAt:
+          type: [string, 'null']
+          format: date-time
+        endAt:
+          type: [string, 'null']
+          format: date-time
+        startDate:
+          type: [string, 'null']
+          format: date
+        endDate:
+          type: [string, 'null']
+          format: date
+        taskId:
+          type: [string, 'null']
+          format: uuid
+        projectId:
+          type: [string, 'null']
+          format: uuid
+          description: |
+            연결 업무의 프로젝트 (읽기 전용, 캘린더 프로젝트 필터·블록 색). 업무나 프로젝트가 없으면 null.
+            보관한 업무도 그 프로젝트를 준다. (2026-10-06 추가)
+        memo:
+          type: [string, 'null']
+        version:
+          type: integer
+          format: int64
+          description: 일정(Schedule)의 version. 회차·전체 수정 모두 이 값을 보낸다
+
     Problem:
       type: object
       description: RFC 9457 Problem Details + 확장 필드 (P0-10 공통 모듈 형식)

@@ -1,0 +1,85 @@
+/* 업무 패널 카드 (SCR-CAL-09, 목업 CAL-01 우측). 패널 틀은 calendar.module.css의 .taskPanel */
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.card {
+  border-radius: 16px;
+  padding: 12px 14px;
+  background: #f7f8fc;
+  cursor: grab;
+}
+
+.card:active {
+  cursor: grabbing;
+}
+
+.title {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 11.5px;
+  font-weight: 800;
+}
+
+.chip {
+  border-radius: 8px;
+  padding: 2px 8px;
+  background: var(--color-surface);
+  color: var(--color-text-body);
+}
+
+.chip[data-late] {
+  color: var(--color-danger);
+}
+
+/* 키보드 대안. 카드 안에서는 작게 보이고 누르는 영역은 44px */
+.place {
+  position: relative;
+  margin-left: auto;
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 800;
+  border: 0;
+  border-radius: 8px;
+  padding: 2px 8px;
+  background: transparent;
+  color: var(--color-accent-ink);
+  cursor: pointer;
+}
+
+.place::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: max(100%, 44px);
+  height: max(100%, 44px);
+  transform: translate(-50%, -50%);
+}
+
+.more {
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  min-height: 44px;
+  border: 2px dashed var(--color-border);
+  border-radius: 16px;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}

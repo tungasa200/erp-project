@@ -1,0 +1,64 @@
+/* 일정 상세 ④ 연결 업무 (SCR-CAL-07). 목록 모양은 그날 일정 팝오버(.dayPopover)를 따른다. */
+
+.linked,
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.linked a {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.row input {
+  flex: 1;
+  min-width: 0;
+}
+
+.row button {
+  flex: none;
+}
+
+.search {
+  position: relative;
+}
+
+.list {
+  position: absolute;
+  z-index: 5;
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  background: var(--color-surface);
+  border-radius: 14px;
+  box-shadow: 0 18px 44px rgba(40, 44, 90, 0.2);
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.option {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.option[aria-selected='true'] {
+  background: var(--color-accent-soft);
+  color: var(--color-accent-ink);
+}

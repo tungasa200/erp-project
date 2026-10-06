@@ -23,8 +23,26 @@ spring:
   flyway:
     schemas: identity
     default-schema: identity
+  # 메일 발송 (D-57): Gmail SMTP, STARTTLS, 앱 비밀번호. 계정 값은 아래 identity.mail에서 받는다.
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${identity.mail.username}
+    password: ${identity.mail.password}
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: true
+      mail.smtp.starttls.required: true
+      mail.smtp.connectiontimeout: 5000
+      mail.smtp.timeout: 10000
+      mail.smtp.writetimeout: 10000
 
 identity:
+  # 비어 있으면 실제로 보내지 않고 로그에 남긴다(로컬). 운영은 prod 프로필에서 필수.
+  mail:
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    from-name: ${MAIL_FROM_NAME:worklog}
   jwt:
     # PKCS#8 PEM. 비어 있으면 실행할 때마다 임시 키를 만든다(로컬 전용). 운영은 아래 prod 프로필에서 필수.
     private-key: ${JWT_PRIVATE_KEY:}
@@ -76,3 +94,8 @@ identity:
   service-clients:
     worklog:
       secret: ${WORKLOG_CLIENT_SECRET}
+  # 기본값이 없으므로 환경 변수가 없거나 비어 있으면 기동에 실패한다 (MailProperties).
+  mail:
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+    required: true

@@ -5,5 +5,6 @@ import type { components } from './generated/identity'
 type IdentitySchemas = components['schemas']
 
 export type Me = IdentitySchemas['Me']
+export type ProfileUpdateRequest = IdentitySchemas['ProfileUpdateRequest']
 export type SignupRequest = IdentitySchemas['SignupRequest']
 export type LoginRequest = IdentitySchemas['LoginRequest']

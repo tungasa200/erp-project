@@ -4,6 +4,7 @@ import { authApi } from '../api'
 import { ApiError } from '../api/problem'
 import type { Me } from '../api/types'
 import { applyTheme, DEFAULT_THEME } from '../theme/theme'
+import { resetBanner } from '../verification/bannerState'
 import { AuthContext, ME_QUERY_KEY, setUser, type AuthValue } from './session'
 
 // 로그인하지 않은 상태(401)는 오류가 아니라 null로 본다.
@@ -32,11 +33,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       error,
       login: async (body) => {
         const me = await authApi.login(body)
+        resetBanner() // 미인증 배너는 다음 로그인 때 다시 보인다 (SCR-COM-07)
         setUser(queryClient, me)
         return me
       },
       signup: async (body) => {
         const me = await authApi.signup(body)
+        resetBanner()
         setUser(queryClient, me)
         return me
       },

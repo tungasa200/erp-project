@@ -63,6 +63,57 @@ class OriginSecretFilterTest {
 		assertThatThrownBy(() -> new OriginSecretFilter(properties(""), prod)).isInstanceOf(IllegalStateException.class);
 	}
 
+	@Test
+	void vercelClientIpIsForwardedAndExternalValueReplaced() {
+		var exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/api/auth/login")
+				.header("X-Origin-Secret", "s3cret")
+				.header("X-Client-Ip", "6.6.6.6")
+				.header("x-vercel-forwarded-for", "203.0.113.7")
+				.header("x-real-ip", "198.51.100.1"));
+
+		filter("s3cret").filter(exchange, chain).block();
+
+		assertThat(passed.get().getRequest().getHeaders().get("X-Client-Ip")).containsExactly("203.0.113.7");
+	}
+
+	@Test
+	void fallsBackToRealIpAndOmitsHeaderWhenNoValidIp() {
+		var realIp = MockServerWebExchange.from(MockServerHttpRequest.get("/api/auth/login")
+				.header("X-Origin-Secret", "s3cret")
+				.header("x-vercel-forwarded-for", "not-an-ip")
+				.header("x-real-ip", "2001:db8::1"));
+		filter("s3cret").filter(realIp, chain).block();
+		assertThat(passed.getAndSet(null).getRequest().getHeaders().getFirst("X-Client-Ip")).isEqualTo("2001:db8:0:0:0:0:0:1");
+
+		// Vercel 헤더가 없으면 외부 값도 Gateway 주소도 넣지 않는다
+		var none = MockServerWebExchange.from(MockServerHttpRequest.get("/api/auth/login")
+				.header("X-Origin-Secret", "s3cret")
+				.header("X-Client-Ip", "6.6.6.6"));
+		filter("s3cret").filter(none, chain).block();
+		assertThat(passed.get().getRequest().getHeaders().containsHeader("X-Client-Ip")).isFalse();
+	}
+
+	@Test
+	void clientIpIsNotTrustedWithoutSecretCheck() {
+		filter("s3cret").filter(MockServerWebExchange.from(MockServerHttpRequest.get("/actuator/health")
+				.header("X-Client-Ip", "6.6.6.6").header("x-real-ip", "1.2.3.4")), chain).block();
+		assertThat(passed.getAndSet(null).getRequest().getHeaders().containsHeader("X-Client-Ip")).isFalse();
+
+		filter("").filter(MockServerWebExchange.from(MockServerHttpRequest.get("/api/auth/login")
+				.header("X-Client-Ip", "6.6.6.6").header("x-real-ip", "1.2.3.4")), chain).block();
+		assertThat(passed.get().getRequest().getHeaders().containsHeader("X-Client-Ip")).isFalse();
+	}
+
+	@Test
+	void parseAcceptsOnlyIpLiterals() {
+		assertThat(ClientIp.parse("203.0.113.7, 10.0.0.1")).isEqualTo("203.0.113.7");
+		assertThat(ClientIp.parse(" ::1 ")).isEqualTo("0:0:0:0:0:0:0:1");
+		assertThat(ClientIp.parse("256.1.1.1")).isNull();
+		assertThat(ClientIp.parse("example.com")).isNull();
+		assertThat(ClientIp.parse("1.2.3")).isNull();
+		assertThat(ClientIp.parse("")).isNull();
+	}
+
 	private static OriginSecretFilter filter(String secret) {
 		return new OriginSecretFilter(properties(secret), new MockEnvironment());
 	}

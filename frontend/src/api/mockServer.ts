@@ -2,15 +2,20 @@
 // 체험용 계정: demo@example.com / worklog20
 // locked@example.com: 로그인 시 429 AUTH_LOCKED, error@example.com: 500, maintenance@example.com: 503 점검(30분)
 // deleted@example.com: 로그인은 되지만 이후 요청은 401 USER_DELETED(다른 기기에서 탈퇴한 경우, 새로 고침하면 재현)
+// 프로필 수정(PATCH /api/users/me)은 localStorage에 남는다. 탭 두 개에서 고치면 409 VERSION_CONFLICT를 재현할 수 있다.
+// 이메일 인증·비밀번호 재설정 코드는 항상 123456 (mockCodes.ts). 가입하면 첫 인증 코드를 자동으로 보낸 것으로 친다.
 import { EMAIL_PATTERN, passwordViolations } from '../auth/passwordRules'
+import { handleScheduleMock } from '../calendar/mockSchedules'
+import { checkCode, codeStatus, issueCode } from './mockCodes'
+import { handleWorklog } from './mockWorklog'
 import type { FieldError, Problem } from './problem'
-import type { Me } from './types'
+import type { Me, ProfileUpdateRequest } from './types'
 
 const STORE_KEY = 'worklog.mock'
 const ACCESS_TTL_MS = 10 * 60 * 1000
 
 interface MockState {
-  accounts: Record<string, { password: string; id: string }>
+  accounts: Record<string, { password: string; id: string; profile?: Partial<Me> }>
   session: { email: string; accessExpiresAt: number } | null
 }
 
@@ -53,7 +58,7 @@ function problem(status: number, code: string, extra: Partial<Problem> = {}) {
   return new Response(JSON.stringify(body), { status, headers })
 }
 
-function me(email: string, id: string): Me {
+function me(email: string, id: string, profile: Partial<Me> = {}): Me {
   return {
     id,
     email,
@@ -66,8 +71,41 @@ function me(email: string, id: string): Me {
     workDays: 31,
     themeAccent: '#4B3FD6',
     themeGround: '#F2F4FA',
+    keyboardShortcutsEnabled: true,
     version: 0,
+    ...profile,
   }
+}
+
+const TEXT_FIELDS = ['name', 'organization', 'position'] as const
+
+function updateProfile(current: Me, body: ProfileUpdateRequest): Me | Response {
+  if (body.version !== current.version) return problem(409, 'VERSION_CONFLICT')
+  const next: Me = { ...current }
+  const errors: FieldError[] = []
+  for (const field of TEXT_FIELDS) {
+    if (!(field in body)) continue
+    const value = body[field]?.trim() || null
+    if (value && value.length > 100) errors.push({ field, code: 'TOO_LONG' })
+    next[field] = value
+  }
+  if (body.timezone !== undefined) {
+    try {
+      new Intl.DateTimeFormat('en', { timeZone: body.timezone })
+      next.timezone = body.timezone
+    } catch {
+      errors.push({ field: 'timezone', code: 'TIMEZONE_INVALID' })
+    }
+  }
+  if (body.workDays !== undefined) {
+    if (body.workDays < 1 || body.workDays > 127) errors.push({ field: 'workDays', code: 'WORK_DAYS_INVALID' })
+    next.workDays = body.workDays
+  }
+  if (body.weekStart !== undefined) next.weekStart = body.weekStart
+  if (body.keyboardShortcutsEnabled !== undefined) next.keyboardShortcutsEnabled = body.keyboardShortcutsEnabled
+  if (errors.length) return problem(400, 'VALIDATION_FAILED', { errors })
+  const changed = JSON.stringify(next) !== JSON.stringify(current)
+  return changed ? { ...next, version: current.version + 1 } : current
 }
 
 function startSession(state: MockState, email: string) {
@@ -75,8 +113,22 @@ function startSession(state: MockState, email: string) {
   save(state)
 }
 
+// 응답 지연(개발 확인용). 기본 300ms. 스켈레톤처럼 느린 응답을 보려면 주소에 ?mockDelay=2000을 붙이거나
+// localStorage 'worklog.mock.delayMs'에 ms를 넣는다(주소 값은 저장돼 다음 요청에도 쓴다). dev:mock에서만 쓰인다.
+const DELAY_KEY = 'worklog.mock.delayMs'
+function mockDelay(): number {
+  try {
+    const fromUrl = new URLSearchParams(window.location.search).get('mockDelay')
+    if (fromUrl !== null) localStorage.setItem(DELAY_KEY, fromUrl)
+    const ms = Number(localStorage.getItem(DELAY_KEY) ?? 300)
+    return Number.isFinite(ms) && ms >= 0 ? Math.min(ms, 30_000) : 300
+  } catch {
+    return 300
+  }
+}
+
 export const mockFetch: typeof fetch = async (input, init) => {
-  await new Promise((r) => setTimeout(r, 300))
+  await new Promise((r) => setTimeout(r, mockDelay()))
   const path = typeof input === 'string' ? input : input instanceof URL ? input.pathname : input.url
   const method = init?.method ?? 'GET'
   const body = init?.body ? JSON.parse(init.body as string) : {}
@@ -97,6 +149,7 @@ export const mockFetch: typeof fetch = async (input, init) => {
     const id = `mock-${Date.now()}`
     state.accounts[email] = { password: body.password, id }
     startSession(state, email)
+    issueCode(`verify:${email}`)
     return json(201, me(email, id))
   }
 
@@ -114,7 +167,7 @@ export const mockFetch: typeof fetch = async (input, init) => {
     const account = state.accounts[email]
     if (!account || account.password !== body.password) return problem(401, 'INVALID_CREDENTIALS')
     startSession(state, email)
-    return json(200, me(email, account.id))
+    return json(200, me(email, account.id, account.profile))
   }
 
   if (method === 'POST' && path === '/api/auth/refresh') {
@@ -133,7 +186,93 @@ export const mockFetch: typeof fetch = async (input, init) => {
     const session = state.session
     if (!session || session.accessExpiresAt < Date.now()) return problem(401, 'UNAUTHENTICATED')
     if (session.email === 'deleted@example.com') return problem(401, 'USER_DELETED')
-    return json(200, me(session.email, state.accounts[session.email]?.id ?? 'mock'))
+    const account = state.accounts[session.email]
+    return json(200, me(session.email, account?.id ?? 'mock', account?.profile))
+  }
+
+  if (path === '/api/auth/password-reset' && method === 'POST') {
+    const email = String(body.email ?? '')
+      .trim()
+      .toLowerCase()
+    const issued = issueCode(`reset:${email}`)
+    if ('retryAfterSeconds' in issued) return problem(429, 'RESEND_TOO_SOON', issued)
+    return json(202, issued)
+  }
+
+  if (
+    (path === '/api/auth/password-reset/verify' || path === '/api/auth/password-reset/confirm') &&
+    method === 'POST'
+  ) {
+    const email = String(body.email ?? '')
+      .trim()
+      .toLowerCase()
+    const confirm = path.endsWith('/confirm')
+    const result = checkCode(`reset:${email}`, body.code, false)
+    if (!result.ok) return problem(400, result.code, result.extra as Partial<Problem>)
+    if (!confirm) return new Response(null, { status: 204 })
+    const errors = passwordViolations(String(body.newPassword ?? ''), email).map((code) => ({
+      field: 'newPassword',
+      code,
+    }))
+    if (errors.length) return problem(400, 'VALIDATION_FAILED', { errors })
+    checkCode(`reset:${email}`, body.code, true)
+    const account = state.accounts[email]
+    if (account) {
+      account.password = String(body.newPassword)
+      account.profile = { ...account.profile, emailVerified: true }
+    }
+    state.session = null // 모든 기기 로그아웃
+    save(state)
+    return new Response(null, { status: 204 })
+  }
+
+  if (path.startsWith('/api/users/me/email-verification')) {
+    const session = state.session
+    const account = session && state.accounts[session.email]
+    if (!session || !account) return problem(401, 'UNAUTHENTICATED')
+    const current = me(session.email, account.id, account.profile)
+    const key = `verify:${session.email}`
+    if (method === 'GET') return json(200, { verified: current.emailVerified, ...codeStatus(key) })
+    if (method === 'POST' && path.endsWith('/confirm')) {
+      if (current.emailVerified) return json(200, current)
+      const result = checkCode(key, body.code, true)
+      if (!result.ok) return problem(400, result.code, result.extra as Partial<Problem>)
+      account.profile = { ...account.profile, emailVerified: true, version: current.version + 1 }
+      save(state)
+      return json(200, me(session.email, account.id, account.profile))
+    }
+    if (method === 'POST') {
+      if (current.emailVerified) return problem(409, 'EMAIL_ALREADY_VERIFIED')
+      const issued = issueCode(key)
+      if ('retryAfterSeconds' in issued) return problem(429, 'RESEND_TOO_SOON', issued)
+      return json(202, issued)
+    }
+  }
+
+  if (method === 'PATCH' && path === '/api/users/me') {
+    const account = state.session && state.accounts[state.session.email]
+    if (!state.session || !account) return problem(401, 'UNAUTHENTICATED')
+    const result = updateProfile(me(state.session.email, account.id, account.profile), body as ProfileUpdateRequest)
+    if (result instanceof Response) return result
+    account.profile = result
+    save(state)
+    return json(200, result)
+  }
+
+  if (method === 'POST' && path === '/api/worklog/me/profile/refresh') {
+    if (!state.session) return problem(401, 'UNAUTHENTICATED')
+    return json(200, {})
+  }
+
+  if (path.startsWith('/api/worklog/')) {
+    if (!state.session || state.session.accessExpiresAt < Date.now()) return problem(401, 'UNAUTHENTICATED')
+    const respond = {
+      json,
+      problem: (s: number, c: string, e?: Record<string, unknown>) => problem(s, c, e as Partial<Problem>),
+    }
+    // 일정(P1-05·06)은 캘린더 쪽 mock이 맡는다 (frontend2)
+    const handled = handleScheduleMock(method, path, body, respond) ?? handleWorklog(method, path, body, respond)
+    if (handled) return handled
   }
 
   return problem(404, 'NOT_FOUND')

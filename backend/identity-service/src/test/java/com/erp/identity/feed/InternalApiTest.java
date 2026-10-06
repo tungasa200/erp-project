@@ -171,6 +171,24 @@ class InternalApiTest {
 	}
 
 	@Test
+	void 피드와_전체_목록의_프로필에_version을_담고_P1_01_이전_이벤트는_0으로_준다() throws Exception {
+		long head = head();
+		UUID userId = userId(signup(mvc, newEmail()).getContentAsString());
+		UUID legacyUser = UUID.randomUUID();
+		jdbc.update("INSERT INTO user_events (type, user_id, payload, created_at) VALUES ('CREATED', ?, ?::jsonb, now())",
+				legacyUser, """
+						{"name":null,"organization":null,"position":null,"timezone":"Asia/Seoul","weekStart":"MONDAY","workDays":31}""");
+
+		JsonNode items = getJson("/internal/user-events?after=" + head, serviceToken("user-events:read")).get("items");
+		assertThat(items).hasSize(2);
+		assertThat(items.get(0).get("userId").asString()).isEqualTo(userId.toString());
+		assertThat(items.get(0).get("profile").get("version").asLong()).isZero();
+		assertThat(items.get(1).get("userId").asString()).isEqualTo(legacyUser.toString());
+		assertThat(items.get(1).get("profile").get("version").isIntegralNumber()).isTrue();
+		assertThat(items.get(1).get("profile").get("version").asLong()).isZero();
+	}
+
+	@Test
 	void 보관_기간이_지난_커서는_410() throws Exception {
 		long head = head();
 		jdbc.update("UPDATE feed_retention SET pruned_through = ? WHERE id = 1", head + 1);

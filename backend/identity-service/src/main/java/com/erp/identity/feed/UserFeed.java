@@ -39,6 +39,12 @@ public class UserFeed {
 		append(UserEventType.CREATED, userId, json.writeValueAsString(profile), now);
 	}
 
+	/** profile.version은 변경을 반영한 뒤의 값이어야 한다(호출 전에 flush). */
+	@Transactional(propagation = Propagation.MANDATORY)
+	public void profileUpdated(UUID userId, Profile profile, Instant now) {
+		append(UserEventType.PROFILE_UPDATED, userId, json.writeValueAsString(profile), now);
+	}
+
 	/**
 	 * 탈퇴 이벤트를 남기고 그 사용자의 과거 CREATED·PROFILE_UPDATED 행을 지운다.
 	 * 피드에 프로필이 30일 동안 남지 않게 하기 위해서이며, 그래서 seq는 연속이 아닐 수 있다(contracts/identity.yaml).

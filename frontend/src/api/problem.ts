@@ -1,10 +1,10 @@
 import type { components } from './generated/identity'
 
+export type RateLimitedProblem = components['schemas']['RateLimitedProblem']
+
 // RFC 9457 Problem Details + 확장 필드. 모든 서비스가 같은 Problem을 쓴다(명세 스냅샷 생성 타입).
-export type Problem = components['schemas']['Problem'] & {
-  // 429 RateLimitedProblem의 확장 필드(contracts/identity.yaml). 스냅샷에 429 응답이 들어오면 생성 타입으로 바꾼다.
-  retryAfterSeconds?: number
-}
+// 확장 필드는 응답마다 달라서(429의 retryAfterSeconds) 선택 필드로 합친다.
+export type Problem = components['schemas']['Problem'] & Partial<Pick<RateLimitedProblem, 'retryAfterSeconds'>>
 
 export type FieldError = NonNullable<Problem['errors']>[number]
 

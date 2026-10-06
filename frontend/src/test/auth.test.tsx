@@ -40,14 +40,14 @@ describe('SCR-AUTH-02 로그인', () => {
         return json(200, ME)
       },
     })
-    const { router } = renderApp('/calendar')
+    const { router } = renderApp('/logs')
     const user = userEvent.setup()
     await user.type(await screen.findByLabelText('이메일'), 'demo@example.com')
     await user.type(screen.getByLabelText('비밀번호'), 'worklog20')
     await user.click(screen.getByRole('button', { name: '로그인' }))
 
-    expect(await screen.findByRole('heading', { name: '캘린더' })).toBeInTheDocument()
-    expect(router.state.location.pathname).toBe('/calendar')
+    expect(await screen.findByRole('heading', { name: '업무일지' })).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe('/logs')
   })
 
   it('형식 오류는 칸 아래에 표시하고 요청하지 않는다', async () => {
@@ -80,7 +80,27 @@ describe('SCR-AUTH-02 로그인', () => {
     await user.type(screen.getByLabelText('비밀번호'), 'wrong1234')
     await user.click(screen.getByRole('button', { name: '로그인' }))
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('이메일 또는 비밀번호가 맞지 않아요')
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('이메일 또는 비밀번호가 맞지 않아요')
+    expect(alert).not.toHaveTextContent('잠시 후 다시 시도해 주세요')
+  })
+
+  it('실패 응답이 늦게 오면(서버 점진 지연) "잠시 후 다시 시도해 주세요"를 덧붙인다', async () => {
+    stubFetch({
+      'POST /api/auth/login': async () => {
+        await new Promise((resolve) => setTimeout(resolve, 950))
+        return problem(401, 'INVALID_CREDENTIALS')
+      },
+    })
+    renderApp('/login')
+    const user = userEvent.setup()
+    await user.type(await screen.findByLabelText('이메일'), 'demo@example.com')
+    await user.type(screen.getByLabelText('비밀번호'), 'wrong1234')
+    await user.click(screen.getByRole('button', { name: '로그인' }))
+
+    const alert = await screen.findByRole('alert', {}, { timeout: 3000 })
+    expect(alert).toHaveTextContent('이메일 또는 비밀번호가 맞지 않아요')
+    expect(alert).toHaveTextContent('잠시 후 다시 시도해 주세요')
   })
 
   it('AUTH_LOCKED면 잠금 안내와 남은 시간을 보여 주고 버튼을 막는다', async () => {
@@ -93,7 +113,9 @@ describe('SCR-AUTH-02 로그인', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('15분 동안 로그인할 수 없어요.')
     const button = screen.getByRole('button', { name: /로그인 · 14:5\d 후 가능/ })
-    expect(button).toBeDisabled()
+    // 잠긴 동안은 aria-disabled로 막는다(disabled면 포커스가 빠짐)
+    expect(button).toHaveAttribute('aria-disabled', 'true')
+    expect(button).toHaveFocus()
   })
 
   it('서버 오류(5xx)는 문의 코드와 함께 토스트로 알린다', async () => {
@@ -215,7 +237,7 @@ describe('SCR-AUTH-03 회원가입', () => {
     const { router } = renderApp('/signup')
     await fillSignup(' New@Example.com ', 'worklog20')
 
-    expect(await screen.findByRole('heading', { name: '홈' })).toBeInTheDocument()
+    expect(await screen.findByRole('textbox', { name: '빠른 기록' })).toBeInTheDocument()
     expect(router.state.location.pathname).toBe('/')
     expect(body).toEqual({ email: 'New@Example.com', password: 'worklog20', agreeTerms: true, agreePrivacy: true })
   })

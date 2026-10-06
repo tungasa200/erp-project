@@ -1,0 +1,84 @@
+/* SCR-HOME-01 홈 대시보드 (목업 HOME-01) */
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.date {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.title {
+  margin: 4px 0 0;
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}
+
+.quick {
+  flex: 1 1 340px;
+  max-width: 520px;
+}
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 28px;
+  border-radius: 22px;
+  background: var(--color-surface);
+}
+
+.emptyTitle {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 800;
+}
+
+.emptyText {
+  margin: 0;
+  font-size: 14px;
+  color: var(--color-text-muted);
+}
+
+.examples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.example {
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1.5px dashed var(--color-disabled);
+  border-radius: 14px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+@media (max-width: 767px) {
+  .title {
+    font-size: 24px;
+  }
+
+  .empty {
+    padding: 22px;
+  }
+}

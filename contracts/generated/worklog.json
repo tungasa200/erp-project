@@ -13,6 +13,118 @@
       }
     },
     "schemas" : {
+      "Occurrence" : {
+        "description" : "캘린더에 그리는 일정 회차 하나. 반복이 없는 일정도 회차 하나로 준다.\noccurrenceStart는 회차 키(원래 시작 시각, 종일은 원래 날짜의 일정 시간대 0시)이며 회차를 옮겨도 바뀌지 않는다.",
+        "properties" : {
+          "allDay" : {
+            "type" : "boolean"
+          },
+          "endAt" : {
+            "format" : "date-time",
+            "type" : [ "string", "null" ]
+          },
+          "endDate" : {
+            "format" : "date",
+            "type" : [ "string", "null" ]
+          },
+          "memo" : {
+            "type" : [ "string", "null" ]
+          },
+          "modified" : {
+            "description" : "\"이 일정만\"으로 바꾼 회차인지",
+            "type" : "boolean"
+          },
+          "occurrenceStart" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "projectId" : {
+            "description" : "연결 업무의 프로젝트 (읽기 전용, 캘린더 프로젝트 필터·블록 색). 업무나 프로젝트가 없으면 null. 보관한 업무도 그 프로젝트를 준다",
+            "format" : "uuid",
+            "type" : [ "string", "null" ]
+          },
+          "recurring" : {
+            "description" : "반복 일정의 회차인지",
+            "type" : "boolean"
+          },
+          "scheduleId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "startAt" : {
+            "format" : "date-time",
+            "type" : [ "string", "null" ]
+          },
+          "startDate" : {
+            "format" : "date",
+            "type" : [ "string", "null" ]
+          },
+          "taskId" : {
+            "format" : "uuid",
+            "type" : [ "string", "null" ]
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "version" : {
+            "description" : "일정(Schedule)의 version",
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "allDay", "modified", "occurrenceStart", "recurring", "scheduleId", "title", "version" ],
+        "type" : "object"
+      },
+      "OccurrenceList" : {
+        "properties" : {
+          "items" : {
+            "items" : {
+              "$ref" : "#/components/schemas/Occurrence"
+            },
+            "type" : "array"
+          }
+        },
+        "required" : [ "items" ],
+        "type" : "object"
+      },
+      "OccurrencePatch" : {
+        "description" : "보낸 칸만 바꾼다. memo에 null을 보내면 이 회차의 메모만 비운다.",
+        "properties" : {
+          "endAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "endDate" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "memo" : {
+            "maxLength" : 5000,
+            "minLength" : 0,
+            "type" : [ "string", "null" ]
+          },
+          "startAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "startDate" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "title" : {
+            "maxLength" : 200,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "version" : {
+            "description" : "일정(Schedule)의 version",
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "version" ],
+        "type" : "object"
+      },
       "Problem" : {
         "description" : "RFC 9457 Problem Details + 확장 필드 (P0-10 공통 모듈 형식)",
         "properties" : {
@@ -95,6 +207,567 @@
         "required" : [ "timezone", "weekStart", "workDays" ],
         "type" : "object"
       },
+      "Project" : {
+        "properties" : {
+          "archived" : {
+            "type" : "boolean"
+          },
+          "archivedAt" : {
+            "format" : "date-time",
+            "type" : [ "string", "null" ]
+          },
+          "color" : {
+            "description" : "프로젝트 전용 팔레트 8색의 키 (실제 색 값은 프론트 디자인 토큰)",
+            "enum" : [ "P1", "P2", "P3", "P4", "P5", "P6", "P7", "P8" ],
+            "type" : "string"
+          },
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "name" : {
+            "maxLength" : 50,
+            "type" : "string"
+          },
+          "openTaskCount" : {
+            "description" : "남은 업무 수: 보관하지 않았고 완료(DONE)가 아닌 업무 (사이드바 프로젝트 목록, SCR-COM-01)",
+            "format" : "int64",
+            "minimum" : 0,
+            "type" : "integer"
+          },
+          "taskCount" : {
+            "description" : "보관(소프트 삭제)하지 않은 업무 수 (상태 무관)",
+            "format" : "int64",
+            "minimum" : 0,
+            "type" : "integer"
+          },
+          "version" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "archived", "color", "createdAt", "id", "name", "openTaskCount", "taskCount", "version" ],
+        "type" : "object"
+      },
+      "ProjectCreate" : {
+        "properties" : {
+          "color" : {
+            "enum" : [ "P1", "P2", "P3", "P4", "P5", "P6", "P7", "P8" ],
+            "pattern" : "^P[1-8]$",
+            "type" : "string"
+          },
+          "name" : {
+            "description" : "앞뒤 공백은 빼고 저장한다",
+            "maxLength" : 50,
+            "minLength" : 0,
+            "type" : "string"
+          }
+        },
+        "required" : [ "color", "name" ],
+        "type" : "object"
+      },
+      "ProjectList" : {
+        "properties" : {
+          "items" : {
+            "items" : {
+              "$ref" : "#/components/schemas/Project"
+            },
+            "type" : "array"
+          }
+        },
+        "required" : [ "items" ],
+        "type" : "object"
+      },
+      "ProjectPatch" : {
+        "properties" : {
+          "archived" : {
+            "type" : "boolean"
+          },
+          "color" : {
+            "enum" : [ "P1", "P2", "P3", "P4", "P5", "P6", "P7", "P8" ],
+            "pattern" : "^P[1-8]$",
+            "type" : "string"
+          },
+          "name" : {
+            "maxLength" : 50,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "version" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "version" ],
+        "type" : "object"
+      },
+      "Recurrence" : {
+        "description" : "반복 규칙 (SCH-03). 첫 회차는 항상 일정의 시작이라 매주는 weekdays에 시작일의 요일이 있어야 한다.\n매월은 시작일과 같은 날짜이며 그 날짜가 없는 달은 건너뛴다. until과 count는 함께 쓸 수 없고, 둘 다 없으면 끝없이 반복한다.",
+        "properties" : {
+          "count" : {
+            "description" : "회차 수 (삭제한 회차도 센다)",
+            "format" : "int32",
+            "maximum" : 999,
+            "minimum" : 1,
+            "type" : [ "integer", "null" ]
+          },
+          "frequency" : {
+            "enum" : [ "DAILY", "WEEKLY", "MONTHLY" ],
+            "type" : "string"
+          },
+          "until" : {
+            "description" : "이 날짜(일정 시간대)까지의 회차 포함",
+            "format" : "date",
+            "type" : [ "string", "null" ]
+          },
+          "weekdays" : {
+            "description" : "WEEKLY에서만, 1개 이상 필수",
+            "items" : {
+              "enum" : [ "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY" ],
+              "type" : "string"
+            },
+            "type" : "array"
+          }
+        },
+        "required" : [ "frequency" ],
+        "type" : "object"
+      },
+      "Schedule" : {
+        "description" : "일정 원본. allDay=false면 startAt·endAt, true면 startDate·endDate(포함)만 값이 있다.",
+        "properties" : {
+          "allDay" : {
+            "type" : "boolean"
+          },
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "endAt" : {
+            "format" : "date-time",
+            "type" : [ "string", "null" ]
+          },
+          "endDate" : {
+            "description" : "마지막 날 포함",
+            "format" : "date",
+            "type" : [ "string", "null" ]
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "memo" : {
+            "maxLength" : 5000,
+            "type" : [ "string", "null" ]
+          },
+          "recurrence" : {
+            "oneOf" : [ {
+              "$ref" : "#/components/schemas/Recurrence"
+            }, {
+              "type" : "null"
+            } ]
+          },
+          "startAt" : {
+            "format" : "date-time",
+            "type" : [ "string", "null" ]
+          },
+          "startDate" : {
+            "format" : "date",
+            "type" : [ "string", "null" ]
+          },
+          "taskId" : {
+            "format" : "uuid",
+            "type" : [ "string", "null" ]
+          },
+          "timezone" : {
+            "description" : "반복 전개와 종일 날짜의 기준 IANA 시간대. 만들 때 사용자 시간대로 정해지며 바뀌지 않는다",
+            "type" : "string"
+          },
+          "title" : {
+            "maxLength" : 200,
+            "type" : "string"
+          },
+          "updatedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "version" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "allDay", "createdAt", "id", "timezone", "title", "updatedAt", "version" ],
+        "type" : "object"
+      },
+      "ScheduleCreate" : {
+        "description" : "allDay=false면 startAt·endAt 필수(endAt > startAt), true면 startDate·endDate 필수(endDate >= startDate).\n다른 종류의 두 칸은 보내지 않거나 null이어야 한다. taskId는 보관하지 않은 내 업무여야 한다.",
+        "properties" : {
+          "allDay" : {
+            "type" : "boolean"
+          },
+          "endAt" : {
+            "format" : "date-time",
+            "type" : [ "string", "null" ]
+          },
+          "endDate" : {
+            "format" : "date",
+            "type" : [ "string", "null" ]
+          },
+          "memo" : {
+            "maxLength" : 5000,
+            "minLength" : 0,
+            "type" : [ "string", "null" ]
+          },
+          "recurrence" : {
+            "oneOf" : [ {
+              "$ref" : "#/components/schemas/Recurrence"
+            }, {
+              "type" : "null"
+            } ]
+          },
+          "startAt" : {
+            "format" : "date-time",
+            "type" : [ "string", "null" ]
+          },
+          "startDate" : {
+            "format" : "date",
+            "type" : [ "string", "null" ]
+          },
+          "taskId" : {
+            "format" : "uuid",
+            "type" : [ "string", "null" ]
+          },
+          "title" : {
+            "description" : "앞뒤 공백은 빼고 저장한다",
+            "maxLength" : 200,
+            "minLength" : 0,
+            "type" : "string"
+          }
+        },
+        "required" : [ "allDay", "title" ],
+        "type" : "object"
+      },
+      "SchedulePatch" : {
+        "description" : "보낸 칸만 바꾼다. 검증 규칙은 ScheduleCreate와 같다(바꾼 뒤의 전체 값으로 검사).",
+        "properties" : {
+          "allDay" : {
+            "type" : "boolean"
+          },
+          "endAt" : {
+            "format" : "date-time",
+            "type" : [ "string", "null" ]
+          },
+          "endDate" : {
+            "format" : "date",
+            "type" : [ "string", "null" ]
+          },
+          "memo" : {
+            "maxLength" : 5000,
+            "minLength" : 0,
+            "type" : [ "string", "null" ]
+          },
+          "recurrence" : {
+            "oneOf" : [ {
+              "$ref" : "#/components/schemas/Recurrence"
+            }, {
+              "type" : "null"
+            } ]
+          },
+          "startAt" : {
+            "format" : "date-time",
+            "type" : [ "string", "null" ]
+          },
+          "startDate" : {
+            "format" : "date",
+            "type" : [ "string", "null" ]
+          },
+          "taskId" : {
+            "format" : "uuid",
+            "type" : [ "string", "null" ]
+          },
+          "title" : {
+            "maxLength" : 200,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "version" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "version" ],
+        "type" : "object"
+      },
+      "Tag" : {
+        "properties" : {
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "name" : {
+            "description" : "#은 붙이지 않는다",
+            "type" : "string"
+          },
+          "usageCount" : {
+            "description" : "이 태그가 붙은 업무 중 보관하지 않은 업무 수",
+            "format" : "int64",
+            "minimum" : 0,
+            "type" : "integer"
+          },
+          "version" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "createdAt", "id", "name", "usageCount", "version" ],
+        "type" : "object"
+      },
+      "TagCreate" : {
+        "properties" : {
+          "name" : {
+            "maxLength" : 30,
+            "minLength" : 0,
+            "pattern" : "^[^\\s#]+$",
+            "type" : "string"
+          }
+        },
+        "required" : [ "name" ],
+        "type" : "object"
+      },
+      "TagList" : {
+        "properties" : {
+          "items" : {
+            "items" : {
+              "$ref" : "#/components/schemas/Tag"
+            },
+            "type" : "array"
+          }
+        },
+        "required" : [ "items" ],
+        "type" : "object"
+      },
+      "TagPatch" : {
+        "properties" : {
+          "name" : {
+            "maxLength" : 30,
+            "minLength" : 0,
+            "pattern" : "^[^\\s#]+$",
+            "type" : "string"
+          },
+          "version" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "name", "version" ],
+        "type" : "object"
+      },
+      "Task" : {
+        "properties" : {
+          "carriedOverFromId" : {
+            "description" : "이월 원본 업무 (읽기 전용, 이월 기능은 P3)",
+            "format" : "uuid",
+            "type" : [ "string", "null" ]
+          },
+          "completedAt" : {
+            "description" : "status가 DONE일 때만 값이 있다",
+            "format" : "date-time",
+            "type" : [ "string", "null" ]
+          },
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "deletedAt" : {
+            "description" : "보관(소프트 삭제) 시각. 값이 있으면 읽기 전용",
+            "format" : "date-time",
+            "type" : [ "string", "null" ]
+          },
+          "dueDate" : {
+            "description" : "마감 임박·초과 표시는 프론트가 사용자 시간대의 오늘과 비교해 계산한다",
+            "format" : "date",
+            "type" : [ "string", "null" ]
+          },
+          "hasSchedule" : {
+            "description" : "일정이 하나 이상 연결돼 있음 (반복 일정은 시리즈 하나로 센다). 업무 행의 일정 배치 아이콘(SCR-TASK-01 ⑤)",
+            "type" : "boolean"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "memo" : {
+            "maxLength" : 5000,
+            "type" : [ "string", "null" ]
+          },
+          "priority" : {
+            "enum" : [ "HIGH", "NORMAL", "LOW" ],
+            "type" : "string"
+          },
+          "progress" : {
+            "format" : "int32",
+            "maximum" : 100,
+            "minimum" : 0,
+            "multipleOf" : 10.0,
+            "type" : "integer"
+          },
+          "projectId" : {
+            "format" : "uuid",
+            "type" : [ "string", "null" ]
+          },
+          "status" : {
+            "enum" : [ "TODO", "IN_PROGRESS", "DONE", "ON_HOLD" ],
+            "type" : "string"
+          },
+          "tagIds" : {
+            "items" : {
+              "format" : "uuid",
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "title" : {
+            "maxLength" : 200,
+            "type" : "string"
+          },
+          "updatedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "version" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "createdAt", "hasSchedule", "id", "priority", "progress", "status", "tagIds", "title", "updatedAt", "version" ],
+        "type" : "object"
+      },
+      "TaskCreate" : {
+        "description" : "status 기본 TODO, priority 기본 NORMAL. status=DONE으로 만들면 completedAt을 기록한다.",
+        "properties" : {
+          "dueDate" : {
+            "format" : "date",
+            "type" : [ "string", "null" ]
+          },
+          "memo" : {
+            "maxLength" : 5000,
+            "minLength" : 0,
+            "type" : [ "string", "null" ]
+          },
+          "priority" : {
+            "enum" : [ "HIGH", "NORMAL", "LOW" ],
+            "pattern" : "^(HIGH|NORMAL|LOW)$",
+            "type" : "string"
+          },
+          "progress" : {
+            "default" : 0,
+            "format" : "int32",
+            "maximum" : 100,
+            "minimum" : 0,
+            "multipleOf" : 10.0,
+            "type" : "integer"
+          },
+          "projectId" : {
+            "format" : "uuid",
+            "type" : [ "string", "null" ]
+          },
+          "status" : {
+            "enum" : [ "TODO", "IN_PROGRESS", "DONE", "ON_HOLD" ],
+            "pattern" : "^(TODO|IN_PROGRESS|DONE|ON_HOLD)$",
+            "type" : "string"
+          },
+          "tagIds" : {
+            "items" : {
+              "format" : "uuid",
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "title" : {
+            "description" : "앞뒤 공백은 빼고 저장한다",
+            "maxLength" : 200,
+            "minLength" : 0,
+            "type" : "string"
+          }
+        },
+        "required" : [ "title" ],
+        "type" : "object"
+      },
+      "TaskList" : {
+        "properties" : {
+          "items" : {
+            "items" : {
+              "$ref" : "#/components/schemas/Task"
+            },
+            "type" : "array"
+          },
+          "nextCursor" : {
+            "description" : "다음 페이지가 없으면 null",
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "items" ],
+        "type" : "object"
+      },
+      "TaskPatch" : {
+        "properties" : {
+          "dueDate" : {
+            "format" : "date",
+            "type" : [ "string", "null" ]
+          },
+          "memo" : {
+            "maxLength" : 5000,
+            "minLength" : 0,
+            "type" : [ "string", "null" ]
+          },
+          "priority" : {
+            "enum" : [ "HIGH", "NORMAL", "LOW" ],
+            "pattern" : "^(HIGH|NORMAL|LOW)$",
+            "type" : "string"
+          },
+          "progress" : {
+            "format" : "int32",
+            "maximum" : 100,
+            "minimum" : 0,
+            "multipleOf" : 10.0,
+            "type" : "integer"
+          },
+          "projectId" : {
+            "format" : "uuid",
+            "type" : [ "string", "null" ]
+          },
+          "status" : {
+            "enum" : [ "TODO", "IN_PROGRESS", "DONE", "ON_HOLD" ],
+            "pattern" : "^(TODO|IN_PROGRESS|DONE|ON_HOLD)$",
+            "type" : "string"
+          },
+          "tagIds" : {
+            "items" : {
+              "format" : "uuid",
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "title" : {
+            "maxLength" : 200,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "version" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "version" ],
+        "type" : "object"
+      },
       "WorklogMe" : {
         "properties" : {
           "profile" : {
@@ -115,22 +788,58 @@
       "WorklogSettings" : {
         "properties" : {
           "dailyCloseTime" : {
-            "pattern" : "^\\d{2}:\\d{2}$",
-            "type" : [ "string", "null" ]
+            "description" : "사용자 시간대 기준 하루 마감 시각",
+            "example" : "18:00",
+            "pattern" : "^([01]\\d|2[0-3]):[0-5]\\d$",
+            "type" : "string"
           },
           "timeTrackingEnabled" : {
             "type" : "boolean"
           },
+          "version" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
           "workHoursEnd" : {
-            "pattern" : "^\\d{2}:\\d{2}$",
-            "type" : [ "string", "null" ]
+            "description" : "workHoursStart보다 늦어야 한다 (자정 넘는 업무 시간대 없음)",
+            "example" : "18:00",
+            "pattern" : "^([01]\\d|2[0-3]):[0-5]\\d$",
+            "type" : "string"
           },
           "workHoursStart" : {
-            "pattern" : "^\\d{2}:\\d{2}$",
-            "type" : [ "string", "null" ]
+            "description" : "사용자 시간대 기준 HH:mm",
+            "example" : "09:00",
+            "pattern" : "^([01]\\d|2[0-3]):[0-5]\\d$",
+            "type" : "string"
           }
         },
-        "required" : [ "timeTrackingEnabled" ],
+        "required" : [ "dailyCloseTime", "timeTrackingEnabled", "version", "workHoursEnd", "workHoursStart" ],
+        "type" : "object"
+      },
+      "WorklogSettingsPatch" : {
+        "properties" : {
+          "dailyCloseTime" : {
+            "pattern" : "^([01]\\d|2[0-3]):[0-5]\\d$",
+            "type" : "string"
+          },
+          "timeTrackingEnabled" : {
+            "type" : "boolean"
+          },
+          "version" : {
+            "description" : "마지막으로 받은 version (행이 없으면 0)",
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "workHoursEnd" : {
+            "pattern" : "^([01]\\d|2[0-3]):[0-5]\\d$",
+            "type" : "string"
+          },
+          "workHoursStart" : {
+            "pattern" : "^([01]\\d|2[0-3]):[0-5]\\d$",
+            "type" : "string"
+          }
+        },
+        "required" : [ "version" ],
         "type" : "object"
       }
     },
@@ -181,6 +890,1298 @@
         } ],
         "summary" : "현재 사용자의 worklog 프로필 조회",
         "tags" : [ "me" ]
+      }
+    },
+    "/api/worklog/me/profile/refresh" : {
+      "post" : {
+        "description" : "identity에서 프로필을 저장한 직후 호출한다. identity 값이 사본보다 새것(version)일 때만 바꾼다.",
+        "operationId" : "refreshMyProfile",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/WorklogMe"
+                }
+              }
+            },
+            "description" : "갱신 후 현재 값"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/Unauthorized"
+          },
+          "503" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "identity 조회 실패 (code=PROFILE_UNAVAILABLE). 잠시 후 재시도."
+          }
+        },
+        "security" : [ {
+          "accessTokenCookie" : [ ]
+        } ],
+        "summary" : "공통 프로필 사본 즉시 갱신 (P1-01)",
+        "tags" : [ "me" ]
+      }
+    },
+    "/api/worklog/me/settings" : {
+      "patch" : {
+        "description" : "보낸 칸만 바꾼다. 설정 행이 없으면 version=0으로 보낸다.",
+        "operationId" : "updateMySettings",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/WorklogSettingsPatch"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/WorklogSettings"
+                }
+              }
+            },
+            "description" : "수정 후 설정 전체"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "입력 오류 (code=VALIDATION_FAILED). errors[].code: REQUIRED, INVALID_FORMAT, INVALID_ORDER"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/Unauthorized"
+          },
+          "409" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "다른 곳에서 먼저 수정됨 (code=VERSION_CONFLICT)"
+          }
+        },
+        "security" : [ {
+          "accessTokenCookie" : [ ]
+        } ],
+        "summary" : "worklog 전용 설정 수정 (P1-01, 항목별 자동 저장)",
+        "tags" : [ "me" ]
+      }
+    },
+    "/api/worklog/projects" : {
+      "get" : {
+        "description" : "페이지 없이 전체를 돌려준다. 만든 순서.",
+        "operationId" : "listProjects",
+        "parameters" : [ {
+          "description" : "true면 보관한 프로젝트도 포함",
+          "in" : "query",
+          "name" : "includeArchived",
+          "required" : false,
+          "schema" : {
+            "default" : false,
+            "type" : "boolean"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProjectList"
+                }
+              }
+            },
+            "description" : "조회 성공"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/Unauthorized"
+          }
+        },
+        "security" : [ {
+          "accessTokenCookie" : [ ]
+        } ],
+        "summary" : "프로젝트 목록",
+        "tags" : [ "projects" ]
+      },
+      "post" : {
+        "operationId" : "createProject",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ProjectCreate"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Project"
+                }
+              }
+            },
+            "description" : "생성됨"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "입력 오류 (code=VALIDATION_FAILED)"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/Unauthorized"
+          },
+          "409" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "같은 이름이 이미 있음 (code=DUPLICATE_NAME)"
+          }
+        },
+        "security" : [ {
+          "accessTokenCookie" : [ ]
+        } ],
+        "summary" : "프로젝트 추가",
+        "tags" : [ "projects" ]
+      }
+    },
+    "/api/worklog/projects/{projectId}" : {
+      "get" : {
+        "operationId" : "getProject",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "projectId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Project"
+                }
+              }
+            },
+            "description" : "조회 성공"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/Unauthorized"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "없거나 다른 사용자의 프로젝트 (code=NOT_FOUND)"
+          }
+        },
+        "security" : [ {
+          "accessTokenCookie" : [ ]
+        } ],
+        "summary" : "프로젝트 조회",
+        "tags" : [ "projects" ]
+      },
+      "patch" : {
+        "description" : "보낸 칸만 바꾼다. 보관한 프로젝트의 업무는 업무 목록 기본 조회에서 빠진다.",
+        "operationId" : "updateProject",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "projectId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ProjectPatch"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Project"
+                }
+              }
+            },
+            "description" : "수정 후 전체"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "입력 오류 (code=VALIDATION_FAILED)"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/Unauthorized"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "없거나 다른 사용자의 프로젝트 (code=NOT_FOUND)"
+          },
+          "409" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "version 불일치(code=VERSION_CONFLICT) 또는 같은 이름(code=DUPLICATE_NAME)"
+          }
+        },
+        "security" : [ {
+          "accessTokenCookie" : [ ]
+        } ],
+        "summary" : "프로젝트 수정·보관·보관 해제",
+        "tags" : [ "projects" ]
+      }
+    },
+    "/api/worklog/schedules" : {
+      "get" : {
+        "description" : "[from, to)와 겹치는 회차를 시작 시각순으로 준다. 반복 일정은 회차로 전개하고, \"이 일정만\"으로 바꾼 회차는 바뀐 값으로,\n삭제한 회차는 빼고 준다. 종일 일정은 일정 시간대의 [startDate 0시, endDate 다음 날 0시)로 겹침을 판단한다. 기간은 최대 400일.\ntaskId를 주면 그 업무에 연결된 일정의 회차만 준다(다른 사용자의 업무면 빈 목록).",
+        "operationId" : "listOccurrences",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "from",
+          "required" : false,
+          "schema" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        }, {
+          "description" : "from보다 뒤, from + 400일 이내",
+          "in" : "query",
+          "name" : "to",
+          "required" : false,
+          "schema" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        }, {
+          "description" : "이 업무에 연결된 일정의 회차만",
+          "in" : "query",
+          "name" : "taskId",
+          "required" : false,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/OccurrenceList"
+                }
+              }
+            },
+            "description" : "조회 성공"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "from·to 누락(REQUIRED)·순서(INVALID_ORDER)·400일 초과(OUT_OF_RANGE)·형식 오류(INVALID_FORMAT)"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/Unauthorized"
+          }
+        },
+        "security" : [ {
+          "accessTokenCookie" : [ ]
+        } ],
+        "summary" : "기간 안의 일정 회차 (캘린더 일·주·월·연·목록 보기)",
+        "tags" : [ "schedules" ]
+      },
+      "post" : {
+        "description" : "timezone은 사용자 프로필의 현재 시간대로 정해지며 바꿀 수 없다(반복 전개·종일 날짜의 기준, D-40).",
+        "operationId" : "createSchedule",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ScheduleCreate"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Schedule"
+                }
+              }
+            },
+            "description" : "생성됨"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "입력 오류 (code=VALIDATION_FAILED, errors[].field는 recurrence.weekdays처럼 점으로 구분)"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/Unauthorized"
+          },
+          "503" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "identity 조회 실패 (code=PROFILE_UNAVAILABLE)"
+          }
+        },
+        "security" : [ {
+          "accessTokenCookie" : [ ]
+        } ],
+        "summary" : "일정 추가 (반복 포함)",
+        "tags" : [ "schedules" ]
+      }
+    },
+    "/api/worklog/schedules/{scheduleId}" : {
+      "delete" : {
+        "description" : "일정과 회차 기록을 함께 지운다(되돌릴 수 없음). version을 받지 않는다.",
+        "operationId" : "deleteSchedule",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "scheduleId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "삭제됨"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/Unauthorized"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "없거나 다른 사용자의 일정 (code=NOT_FOUND)"
+          }
+        },
+        "security" : [ {
+          "accessTokenCookie" : [ ]
+        } ],
+        "summary" : "일정 삭제 — 반복 일정이면 \"모든 일정\"",
+        "tags" : [ "schedules" ]
+      },
+      "get" : {
+        "operationId" : "getSchedule",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "scheduleId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Schedule"
+                }
+              }
+            },
+            "description" : "조회 성공"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/Unauthorized"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "없거나 다른 사용자의 일정 (code=NOT_FOUND)"
+          }
+        },
+        "security" : [ {
+          "accessTokenCookie" : [ ]
+        } ],
+        "summary" : "일정 조회 (반복 일정은 원본 규칙)",
+        "tags" : [ "schedules" ]
+      },
+      "patch" : {
+        "description" : "보낸 칸만 바꾼다. 종일 여부를 바꾸면 새 종류의 시각 칸을 함께 보낸다. 반복 일정에서 시각이나 recurrence를 바꾸면\n회차별 변경·삭제를 모두 지운다. 제목·메모·연결 업무만 바꾸면 남는다. recurrence에 null을 보내면 반복을 없앤다.",
+        "operationId" : "updateSchedule",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "scheduleId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SchedulePatch"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Schedule"
+                }
+              }
+            },
+            "description" : "수정 후 전체"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "입력 오류 (code=VALIDATION_FAILED)"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/Unauthorized"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "없거나 다른 사용자의 일정 (code=NOT_FOUND)"
+          },
+          "409" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "version 불일치 (code=VERSION_CONFLICT)"
+          }
+        },
+        "security" : [ {
+          "accessTokenCookie" : [ ]
+        } ],
+        "summary" : "일정 수정 — 반복 일정이면 \"모든 일정\" (SCR-CAL-08)",
+        "tags" : [ "schedules" ]
+      }
+    },
+    "/api/worklog/schedules/{scheduleId}/occurrences/{occurrenceStart}" : {
+      "delete" : {
+        "description" : "그 회차를 목록에서 뺀다. 일정의 version이 오른다. version을 받지 않는다. 이미 삭제한 회차면 204.",
+        "operationId" : "deleteOccurrence",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "scheduleId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "occurrenceStart",
+          "required" : true,
+          "schema" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "삭제됨"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/Unauthorized"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "없거나 다른 사용자의 일정, 또는 그 일정의 회차가 아님 (code=NOT_FOUND)"
+          },
+          "409" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "반복 일정이 아님 (code=NOT_RECURRING)"
+          }
+        },
+        "security" : [ {
+          "accessTokenCookie" : [ ]
+        } ],
+        "summary" : "반복 일정의 한 회차만 삭제 — \"이 일정만\"",
+        "tags" : [ "schedules" ]
+      },
+      "patch" : {
+        "description" : "제목·메모·시각만 바꿀 수 있다(종일 여부·반복·연결 업무는 일정 전체 수정으로). 시각은 일정 종류에 맞는 칸만 받는다.\nversion은 일정의 version이며 성공하면 오른다.",
+        "operationId" : "updateOccurrence",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "scheduleId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "description" : "회차 키 (Occurrence.occurrenceStart를 그대로)",
+          "in" : "path",
+          "name" : "occurrenceStart",
+          "required" : true,
+          "schema" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/OccurrencePatch"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Occurrence"
+                }
+              }
+            },
+            "description" : "수정한 회차"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "입력 오류 (code=VALIDATION_FAILED)"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/Unauthorized"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "일정이 없거나 occurrenceStart가 그 일정의 회차가 아님(삭제한 회차 포함) (code=NOT_FOUND)"
+          },
+          "409" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "version 불일치(code=VERSION_CONFLICT) 또는 반복 일정이 아님(code=NOT_RECURRING)"
+          }
+        },
+        "security" : [ {
+          "accessTokenCookie" : [ ]
+        } ],
+        "summary" : "반복 일정의 한 회차만 수정 — \"이 일정만\" (SCR-CAL-08, 블록 이동 포함)",
+        "tags" : [ "schedules" ]
+      }
+    },
+    "/api/worklog/tags" : {
+      "get" : {
+        "description" : "페이지 없이 전체를 돌려준다. 이름순.",
+        "operationId" : "listTags",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TagList"
+                }
+              }
+            },
+            "description" : "조회 성공"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/Unauthorized"
+          }
+        },
+        "security" : [ {
+          "accessTokenCookie" : [ ]
+        } ],
+        "summary" : "태그 목록 (사용 수 포함)",
+        "tags" : [ "tags" ]
+      },
+      "post" : {
+        "description" : "같은 이름(대소문자 무시)이 이미 있으면 새로 만들지 않고 200으로 기존 태그를 돌려준다. 새로 만들면 201.",
+        "operationId" : "createTag",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/TagCreate"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Tag"
+                }
+              }
+            },
+            "description" : "같은 이름의 기존 태그"
+          },
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Tag"
+                }
+              }
+            },
+            "description" : "생성됨"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "입력 오류 (code=VALIDATION_FAILED)"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/Unauthorized"
+          }
+        },
+        "security" : [ {
+          "accessTokenCookie" : [ ]
+        } ],
+        "summary" : "태그 추가 (같은 이름이 있으면 그 태그를 돌려줌)",
+        "tags" : [ "tags" ]
+      }
+    },
+    "/api/worklog/tags/{tagId}" : {
+      "delete" : {
+        "description" : "태그를 실제로 지우고 모든 업무에서 뗀다 (보관한 업무 포함). 되돌릴 수 없다.",
+        "operationId" : "deleteTag",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "tagId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "삭제됨"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/Unauthorized"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "없거나 다른 사용자의 태그 (code=NOT_FOUND)"
+          }
+        },
+        "security" : [ {
+          "accessTokenCookie" : [ ]
+        } ],
+        "summary" : "태그 삭제",
+        "tags" : [ "tags" ]
+      },
+      "patch" : {
+        "description" : "다른 태그와 이름이 같아지면 409(DUPLICATE_NAME). 합치기는 하지 않는다.",
+        "operationId" : "updateTag",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "tagId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/TagPatch"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Tag"
+                }
+              }
+            },
+            "description" : "수정 후 전체"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "입력 오류 (code=VALIDATION_FAILED)"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/Unauthorized"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "없거나 다른 사용자의 태그 (code=NOT_FOUND)"
+          },
+          "409" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "version 불일치(code=VERSION_CONFLICT) 또는 같은 이름(code=DUPLICATE_NAME)"
+          }
+        },
+        "security" : [ {
+          "accessTokenCookie" : [ ]
+        } ],
+        "summary" : "태그 이름 변경",
+        "tags" : [ "tags" ]
+      }
+    },
+    "/api/worklog/tasks" : {
+      "get" : {
+        "description" : "기본 조회는 보관(소프트 삭제)하지 않은 업무 중 보관한 프로젝트에 속하지 않은 것이다. projectId로 거르면 보관한 프로젝트의 업무도 돌려준다.\n정렬: sort=due는 마감일 오름차순(마감일 없음은 뒤) → 생성순, sort=created는 생성 역순.\n필터를 바꾸면 cursor 없이 처음부터 조회한다.",
+        "operationId" : "listTasks",
+        "parameters" : [ {
+          "description" : "이전 응답의 nextCursor. 처음이면 생략.",
+          "in" : "query",
+          "name" : "cursor",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "default" : 50,
+            "format" : "int32",
+            "maximum" : 100,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        }, {
+          "description" : "여러 개면 OR (?status=TODO&status=IN_PROGRESS)",
+          "in" : "query",
+          "name" : "status",
+          "required" : false,
+          "schema" : {
+            "items" : {
+              "enum" : [ "TODO", "IN_PROGRESS", "DONE", "ON_HOLD" ],
+              "type" : "string"
+            },
+            "type" : "array"
+          }
+        }, {
+          "description" : "여러 개면 OR",
+          "in" : "query",
+          "name" : "projectId",
+          "required" : false,
+          "schema" : {
+            "items" : {
+              "format" : "uuid",
+              "type" : "string"
+            },
+            "type" : "array"
+          }
+        }, {
+          "description" : "여러 개면 OR (태그 중 하나라도 붙은 업무)",
+          "in" : "query",
+          "name" : "tagId",
+          "required" : false,
+          "schema" : {
+            "items" : {
+              "format" : "uuid",
+              "type" : "string"
+            },
+            "type" : "array"
+          }
+        }, {
+          "description" : "마감일 >= dueFrom",
+          "in" : "query",
+          "name" : "dueFrom",
+          "required" : false,
+          "schema" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        }, {
+          "description" : "마감일 <= dueTo",
+          "in" : "query",
+          "name" : "dueTo",
+          "required" : false,
+          "schema" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        }, {
+          "description" : "완료 업무는 완료 시각이 이 시각 이후인 것만 (완료가 아닌 업무에는 영향 없음)",
+          "in" : "query",
+          "name" : "completedSince",
+          "required" : false,
+          "schema" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        }, {
+          "description" : "제목 부분 일치 검색 (대소문자 무시)",
+          "in" : "query",
+          "name" : "q",
+          "required" : false,
+          "schema" : {
+            "maxLength" : 100,
+            "type" : "string"
+          }
+        }, {
+          "description" : "true면 보관(소프트 삭제)한 업무만 돌려준다",
+          "in" : "query",
+          "name" : "deleted",
+          "required" : false,
+          "schema" : {
+            "default" : false,
+            "type" : "boolean"
+          }
+        }, {
+          "description" : "false면 일정이 연결되지 않은 업무만(캘린더 업무 패널, SCH-07), true면 연결된 업무만. 생략하면 거르지 않는다",
+          "in" : "query",
+          "name" : "scheduled",
+          "required" : false,
+          "schema" : {
+            "type" : "boolean"
+          }
+        }, {
+          "in" : "query",
+          "name" : "sort",
+          "required" : false,
+          "schema" : {
+            "default" : "due",
+            "enum" : [ "due", "created" ],
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TaskList"
+                }
+              }
+            },
+            "description" : "조회 성공"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "값 형식 오류(code=VALIDATION_FAILED) 또는 cursor 형식이 틀림(code=INVALID_CURSOR)"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/Unauthorized"
+          }
+        },
+        "security" : [ {
+          "accessTokenCookie" : [ ]
+        } ],
+        "summary" : "업무 목록 (cursor, 필터·검색)",
+        "tags" : [ "tasks" ]
+      },
+      "post" : {
+        "operationId" : "createTask",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/TaskCreate"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Task"
+                }
+              }
+            },
+            "description" : "생성됨"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "입력 오류 (code=VALIDATION_FAILED). 참조한 프로젝트·태그가 없으면 errors[].code=NOT_FOUND"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/Unauthorized"
+          }
+        },
+        "security" : [ {
+          "accessTokenCookie" : [ ]
+        } ],
+        "summary" : "업무 추가",
+        "tags" : [ "tasks" ]
+      }
+    },
+    "/api/worklog/tasks/{taskId}" : {
+      "delete" : {
+        "description" : "이미 보관한 업무면 그대로 204. version을 받지 않는다.",
+        "operationId" : "deleteTask",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "taskId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "보관됨"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/Unauthorized"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "없거나 다른 사용자의 업무 (code=NOT_FOUND)"
+          }
+        },
+        "security" : [ {
+          "accessTokenCookie" : [ ]
+        } ],
+        "summary" : "업무 보관 (소프트 삭제)",
+        "tags" : [ "tasks" ]
+      },
+      "get" : {
+        "operationId" : "getTask",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "taskId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Task"
+                }
+              }
+            },
+            "description" : "조회 성공"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/Unauthorized"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "없거나 다른 사용자의 업무 (code=NOT_FOUND)"
+          }
+        },
+        "security" : [ {
+          "accessTokenCookie" : [ ]
+        } ],
+        "summary" : "업무 조회 (보관한 업무 포함)",
+        "tags" : [ "tasks" ]
+      },
+      "patch" : {
+        "description" : "보낸 칸만 바꾼다. dueDate·projectId·memo는 null을 보내면 비운다. tagIds는 보낸 목록으로 통째로 바꾼다.\nDONE으로 바꾸면 completedAt을 기록하고, DONE에서 벗어나면 비운다. 상태 전이 제한은 없고 진행률은 자동으로 바꾸지 않는다.\n보관한 업무는 수정할 수 없다(409 TASK_DELETED).",
+        "operationId" : "updateTask",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "taskId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/TaskPatch"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Task"
+                }
+              }
+            },
+            "description" : "수정 후 전체"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "입력 오류 (code=VALIDATION_FAILED)"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/Unauthorized"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "없거나 다른 사용자의 업무 (code=NOT_FOUND)"
+          },
+          "409" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "version 불일치(code=VERSION_CONFLICT) 또는 보관한 업무(code=TASK_DELETED)"
+          }
+        },
+        "security" : [ {
+          "accessTokenCookie" : [ ]
+        } ],
+        "summary" : "업무 수정 (항목별 자동 저장)",
+        "tags" : [ "tasks" ]
+      }
+    },
+    "/api/worklog/tasks/{taskId}/restore" : {
+      "post" : {
+        "description" : "보관하지 않은 업무면 그대로 200.",
+        "operationId" : "restoreTask",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "taskId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Task"
+                }
+              }
+            },
+            "description" : "복원 후 전체"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/Unauthorized"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "없거나 다른 사용자의 업무 (code=NOT_FOUND)"
+          }
+        },
+        "security" : [ {
+          "accessTokenCookie" : [ ]
+        } ],
+        "summary" : "보관한 업무 복원 (되돌리기 토스트, 보관함)",
+        "tags" : [ "tasks" ]
       }
     }
   },

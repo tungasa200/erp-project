@@ -76,6 +76,7 @@ export function SignupPage() {
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault()
+    if (submitting) return
     setSubmitted(true)
     setEmailTaken(false)
     const next: Errors = {}
@@ -248,7 +249,7 @@ export function SignupPage() {
           </p>
         )}
 
-        <button type="submit" className={styles.submit} disabled={submitting} aria-busy={submitting}>
+        <button type="submit" className={styles.submit} aria-disabled={submitting} aria-busy={submitting}>
           {submitting ? '가입 중…' : '회원가입'}
         </button>
         <p className={styles.note}>

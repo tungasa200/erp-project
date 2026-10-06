@@ -16,6 +16,7 @@ import java.security.MessageDigest;
  * Vercel을 거치지 않은 직접 접근을 막는다 (P0-09). Vercel은 /api/* 프록시 요청에 X-Origin-Secret을 덮어써서 붙인다.
  * 값이 맞지 않으면 Gateway가 있다는 것도 드러내지 않도록 본문 없는 404로 응답한다.
  * 확인한 헤더는 지우고 전달한다. Railway 헬스체크는 Vercel을 거치지 않으므로 /actuator/health는 검사하지 않는다.
+ * 통과한 요청에만 Vercel이 준 접속자 IP를 X-Client-Ip로 붙인다 ({@link ClientIp}). 그 밖의 요청에서는 X-Client-Ip를 지운다.
  */
 @Component
 public class OriginSecretFilter implements WebFilter, Ordered {
@@ -23,6 +24,7 @@ public class OriginSecretFilter implements WebFilter, Ordered {
 	static final String HEADER = "X-Origin-Secret";
 
 	private final byte[] secret;
+	private final ClientIp clientIp = new ClientIp();
 
 	public OriginSecretFilter(GatewayProperties props, Environment env) {
 		String value = props.originSecret();
@@ -45,7 +47,9 @@ public class OriginSecretFilter implements WebFilter, Ordered {
 	@Override
 	public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
 		if (secret == null || exchange.getRequest().getPath().value().startsWith("/actuator/health")) {
-			return chain.filter(exchange);
+			// Vercel을 거쳤다고 확인할 수 없으므로 접속자 IP를 믿지 않는다 (로컬은 identity가 루프백 주소로 대신한다)
+			var request = exchange.getRequest().mutate().headers(h -> h.remove(ClientIp.HEADER)).build();
+			return chain.filter(exchange.mutate().request(request).build());
 		}
 		String given = exchange.getRequest().getHeaders().getFirst(HEADER);
 		if (given == null || !MessageDigest.isEqual(secret, given.getBytes(StandardCharsets.UTF_8))) {
@@ -53,7 +57,10 @@ public class OriginSecretFilter implements WebFilter, Ordered {
 			return exchange.getResponse().setComplete();
 		}
 		// 내부 서비스로는 넘기지 않는다 (로그에 남지 않게)
-		var request = exchange.getRequest().mutate().headers(h -> h.remove(HEADER)).build();
+		var request = exchange.getRequest().mutate().headers(h -> {
+			h.remove(HEADER);
+			clientIp.forward(h);
+		}).build();
 		return chain.filter(exchange.mutate().request(request).build());
 	}
 }
