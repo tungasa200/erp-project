@@ -7,10 +7,13 @@ const path = require('path');
 const crypto = require('crypto');
 const { execFile } = require('child_process');
 const { loadOpsConfig } = require('./opsConfig');
+const { rootFor } = require('./approvalStore');
+const { readSessionStatus } = require('./agentsReader');
 
 const VIEW_ID = 'erpSessions.panel';
 const INTERVAL = { memory: 5000, processes: 15000, sessions: 10000 };
 const COMMAND_TIMEOUT = 8000;
+const REVEAL_REPLAY_MS = 10000;
 
 // stderr는 콘솔 코드 페이지(CP949)라 글자가 깨지므로 오류 문구는 종료 코드로만 만든다
 function run(label, file, args) {
@@ -51,34 +54,40 @@ async function readProcesses() {
   return [...groups.values()].sort((a, b) => b.bytes - a.bytes).slice(0, 5);
 }
 
-// claude는 npm .cmd 래퍼라 cmd.exe로 실행한다
-async function readSessions() {
-  const out = await run('claude agents', process.env.ComSpec || 'cmd.exe', ['/d', '/s', '/c', 'claude agents --json --all']);
-  let list;
-  try {
-    list = JSON.parse(out);
-  } catch {
-    throw new Error('claude agents 출력을 해석하지 못함');
-  }
-  return list.map((s) => ({
-    name: s.name || '(이름 없음)',
-    kind: s.kind,
-    status: s.status,
-    state: s.state,
-    waitingFor: s.waitingFor,
-    id: s.id || (s.sessionId || '').slice(0, 8),
-    startedAt: s.startedAt,
-  }));
+function workspaceDir() {
+  const folder = vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders[0];
+  return folder ? folder.uri.fsPath : null;
+}
+
+// 세션 상태: claude agents + 권한 요청 파일 + 세션 등록 기록(agentsReader, 계획 2.2)
+function readSessions() {
+  const dir = workspaceDir();
+  return readSessionStatus({ root: rootFor(dir), ops: dir ? loadOpsConfig(dir) : null });
+}
+
+// 메모리 경고 선(wy-ops.json memory, D-86): warnFreeMB 미만 주의, blockFreeMB 미만 위험
+function readMemoryLimits() {
+  const dir = workspaceDir();
+  const m = (dir && (loadOpsConfig(dir) || {}).memory) || {};
+  const num = (v, d) => (Number.isFinite(v) && v > 0 ? v : d);
+  return { warnFreeMB: num(m.warnFreeMB, 1024), blockFreeMB: num(m.blockFreeMB, 500) };
+}
+
+// 커밋 전담 역할: 열면(attach) 나온 뒤 --agent 없이 다시 뜰 수 있다(OPS-06 4)
+function commitRole() {
+  const dir = workspaceDir();
+  const ops = dir ? loadOpsConfig(dir) : null;
+  return (ops && ops.commitRole) || null;
 }
 
 // 역할 순서: 프로젝트 설정(.claude/wy-ops.json)의 roles, 없으면 CLAUDE.md 세션 역할 표, 둘 다 없으면 빈 목록
 function readRoles() {
-  const folder = vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders[0];
-  if (!folder) return [];
-  const ops = loadOpsConfig(folder.uri.fsPath);
+  const dir = workspaceDir();
+  if (!dir) return [];
+  const ops = loadOpsConfig(dir);
   if (ops && Array.isArray(ops.roles) && ops.roles.length) return ops.roles.map((r) => r && r.name).filter(Boolean);
   try {
-    const text = fs.readFileSync(path.join(folder.uri.fsPath, 'CLAUDE.md'), 'utf8');
+    const text = fs.readFileSync(path.join(dir, 'CLAUDE.md'), 'utf8');
     const section = text.split(/^## /m).find((s) => s.startsWith('세션 역할')) || '';
     return [...section.matchAll(/^\| `([^`]+)` \|/gm)].map((m) => m[1]);
   } catch {
@@ -108,10 +117,15 @@ class Provider {
       if (msg.type === 'ready') {
         this.folded = new Set(msg.folded || []);
         this.post({ type: 'roles', data: readRoles() });
+        this.post({ type: 'limits', data: readMemoryLimits() });
         Object.values(this.cache).forEach((m) => this.post(m));
+        // 뷰가 막 열리는 중에 온 "세션 현황에서 보기"는 webview가 준비된 뒤 다시 보낸다
+        if (this.lastReveal && Date.now() - this.lastReveal.at < REVEAL_REPLAY_MS) this.post(this.lastReveal.msg);
         if (view.visible) this.start();
       } else if (msg.type === 'refresh') {
         this.refreshAll().then(() => this.post({ type: 'refreshed' }));
+      } else if (msg.type === 'open') {
+        openSession(msg.id, msg.name);
       } else if (msg.type === 'fold') {
         if (msg.folded) this.folded.add(msg.source);
         else {
@@ -142,6 +156,12 @@ class Provider {
       .replace(/{{nonce}}/g, nonce)
       .replace(/{{css}}/g, uri('panel.css'))
       .replace(/{{js}}/g, uri('panel.js'));
+  }
+
+  reveal(sessionId) {
+    const msg = { type: 'reveal', sessionId };
+    this.lastReveal = { msg, at: Date.now() };
+    this.post(msg);
   }
 
   post(msg) {
@@ -184,16 +204,34 @@ class Provider {
 }
 
 const REVEAL_COMMAND = 'erpSessions.revealSession';
+const SESSION_ID_RE = /^[0-9a-f][0-9a-f-]{3,63}$/i;
+
+// "열기"(OPS-04, D-89): VS Code 새 터미널에서 claude attach. PowerShell 실행 정책 때문에 claude.cmd로 부른다
+async function openSession(id, name) {
+  if (!SESSION_ID_RE.test(String(id || ''))) return;
+  if (name && name === commitRole()) {
+    const go = '열기';
+    const pick = await vscode.window.showWarningMessage(
+      `${name}에 들어갑니다. 나온 뒤 이 세션이 역할(--agent) 없이 다시 뜰 수 있어, 커밋 승인을 계속 받으려면 WY-pm이 교대해야 할 수 있습니다.`,
+      { modal: true },
+      go,
+    );
+    if (pick !== go) return;
+  }
+  const terminal = vscode.window.createTerminal({ name: `${name || id} (attach)` });
+  terminal.show();
+  terminal.sendText(`claude.cmd attach ${id}`);
+}
 
 function register(context) {
   const provider = new Provider(context.extensionUri);
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider(VIEW_ID, provider),
     vscode.commands.registerCommand('erpSessions.refresh', () => provider.refreshAll()),
-    // 승인 센터의 "세션 현황에서 보기"(D-89): 뷰를 열고 그 세션 줄을 강조한다(강조는 WY-backend1이 panel.js에서)
+    // 승인 센터의 "세션 현황에서 보기"(D-89): 뷰를 열고 그 세션 줄을 강조한다(인자는 전체 sessionId 또는 짧은 id)
     vscode.commands.registerCommand(REVEAL_COMMAND, async (sessionId) => {
       await vscode.commands.executeCommand(`${VIEW_ID}.focus`);
-      provider.post({ type: 'reveal', sessionId });
+      provider.reveal(sessionId);
     }),
     { dispose: () => provider.stop() },
   );

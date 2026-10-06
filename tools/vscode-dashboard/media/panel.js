@@ -2,22 +2,23 @@
 (() => {
   const vscode = acquireVsCodeApi();
   const GB = 1024 ** 3;
-  const LOW_FREE = GB;
+  const MB = 1024 ** 2;
   const $ = (id) => document.getElementById(id);
+  const REVEAL_MS = 6000;
 
+  // 상태(view)는 확장의 agentsReader가 정한다(운영 도구 구현 계획 2.2)
   const STATES = {
     working: { label: '작업 중', icon: 'i-working' },
     idle: { label: '대기', icon: 'i-idle' },
-    waiting: { label: '입력 대기', icon: 'i-waiting' },
-    approval: { label: '승인 대기', icon: 'i-approval' },
+    input: { label: '입력 대기', icon: 'i-waiting' },
+    permission: { label: '권한 대기', icon: 'i-approval' },
+    ended: { label: '종료됨', icon: 'i-warn' },
     stopped: { label: '멈춤', icon: 'i-stopped' },
     failed: { label: '오류', icon: 'i-failed' },
     none: { label: '없음', icon: 'i-none' },
   };
-  // 진행 중 > 대기 > 멈춤 > 오류 > 없음. 같은 그룹 안은 역할 표 순서
-  const GROUP = { working: 0, idle: 1, waiting: 1, approval: 1, stopped: 2, failed: 3, none: 4 };
-  // waitingFor 중 사람이 승인·선택해야 하는 것. 'input needed'는 다음 지시를 기다리는 상태
-  const NEEDS_APPROVAL = ['permission prompt', 'sandbox request', 'worker request', 'dialog open'];
+  // 사람이 봐야 하는 것(권한 대기 > 입력 대기·종료됨·오류) > 작업 중 > 대기 > 멈춤 > 없음. 같은 그룹 안은 역할 표 순서
+  const GROUP = { permission: 0, input: 1, ended: 1, failed: 1, working: 2, idle: 3, stopped: 4, none: 5 };
   const WAITING_FOR = {
     'permission prompt': '권한 승인 요청',
     'sandbox request': '샌드박스 허용 요청',
@@ -30,7 +31,11 @@
   const folded = new Set(saved.folded || []);
   let roles = [];
   let lastSessions = null;
-  let wasLow = false;
+  let lastMemory = null;
+  // 메모리 경고 선(wy-ops.json memory, D-86). 확장이 limits로 보내기 전에는 기본값
+  let limits = { warn: 1024 * MB, block: 500 * MB };
+  let wasLevel = 'ok';
+  let reveal = null; // { key, until, done }
   let lastAt = 0;
   const failed = new Set();
 
@@ -47,20 +52,6 @@
     if (h < 10) return h + '시간 ' + (min % 60) + '분';
     if (h < 24) return h + '시간';
     return Math.floor(h / 24) + '일 ' + (h % 24) + '시간';
-  }
-
-  // 백그라운드는 state(working·blocked·done·failed·stopped)+waitingFor, VS Code 세션은 status(busy·waiting·idle)
-  function stateOf(s) {
-    const v = String(s.state || s.status || '').toLowerCase();
-    const st = String(s.status || '').toLowerCase();
-    const wf = String(s.waitingFor || '').toLowerCase();
-    if (['stopped', 'done', 'exited', 'killed'].includes(v)) return 'stopped';
-    if (['failed', 'error', 'crashed'].includes(v)) return 'failed';
-    if (NEEDS_APPROVAL.includes(wf)) return 'approval';
-    if (v === 'blocked') return 'waiting';
-    if (st === 'waiting') return wf === 'input needed' ? 'waiting' : 'approval';
-    if (['busy', 'working', 'running', 'starting'].includes(v) || st === 'busy') return 'working';
-    return 'idle';
   }
 
   function sortRows(rows) {
@@ -132,20 +123,31 @@
     const { total, free } = msg.data;
     const used = total - free;
     const pct = Math.round((used / total) * 100);
-    const low = free < LOW_FREE;
-    box.classList.toggle('is-low', low);
-    if (low !== wasLow) announce(low ? `여유 메모리 ${fmtGB(free)}, 1GB 미만입니다` : '여유 메모리가 1GB 이상으로 돌아왔습니다');
-    wasLow = low;
+    const level = free < limits.block ? 'block' : free < limits.warn ? 'warn' : 'ok';
+    box.classList.toggle('is-low', level === 'warn');
+    box.classList.toggle('is-block', level === 'block');
+    if (level !== wasLevel) {
+      announce(
+        level === 'block' ? `여유 메모리 ${fmtSize(free)}, ${fmtSize(limits.block)} 미만입니다. 무거운 작업을 시작하지 마세요`
+          : level === 'warn' ? `여유 메모리 ${fmtSize(free)}, ${fmtSize(limits.warn)} 미만입니다`
+            : `여유 메모리가 ${fmtSize(limits.warn)} 이상으로 돌아왔습니다`,
+      );
+    }
+    wasLevel = level;
     $('mem-free').textContent = fmtGB(free);
     $('mem-total').textContent = '전체 ' + fmtGB(total);
     const meter = $('mem-meter');
     meter.style.setProperty('--used', String(used / total));
-    meter.style.setProperty('--limit', Math.max(0, ((total - LOW_FREE) / total) * 100) + '%');
+    meter.style.setProperty('--limit', Math.max(0, ((total - limits.warn) / total) * 100) + '%');
+    meter.style.setProperty('--block', Math.max(0, ((total - limits.block) / total) * 100) + '%');
+    $('mem-limit').title = `이 선을 넘으면 여유 ${fmtSize(limits.warn)} 미만(주의)`;
+    $('mem-block').title = `이 선을 넘으면 여유 ${fmtSize(limits.block)} 미만(무거운 작업 금지)`;
     meter.setAttribute('aria-valuenow', String(pct));
     meter.setAttribute('aria-valuetext', `사용 ${fmtGB(used)}, 여유 ${fmtGB(free)}`);
     const note = $('mem-note');
     note.replaceChildren();
-    if (low) note.append(icon('i-warn'), el('span', null, '여유 1GB 미만 — 무거운 작업을 시작하지 마세요'));
+    if (level === 'block') note.append(icon('i-error'), el('span', null, `여유 ${fmtSize(limits.block)} 미만 — 무거운 작업을 시작하지 마세요`));
+    else if (level === 'warn') note.append(icon('i-warn'), el('span', null, `여유 ${fmtSize(limits.warn)} 미만 — 무거운 작업은 한 번에 하나씩`));
     else note.append(el('span', null, `사용 ${fmtGB(used)} · ${pct}%`));
   }
 
@@ -179,29 +181,73 @@
     }
   }
 
+  // "세션 현황에서 보기"로 고른 줄인가: 전체 sessionId 또는 짧은 id 앞부분
+  function isRevealed(s) {
+    if (!reveal || !s || Date.now() > reveal.until) return false;
+    const k = reveal.key;
+    return k === s.sessionId || (!!s.id && (k === s.id || k.startsWith(s.id) || s.id.startsWith(k)));
+  }
+
   function sessionRow(name, s, state) {
     const tr = el('tr');
-    if (state === 'approval') tr.className = 'is-approval';
-    if (state === 'none') tr.className = 'is-absent';
+    tr.classList.add('st-row-' + state);
+    if (state === 'none') tr.classList.add('is-absent');
+    if (s && s.sessionId) tr.dataset.sessionId = s.sessionId;
     const who = el('td');
     const nm = el('span', 's-name', name);
     nm.title = name;
     const meta = el('span', 's-meta');
     if (s) {
-      meta.append(el('span', null, (s.kind === 'background' ? '백그라운드' : 'VS Code') + ' · '), el('span', 's-id', s.id));
+      meta.append(el('span', null, (s.kind === 'background' ? '백그라운드' : 'VS Code') + (s.id ? ' · ' : '')));
+      if (s.id) meta.append(el('span', 's-id', s.id));
+      if (s.roleMissing) {
+        const badge = el('span', 'badge badge-warn', '역할 누락');
+        badge.title = '--agent 없이 뜬 세션입니다. 역할 파일의 규칙이 실리지 않았을 수 있습니다';
+        meta.append(badge);
+      }
     } else {
       meta.textContent = '띄우지 않음';
     }
     who.append(nm, meta);
+    // 권한 대기: 기다리는 도구·명령(OPS-04)
+    if (s && s.pending) {
+      const cmd = [s.pending.tool, s.pending.command].filter(Boolean).join(' · ');
+      const line = el('span', 's-pending', cmd);
+      line.title = cmd;
+      who.append(line);
+    }
     const st = el('td');
     const chip = el('span', 'state st-' + state);
     chip.append(icon(STATES[state].icon), el('span', null, STATES[state].label));
     const wf = s && s.waitingFor;
     if (wf) chip.title = WAITING_FOR[String(wf).toLowerCase()] || wf;
+    else if (state === 'ended') chip.title = '할 일을 기다리다 세션이 끝났습니다. 이 사이 보낸 메시지는 전달되지 않았을 수 있습니다';
     st.append(chip);
-    const age = el('td', 'num elapsed', s && state !== 'stopped' ? fmtElapsed(s.startedAt) : '—');
+    const live = s && !['stopped', 'ended'].includes(state);
+    const age = el('td', 'num elapsed', live ? fmtElapsed(s.startedAt) : '—');
     if (s && s.startedAt) age.title = new Date(s.startedAt).toLocaleString('ko-KR') + ' 시작';
-    tr.append(who, st, age);
+    // 열기: 백그라운드 세션만 attach할 수 있다(D-89)
+    const act = el('td', 'act');
+    if (s && s.kind === 'background' && s.id) {
+      const open = el('button', 'open-btn', '열기');
+      open.type = 'button';
+      open.setAttribute('aria-label', `${name} 열기 (새 터미널에서 attach)`);
+      open.title = '새 터미널에서 이 세션에 들어갑니다';
+      open.addEventListener('click', () => vscode.postMessage({ type: 'open', id: s.id, name }));
+      act.append(open);
+    }
+    tr.append(who, st, age, act);
+    if (isRevealed(s)) {
+      tr.classList.add('is-revealed');
+      tr.tabIndex = -1;
+      if (!reveal.done) {
+        reveal.done = true;
+        requestAnimationFrame(() => {
+          tr.scrollIntoView({ block: 'nearest' });
+          tr.focus();
+        });
+      }
+    }
     return tr;
   }
 
@@ -211,7 +257,7 @@
     body.replaceChildren();
     if (msg.error) {
       const td = el('td');
-      td.colSpan = 3;
+      td.colSpan = 4;
       td.append(errLine('세션 목록을 읽지 못했습니다: ' + msg.error));
       const tr = el('tr');
       tr.append(td);
@@ -219,21 +265,25 @@
       $('sess-sum').textContent = '';
       return;
     }
-    const sessions = msg.data.map((s) => ({ name: s.name, s, st: stateOf(s) }));
+    const sessions = msg.data.map((s) => ({ name: s.name, s, st: STATES[s.view] ? s.view : 'idle' }));
     const seen = new Set(sessions.map((r) => r.name));
     const rows = sortRows([...sessions, ...roles.filter((r) => !seen.has(r)).map((r) => ({ name: r, s: null, st: 'none' }))]);
     for (const r of rows) body.append(sessionRow(r.name, r.s, r.st));
     if (!rows.length) {
       const td = el('td', 'empty', '실행 중인 Claude 세션이 없습니다');
-      td.colSpan = 3;
+      td.colSpan = 4;
       const tr = el('tr');
       tr.append(td);
       body.append(tr);
     }
 
-    const live = sessions.filter((r) => GROUP[r.st] <= 1).length;
-    const approval = sessions.filter((r) => r.st === 'approval').length;
-    $('sess-sum').textContent = `실행 ${live}` + (approval ? ` · 승인 대기 ${approval}` : '') + (roles.length ? ` / 역할 ${roles.length}` : '');
+    const count = (st) => sessions.filter((r) => r.st === st).length;
+    const live = sessions.filter((r) => r.s.alive).length;
+    const parts = [`실행 ${live}`];
+    if (count('permission')) parts.push(`권한 대기 ${count('permission')}`);
+    if (count('input')) parts.push(`입력 대기 ${count('input')}`);
+    if (count('ended')) parts.push(`종료됨 ${count('ended')}`);
+    $('sess-sum').textContent = parts.join(' · ') + (roles.length ? ` / 역할 ${roles.length}` : '');
   }
 
   const RENDER = { memory: renderMemory, processes: renderProcesses, sessions: renderSessions };
@@ -269,9 +319,21 @@
       if (lastSessions) renderSessions(lastSessions);
       return;
     }
+    if (msg.type === 'limits') {
+      const d = msg.data || {};
+      limits = { warn: (d.warnFreeMB || 1024) * MB, block: (d.blockFreeMB || 500) * MB };
+      if (lastMemory && !lastMemory.error) renderMemory(lastMemory);
+      return;
+    }
+    if (msg.type === 'reveal') {
+      reveal = { key: String(msg.sessionId || ''), until: Date.now() + REVEAL_MS, done: false };
+      if (lastSessions && !lastSessions.error) renderSessions(lastSessions);
+      return;
+    }
     const render = RENDER[msg.type];
     if (!render) return;
     if (msg.type === 'sessions') lastSessions = msg;
+    if (msg.type === 'memory') lastMemory = msg;
     render(msg);
     if (msg.error) failed.add(msg.type);
     else {
