@@ -183,4 +183,9 @@
   .bannerIcon {
     display: none;
   }
+
+  /* [인증하기] 누르는 영역 44px (P1-X-10) */
+  .bannerAction {
+    min-height: var(--size-touch);
+  }
 }
