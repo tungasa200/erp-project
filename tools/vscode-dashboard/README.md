@@ -41,7 +41,9 @@ VS Code 사이드바에서 메모리, 프로세스 그룹별 사용량, Claude �
 - **git 명령 카드**: 커밋·푸시(파랑)와 PM 결정(노랑: 병합·`gh pr merge`, 브랜치 생성·삭제, reset, 강제 푸시, rebase, 태그 삭제). 매번 [승인] 또는 [거부]를 누른다. 자동 승인은 없다. 거부할 때는 사유를 적어야 한다.
 - **결정 카드**(보라): 질문 1~4개, 질문마다 선택지 2~4개(추천 표시), 하나만 또는 여러 개 고르기, '기타' 직접 입력, 메모. 모든 질문에 답해야 [보내기]가 된다.
 
-### 파일(저장소 밖 `~/.claude/wy-approvals/`)
+### 파일(저장소 밖 `~/.claude/wy-approvals/<namespace>/`)
+
+승인 폴더는 프로젝트마다 따로다. `<namespace>`는 프로젝트 설정 `.claude/wy-ops.json`의 `approvals.namespace`(이 저장소는 `erp-project` → `~/.claude/wy-approvals/erp-project/`). 설정이 없는 프로젝트는 `~/.claude/wy-approvals/` 바로 아래를 쓴다(예전 방식). 승인 센터 탭과 가드 훅은 각각 VS Code 워크스페이스·명령 실행 위치(cwd)로 프로젝트를 찾으므로, 한 프로젝트의 승인을 다른 프로젝트에서 쓸 수 없다. 예전 바탕 폴더에 결정 안 된 요청이 남아 있으면 탭 위에 안내가 뜬다.
 
 | 경로 | 쓰는 쪽 | 내용 |
 |---|---|---|
@@ -147,9 +149,9 @@ git 명령 요청(`kind`: `commit` `push` `force-push` `branch` `delete-branch` 
 요청한 세션은 요청 파일을 쓴 뒤 결정을 기다리며 멈춰 있을 필요가 없다. 결정 파일은 지워지지 않으니 나중에 읽어도 된다.
 
 - **id 하나를 기다릴 때**(요청한 세션이 직접): `decisions/<id>.json`이 생길 때까지 확인한다. 예(Bash, Monitor의 until 루프):
-  `until [ -f ~/.claude/wy-approvals/decisions/<id>.json ]; do sleep 5; done; cat ~/.claude/wy-approvals/decisions/<id>.json`
+  `until [ -f ~/.claude/wy-approvals/erp-project/decisions/<id>.json ]; do sleep 5; done; cat ~/.claude/wy-approvals/erp-project/decisions/<id>.json`
 - **모든 결정을 감시할 때**(WY-pm): `decisions.log`에 새 줄이 붙는지 본다. 예:
-  `tail -n 0 -F ~/.claude/wy-approvals/decisions.log`
+  `tail -n 0 -F ~/.claude/wy-approvals/erp-project/decisions.log`
   새 줄의 `session`·`relatedSessions`를 보고, 그 세션이 멈춰 있으면 깨워서(`session.ps1 start <역할> "<결정 요약>"`) 결정 파일 경로와 요약을 전한다.
 - 가드 훅은 승인 파일을 **읽는** 셸 명령(cat·ls·tail·test·감시 루프)은 통과시키고, **쓰는** 명령만 막는다.
 
@@ -167,5 +169,6 @@ git 명령 요청(`kind`: `commit` `push` `force-push` `branch` `delete-branch` 
 - 잠금 대상 git 명령(commit, push, 강제 푸시, 브랜치 생성·삭제, merge·`gh pr merge`, reset, rebase, 태그 삭제)은 `--agent WY-commit`으로 띄운 세션만 실행할 수 있다. agent_type이 없는 세션도 거부한다. 조회 명령(status, log, diff 등)은 누구나 쓴다.
 - WY-commit이라도 같은 종류·같은 명령의 승인 결정(결정 후 60분 이내, 아직 안 씀)이 없으면 거부하고, 요청 파일을 쓰라는 사유를 돌려준다.
 - `merge --abort`, `rebase --abort`처럼 되돌리는 명령은 잠그지 않는다.
-- 승인 파일·설치 폴더에 쓰는 셸 명령을 막는다: 그 경로로의 리다이렉트(`>`·`>>`), 쓰기 명령(cp·mv·rm·tee·Set-Content·Out-File·Remove-Item 등, `sed -i`, `find -delete`/`-exec`), 그 경로를 언급하는 인터프리터(node·python·powershell·bash 등). 읽기 명령은 통과한다.
+- 승인 파일(모든 namespace의 decisions·decisions.log·used), 설치 폴더(`~/.wy-tools`), 프로젝트 설정(`.claude/wy-ops.json`·`wy-ops.local.json`·`settings.local.json`)에 쓰는 셸 명령을 막는다: 그 경로로의 리다이렉트(`>`·`>>`), 쓰기 명령(cp·mv·rm·tee·Set-Content·Out-File·Remove-Item 등, `sed -i`, `find -delete`/`-exec`), 그 경로를 언급하는 인터프리터(node·python·powershell·bash 등 — 읽기 목적이어도 막힌다). cat·ls·tail·test·Get-Content·`git add/diff` 같은 읽기와, 설정을 안에서 읽는 스크립트 실행(`session.ps1`, `gen-agents.js`, `deploy.js`)은 통과한다. 설정 변경은 내용을 WY-pm에 보내 사용자가 직접 고친다.
+- 승인 폴더는 명령의 cwd가 속한 프로젝트 것을 쓴다(위 '파일' 참고).
 - 훅은 오류·시간 초과 때 통과시키는 특성이 있어서, 이 스크립트는 판단하지 못하면 종료 코드 2로 막는다. 다만 설정에 적힌 스크립트 경로가 없거나 `node`를 못 찾으면 Claude Code가 훅을 건너뛴다(통과).

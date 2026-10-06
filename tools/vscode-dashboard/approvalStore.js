@@ -1,4 +1,5 @@
-// 승인 센터 저장소: ~/.claude/wy-approvals/ 아래 파일로 요청과 결정을 주고받는다.
+// 승인 센터 저장소: ~/.claude/wy-approvals/<namespace>/ 아래 파일로 요청과 결정을 주고받는다.
+// namespace는 프로젝트 설정(.claude/wy-ops.json의 approvals.namespace). 설정이 없으면 ~/.claude/wy-approvals/ 바로 아래(이전 방식).
 //   requests/<id>.json   요청(세션이 쓴다): git 명령 승인 또는 선택지 결정(choice)
 //   decisions/<id>.json  결정(확장만 쓴다). 임시 파일에 다 쓴 뒤 이름을 바꿔 생기므로, 파일이 보이면 완성된 결정이다
 //   decisions.log        결정마다 한 줄(JSON)을 덧붙인다. 감시하는 쪽이 tail 하나로 새 결정을 알 수 있다
@@ -7,9 +8,18 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const { loadOpsConfig } = require('./opsConfig');
 
+// 모든 프로젝트의 승인 폴더가 들어가는 바탕 폴더. 프로젝트 설정이 없을 때는 여기를 그대로 쓴다
 const ROOT = process.env.WY_APPROVALS_DIR || path.join(os.homedir(), '.claude', 'wy-approvals');
 const ID_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$/;
+
+// 이 폴더(저장소 안 어디든)가 속한 프로젝트의 승인 폴더
+function rootFor(startDir) {
+  const ops = startDir ? loadOpsConfig(startDir) : null;
+  const ns = ops && ops.approvals && ops.approvals.namespace;
+  return typeof ns === 'string' && ID_RE.test(ns) ? path.join(ROOT, ns) : ROOT;
+}
 
 // git 명령 승인 종류. commit·push는 일상 승인, 나머지는 PM 결정
 const GIT_KINDS = {
@@ -137,6 +147,13 @@ function readState(root = ROOT) {
   return { root: p.root, pending, recent };
 }
 
+// 결정이 없는 요청 수(전환 뒤 옛 폴더에 남은 요청을 알리는 데 쓴다)
+function countPending(root) {
+  const p = paths(root);
+  const decided = new Set(listJson(p.decisions));
+  return listJson(p.requests).filter((f) => !decided.has(f)).length;
+}
+
 // 결정 파일을 쓰고 로그에 한 줄을 덧붙인다. 같은 id에 두 번 쓰지 않는다
 function writeDecision(id, req, body, root) {
   const p = ensureDirs(root);
@@ -196,4 +213,4 @@ function answer(id, answers, { note = '', root = ROOT } = {}) {
   return writeDecision(id, req, { decision: 'answered', answers: out, note: text(note).trim() }, root);
 }
 
-module.exports = { ROOT, KINDS, GIT_KINDS, ROUTINE_KINDS, LIMITS, ID_RE, paths, ensureDirs, readJson, writeJsonAtomic, readState, readRequest, decide, answer, normalize };
+module.exports = { ROOT, KINDS, GIT_KINDS, ROUTINE_KINDS, LIMITS, ID_RE, rootFor, paths, ensureDirs, readJson, writeJsonAtomic, readState, countPending, readRequest, decide, answer, normalize };

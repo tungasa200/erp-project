@@ -32,14 +32,17 @@ class ApprovalCenter {
       { dispose: () => this.dispose() },
     );
 
-    store.ensureDirs();
+    // 이 창의 워크스페이스가 속한 프로젝트의 승인 폴더(설정이 없으면 이전처럼 바탕 폴더)
+    const folder = vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders[0];
+    this.root = store.rootFor(folder && folder.uri.fsPath);
+    store.ensureDirs(this.root);
     this.watch();
     this.timer = setInterval(() => this.reload(), POLL);
     this.reload();
   }
 
   watch() {
-    const p = store.paths();
+    const p = store.paths(this.root);
     for (const target of [p.root, p.requests, p.decisions]) {
       try {
         this.watchers.push(fs.watch(target, () => this.schedule()));
@@ -57,14 +60,22 @@ class ApprovalCenter {
   reload() {
     let state;
     try {
-      state = store.readState();
+      state = store.readState(this.root);
+      state.notice = this.legacyNotice();
       state.error = '';
     } catch (err) {
-      state = { ...(this.state || { pending: [], recent: [], root: store.ROOT }), error: String(err.message || err) };
+      state = { ...(this.state || { pending: [], recent: [], root: this.root }), error: String(err.message || err) };
     }
     this.state = state;
     this.renderStatus();
     this.post({ type: 'state', state: { ...state, kinds: store.KINDS, routineKinds: store.ROUTINE_KINDS } });
+  }
+
+  // 프로젝트 폴더로 옮긴 뒤 옛 바탕 폴더에 요청이 남아 있으면 알린다(그 요청은 이 탭에 보이지 않는다)
+  legacyNotice() {
+    if (this.root === store.ROOT) return '';
+    const n = store.countPending(store.ROOT);
+    return n ? `옛 승인 폴더(${store.ROOT}\\requests)에 결정 안 된 요청 ${n}건이 있습니다. 이 프로젝트의 요청은 ${this.root}\\requests에 써야 이 탭에 보입니다.` : '';
   }
 
   renderStatus() {
@@ -107,13 +118,13 @@ class ApprovalCenter {
     try {
       if (msg.type === 'ready') this.reload();
       else if (msg.type === 'decide') {
-        store.decide(msg.id, msg.decision, { reason: msg.reason });
+        store.decide(msg.id, msg.decision, { reason: msg.reason, root: this.root });
         this.reload();
       } else if (msg.type === 'answer') {
-        store.answer(msg.id, msg.answers, { note: msg.note });
+        store.answer(msg.id, msg.answers, { note: msg.note, root: this.root });
         this.reload();
       } else if (msg.type === 'openFolder') {
-        vscode.env.openExternal(vscode.Uri.file(store.ROOT));
+        vscode.env.openExternal(vscode.Uri.file(this.root));
       }
     } catch (err) {
       this.post({ type: 'error', id: msg.id, message: String(err.message || err) });

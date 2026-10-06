@@ -431,8 +431,9 @@
     count.classList.toggle('has-pending', c.total > 0);
 
     const banner = $('banner');
-    banner.hidden = !state.error;
-    if (state.error) banner.replaceChildren(icon('i-error'), el('span', null, '승인 파일을 읽지 못했습니다: ' + state.error));
+    const bannerText = state.error ? '승인 파일을 읽지 못했습니다: ' + state.error : state.notice || '';
+    banner.hidden = !bannerText;
+    if (bannerText) banner.replaceChildren(icon('i-error'), el('span', null, bannerText));
 
     // 다시 그려도 포커스와 입력 위치를 잃지 않게 id로 되살린다
     const focused = document.activeElement;

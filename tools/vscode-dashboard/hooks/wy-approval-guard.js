@@ -3,7 +3,9 @@
 // - 잠금 대상 git 명령: commit·push·강제 푸시·브랜치 생성/삭제·merge(gh pr merge)·reset·rebase·태그 삭제. 모두 승인 센터의 승인 결정이 있어야 한다.
 // - 잠금 대상은 WY-commit(agent_type)만 실행한다. agent_type이 없는 세션도 거부한다.
 // - 승인 한 건은 한 번만 쓴다(used/<id>.json).
-// - 승인 파일(decisions/·decisions.log·used/)과 설치본(~/.wy-tools)에 쓰는 셸 명령은 막는다. 읽기(cat·ls·tail·test, 감시 루프)는 통과한다.
+// - 승인 폴더는 훅 입력의 cwd가 속한 프로젝트의 것(~/.claude/wy-approvals/<namespace>, 설정이 없으면 바탕 폴더).
+// - 승인 파일(decisions/·decisions.log·used/), 설치본(~/.wy-tools), 프로젝트 설정(.claude/wy-ops.json·wy-ops.local.json·settings.local.json)에
+//   쓰는 셸 명령은 막는다. 읽기(cat·ls·tail·test, 감시 루프)는 통과한다. 이 경로를 언급하는 인터프리터(node·powershell 등)는 읽기여도 막는다.
 // 훅은 오류·시간 초과 때 통과시키므로(fail open), 여기서는 어떤 오류든 종료 코드 2로 막는다.
 const fs = require('fs');
 const path = require('path');
@@ -14,7 +16,12 @@ const { loadOpsConfig } = require('../opsConfig');
 const DEFAULT_TTL_MINUTES = 60; // 결정 후 이 시간 안에만 쓸 수 있다
 const DEFAULT_COMMIT_SESSION = 'WY-commit';
 const GIT_OPTS_WITH_VALUE = new Set(['-C', '-c', '--git-dir', '--work-tree', '--namespace', '--exec-path']);
-const PROTECTED = ['wy-approvals/config.json', 'wy-approvals/decisions', 'wy-approvals/used', '.wy-tools/'];
+// 보호 경로(소문자, / 구분자로 바꾼 명령에 대고 찾는다). 승인 파일은 바탕 폴더 바로 아래와 <namespace> 하위 모두
+const PROTECTED = [
+  /wy-approvals\/(?:[^/\s"'`]+\/)?(?:decisions|used\b|config\.json)/,
+  /\.wy-tools\//,
+  /\.claude\/(?:wy-ops(?:\.local)?\.json|settings\.local\.json)/,
+];
 // 파일을 쓰거나 지울 수 있는 프로그램(PowerShell 별칭 포함). 인터프리터는 무엇이든 쓸 수 있어 함께 막는다
 const WRITERS = new Set([
   'cp', 'mv', 'rm', 'rmdir', 'del', 'erase', 'copy', 'move', 'ren', 'rename', 'touch', 'mkdir', 'tee', 'truncate', 'dd', 'install', 'ln', 'chmod', 'chown', 'xargs',
@@ -97,7 +104,7 @@ function classify(segment) {
 
 const mentionsProtected = (t) => {
   const c = t.replace(/\\/g, '/').toLowerCase();
-  return PROTECTED.some((p) => c.includes(p));
+  return PROTECTED.some((re) => re.test(c));
 };
 
 // 보호 경로에 쓰는 명령인지 본다. 경로를 읽기만 하는 명령은 통과시킨다
@@ -153,12 +160,17 @@ function markUsed(ids, input, root) {
   }
 }
 
-function evaluate(input, root = store.ROOT) {
+// rootOverride는 테스트용. 보통은 훅 입력의 cwd로 프로젝트 승인 폴더를 정한다
+function evaluate(input, rootOverride) {
   const command = String((input.tool_input && input.tool_input.command) || '');
   if (!command) return null;
   if (writesApprovalFiles(command)) {
-    return { decision: 'deny', reason: '승인 파일(~/.claude/wy-approvals의 decisions·decisions.log·used)과 설치본(~/.wy-tools)에는 셸 명령으로 쓸 수 없습니다. 읽기(cat·ls·tail·test)는 됩니다. 요청은 requests/에만 쓰세요.' };
+    return {
+      decision: 'deny',
+      reason: '승인 파일(~/.claude/wy-approvals 아래 decisions·decisions.log·used), 설치본(~/.wy-tools), 프로젝트 설정(.claude/wy-ops.json·wy-ops.local.json·settings.local.json)에는 셸 명령으로 쓸 수 없습니다. 읽기(cat·ls·tail·test)는 됩니다. 설정 변경은 내용을 WY-pm에 보내 사용자가 고치게 하세요.',
+    };
   }
+  const root = rootOverride || store.rootFor(input.cwd || process.cwd());
   const guarded = segments(command).map((s) => ({ segment: s, kind: classify(s) })).filter((g) => g.kind);
   if (!guarded.length) return null;
   const ops = loadOpsConfig(input.cwd || process.cwd());
@@ -176,7 +188,7 @@ function evaluate(input, root = store.ROOT) {
     if (!id) {
       return {
         decision: 'deny',
-        reason: `승인이 없습니다: ${store.KINDS[g.kind]} "${store.normalize(g.segment)}". ~/.claude/wy-approvals/requests/에 요청 파일을 쓰고(command에 이 명령 그대로) 승인 센터의 결정을 기다린 뒤 다시 실행하세요.`,
+        reason: `승인이 없습니다: ${store.KINDS[g.kind]} "${store.normalize(g.segment)}". ${store.paths(root).requests}에 요청 파일을 쓰고(command에 이 명령 그대로) 승인 센터의 결정을 기다린 뒤 다시 실행하세요.`,
       };
     }
     taken.add(id);
