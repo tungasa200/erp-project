@@ -20,6 +20,8 @@ MSA ERP 프로젝트. 이 파일은 git으로 공유되는 작업 규칙이다. 
 | `browser-controller` | 외부 서비스 콘솔 작업: Railway·Vercel 등 외부 도구 설정 |
 | `qa` | 사용성·기능 테스트: agent-browser로 구현 화면 검증, 코드를 읽어 요구사항·화면정의서와 대조 |
 
+- 역할 세션은 `project-pm`이 백그라운드 세션으로 띄우고 멈춘다: `.claude/skills/pm-ops/scripts/session.ps1 list | start <역할> [지시] | stop <역할> | new <역할>`. 사용자가 늘 보는 세션은 `project-pm`과 `erp-commit`(커밋 승인)이다. 다른 세션은 `claude agents`로 보고, 권한 승인이나 직접 지시가 필요하면 `claude attach <id>`로 들어간다.
+- 쉬는 세션은 `stop`으로 멈춰 메모리를 돌려준다. 대화는 남아서 `start`로 이어진다. 이어 띄우면 새 ID로 뜨므로 `ListAgents`의 `[ref]`가 바뀐다.
 - 세션 간 메시지(`ListAgents`/`SendMessage`)는 같은 PC 안의 세션끼리만 오간다. 위 역할 구성은 PC마다 따로 띄운다.
 - 메시지를 보내기 전에는 매번 `ListAgents`로 대상 세션이 있는지 확인한다. 이전 확인 결과를 재사용하지 않는다.
 - 대상 세션이 없거나 어느 세션인지 불분명하면 짐작해서 보내지 말고 사용자에게 알린다. 다른 세션을 임의로 그 역할로 간주하지 않는다.
@@ -67,9 +69,8 @@ MSA ERP 프로젝트. 이 파일은 git으로 공유되는 작업 규칙이다. 
 
 1. 확정된 결정은 먼저 `docs/`나 메모리에 반영하고, 필요한 커밋은 `erp-commit`에 요청한다. 인수인계 파일에는 아직 진행 중인 것만 남긴다.
 2. 이전 세션에서 `/ecc:save-session`을 실행한다. short-id는 역할 이름으로 한다(예: `erp-planner`). 같은 날 두 번째 교대면 `erp-planner-2`처럼 번호를 붙인다. 저장된 내용을 사용자에게 보여주고 확인받는다.
-3. 이전 세션을 닫는다. 바로 닫지 못하면 `/rename <역할>-old`로 이름을 바꾼다. 같은 역할 이름의 세션이 둘 있으면 안 된다.
-4. 새 세션을 `claude --name <역할>`로 띄운다.
-5. 새 세션에서 `/ecc:resume-session ~/.claude/session-data/<날짜>-<역할>-session.tmp`로 **경로를 지정해** 불러온다. 인자 없이 실행하면 가장 최근 파일을 불러오므로 다른 역할의 파일을 읽을 수 있다.
+3. `project-pm`이 `session.ps1 stop <역할>`로 이전 세션을 멈추고 `session.ps1 new <역할>`로 새 세션을 띄운다. 새 세션은 그 역할의 가장 최근 인수인계 파일을 경로를 지정해 불러온다. 같은 역할 이름의 세션이 둘 있으면 안 된다.
+4. VS Code 패널 등으로 직접 띄운 세션이면: 이전 세션을 닫고(바로 못 닫으면 `/rename <역할>-old`), `claude --name <역할>`로 띄운 뒤 `/ecc:resume-session ~/.claude/session-data/<날짜>-<역할>-session.tmp`로 **경로를 지정해** 불러온다. 인자 없이 실행하면 가장 최근 파일을 불러오므로 다른 역할의 파일을 읽을 수 있다.
 
 인수인계 파일은 이 PC에만 남는다. 다른 PC로 이어갈 내용은 `docs/`와 커밋으로 넘긴다.
 

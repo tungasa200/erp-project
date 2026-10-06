@@ -90,6 +90,15 @@ project-pm은 코드를 직접 고치지 않고, 역할 세션(backend1·backend
 4. 인수인계 지시: 각 세션에 `/ecc:save-session`, short-id는 역할 이름(같은 날 두 번째면 `-2`), 넣을 내용을 세션별로 구체적으로. pm도 자기 것을 저장한다.
 5. 재개 안내: `/ecc:resume-session ~/.claude/session-data/<날짜>-<역할>-session.tmp`처럼 **경로를 지정**해야 다른 역할 파일을 읽지 않는다.
 
+## 6-1. 세션 띄우기·멈추기 (백그라운드 세션)
+
+역할 세션은 pm이 `.claude/skills/pm-ops/scripts/session.ps1`로 띄우고 멈춘다(PowerShell).
+- `list` 전체 세션과 상태 / `start <역할> [지시]` 멈춘 세션은 대화를 이어서, 없으면 최근 인수인계 파일로 새로 / `stop <역할>` 멈춤(메모리 반환, 대화 보존) / `new <역할>` 교대(save-session 지시 → 저장 확인 → stop → new) / `adopt <역할> <세션ID>` 사용자가 닫은 VS Code 세션의 대화를 백그라운드로 옮겨 멈춰 둠
+- 일이 없는 세션은 바로 `stop`한다. 지시할 때 `start <역할> "<지시>"`로 지시를 함께 넘기면 깨우기와 지시가 한 번에 된다. 지시에 큰따옴표를 쓰지 않는다(스크립트가 작은따옴표로 바꿈).
+- 이어 띄우면 대화 복사본이 새 ID로 뜨고 원본은 지워진다. `ListAgents`의 `[ref]`가 바뀌어도 이름은 그대로다.
+- 백그라운드 세션이 권한 확인에서 멈추면 pm이 대신 승인하지 않는다. 사용자에게 `claude attach <id>`를 🙋로 요청한다.
+- VS Code 세션의 세션ID는 패널을 닫기 전에 `claude agents --json`으로 미리 적어 둔다(닫으면 목록에서 사라짐).
+
 ## 7. 단계 마무리 체크 (P1 끝 등)
 
 - 남은 WBS와 qa 항목, 개정 대기 목록 확인 → erp-planner·erp-design 일괄 개정 지시
