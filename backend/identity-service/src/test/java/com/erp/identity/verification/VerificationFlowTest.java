@@ -118,6 +118,74 @@ class VerificationFlowTest {
 	}
 
 	@Test
+	void 인증_코드는_10분이_지나면_만료된다() throws Exception {
+		String email = newEmail();
+		String token = cookieValue(signup(mvc, email), "access_token");
+		String code = code(lastMail());
+
+		// 9분 59초: 아직 유효하다 (틀리면 시도만 준다)
+		age(email, 599);
+		confirmEmail(token, wrong(code)).andExpect(jsonPath("$.code").value("CODE_MISMATCH"));
+		// 10분 1초: 맞는 코드도 만료
+		age(email, 2);
+		confirmEmail(token, code).andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.code").value("CODE_EXPIRED"));
+		mvc.perform(get("/api/users/me/email-verification").header("Authorization", "Bearer " + token))
+			.andExpect(jsonPath("$.verified").value(false))
+			.andExpect(jsonPath("$.expiresAt").isEmpty())
+			.andExpect(jsonPath("$.attemptsRemaining").isEmpty());
+	}
+
+	@Test
+	void 재설정_코드_재요청은_60초_안이면_거부하고_하루_10통까지() throws Exception {
+		String email = newEmail();
+		signup(mvc, email);
+		lastMail();
+		UUID userId = jdbc.queryForObject("SELECT id FROM users WHERE email = ?", UUID.class, email);
+
+		// 가입 때 보낸 인증 메일과는 따로 센다
+		requestReset(email, newIp()).andExpect(status().isAccepted());
+		requestReset(email, newIp()).andExpect(status().isTooManyRequests())
+			.andExpect(jsonPath("$.code").value("RESEND_TOO_SOON"))
+			.andExpect(header().exists("Retry-After"));
+		passTime(email, 61);
+		requestReset(email, newIp()).andExpect(status().isAccepted());
+		lastMail(3);
+
+		// 24시간 안에 10통을 채우면 60초가 지나도 거부
+		for (int i = 0; i < 8; i++) {
+			jdbc.update("""
+					INSERT INTO verification_codes (id, user_id, purpose, code_hash, expires_at, attempts, created_at)
+					VALUES (?, ?, 'RESET_PASSWORD', ?, now() - interval '1 hour', 0, now() - interval '2 hours')""",
+					UUID.randomUUID(), userId, "0".repeat(64));
+		}
+		passTime(email, 61);
+		requestReset(email, newIp()).andExpect(status().isTooManyRequests())
+			.andExpect(jsonPath("$.code").value("DAILY_SEND_LIMIT"))
+			.andExpect(header().exists("Retry-After"));
+		verify(mailer, after(500).times(3)).send(any());
+	}
+
+	@Test
+	void 로그인이_잠긴_동안_비밀번호를_재설정하면_잠금이_풀린다() throws Exception {
+		String email = newEmail();
+		signup(mvc, email);
+		lastMail();
+		// 10번 실패로 잠긴 상태 (잠그는 과정은 LoginProtectionTest)
+		jdbc.update("UPDATE users SET failed_login_count = 0, locked_until = now() + interval '15 minutes' WHERE email = ?",
+				email);
+		login(email, PASSWORD).andExpect(status().isTooManyRequests())
+			.andExpect(jsonPath("$.code").value("AUTH_LOCKED"));
+
+		requestReset(email, newIp()).andExpect(status().isAccepted());
+		confirmReset(email, code(lastMail(2)), "newpass123").andExpect(status().isNoContent());
+
+		assertThat(jdbc.queryForObject("SELECT locked_until IS NULL FROM users WHERE email = ?", Boolean.class, email))
+			.isTrue();
+		login(email, "newpass123").andExpect(status().isOk());
+	}
+
+	@Test
 	void 하루_10통을_넘으면_DAILY_SEND_LIMIT() throws Exception {
 		String email = newEmail();
 		String token = cookieValue(signup(mvc, email), "access_token");
@@ -223,6 +291,18 @@ class VerificationFlowTest {
 	private void passTime(String email, int seconds) {
 		jdbc.update("UPDATE verification_codes SET created_at = created_at - make_interval(secs => ?) "
 				+ "WHERE user_id = (SELECT id FROM users WHERE email = ?)", seconds, email);
+	}
+
+	/** 코드 발급과 만료 시각을 함께 seconds초 앞으로 당겨 그만큼 시간이 지난 것으로 만든다. */
+	private void age(String email, int seconds) {
+		jdbc.update("UPDATE verification_codes SET created_at = created_at - make_interval(secs => ?), "
+				+ "expires_at = expires_at - make_interval(secs => ?) WHERE user_id = (SELECT id FROM users WHERE email = ?)",
+				seconds, seconds, email);
+	}
+
+	private ResultActions login(String email, String password) throws Exception {
+		return mvc.perform(json("/api/auth/login", "{\"email\":\"%s\",\"password\":\"%s\"}".formatted(email, password))
+			.header("X-Client-Ip", newIp()));
 	}
 
 	private ResultActions sendCode(String token) throws Exception {
