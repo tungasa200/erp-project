@@ -101,6 +101,8 @@ export interface ZoneOption {
   offset: number
   /** "Asia/Seoul (UTC+09:00)" */
   label: string
+  /** "UTC+09:00" */
+  utc: string
   search: string
 }
 
@@ -136,6 +138,7 @@ function option(zone: string, source: string, now: Date): ZoneOption | null {
     zone,
     offset,
     label: `${zone} (${utc})`,
+    utc,
     search: [zone, zone.replaceAll('_', ' '), KOREAN_NAMES[zone] ?? '', utc, hours].join(' ').toLowerCase(),
   }
 }
