@@ -1,8 +1,9 @@
-// SCR-HOME-01 홈 대시보드. P1-10에서는 설정 없이 바로 입력하는 첫 화면(UX-04)만 만든다.
-// 요약 카드·남은 업무·다가오는 일정(②④⑥)은 P1-11에서 업무·일정 API를 붙여 채운다.
+// SCR-HOME-01 홈 대시보드. ① 헤더·빠른 입력과 첫 실행 빈 상태(UX-04, P1-10),
+// ② 요약 카드·④ 남은 업무·⑥ 다가오는 일정(P1-11, HomeDashboard). ③은 P2, ⑤⑦은 P3.
 import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router'
 import { useAuth } from '../auth/useAuth'
+import { HomeDashboard } from '../home/HomeDashboard'
 import { EXAMPLES } from '../quickInput/examples'
 import { QuickInput } from '../quickInput/QuickInput'
 import { useQuickSave } from '../tasks/useQuickSave'
@@ -66,20 +67,24 @@ export function HomePage() {
         </div>
       </header>
 
-      {/* 첫 실행(데이터 없음) 빈 상태 */}
-      <section className={styles.empty} aria-labelledby="home-empty-title">
-        <h2 id="home-empty-title" className={styles.emptyTitle}>
-          오늘 할 일을 한 줄로 적어 보세요
-        </h2>
-        <p className={styles.emptyText}>시간·@프로젝트·#태그·!우선순위·~마감을 같이 적으면 알아서 나눠 저장해요.</p>
-        <div className={styles.examples}>
-          {EXAMPLES.map((e) => (
-            <button key={e} type="button" className={styles.example} onClick={() => fillExample(e)}>
-              {e}
-            </button>
-          ))}
-        </div>
-      </section>
+      <HomeDashboard
+        empty={
+          // 첫 실행(남은 업무 없음): ④ 대신 문법 예시
+          <section className={styles.empty} aria-labelledby="home-empty-title">
+            <h2 id="home-empty-title" className={styles.emptyTitle}>
+              오늘 할 일을 한 줄로 적어 보세요
+            </h2>
+            <p className={styles.emptyText}>시간·@프로젝트·#태그·!우선순위·~마감을 같이 적으면 알아서 나눠 저장해요.</p>
+            <div className={styles.examples}>
+              {EXAMPLES.map((e) => (
+                <button key={e} type="button" className={styles.example} onClick={() => fillExample(e)}>
+                  {e}
+                </button>
+              ))}
+            </div>
+          </section>
+        }
+      />
     </div>
   )
 }

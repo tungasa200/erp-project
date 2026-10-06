@@ -32,6 +32,7 @@ const WORKLOG = {
           color: 'P2',
           archived: false,
           taskCount: 4,
+          openTaskCount: 4,
           createdAt: '2026-10-01T00:00:00Z',
           version: 0,
         },
@@ -53,7 +54,8 @@ describe('SCR-HOME-01 첫 화면 (UX-04)', () => {
     await openHome()
     expect(screen.getByText('10월 7일 수요일')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: '좋은 오후예요' })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: '오늘 할 일을 한 줄로 적어 보세요' })).toBeInTheDocument()
+    // 첫 실행 안내는 남은 업무가 없다는 응답을 받은 뒤 보인다(P1-11)
+    expect(await screen.findByRole('heading', { name: '오늘 할 일을 한 줄로 적어 보세요' })).toBeInTheDocument()
     // D-67: @프로젝트·#태그 (qa P1-10-06)
     expect(
       screen.getByText('시간·@프로젝트·#태그·!우선순위·~마감을 같이 적으면 알아서 나눠 저장해요.'),
@@ -62,7 +64,7 @@ describe('SCR-HOME-01 첫 화면 (UX-04)', () => {
 
   it('예시를 누르면 입력창에 채운다', async () => {
     const { input } = await openHome()
-    await userEvent.click(screen.getByRole('button', { name: '견적서 회신 @영업 #결제 !낮음 ~금' }))
+    await userEvent.click(await screen.findByRole('button', { name: '견적서 회신 @영업 #결제 !낮음 ~금' }))
     expect(input).toHaveValue('견적서 회신 @영업 #결제 !낮음 ~금')
     expect(input).toHaveFocus()
   })
@@ -107,6 +109,7 @@ describe('SCR-COM-02 빠른 입력창', () => {
           ...body,
           archived: false,
           taskCount: 0,
+          openTaskCount: 0,
           createdAt: '2026-10-07T00:00:00Z',
           version: 0,
         })
@@ -125,7 +128,10 @@ describe('SCR-COM-02 빠른 입력창', () => {
   it('시각 없는 날짜는 마감으로 보여 준다', async () => {
     const { input } = await openHome()
     await userEvent.type(input, '다음주 수요일 보고서')
-    expect(screen.getByRole('listitem')).toHaveTextContent('마감 10/14(수)')
+    // 홈의 다가오는 일정 목록과 겹치지 않게 해석 결과 안에서 찾는다
+    expect(within(screen.getByRole('list', { name: '해석 결과' })).getByRole('listitem')).toHaveTextContent(
+      '마감 10/14(수)',
+    )
     expect(screen.getByText('업무가 만들어져요')).toBeInTheDocument()
   })
 

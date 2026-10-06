@@ -1,0 +1,384 @@
+/* SCR-HOME-01 홈 대시보드 1차 (목업 HOME-01 ②④⑥) */
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  padding: 18px 20px;
+  border-radius: 20px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.card:hover {
+  background: var(--color-accent-faint);
+}
+
+.cardAccent,
+.cardAccent:hover {
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+.cardAccent:hover {
+  background: var(--color-accent-ink);
+}
+
+.cardLabel {
+  font-size: 13px;
+  font-weight: 700;
+  opacity: 0.9;
+}
+
+.cardValue {
+  margin-top: 6px;
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: -1px;
+  font-variant-numeric: tabular-nums;
+}
+
+.cardSub {
+  margin-top: 2px;
+  font-size: 12.5px;
+  opacity: 0.9;
+}
+
+.columns {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 18px;
+}
+
+.columns > * {
+  flex: 1 1 320px;
+  min-width: 0;
+}
+
+.emptyColumn > * {
+  height: 100%;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  padding: 22px;
+  border-radius: 22px;
+  background: var(--color-surface);
+}
+
+.panelHead {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.panelTitle {
+  margin: 0 0 8px;
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.panelHead .panelTitle {
+  margin: 0;
+}
+
+.segment {
+  display: flex;
+  padding: 3px;
+  border-radius: 22px;
+  background: var(--color-ground);
+}
+
+.segmentButton {
+  min-height: 36px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 18px;
+  background: transparent;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.segmentButton[aria-pressed='true'] {
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-weight: 800;
+}
+
+.muted {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0 0;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--color-danger);
+}
+
+.smallButton {
+  min-height: 40px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 20px;
+  background: var(--color-ground);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.group {
+  margin-top: 12px;
+}
+
+.groupTitle {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--color-text);
+}
+
+.danger {
+  color: var(--color-danger);
+}
+
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  border-radius: 14px;
+  background: var(--color-accent-faint);
+}
+
+.rowLate {
+  background: color-mix(in srgb, var(--color-danger-soft) 45%, var(--color-surface));
+}
+
+/* 보이는 원은 22px, 누르는 영역은 44px */
+.check {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  flex: none;
+  border: 0;
+  border-color: var(--color-accent);
+  background: transparent;
+  cursor: pointer;
+}
+
+.check::before {
+  content: '';
+  position: absolute;
+  inset: 11px;
+  box-sizing: border-box;
+  border: 2px solid;
+  border-color: inherit;
+  border-radius: 50%;
+}
+
+.check:hover::before {
+  background: color-mix(in srgb, currentColor 8%, transparent);
+}
+
+.rowBody {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  padding: 8px 10px 8px 0;
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.rowTitle {
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.chip,
+.due {
+  max-width: 100%;
+  overflow: hidden;
+  padding: 2px 8px;
+  border-radius: 8px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.due {
+  background: var(--color-ground);
+  color: var(--color-text-body);
+}
+
+.dueLate {
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+}
+
+.dueToday {
+  background: var(--color-warning-soft);
+  color: var(--color-warning-text);
+}
+
+.undated {
+  min-height: 44px;
+  margin-top: 12px;
+  border: 2px dashed var(--color-divider);
+  border-radius: 16px;
+  background: transparent;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.allLink {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin-top: 4px;
+  color: var(--color-accent-ink);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.upcoming {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.upcomingItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 0;
+  border-radius: 14px;
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.dayBadge {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: var(--color-accent-soft);
+  color: var(--color-accent-ink);
+  text-align: center;
+}
+
+.dayHoliday {
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+}
+
+.dayName {
+  font-size: 10.5px;
+  font-weight: 700;
+}
+
+.dayNumber {
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.upcomingText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.upcomingTitle {
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.upcomingTime {
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+@media (max-width: 767px) {
+  .cards {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .card {
+    padding: 14px;
+    border-radius: 16px;
+  }
+
+  .cardValue {
+    font-size: 26px;
+  }
+
+  .panel {
+    padding: 18px;
+  }
+}
