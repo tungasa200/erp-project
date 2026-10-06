@@ -13,3 +13,6 @@ docs/trashcan/
 
 # impeccable 캐시
 .impeccable/
+
+# wy-ops PC별 설정(메모리 기준 등, tools/PACKAGING-PLAN.md 2장)
+.claude/wy-ops.local.json
