@@ -337,7 +337,14 @@ function TagChip({ tag, onRemove }: { tag: Tag; onRemove: () => void }) {
   }
 
   return (
-    <li className={`${styles.tag} ${styles.tagEditing}`}>
+    <li
+      className={`${styles.tag} ${styles.tagEditing}`}
+      // 포커스가 행을 떠날 때만 저장한다. 입력칸 blur로 저장하면 Tab으로 [삭제]에 가는 순간 편집이 닫혀
+      // [삭제]가 사라지고 포커스가 BODY로 빠진다 (P1-02-11)
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget)) void save()
+      }}
+    >
       <label htmlFor={id} className={styles.srOnly}>
         태그 이름
       </label>
@@ -354,14 +361,13 @@ function TagChip({ tag, onRemove }: { tag: Tag; onRemove: () => void }) {
           if (e.key === 'Enter') void save(true)
           if (e.key === 'Escape') cancel(true)
         }}
-        onBlur={() => void save()}
         aria-invalid={error !== null}
         aria-describedby={error ? `${id}-error` : undefined}
       />
       <button
         type="button"
         className={styles.tagDelete}
-        // 입력칸의 blur 저장이 먼저 돌아 편집이 닫히지 않게 포커스를 옮기지 않는다
+        // 마우스로 눌러도 포커스는 입력칸에 둔다. 지운 뒤에는 TagSection이 이웃 ✎로 옮긴다
         onMouseDown={(e) => e.preventDefault()}
         onClick={onRemove}
       >

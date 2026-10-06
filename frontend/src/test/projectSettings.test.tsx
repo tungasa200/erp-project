@@ -220,6 +220,25 @@ describe('SCR-SET-08 태그', () => {
     expect(screen.getByRole('heading', { name: '태그' })).toHaveFocus()
   })
 
+  it('P1-02-11 키보드만으로(✎ Enter → Tab → [삭제] Enter) 지워도 이웃 태그 ✎, 없으면 제목으로 포커스가 간다', async () => {
+    setup()
+    const user = userEvent.setup()
+    ;(await screen.findByRole('button', { name: '결제 태그 이름 바꾸기' })).focus()
+    await user.keyboard('{Enter}')
+    await user.tab()
+    expect(screen.getByRole('button', { name: '삭제' })).toHaveFocus()
+    await user.keyboard('{Enter}')
+    expect(screen.queryByText('#결제')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '견적 태그 이름 바꾸기' })).toHaveFocus()
+
+    await user.keyboard('{Enter}')
+    await user.tab()
+    await user.keyboard('{Enter}')
+    expect(screen.queryByText('#견적')).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: '태그' })).toHaveFocus()
+    expect(document.activeElement).not.toBe(document.body)
+  })
+
   it('태그 이름을 비우면 1자 이상 적으라고 알린다', async () => {
     const { calls } = setup()
     await userEvent.click(await screen.findByRole('button', { name: '결제 태그 이름 바꾸기' }))
