@@ -2,8 +2,9 @@
 // 쿼리 키는 모두 ['tasks', …]로 시작하므로 invalidateQueries({ queryKey: TASKS_QUERY_KEY })로 한꺼번에 다시 받는다.
 import { useInfiniteQuery, useQuery, type QueryClient } from '@tanstack/react-query'
 import { api } from '../api'
-import { PROJECTS_QUERY_KEY } from '../projects/api'
 import type { components } from '../api/generated/worklog'
+import { OCCURRENCES_QUERY_KEY, scheduleApi } from '../calendar/api'
+import { PROJECTS_QUERY_KEY } from '../projects/api'
 
 type Schemas = components['schemas']
 export type Task = Schemas['Task']
@@ -80,4 +81,16 @@ export function useTasks(filter: TaskFilter, options: { enabled?: boolean } = {}
 
 export function useTask(id: string | undefined) {
   return useQuery({ queryKey: taskKey(id ?? ''), queryFn: () => taskApi.get(id!), enabled: Boolean(id) })
+}
+
+/**
+ * 이 업무에 연결된 일정의 회차 [from, to) (GET /schedules?taskId=, 결정 A·P1-05-06).
+ * 키가 ['occurrences', …]로 시작해 캘린더에서 일정을 바꾸면 함께 다시 받는다.
+ */
+export function useTaskOccurrences(taskId: string, from: string, to: string, options: { enabled?: boolean } = {}) {
+  return useQuery({
+    queryKey: [...OCCURRENCES_QUERY_KEY, 'task', taskId, from, to],
+    enabled: options.enabled,
+    queryFn: async () => (await scheduleApi.occurrences(from, to, taskId)).items,
+  })
 }

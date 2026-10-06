@@ -3,7 +3,7 @@
 // 기록 이력(⑥)은 P2, 이월 이력(⑦)은 P3에서 채운다. 연결 일정 목록(⑤)은 업무별 일정 조회 API가 없어 배치 여부와 캘린더 링크만 둔다.
 import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
-import { Link, useNavigate, useOutletContext, useParams, useSearchParams } from 'react-router'
+import { useNavigate, useOutletContext, useParams, useSearchParams } from 'react-router'
 import { toastForError } from '../api/errorToast'
 import { ApiError } from '../api/problem'
 import { isValidDate } from '../calendar/time'
@@ -12,6 +12,7 @@ import { useToast } from '../components/useToast'
 import { TAGS_QUERY_KEY, tagApi, useProjects, useTags } from '../projects/api'
 import { projectColor } from '../projects/palette'
 import { refreshTasks, taskApi, taskKey, useTask, type Task, type TaskPatch } from './api'
+import { LinkedSchedules } from './LinkedSchedules'
 import type { TaskListOutletContext } from './TaskListPage'
 import styles from './tasks.module.css'
 import { PRIORITY_LABEL, STATUS_LABEL, STATUSES } from './view'
@@ -500,13 +501,7 @@ function TaskForm({
         />
       </fieldset>
 
-      <div className={styles.block}>
-        <div className={styles.blockHead}>
-          <span className={styles.fieldLabel}>연결된 일정</span>
-          <Link to="/calendar">캘린더에 배치</Link>
-        </div>
-        <p className={styles.muted}>{task.hasSchedule ? '캘린더에 배치된 일정이 있어요' : '아직 일정이 없어요'}</p>
-      </div>
+      <LinkedSchedules task={task} archived={archived} />
 
       {task.carriedOverFromId && <p className={styles.note}>이전 날짜에서 넘어온 업무예요</p>}
 
