@@ -25,6 +25,7 @@ function seed(): WorklogState {
     archived: false,
     archivedAt: null,
     taskCount,
+    openTaskCount: 0,
     createdAt: now(),
     version: 0,
   })
@@ -147,6 +148,10 @@ const byName = (a: Tag, b: Tag) => a.name.localeCompare(b.name)
 export function handleWorklog(method: string, url: string, body: Record<string, unknown>, r: Respond): Response | null {
   const path = url.split('?')[0]
   const state = load()
+  // 남은 업무 수는 업무 목록으로 매번 계산한다(보관·완료 제외)
+  for (const p of state.projects) {
+    p.openTaskCount = state.tasks.filter((t) => t.projectId === p.id && !t.deletedAt && t.status !== 'DONE').length
+  }
 
   if (method === 'GET' && path === '/api/worklog/projects') {
     const includeArchived = url.includes('includeArchived=true')
@@ -165,6 +170,7 @@ export function handleWorklog(method: string, url: string, body: Record<string, 
       archived: false,
       archivedAt: null,
       taskCount: 0,
+      openTaskCount: 0,
       createdAt: now(),
       version: 0,
     }

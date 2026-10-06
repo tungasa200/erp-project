@@ -19,6 +19,7 @@ const project = (id: string, name: string, color: Project['color'], extra: Parti
   archived: false,
   archivedAt: null,
   taskCount: 2,
+  openTaskCount: 2,
   createdAt: '2026-10-01T00:00:00Z',
   version: 0,
   ...extra,

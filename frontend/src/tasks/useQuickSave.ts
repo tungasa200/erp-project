@@ -8,7 +8,7 @@ import { OCCURRENCES_QUERY_KEY } from '../calendar/api'
 import { useToast } from '../components/useToast'
 import { PROJECTS_QUERY_KEY, projectApi, TAGS_QUERY_KEY, type Project } from '../projects/api'
 import type { QuickDraft } from '../quickInput/parse'
-import { TASKS_QUERY_KEY } from './api'
+import { refreshTasks } from './api'
 import { NeedsProjectError, saveQuickDraft, undoQuickSave } from './quickSave'
 
 export function useQuickSave(): (draft: QuickDraft) => Promise<void> {
@@ -20,7 +20,7 @@ export function useQuickSave(): (draft: QuickDraft) => Promise<void> {
   return useCallback(
     async (draft: QuickDraft) => {
       const refresh = () => {
-        void queryClient.invalidateQueries({ queryKey: TASKS_QUERY_KEY })
+        refreshTasks(queryClient)
         void queryClient.invalidateQueries({ queryKey: OCCURRENCES_QUERY_KEY })
         if (draft.tags?.length) void queryClient.invalidateQueries({ queryKey: TAGS_QUERY_KEY })
       }

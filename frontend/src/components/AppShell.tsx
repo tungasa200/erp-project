@@ -177,14 +177,14 @@ function SidebarProjects() {
           key={p.id}
           to={`/tasks?project=${p.id}`}
           className={styles.projectItem}
-          aria-label={`${p.name}, 업무 ${p.taskCount}개`}
+          aria-label={`${p.name}, 남은 업무 ${p.openTaskCount}개`}
         >
           <span className={styles.projectDot} style={{ background: projectColor(p.color).base }} aria-hidden="true" />
           <span className={styles.projectName} title={p.name}>
             {p.name}
           </span>
           <span className={styles.projectCount} aria-hidden="true">
-            {p.taskCount}
+            {p.openTaskCount}
           </span>
         </Link>
       ))}

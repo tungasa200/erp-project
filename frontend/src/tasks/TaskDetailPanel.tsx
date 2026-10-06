@@ -9,7 +9,7 @@ import { ApiError } from '../api/problem'
 import { useToast } from '../components/useToast'
 import { TAGS_QUERY_KEY, tagApi, useProjects, useTags } from '../projects/api'
 import { projectColor } from '../projects/palette'
-import { taskApi, taskKey, TASKS_QUERY_KEY, useTask, type Task, type TaskPatch } from './api'
+import { refreshTasks, taskApi, taskKey, useTask, type Task, type TaskPatch } from './api'
 import styles from './tasks.module.css'
 import { PRIORITY_LABEL, STATUS_LABEL, STATUSES } from './view'
 
@@ -29,7 +29,7 @@ function useTaskSaver(id: string) {
         try {
           const task = await taskApi.update(id, { ...patch, version: current.version })
           queryClient.setQueryData(taskKey(id), task)
-          void queryClient.invalidateQueries({ queryKey: ['tasks', 'list'] })
+          refreshTasks(queryClient, ['tasks', 'list'])
           return { ok: true }
         } catch (error) {
           if (error instanceof ApiError && error.code === 'VERSION_CONFLICT') {
@@ -203,14 +203,14 @@ function TaskForm({
   const archive = async () => {
     try {
       await taskApi.remove(task.id)
-      void queryClient.invalidateQueries({ queryKey: TASKS_QUERY_KEY })
+      refreshTasks(queryClient)
       onClose()
       showUndo({
         group: 'archive-task',
         message: (n) => `업무 ${n}개를 보관했어요`,
         undo: async () => {
           await taskApi.restore(task.id)
-          void queryClient.invalidateQueries({ queryKey: TASKS_QUERY_KEY })
+          refreshTasks(queryClient)
         },
       })
     } catch (err) {
@@ -223,7 +223,7 @@ function TaskForm({
     try {
       const restored = await taskApi.restore(task.id)
       queryClient.setQueryData(taskKey(task.id), restored)
-      void queryClient.invalidateQueries({ queryKey: TASKS_QUERY_KEY })
+      refreshTasks(queryClient)
       showToast('업무를 복원했어요')
     } catch (err) {
       const { message, traceId } = toastForError(err)

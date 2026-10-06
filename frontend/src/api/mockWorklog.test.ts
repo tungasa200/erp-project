@@ -41,3 +41,21 @@ describe('가짜 업무 서버의 일정 배치 여부', () => {
     expect((await tasks('?scheduled=false')).map((t) => t.id)).not.toContain(first.id)
   })
 })
+
+describe('가짜 프로젝트의 남은 업무 수', () => {
+  it('openTaskCount는 보관·완료를 뺀 업무 수이고 완료하면 줄어든다', async () => {
+    const projects = async () =>
+      (
+        (await handleWorklog('GET', '/api/worklog/projects', {}, r)!.json()) as {
+          items: { id: string; openTaskCount: number }[]
+        }
+      ).items
+    const open = (await tasks()).filter((t) => t.status !== 'DONE' && t.projectId)
+    const target = open[0]
+    const before = (await projects()).find((p) => p.id === target.projectId)!.openTaskCount
+    expect(before).toBe(open.filter((t) => t.projectId === target.projectId).length)
+
+    handleWorklog('PATCH', `/api/worklog/tasks/${target.id}`, { version: target.version, status: 'DONE' }, r)
+    expect((await projects()).find((p) => p.id === target.projectId)!.openTaskCount).toBe(before - 1)
+  })
+})

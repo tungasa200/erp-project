@@ -11,7 +11,7 @@ import { useProjects, useTags, type Project } from '../projects/api'
 import { projectColor } from '../projects/palette'
 import { todayIn, weekStartNumber } from '../quickInput/dates'
 import { QuickInput } from '../quickInput/QuickInput'
-import { TASKS_QUERY_KEY, taskApi, useTasks, type Task } from './api'
+import { refreshTasks, taskApi, useTasks, type Task } from './api'
 import styles from './tasks.module.css'
 import { useQuickSave } from './useQuickSave'
 import {
@@ -420,7 +420,7 @@ function TaskRow({ task, today, weekStart, projects, tagNames, selected }: RowPr
   const color = project ? projectColor(project.color) : null
   const done = task.status === 'DONE'
   const state = dueState(task.dueDate, today, weekStart)
-  const refresh = () => void queryClient.invalidateQueries({ queryKey: TASKS_QUERY_KEY })
+  const refresh = () => refreshTasks(queryClient)
 
   const failed = (error: unknown) => {
     if (error instanceof ApiError && error.code === 'VERSION_CONFLICT') {

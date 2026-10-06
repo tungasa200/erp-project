@@ -1,7 +1,8 @@
 // 업무 API (TASK-01~06, P1-03·04). 캘린더 업무 패널(P1-08, frontend2)도 이 모듈을 쓴다.
 // 쿼리 키는 모두 ['tasks', …]로 시작하므로 invalidateQueries({ queryKey: TASKS_QUERY_KEY })로 한꺼번에 다시 받는다.
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
+import { useInfiniteQuery, useQuery, type QueryClient } from '@tanstack/react-query'
 import { api } from '../api'
+import { PROJECTS_QUERY_KEY } from '../projects/api'
 import type { components } from '../api/generated/worklog'
 
 type Schemas = components['schemas']
@@ -34,6 +35,12 @@ export interface TaskPage {
 export const TASKS_QUERY_KEY = ['tasks'] as const
 export const taskListKey = (filter: TaskFilter) => ['tasks', 'list', filter] as const
 export const taskKey = (id: string) => ['tasks', 'detail', id] as const
+
+/** 업무를 만들거나 상태·프로젝트를 바꾼 뒤 업무 목록과 프로젝트의 남은 업무 수(사이드바 openTaskCount)를 다시 받는다 */
+export function refreshTasks(queryClient: QueryClient, key: readonly unknown[] = TASKS_QUERY_KEY) {
+  void queryClient.invalidateQueries({ queryKey: key })
+  void queryClient.invalidateQueries({ queryKey: PROJECTS_QUERY_KEY })
+}
 
 function query(filter: TaskFilter, cursor?: string): string {
   const params = new URLSearchParams()

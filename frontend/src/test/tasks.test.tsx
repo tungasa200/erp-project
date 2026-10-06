@@ -23,6 +23,7 @@ const PROJECTS = [
     color: 'P2',
     archived: false,
     taskCount: 2,
+    openTaskCount: 1,
     createdAt: '2026-10-01T00:00:00Z',
     version: 0,
   },
@@ -135,7 +136,7 @@ describe('SCR-TASK-01 업무 목록', () => {
   it('필터는 URL에 남고 API 조건으로 보낸다 (사이드바 프로젝트 → /tasks?project=)', async () => {
     const { calls } = server(SAMPLE)
     const { router } = renderApp('/')
-    await userEvent.click(await screen.findByRole('link', { name: /영업/ }))
+    await userEvent.click(await screen.findByRole('link', { name: '영업, 남은 업무 1개' }))
     expect(router.state.location.pathname).toBe('/tasks')
     expect(router.state.location.search).toBe('?project=p-sales')
     await waitFor(() =>
@@ -145,7 +146,7 @@ describe('SCR-TASK-01 업무 목록', () => {
     )
     expect(await screen.findByRole('button', { name: '프로젝트: 영업' })).toBeInTheDocument()
     // 사이드바 프로젝트는 현재 페이지(aria-current)로 읽히지 않는다 — 업무 메뉴만 현재 페이지다
-    expect(screen.getByRole('link', { name: '영업, 업무 2개' })).not.toHaveAttribute('aria-current')
+    expect(screen.getByRole('link', { name: '영업, 남은 업무 1개' })).not.toHaveAttribute('aria-current')
   })
 
   it('완료 체크는 바로 완료하고 되돌리기로 원래 상태로 돌린다', async () => {

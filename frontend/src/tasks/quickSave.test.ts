@@ -15,6 +15,7 @@ const sales: Project = {
   color: 'P2',
   archived: false,
   taskCount: 0,
+  openTaskCount: 0,
   createdAt: '2026-10-01T00:00:00Z',
   version: 0,
 }

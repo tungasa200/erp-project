@@ -13,6 +13,8 @@ export interface Project {
   archived: boolean
   archivedAt?: string | null
   taskCount: number
+  /** 남은 업무 수: 보관하지 않았고 완료(DONE)가 아닌 업무 (사이드바, SCR-COM-01) */
+  openTaskCount: number
   createdAt: string
   version: number
 }
