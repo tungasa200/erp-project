@@ -55,6 +55,8 @@ interface Props {
   onOpenDay?: (date: string) => void
   /** 업무 패널에서 끌어 놓기(SCR-CAL-09): 1시간 일정 */
   onDropTask?: (taskId: string, range: TimeRange) => void
+  /** 모바일 주 보기: 훑어보기 전용(D-77). 하루 칸 전체가 일 보기로 가는 버튼이고 블록 누름·끌기·만들기는 끈다 */
+  overview?: boolean
 }
 
 type Drag =
@@ -94,7 +96,7 @@ function timeLabel(o: Occurrence, timeZone: string) {
 }
 
 export function TimeGrid(props: Props) {
-  const { days, occurrences, timeZone, today, now, colorOf, pending } = props
+  const { days, occurrences, timeZone, today, now, colorOf, pending, overview = false } = props
   const scrollRef = useRef<HTMLDivElement>(null)
   const columnsRef = useRef<HTMLDivElement>(null)
   const allDayRef = useRef<HTMLDivElement>(null)
@@ -336,9 +338,9 @@ export function TimeGrid(props: Props) {
           ref={allDayRef}
           className={styles.allDayCells}
           style={{ gridTemplateColumns: columns, gridTemplateRows: `repeat(${allDayRows}, 24px)` }}
-          onPointerDown={onAllDayPointerDown}
-          onPointerMove={onAllDayPointerMove}
-          onPointerUp={onAllDayPointerUp}
+          onPointerDown={overview ? undefined : onAllDayPointerDown}
+          onPointerMove={overview ? undefined : onAllDayPointerMove}
+          onPointerUp={overview ? undefined : onAllDayPointerUp}
           onPointerCancel={() => setDrag(null)}
           role="presentation"
         >
@@ -348,6 +350,18 @@ export function TimeGrid(props: Props) {
             const end = Math.min(days.length, bar.startIndex + bar.span + shift)
             if (end <= start) return null
             const color = colorOf(bar.occurrence)
+            if (overview)
+              return (
+                <div
+                  key={occurrenceKey(bar.occurrence)}
+                  className={styles.allDayBar}
+                  data-overview
+                  style={{ gridColumn: `${start + 1} / ${end + 1}`, gridRow: bar.row + 1, ...colorVars(color) }}
+                  aria-hidden="true"
+                >
+                  {bar.occurrence.title}
+                </div>
+              )
             return (
               <button
                 key={occurrenceKey(bar.occurrence)}
@@ -384,23 +398,33 @@ export function TimeGrid(props: Props) {
             ref={columnsRef}
             className={styles.columns}
             style={{ gridTemplateColumns: columns }}
-            onPointerDown={onPointerDown}
-            onPointerMove={onPointerMove}
-            onPointerUp={onPointerUp}
+            onPointerDown={overview ? undefined : onPointerDown}
+            onPointerMove={overview ? undefined : onPointerMove}
+            onPointerUp={overview ? undefined : onPointerUp}
             onPointerCancel={() => setDrag(null)}
-            onDragOver={onDragOver}
+            onDragOver={overview ? undefined : onDragOver}
             onDragLeave={() => setTaskHover(null)}
-            onDrop={onDrop}
+            onDrop={overview ? undefined : onDrop}
             role="presentation"
+            data-overview={overview || undefined}
           >
-            {days.map((date) => {
+            {days.map((date, dayIndex) => {
               const wd = weekdayIndex(date)
+              const Column = overview ? 'button' : 'div'
+              const count =
+                segments.get(date)!.length +
+                bars.filter((b) => b.startIndex <= dayIndex && dayIndex < b.startIndex + b.span).length
               return (
-                <div
+                <Column
                   key={date}
                   className={styles.column}
                   data-today={date === today || undefined}
                   data-rest={wd === 0 || wd === 6 || !!holidayName(date) || undefined}
+                  {...(overview && {
+                    type: 'button' as const,
+                    'aria-label': `${Number(date.slice(5, 7))}월 ${Number(date.slice(8))}일 ${WEEKDAY_LABELS[wd]}요일, 일정 ${count}개`,
+                    onClick: () => props.onOpenDay?.(date),
+                  })}
                 >
                   {Array.from({ length: 24 }, (_, h) => (
                     <div key={h} className={styles.hourLine} style={{ top: h * HOUR_HEIGHT }} />
@@ -413,6 +437,7 @@ export function TimeGrid(props: Props) {
                       timeZone={timeZone}
                       now={now}
                       drag={drag}
+                      overview={overview}
                       onOpen={props.onOpen}
                     />
                   ))}
@@ -439,7 +464,7 @@ export function TimeGrid(props: Props) {
                       <span>{formatMinutes(nowZoned.minutes)}</span>
                     </div>
                   )}
-                </div>
+                </Column>
               )
             })}
           </div>
@@ -455,6 +480,7 @@ function Block({
   timeZone,
   now,
   drag,
+  overview,
   onOpen,
 }: {
   segment: TimedSegment
@@ -462,6 +488,7 @@ function Block({
   timeZone: string
   now: number
   drag: Drag | null
+  overview: boolean
   onOpen: (o: Occurrence) => void
 }) {
   const o = segment.occurrence
@@ -471,6 +498,25 @@ function Block({
   const height = (drawnEnd - drawnStart) * PX_PER_MINUTE - 2
   const active = Date.parse(o.startAt!) <= now && now < Date.parse(o.endAt!)
   const dragging = drag?.kind === 'move' && drag.moved && drag.segment.occurrence === o
+  const content = (
+    <span className={styles.blockTitle}>
+      {o.recurring && <RepeatIcon />}
+      {o.title}
+    </span>
+  )
+  // 훑어보기(D-77): 하루 칸 버튼 안에서 보여 주기만 한다
+  if (overview)
+    return (
+      <div
+        className={styles.block}
+        data-overview
+        data-now={active || undefined}
+        style={blockStyle(color, top, height, segment.column, segment.columns)}
+        aria-hidden="true"
+      >
+        {content}
+      </div>
+    )
   return (
     <button
       type="button"
@@ -482,10 +528,7 @@ function Block({
       onClick={(e) => e.detail === 0 && onOpen(o)}
       aria-label={`${o.title}, ${timeLabel(o, timeZone)}${o.recurring ? ', 반복' : ''}`}
     >
-      <span className={styles.blockTitle}>
-        {o.recurring && <RepeatIcon />}
-        {o.title}
-      </span>
+      {content}
       {height >= 34 && <span className={styles.blockTime}>{timeLabel(o, timeZone)}</span>}
       {!segment.continuesAfter && <span className={styles.resizeHandle} data-handle="resize" aria-hidden="true" />}
     </button>

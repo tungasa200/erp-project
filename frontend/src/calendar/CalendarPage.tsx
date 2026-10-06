@@ -1,7 +1,7 @@
 // 캘린더 (SCR-CAL-01~05). 보기와 날짜는 URL이 기준이다: /calendar/{day|week|month|year}/:date, /calendar/list.
 // 표시는 사용자의 현재 시간대(D-40), 주 시작 요일은 프로필 설정(AUTH-05)을 따른다.
 // P1 범위 밖: 기록 상태(2.3)와 범례·일지 상태 점·이날의 기록 패널(P2 데이터), 상단 검색(일정 검색 API 없음).
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from 'react'
 import { Navigate, useLocation, useNavigate, useParams } from 'react-router'
 import { useAuth } from '../auth/useAuth'
 import { useSingleKeyShortcuts } from '../shortcuts/useShortcuts'
@@ -76,6 +76,18 @@ function calendarPath(view: CalendarView, date: string) {
   return `/calendar/${view}/${date}`
 }
 
+/** 화면 폭 조건. 창 크기가 바뀌면 다시 그린다 */
+function useMediaQuery(query: string) {
+  return useSyncExternalStore(
+    (onChange) => {
+      const list = window.matchMedia?.(query)
+      list?.addEventListener('change', onChange)
+      return () => list?.removeEventListener('change', onChange)
+    },
+    () => window.matchMedia?.(query).matches ?? false,
+  )
+}
+
 /** /calendar → 오늘의 주 보기(모바일은 일 보기, 2.4) */
 export function CalendarIndexRedirect() {
   const { timeZone } = useCalendarPrefs()
@@ -142,6 +154,8 @@ function Calendar({ view, date, today, timeZone, weekStart }: CalendarProps) {
   const mainRef = useRef<HTMLElement>(null)
   // 업무 패널(SCR-CAL-09): 데스크톱은 기본 열림, 태블릿·모바일은 접힘(2.4). P로 열고 닫는다
   const [panelOpen, setPanelOpen] = useState(() => window.matchMedia?.(DESKTOP_QUERY).matches ?? true)
+  // 모바일 주 보기는 훑어보기 전용(D-77)
+  const mobile = useMediaQuery(MOBILE_QUERY)
 
   const askScope = useCallback(
     (occurrence: Occurrence, action: ScopeAction) =>
@@ -380,6 +394,7 @@ function Calendar({ view, date, today, timeZone, weekStart }: CalendarProps) {
             onMove={(o, change) => void actions.move(o, change)}
             onOpenDay={view === 'week' ? (d) => go('day', d) : undefined}
             onDropTask={panel.placeById}
+            overview={view === 'week' && mobile}
           />
         )}
         {view === 'month' && (

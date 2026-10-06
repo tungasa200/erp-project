@@ -73,3 +73,75 @@ describe('시간 그리드 블록 사이 틈 (D-76)', () => {
     expect(onCreate).toHaveBeenCalledWith({ date: DAY, start: 600, end: 660 })
   })
 })
+
+describe('모바일 주 보기 훑어보기 (D-77)', () => {
+  beforeEach(() => {
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+      left: 0,
+      top: 0,
+      width: 300,
+      height: 1152,
+    } as DOMRect)
+  })
+  afterEach(() => vi.restoreAllMocks())
+
+  it('하루 칸 전체가 일 보기 버튼이고, 블록 누름·빈 칸 만들기·끌기는 꺼진다', () => {
+    const onCreate = vi.fn()
+    const onOpen = vi.fn()
+    const onMove = vi.fn()
+    const onOpenDay = vi.fn()
+    // 2026-10-06(화)~10-08(목) 3일, 6일에 시간 일정 2개 + 6~7일 종일 일정 1개
+    render(
+      <TimeGrid
+        days={['2026-10-06', '2026-10-07', '2026-10-08']}
+        occurrences={
+          [
+            {
+              scheduleId: 'a',
+              title: '회의',
+              allDay: false,
+              startAt: '2026-10-06T09:00:00Z',
+              endAt: '2026-10-06T10:00:00Z',
+            },
+            {
+              scheduleId: 'b',
+              title: '점심',
+              allDay: false,
+              startAt: '2026-10-06T12:00:00Z',
+              endAt: '2026-10-06T13:00:00Z',
+            },
+            { scheduleId: 'c', title: '출장', allDay: true, startDate: '2026-10-06', endDate: '2026-10-07' },
+          ] as Occurrence[]
+        }
+        timeZone="UTC"
+        today="2026-10-07"
+        now={Date.parse('2026-10-07T00:00:00Z')}
+        colorOf={() => null}
+        pending={null}
+        onCreate={onCreate}
+        onCreateAllDay={vi.fn()}
+        onOpen={onOpen}
+        onMove={onMove}
+        onOpenDay={onOpenDay}
+        overview
+      />,
+    )
+
+    expect(screen.queryByRole('button', { name: /회의/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /출장/ })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '10월 7일 수요일, 일정 1개' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '10월 8일 목요일, 일정 0개' })).toBeInTheDocument()
+
+    const day = screen.getByRole('button', { name: '10월 6일 화요일, 일정 3개' })
+    // 블록 위·빈 칸에서 누르고 끌어도 만들기·이동은 일어나지 않는다
+    fireEvent.pointerDown(day, { button: 0, clientX: 50, clientY: 9 * 60 * PX_PER_MINUTE + 10 })
+    fireEvent.pointerMove(day, { button: 0, clientX: 50, clientY: 15 * 60 * PX_PER_MINUTE })
+    fireEvent.pointerUp(day, { button: 0, clientX: 50, clientY: 15 * 60 * PX_PER_MINUTE })
+    expect(onCreate).not.toHaveBeenCalled()
+    expect(onMove).not.toHaveBeenCalled()
+    expect(onOpen).not.toHaveBeenCalled()
+
+    fireEvent.click(day)
+    expect(onOpenDay).toHaveBeenCalledWith('2026-10-06')
+  })
+})

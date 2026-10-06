@@ -313,6 +313,32 @@
   border-radius: 12px;
 }
 
+/* 모바일 주 보기 훑어보기(D-77): 하루 칸 전체가 일 보기로 가는 버튼. 세로 스크롤을 막지 않는다 */
+.columns[data-overview] {
+  touch-action: auto;
+}
+
+button.column {
+  font: inherit;
+  display: block;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.block[data-overview],
+.allDayBar[data-overview] {
+  cursor: inherit;
+  touch-action: auto;
+}
+
+/* 버튼이 아니라 글자 세로 가운데를 직접 맞춘다(종일 행 24px) */
+.allDayBar[data-overview] {
+  line-height: 24px;
+}
+
 .column[data-rest] {
   background: #f7f8fc;
 }
