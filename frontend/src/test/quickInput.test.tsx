@@ -87,7 +87,8 @@ describe('SCR-COM-02 빠른 입력창', () => {
   it('@프로젝트는 그 프로젝트 색, #태그는 흰 칩이고 없는 태그는 "새 태그"로 읽힌다', async () => {
     const { input } = await openHome()
     await userEvent.type(input, '보고 @영업 #결제 #정산')
-    const project = await screen.findByText('영업')
+    // 사이드바 프로젝트 목록에도 같은 이름이 있어 해석 결과 안에서 찾는다
+    const project = await within(await screen.findByRole('list', { name: '해석 결과' })).findByText('영업')
     expect(project).toHaveStyle({ background: 'var(--project-p2-tint)', color: 'var(--project-p2-ink)' })
     expect(screen.getByText('#결제')).toHaveClass('chip', 'tag')
     expect(await screen.findByRole('listitem', { name: '새 태그 정산' })).toHaveClass('tag', 'tagNew')
@@ -116,7 +117,9 @@ describe('SCR-COM-02 빠른 입력창', () => {
     await userEvent.click(await screen.findByRole('button', { name: '+ 새 프로젝트 "마케팅" 만들기' }))
     // 영업(P2)만 쓰는 중이라 첫 빈 색 P1
     await waitFor(() => expect(created).toEqual([{ name: '마케팅', color: 'P1' }]))
-    expect(await screen.findByText('마케팅')).toHaveStyle({ background: 'var(--project-p1-tint)' })
+    expect(await within(screen.getByRole('list', { name: '해석 결과' })).findByText('마케팅')).toHaveStyle({
+      background: 'var(--project-p1-tint)',
+    })
   })
 
   it('시각 없는 날짜는 마감으로 보여 준다', async () => {

@@ -5,6 +5,7 @@ import { useLocation } from 'react-router'
 import { useAuth } from '../auth/useAuth'
 import { EXAMPLES } from '../quickInput/examples'
 import { QuickInput } from '../quickInput/QuickInput'
+import { useQuickSave } from '../tasks/useQuickSave'
 import styles from './HomePage.module.css'
 
 interface HomeState {
@@ -24,6 +25,7 @@ export function HomePage() {
   const [text, setText] = useState('')
   const [handledKey, setHandledKey] = useState<string | null>(null)
   const [now] = useState(() => new Date())
+  const quickSave = useQuickSave()
 
   // 명령 팔레트·단축키 N으로 들어오면 입력창을 채우고(이동마다 한 번) 포커스한다.
   const state = location.state as HomeState | null
@@ -60,7 +62,7 @@ export function HomePage() {
           </h1>
         </div>
         <div className={styles.quick}>
-          <QuickInput value={text} onChange={setText} label="빠른 기록" />
+          <QuickInput value={text} onChange={setText} onSubmit={quickSave} label="빠른 기록" />
         </div>
       </header>
 

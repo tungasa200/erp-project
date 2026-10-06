@@ -99,6 +99,61 @@
   text-decoration: none;
 }
 
+/* 사이드바 프로젝트 목록 (SCR-COM-01 ①) */
+.projects {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 14px;
+  min-width: 0;
+  overflow-y: auto;
+}
+
+.projectsTitle {
+  margin: 0;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+}
+
+.projectItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 20px;
+  color: #3b3f52;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.projectItem:hover {
+  background: var(--color-accent-faint);
+}
+
+.projectDot {
+  width: 10px;
+  height: 10px;
+  flex: none;
+  border-radius: 3px;
+}
+
+.projectName {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.projectCount {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
 .navItem:hover {
   color: var(--color-text);
   background: color-mix(in srgb, var(--color-accent) 6%, transparent);
@@ -153,6 +208,7 @@
   }
   .brandName,
   .profile,
+  .projects,
   .navLabel {
     display: none;
   }

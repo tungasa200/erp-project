@@ -14,6 +14,8 @@ import { GeneralSettings } from '../settings/GeneralSettings'
 import { ProfileSettings } from '../settings/ProfileSettings'
 import { ProjectSettings } from '../settings/ProjectSettings'
 import { SettingsIndex, SettingsLayout } from '../settings/SettingsLayout'
+import { TaskDetailPanel } from '../tasks/TaskDetailPanel'
+import { TaskListPage } from '../tasks/TaskListPage'
 
 export const routes = [
   {
@@ -39,7 +41,12 @@ export const routes = [
               { path: '/calendar', element: <CalendarIndexRedirect /> },
               { path: '/calendar/list', element: <CalendarPage /> },
               { path: '/calendar/:view/:date', element: <CalendarPage /> },
-              { path: '/tasks', element: <PlaceholderPage title="업무" /> },
+              // 업무 목록, 행을 누르면 오른쪽 상세 패널 (SCR-TASK-01·02)
+              {
+                path: '/tasks',
+                element: <TaskListPage />,
+                children: [{ path: ':taskId', element: <TaskDetailPanel /> }],
+              },
               { path: '/logs', element: <PlaceholderPage title="업무일지" /> },
               { path: '/stats', element: <PlaceholderPage title="통계" /> },
               {

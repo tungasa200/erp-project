@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, NavLink, Outlet, useNavigate } from 'react-router'
 import { useAuth } from '../auth/useAuth'
 import { CommandPalette } from '../palette/CommandPalette'
+import { useProjects } from '../projects/api'
+import { projectColor } from '../projects/palette'
 import { useSingleKeyShortcuts } from '../shortcuts/useShortcuts'
 import { UnverifiedBanner } from '../verification/UnverifiedBanner'
 import styles from './AppShell.module.css'
@@ -118,6 +120,7 @@ export function AppShell() {
             <span className={styles.navLabel}>{item.label}</span>
           </NavLink>
         ))}
+        <SidebarProjects />
         <div className={styles.spacer} />
         <NavLink to="/settings" className={navClass} title="설정">
           <Icon d={SETTINGS_ICON} />
@@ -156,6 +159,35 @@ export function AppShell() {
       </nav>
 
       {paletteOpen && <CommandPalette onClose={closePalette} onQuickAdd={quickAdd} />}
+    </div>
+  )
+}
+
+// SCR-COM-01 ① 사이드바 프로젝트 목록(보관하지 않은 것). 누르면 그 프로젝트로 거른 업무 목록으로 간다.
+function SidebarProjects() {
+  const { data } = useProjects()
+  const projects = data?.filter((p) => !p.archived) ?? []
+  if (projects.length === 0) return null
+  return (
+    <div className={styles.projects}>
+      <p className={styles.projectsTitle}>프로젝트</p>
+      {projects.map((p) => (
+        // NavLink는 쿼리를 보지 않아 /tasks에서 모든 항목이 현재 페이지로 읽히므로 Link를 쓴다
+        <Link
+          key={p.id}
+          to={`/tasks?project=${p.id}`}
+          className={styles.projectItem}
+          aria-label={`${p.name}, 업무 ${p.taskCount}개`}
+        >
+          <span className={styles.projectDot} style={{ background: projectColor(p.color).base }} aria-hidden="true" />
+          <span className={styles.projectName} title={p.name}>
+            {p.name}
+          </span>
+          <span className={styles.projectCount} aria-hidden="true">
+            {p.taskCount}
+          </span>
+        </Link>
+      ))}
     </div>
   )
 }
