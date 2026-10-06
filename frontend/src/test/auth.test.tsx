@@ -80,7 +80,27 @@ describe('SCR-AUTH-02 로그인', () => {
     await user.type(screen.getByLabelText('비밀번호'), 'wrong1234')
     await user.click(screen.getByRole('button', { name: '로그인' }))
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('이메일 또는 비밀번호가 맞지 않아요')
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('이메일 또는 비밀번호가 맞지 않아요')
+    expect(alert).not.toHaveTextContent('잠시 후 다시 시도해 주세요')
+  })
+
+  it('실패 응답이 늦게 오면(서버 점진 지연) "잠시 후 다시 시도해 주세요"를 덧붙인다', async () => {
+    stubFetch({
+      'POST /api/auth/login': async () => {
+        await new Promise((resolve) => setTimeout(resolve, 950))
+        return problem(401, 'INVALID_CREDENTIALS')
+      },
+    })
+    renderApp('/login')
+    const user = userEvent.setup()
+    await user.type(await screen.findByLabelText('이메일'), 'demo@example.com')
+    await user.type(screen.getByLabelText('비밀번호'), 'wrong1234')
+    await user.click(screen.getByRole('button', { name: '로그인' }))
+
+    const alert = await screen.findByRole('alert', {}, { timeout: 3000 })
+    expect(alert).toHaveTextContent('이메일 또는 비밀번호가 맞지 않아요')
+    expect(alert).toHaveTextContent('잠시 후 다시 시도해 주세요')
   })
 
   it('AUTH_LOCKED면 잠금 안내와 남은 시간을 보여 주고 버튼을 막는다', async () => {

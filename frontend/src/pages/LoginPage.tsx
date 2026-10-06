@@ -10,7 +10,10 @@ import { useToast } from '../components/useToast'
 import { AuthLayout } from './auth/AuthLayout'
 import styles from './auth/auth.module.css'
 
-type Notice = { kind: 'invalid' } | { kind: 'locked' | 'throttled'; until: number }
+type Notice = { kind: 'invalid'; slowed: boolean } | { kind: 'locked' | 'throttled'; until: number }
+
+// 서버는 연속 실패 3회부터 응답을 1초 이상 늦춘다(AUTH-09 점진 지연). 그만큼 늦게 온 실패 응답이면 지연 중으로 본다.
+const SLOWED_MS = 900
 
 function formatRemaining(ms: number) {
   const total = Math.max(0, Math.ceil(ms / 1000))
@@ -50,11 +53,12 @@ export function LoginPage() {
 
     setSubmitting(true)
     setNotice(null)
+    const startedAt = performance.now()
     try {
       await login({ email: email.trim(), password })
     } catch (error) {
       if (error instanceof ApiError && error.code === 'INVALID_CREDENTIALS') {
-        setNotice({ kind: 'invalid' })
+        setNotice({ kind: 'invalid', slowed: performance.now() - startedAt >= SLOWED_MS })
       } else if (error instanceof ApiError && error.status === 429) {
         const seconds = error.problem?.retryAfterSeconds ?? 60
         setNow(Date.now())
@@ -105,7 +109,15 @@ export function LoginPage() {
         {notice?.kind === 'invalid' && (
           <div role="alert" className={`${styles.alert} ${styles.alertDanger}`}>
             <span className={styles.alertMark}>!</span>
-            <span>이메일 또는 비밀번호가 맞지 않아요</span>
+            <span>
+              이메일 또는 비밀번호가 맞지 않아요
+              {notice.slowed && (
+                <>
+                  <br />
+                  잠시 후 다시 시도해 주세요
+                </>
+              )}
+            </span>
           </div>
         )}
         {notice?.kind === 'locked' && waiting && (
