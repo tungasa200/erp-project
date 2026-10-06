@@ -105,6 +105,15 @@ describe('SCR-AUTH-04·05 비밀번호 찾기·재설정', () => {
     expect(screen.getByRole('button', { name: '저장하고 다시 로그인' })).toBeDisabled()
   })
 
+  it('이 기기 시계가 서버보다 늦어도 남은 시간은 규칙(코드 10분, 다시 받기 60초)보다 크게 보이지 않는다', async () => {
+    // 시계가 약 10초 늦은 경우: 서버 시각 기준 만료·재요청 시각이 이 기기에서는 609초·69초 뒤로 보인다
+    await toResetStep({
+      'POST /api/auth/password-reset': () => json(202, { expiresAt: later(609), resendAvailableAt: later(69) }),
+    })
+    expect(screen.getByText('남은 시간 10:00')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '다시 받기 · 60초' })).toBeInTheDocument()
+  })
+
   it('틀린 코드는 남은 시도 횟수를 알리고 입력을 비운다', async () => {
     await toResetStep()
     const code = screen.getByRole('textbox', { name: '인증번호' })

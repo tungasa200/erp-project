@@ -281,6 +281,18 @@ describe('세션', () => {
         <button type="button" onClick={() => void api.request('/api/worklog/me').catch(() => undefined)}>
           call
         </button>
+        {/* 화면 이동 때처럼 요청 두 개를 함께 보낸다 (P1-X-03) */}
+        <button
+          type="button"
+          onClick={() =>
+            void Promise.all([
+              api.request('/api/worklog/me').catch(() => undefined),
+              api.request('/api/worklog/projects').catch(() => undefined),
+            ])
+          }
+        >
+          call both
+        </button>
       </div>
     )
   }
@@ -318,6 +330,21 @@ describe('세션', () => {
 
     expect(await screen.findByText('다시 로그인해 주세요. 로그인 후 보던 화면으로 돌아가요.')).toBeInTheDocument()
     expect(router.state.location.pathname).toBe('/login')
+    expect(router.state.location.state).toMatchObject({ from: '/', reason: 'expired' })
+  })
+
+  it('P1-X-03 요청 여러 개가 함께 401 → refresh 실패여도 "다시 로그인해 주세요"를 보여 준다', async () => {
+    let meCalls = 0
+    stubFetch({
+      'GET /api/users/me': () => (meCalls++ === 0 ? json(200, ME) : problem(401, 'UNAUTHENTICATED')),
+      'GET /api/worklog/me': () => problem(401, 'UNAUTHENTICATED'),
+      'GET /api/worklog/projects': () => problem(401, 'UNAUTHENTICATED'),
+    })
+    const { router } = renderApp('/', probeRoutes)
+    const user = userEvent.setup()
+    await user.click(await screen.findByRole('button', { name: 'call both' }))
+
+    expect(await screen.findByText('다시 로그인해 주세요. 로그인 후 보던 화면으로 돌아가요.')).toBeInTheDocument()
     expect(router.state.location.state).toMatchObject({ from: '/', reason: 'expired' })
   })
 
