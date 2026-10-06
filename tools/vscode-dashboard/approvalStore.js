@@ -34,7 +34,8 @@ const GIT_KINDS = {
   'tag-delete': '태그 삭제',
 };
 const ROUTINE_KINDS = ['commit', 'push'];
-const KINDS = { ...GIT_KINDS, choice: '결정' };
+// permission: 권한 카드(PermissionRequest 훅), todo: 사람이 직접 할 일(PermissionDenied 훅 등, '했음'으로 닫는다)
+const KINDS = { ...GIT_KINDS, choice: '결정', permission: '권한', todo: '할 일' };
 const LIMITS = { questions: 4, optionsMin: 2, optionsMax: 4, text: 2000 };
 
 function paths(root = ROOT) {
@@ -111,8 +112,23 @@ function readRequest(file, id) {
       createdAt: r.createdAt || null,
       title: text(r.title, 300),
       detail: text(r.detail),
+      what: text(r.what),
+      why: text(r.why),
+      onClick: text(r.onClick, 500),
     };
     if (r.kind === 'choice') return { ...base, background: text(r.background), questions: readQuestions(r.questions) };
+    if (r.kind === 'permission') {
+      return {
+        ...base,
+        sessionId: text(r.sessionId, 80) || null,
+        tool: text(r.tool, 80),
+        command: text(r.command, 1000),
+        expiresAt: r.expiresAt || null,
+      };
+    }
+    if (r.kind === 'todo') {
+      return { ...base, sessionId: text(r.sessionId, 80) || null, steps: Array.isArray(r.steps) ? r.steps.slice(0, 20).map((x) => text(x, 1000)) : [] };
+    }
     return {
       ...base,
       branch: text(r.branch, 200),
@@ -138,13 +154,18 @@ function readState(root = ROOT) {
     }
   }
   const requests = listJson(p.requests).map((f) => readRequest(path.join(p.requests, f), f.slice(0, -5)));
-  const pending = requests.filter((r) => !decisions.has(r.id)).sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)));
+  const pending = requests.filter((r) => !decisions.has(r.id) && !(r.kind === 'permission' && permissionClosed(p, r))).sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)));
   const byId = new Map(requests.map((r) => [r.id, r]));
   const recent = [...decisions.entries()]
     .map(([id, d]) => ({ id, ...d, request: byId.get(id) || null }))
     .sort((a, b) => String(b.decidedAt).localeCompare(String(a.decidedAt)))
     .slice(0, 10);
   return { root: p.root, pending, recent };
+}
+
+// 권한 카드가 더는 결정할 수 없는 상태인가: 훅이 시간 초과로 닫았거나(used) 기한이 지남
+function permissionClosed(p, r, now = Date.now()) {
+  return fs.existsSync(path.join(p.used, `${r.id}.json`)) || (!!r.expiresAt && Date.parse(r.expiresAt) <= now);
 }
 
 // 결정이 없는 요청 수(전환 뒤 옛 폴더에 남은 요청을 알리는 데 쓴다)
@@ -192,6 +213,8 @@ function decide(id, decision, { reason = '', root = ROOT } = {}) {
   if (decision === 'rejected' && !String(reason).trim()) throw new Error('거부 사유가 필요함');
   const req = loadPending(id, root);
   if (req.kind === 'choice') throw new Error('결정 요청은 선택지로 답해야 함');
+  if (req.kind === 'todo') throw new Error("할 일은 '했음'으로 닫아야 함");
+  if (req.kind === 'permission' && permissionClosed(paths(root), req)) throw new Error('기한이 지나 이미 거부된 권한 요청');
   return writeDecision(id, req, { decision, reason: text(reason).trim(), command: normalize(req.command) }, root);
 }
 
@@ -213,10 +236,49 @@ function answer(id, answers, { note = '', root = ROOT } = {}) {
   return writeDecision(id, req, { decision: 'answered', answers: out, note: text(note).trim() }, root);
 }
 
-// 권한 요청 파일(requests/perm-<key>.json) 목록. B2-4에서 채운다. 형식: 운영 도구 구현 계획 2.2
+// 할 일 카드를 닫는다('했음'). 세션은 결정 파일의 decision: 'done'을 보고 이어 간다(B2-3)
+function markDone(id, { note = '', root = ROOT } = {}) {
+  const req = loadPending(id, root);
+  if (req.kind !== 'todo') throw new Error('할 일 카드가 아님');
+  return writeDecision(id, req, { decision: 'done', note: text(note).trim() }, root);
+}
+
+// 권한 요청 파일(requests/perm-<key>.json) 목록. 형식: 운영 도구 구현 계획 2.2
 //   [{ key, sessionId, sessionName, tool, toolInput, command, permissionMode, createdAt, expiresAt, decision: null|'approved'|'rejected'|'expired' }]
 function listPermissionRequests(root = ROOT) {
-  return [];
+  const p = paths(root);
+  const out = [];
+  for (const f of listJson(p.requests)) {
+    const id = f.slice(0, -5);
+    if (!id.startsWith('perm-')) continue;
+    let r;
+    try {
+      r = readJson(path.join(p.requests, f));
+    } catch {
+      continue;
+    }
+    if (!r || r.kind !== 'permission') continue;
+    let decision = null;
+    try {
+      decision = readJson(path.join(p.decisions, f)).decision || null;
+    } catch {
+      if (permissionClosed(p, { id, expiresAt: r.expiresAt })) decision = 'expired';
+    }
+    out.push({
+      id,
+      key: r.key || id.slice('perm-'.length),
+      sessionId: r.sessionId || null,
+      sessionName: r.sessionName || null,
+      tool: r.tool || null,
+      toolInput: r.toolInput || {},
+      command: r.command || '',
+      permissionMode: r.permissionMode || null,
+      createdAt: r.createdAt || null,
+      expiresAt: r.expiresAt || null,
+      decision,
+    });
+  }
+  return out.sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)));
 }
 
 // 세션 등록 기록(sessions/<sessionId>.json, SessionStart 훅이 씀). 형식: 운영 도구 구현 계획 2.2
@@ -260,4 +322,4 @@ function listDecisionDigests(root = ROOT) {
   return out;
 }
 
-module.exports = { listPermissionRequests, readSessionRegistry, decisionDigest, listDecisionDigests, ROOT, KINDS, GIT_KINDS, ROUTINE_KINDS, LIMITS, ID_RE, rootFor, paths, ensureDirs, readJson, writeJsonAtomic, readState, countPending, readRequest, decide, answer, normalize };
+module.exports = { listPermissionRequests, readSessionRegistry, decisionDigest, listDecisionDigests, ROOT, KINDS, GIT_KINDS, ROUTINE_KINDS, LIMITS, ID_RE, rootFor, paths, ensureDirs, readJson, writeJsonAtomic, readState, countPending, readRequest, decide, answer, markDone, normalize };

@@ -53,6 +53,7 @@ class ApprovalCenter {
     store.ensureDirs(this.root);
     this.loadLedger();
     this.roleWarnings = [];
+    this.endedSessions = [];
     this.watch();
     this.timer = setInterval(() => this.reload(), POLL);
     this.roleTimer = setInterval(() => this.checkRoles(), ROLE_POLL);
@@ -95,6 +96,12 @@ class ApprovalCenter {
     if (!read) return;
     try {
       const rows = await read({ root: this.root, ops: this.ops });
+      // 권한·할 일 카드에 '세션 끝남'을 붙이는 데 쓴다. 목록에서 끝났다고 확인된 세션만(목록에 없는 세션은 모름으로 둔다)
+      const ended = (rows || []).filter((r) => r.sessionId && r.alive === false).map((r) => r.sessionId).sort();
+      if (JSON.stringify(ended) !== JSON.stringify(this.endedSessions)) {
+        this.endedSessions = ended;
+        this.reload();
+      }
       const next = (rows || []).filter((r) => r.name === commitRole && r.roleMissing && r.alive !== false).map((r) => ({ name: r.name, id: r.id || null, sessionId: r.sessionId || null }));
       if (JSON.stringify(next) !== JSON.stringify(this.roleWarnings)) {
         this.roleWarnings = next;
@@ -107,7 +114,7 @@ class ApprovalCenter {
 
   watch() {
     const p = store.paths(this.root);
-    for (const target of [p.root, p.requests, p.decisions]) {
+    for (const target of [p.root, p.requests, p.decisions, p.used]) {
       try {
         this.watchers.push(fs.watch(target, () => this.schedule()));
       } catch {
@@ -128,6 +135,8 @@ class ApprovalCenter {
       state.notice = this.legacyNotice();
       state.untrusted = this.untrustedDecisions();
       state.roleWarnings = this.roleWarnings;
+      const ended = new Set(this.endedSessions || []);
+      for (const r of state.pending) if (r.sessionId && ended.has(r.sessionId)) r.sessionEnded = true;
       state.alerts = [
         ...state.untrusted.map((id) => `출처 불명 결정: decisions/${id}.json — 승인 센터가 쓰지 않은 결정입니다. 위조일 수 있으니 확인하세요.`),
         ...state.roleWarnings.map((w) => `커밋 세션 역할 누락: ${w.name}(${w.id || '?'})이 --agent ${w.name} 없이 떠 있습니다. 커밋이 가드 훅에 막히니 session.ps1 rotate ${w.name} none으로 교대하세요.`),
@@ -150,9 +159,13 @@ class ApprovalCenter {
 
   renderStatus() {
     const n = this.state.pending.length;
-    const choices = this.state.pending.filter((r) => r.kind === 'choice').length;
+    const count = (k) => this.state.pending.filter((r) => r.kind === k).length;
+    const choices = count('choice');
+    const perms = count('permission');
+    const todos = count('todo');
     const broken = this.state.pending.filter((r) => r.broken).length;
-    const parts = [n - choices - broken && `승인 ${n - choices - broken}건`, choices && `결정 ${choices}건`, broken && `형식 오류 ${broken}건`].filter(Boolean).join(' · ');
+    const git = n - choices - perms - todos - broken;
+    const parts = [git && `승인 ${git}건`, perms && `권한 ${perms}건`, choices && `결정 ${choices}건`, todos && `할 일 ${todos}건`, broken && `형식 오류 ${broken}건`].filter(Boolean).join(' · ');
     this.status.text = n ? `$(bell-dot) 승인 대기 ${n}` : '$(check) 승인 대기 없음';
     this.status.tooltip = n ? `WY 승인 센터: ${parts} — 눌러서 열기` : 'WY 승인 센터 열기';
     this.status.backgroundColor = n ? new vscode.ThemeColor('statusBarItem.warningBackground') : undefined;
@@ -200,6 +213,10 @@ class ApprovalCenter {
         store.answer(msg.id, msg.answers, { note: msg.note, root: this.root });
         this.remember(msg.id);
         this.reload();
+      } else if (msg.type === 'done') {
+        store.markDone(msg.id, { note: msg.note, root: this.root });
+        this.remember(msg.id);
+        this.reload();
       } else if (msg.type === 'ackUntrusted' && typeof msg.id === 'string') {
         // 사용자가 출처 불명 결정을 확인했다(신뢰하는 것은 아니고, 같은 내용이면 다시 띄우지 않는다)
         const hit = store.listDecisionDigests(this.root).find((d) => d.id === msg.id);
@@ -208,6 +225,9 @@ class ApprovalCenter {
           if (this.context.globalState) this.context.globalState.update(this.ledgerKey, this.ledger);
         }
         this.reload();
+      } else if (msg.type === 'reveal' && typeof msg.sessionId === 'string') {
+        // 카드의 '세션 현황에서 보기'(B2-5)
+        vscode.commands.executeCommand('erpSessions.revealSession', msg.sessionId);
       } else if (msg.type === 'openFolder') {
         vscode.env.openExternal(vscode.Uri.file(this.root));
       }
