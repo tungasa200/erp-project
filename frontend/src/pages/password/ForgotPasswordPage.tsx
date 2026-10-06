@@ -22,9 +22,10 @@ export function ForgotPasswordPage() {
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
+    if (busy) return
     const value = email.trim()
     if (!EMAIL_PATTERN.test(value)) {
-      setError(value ? '이메일 형식이 올바르지 않아요' : '이메일을 입력해 주세요')
+      setError(value ? '이메일 형식이 맞지 않아요' : '입력해 주세요')
       return
     }
     setError(null)
@@ -85,7 +86,7 @@ export function ForgotPasswordPage() {
             </p>
           )}
         </div>
-        <button type="submit" className={styles.submit} disabled={busy}>
+        <button type="submit" className={styles.submit} aria-disabled={busy} aria-busy={busy}>
           인증번호 받기
         </button>
         {notice && (

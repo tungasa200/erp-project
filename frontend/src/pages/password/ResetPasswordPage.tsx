@@ -1,6 +1,6 @@
 // SCR-AUTH-05 비밀번호 재설정. 코드가 맞으면 새 비밀번호 칸을 연다. 저장하면 서버가 이메일 인증을 마치고
 // 모든 기기의 로그인을 끊으므로(쿠키도 지움) 로그인 화면으로 보낸다.
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router'
 import { toastForError } from '../../api/errorToast'
 import { ApiError } from '../../api/problem'
@@ -17,7 +17,7 @@ const RULES: { code: PasswordRuleCode; label: string }[] = [
   { code: 'PASSWORD_LETTER_DIGIT_REQUIRED', label: '영문·숫자 포함' },
   { code: 'PASSWORD_SAME_AS_EMAIL', label: '이메일과 다른 문자열' },
 ]
-const TOO_LONG = '비밀번호가 너무 길어요. 한글은 한 글자가 더 많은 자리를 차지해요'
+const TOO_LONG = '비밀번호가 너무 길어요. 한글은 한 글자가 더 많은 자리를 차지해요.'
 
 export function ResetPasswordPage() {
   const state = useLocation().state as ResetState | null
@@ -37,15 +37,20 @@ function ResetForm({ email, times }: { email: string; times: CodeTimes }) {
   const [errors, setErrors] = useState<{ password?: string; confirm?: string; form?: string }>({})
   const [busy, setBusy] = useState(false)
 
+  // 코드를 확인하면 코드 칸이 잠기므로 새 비밀번호 칸으로 포커스를 옮긴다 (SCR-AUTH-05)
+  useEffect(() => {
+    if (code) document.getElementById('reset-password')?.focus()
+  }, [code])
+
   const violations = passwordViolations(password, email)
   const tooLong = violations.includes('PASSWORD_TOO_LONG_BYTES')
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
-    if (!code) return
+    if (!code || busy) return
     const next: typeof errors = {}
     if (tooLong) next.password = TOO_LONG
-    else if (violations.length) next.password = '비밀번호 규칙을 확인해 주세요'
+    else if (violations.length) next.password = '비밀번호 규칙을 확인해 주세요.'
     if (!next.password && confirm !== password) next.confirm = '비밀번호가 일치하지 않아요'
     setErrors(next)
     if (next.password || next.confirm) return
@@ -63,7 +68,7 @@ function ResetForm({ email, times }: { email: string; times: CodeTimes }) {
         setErrors({ form: '코드를 다시 확인해야 해요. 새 코드를 받아 주세요' })
       } else if (err instanceof ApiError && err.code === 'VALIDATION_FAILED') {
         const codes = err.problem?.errors?.filter((x) => x.field === 'newPassword').map((x) => x.code) ?? []
-        setErrors({ password: codes.includes('PASSWORD_TOO_LONG_BYTES') ? TOO_LONG : '비밀번호 규칙을 확인해 주세요' })
+        setErrors({ password: codes.includes('PASSWORD_TOO_LONG_BYTES') ? TOO_LONG : '비밀번호 규칙을 확인해 주세요.' })
       } else setErrors({ form: toastForError(err).message })
     } finally {
       setBusy(false)
@@ -151,7 +156,7 @@ function ResetForm({ email, times }: { email: string; times: CodeTimes }) {
             {errors.form}
           </p>
         )}
-        <button type="submit" className={styles.submit} disabled={code === null || busy}>
+        <button type="submit" className={styles.submit} disabled={code === null} aria-disabled={busy} aria-busy={busy}>
           저장하고 다시 로그인
         </button>
       </form>

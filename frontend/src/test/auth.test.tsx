@@ -113,7 +113,9 @@ describe('SCR-AUTH-02 로그인', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('15분 동안 로그인할 수 없어요.')
     const button = screen.getByRole('button', { name: /로그인 · 14:5\d 후 가능/ })
-    expect(button).toBeDisabled()
+    // 잠긴 동안은 aria-disabled로 막는다(disabled면 포커스가 빠짐)
+    expect(button).toHaveAttribute('aria-disabled', 'true')
+    expect(button).toHaveFocus()
   })
 
   it('서버 오류(5xx)는 문의 코드와 함께 토스트로 알린다', async () => {

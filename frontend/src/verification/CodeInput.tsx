@@ -1,6 +1,6 @@
 // 6자리 인증 코드 입력 (SCR-AUTH-05 ②, SCR-AUTH-08 ②). 실제 입력은 칸 하나라 붙여넣기·문자 자동완성·스크린리더가
 // 그대로 동작하고, 보이는 6칸은 그 값을 나눠 그린 것이다. 6자리가 차면 onComplete를 부른다.
-import { useId } from 'react'
+import { useId, type Ref } from 'react'
 import styles from './verification.module.css'
 
 interface Props {
@@ -12,6 +12,7 @@ interface Props {
   status?: 'idle' | 'error' | 'ok'
   describedBy?: string
   autoFocus?: boolean
+  inputRef?: Ref<HTMLInputElement>
 }
 
 export const CODE_LENGTH = 6
@@ -25,6 +26,7 @@ export function CodeInput({
   status = 'idle',
   describedBy,
   autoFocus,
+  inputRef,
 }: Props) {
   const id = useId()
   const cells = Array.from({ length: CODE_LENGTH }, (_, i) => value[i] ?? '')
@@ -36,6 +38,7 @@ export function CodeInput({
         {label}
       </label>
       <input
+        ref={inputRef}
         id={id}
         className={styles.codeInput}
         type="text"

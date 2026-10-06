@@ -197,11 +197,12 @@
   cursor: pointer;
 }
 
-.submit:hover:not(:disabled) {
+.submit:hover:not(:disabled, [aria-disabled='true']) {
   background: var(--color-accent-ink);
 }
 
-.submit:disabled {
+.submit:disabled,
+.submit[aria-disabled='true'] {
   background: var(--color-disabled);
   color: #ffffff;
   cursor: not-allowed;

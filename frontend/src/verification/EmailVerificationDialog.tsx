@@ -1,6 +1,7 @@
 // SCR-AUTH-08 이메일 인증 코드 입력 (모달, 모바일은 전체 화면). 가입 직후 서버가 첫 코드를 보내 두므로
 // 열 때 진행 상태(GET)를 받아 남은 시간·다시 받기 시각을 이어서 보여 준다. 유효한 코드가 없으면 "새 코드 받기"부터.
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect, useRef } from 'react'
 import { ApiError } from '../api/problem'
 import type { Me } from '../api/types'
 import { useAuth } from '../auth/useAuth'
@@ -17,6 +18,12 @@ export function EmailVerificationDialog({ onClose }: { onClose: () => void }) {
   const queryClient = useQueryClient()
   const { showToast } = useToast()
   const status = useQuery({ queryKey: ['email-verification'], queryFn: verificationApi.status, gcTime: 0 })
+
+  // 열면 포커스를 모달 안으로. 코드 칸(또는 잠겼으면 새 코드 받기)이 그려지면 그쪽이 이어받는다 (SCR-AUTH-08)
+  const dialogRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!dialogRef.current?.contains(document.activeElement)) dialogRef.current?.focus()
+  }, [])
 
   const finish = (me: Me) => {
     queryClient.setQueryData(ME_QUERY_KEY, me)
@@ -44,6 +51,8 @@ export function EmailVerificationDialog({ onClose }: { onClose: () => void }) {
   return (
     <div className={styles.overlay} onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
       <div
+        ref={dialogRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-labelledby="verify-title"

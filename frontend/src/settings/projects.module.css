@@ -175,7 +175,8 @@
   cursor: pointer;
 }
 
-.primary:disabled {
+.primary:disabled,
+.primary[aria-disabled='true'] {
   background: var(--color-disabled);
   cursor: default;
 }

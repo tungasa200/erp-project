@@ -44,6 +44,7 @@ export function LoginPage() {
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault()
+    if (submitting || waiting) return
     const next: typeof errors = {}
     if (!email.trim()) next.email = '입력해 주세요'
     else if (!EMAIL_PATTERN.test(email.trim())) next.email = '이메일 형식이 맞지 않아요'
@@ -202,7 +203,13 @@ export function LoginPage() {
           )}
         </div>
 
-        <button type="submit" className={styles.submit} disabled={submitting || waiting} aria-busy={submitting}>
+        <button
+          type="submit"
+          className={styles.submit}
+          // 보내는 중·잠김에는 disabled 대신 aria-disabled로 막는다. disabled면 누른 버튼에서 포커스가 BODY로 빠진다
+          aria-disabled={submitting || waiting}
+          aria-busy={submitting}
+        >
           {waiting ? `로그인 · ${formatRemaining(waitUntil - now)} 후 가능` : submitting ? '로그인 중…' : '로그인'}
         </button>
 

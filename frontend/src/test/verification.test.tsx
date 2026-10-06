@@ -50,7 +50,7 @@ describe('SCR-AUTH-04·05 비밀번호 찾기·재설정', () => {
     renderApp('/password/forgot')
     await userEvent.type(await screen.findByRole('textbox', { name: '이메일' }), 'not-email')
     await userEvent.click(screen.getByRole('button', { name: '인증번호 받기' }))
-    expect(screen.getByText('이메일 형식이 올바르지 않아요')).toBeInTheDocument()
+    expect(screen.getByText('이메일 형식이 맞지 않아요')).toBeInTheDocument()
     expect(fetchMock.mock.calls.some(([url]) => url === '/api/auth/password-reset')).toBe(false)
   })
 
@@ -85,7 +85,7 @@ describe('SCR-AUTH-04·05 비밀번호 찾기·재설정', () => {
     await toResetStep()
     const code = screen.getByRole('textbox', { name: '인증번호' })
     await userEvent.type(code, '111111')
-    expect(await screen.findByText('코드가 맞지 않아요 (남은 시도 3회)')).toBeInTheDocument()
+    expect(await screen.findByText('코드가 맞지 않아요(남은 시도 3회)')).toBeInTheDocument()
     expect(code).toHaveValue('')
   })
 
@@ -106,6 +106,8 @@ describe('SCR-AUTH-04·05 비밀번호 찾기·재설정', () => {
 
     const password = screen.getByLabelText('새 비밀번호')
     expect(password).toBeEnabled()
+    // 코드 칸이 잠기므로 새 비밀번호 칸으로 포커스가 간다(BODY로 빠지지 않게)
+    await waitFor(() => expect(password).toHaveFocus())
     await userEvent.type(password, 'newpassword1')
     await userEvent.type(screen.getByLabelText('새 비밀번호 확인'), 'newpassword2')
     await userEvent.click(screen.getByRole('button', { name: '저장하고 다시 로그인' }))
@@ -125,7 +127,7 @@ describe('SCR-AUTH-04·05 비밀번호 찾기·재설정', () => {
     await userEvent.type(screen.getByRole('textbox', { name: '인증번호' }), '123456')
     await screen.findByText('✓ 확인됐어요')
     await userEvent.type(screen.getByLabelText('새 비밀번호'), `a1${'가'.repeat(24)}`)
-    expect(screen.getByText('비밀번호가 너무 길어요. 한글은 한 글자가 더 많은 자리를 차지해요')).toBeInTheDocument()
+    expect(screen.getByText('비밀번호가 너무 길어요. 한글은 한 글자가 더 많은 자리를 차지해요.')).toBeInTheDocument()
   })
 })
 
@@ -169,11 +171,13 @@ describe('SCR-COM-07 미인증 배너 · SCR-AUTH-08 이메일 인증', () => {
     await userEvent.click(await screen.findByRole('button', { name: '인증하기' }))
     const dialog = await screen.findByRole('dialog', { name: '이메일 인증' })
     expect(within(dialog).getByText(/남은 시간 0[67]:\d\d/)).toBeInTheDocument()
+    // 열면 포커스가 모달 안 코드 칸으로 (SCR-AUTH-08)
+    await waitFor(() => expect(within(dialog).getByRole('textbox', { name: '인증번호' })).toHaveFocus())
     expect(within(dialog).getByRole('button', { name: '다시 받기' })).toBeEnabled()
 
     const code = within(dialog).getByRole('textbox', { name: '인증번호' })
     await userEvent.type(code, '000000')
-    expect(await within(dialog).findByText('코드가 맞지 않아요 (남은 시도 4회)')).toBeInTheDocument()
+    expect(await within(dialog).findByText('코드가 맞지 않아요(남은 시도 4회)')).toBeInTheDocument()
 
     await userEvent.type(code, '123456')
     expect(await screen.findByText('이메일 인증을 마쳤어요')).toBeInTheDocument()
@@ -198,6 +202,8 @@ describe('SCR-COM-07 미인증 배너 · SCR-AUTH-08 이메일 인증', () => {
     await userEvent.click(within(dialog).getByRole('button', { name: '다시 받기' }))
     expect(await within(dialog).findByText('새 코드를 보냈어요')).toBeInTheDocument()
     expect(within(dialog).getByRole('button', { name: /다시 받기 · \d+초/ })).toBeDisabled()
+    // 누른 버튼이 잠겨도 포커스는 코드 칸으로
+    await waitFor(() => expect(within(dialog).getByRole('textbox', { name: '인증번호' })).toHaveFocus())
     expect(
       fetchMock.mock.calls.filter(
         ([url, init]) => url === '/api/users/me/email-verification' && init?.method === 'POST',

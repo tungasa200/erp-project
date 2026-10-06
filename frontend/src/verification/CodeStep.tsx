@@ -1,6 +1,6 @@
 // 코드 입력 단계 (SCR-AUTH-05 ②, SCR-AUTH-08 ②~④). 코드 확인·다시 받기 API는 화면마다 달라 함수로 받는다.
 // 틀리면 "코드가 맞지 않아요(남은 시도 n회)", 5회를 다 틀렸거나 10분이 지나면 입력을 잠그고 "새 코드 받기"만 남긴다.
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { toastForError } from '../api/errorToast'
 import { codeFailure, sendLimitMessage, timesOf, type CodeIssued, type CodeTimes } from './api'
 import { CodeInput } from './CodeInput'
@@ -28,7 +28,21 @@ export function CodeStep({ initial, check, resend, onVerified, verified = false,
   const resendLeft = useCountdown(times.resendAt ?? null) ?? 0
   const locked = expired || left === 0
 
+  // 확인·다시 받기 중에는 코드 칸·버튼이 잠겨 포커스가 BODY로 빠진다. 끝나면 코드 칸(잠겼으면 이 단계)으로 돌려준다.
+  // 확인에 성공하면 이 단계 밖(재설정의 새 비밀번호 칸 등)이 이어서 옮긴다
+  const inputRef = useRef<HTMLInputElement>(null)
+  const stepRef = useRef<HTMLDivElement>(null)
+  const refocus = useRef(false)
+  useEffect(() => {
+    if (!refocus.current || busy) return
+    refocus.current = false
+    const input = inputRef.current
+    if (input && !input.disabled) input.focus()
+    else if (!stepRef.current?.contains(document.activeElement)) stepRef.current?.focus()
+  }, [busy, locked, verified])
+
   const submit = async (value: string) => {
+    refocus.current = true
     setBusy(true)
     setMessage(null)
     try {
@@ -37,7 +51,7 @@ export function CodeStep({ initial, check, resend, onVerified, verified = false,
     } catch (error) {
       const failure = codeFailure(error)
       setCode('')
-      if (failure.kind === 'mismatch') setMessage(`코드가 맞지 않아요 (남은 시도 ${failure.attemptsRemaining}회)`)
+      if (failure.kind === 'mismatch') setMessage(`코드가 맞지 않아요(남은 시도 ${failure.attemptsRemaining}회)`)
       else if (failure.kind === 'expired') {
         setExpired(true)
         setMessage('이 코드는 더 쓸 수 없어요. 새 코드를 받아 주세요')
@@ -48,6 +62,7 @@ export function CodeStep({ initial, check, resend, onVerified, verified = false,
   }
 
   const sendAgain = async () => {
+    refocus.current = true
     setBusy(true)
     try {
       setTimes(timesOf(await resend()))
@@ -66,8 +81,9 @@ export function CodeStep({ initial, check, resend, onVerified, verified = false,
   }
 
   return (
-    <div className={styles.step}>
+    <div ref={stepRef} tabIndex={-1} className={styles.step}>
       <CodeInput
+        inputRef={inputRef}
         value={code}
         onChange={setCode}
         onComplete={(value) => void submit(value)}
@@ -88,6 +104,8 @@ export function CodeStep({ initial, check, resend, onVerified, verified = false,
             type="button"
             className={locked ? styles.resendStrong : styles.resend}
             disabled={busy || resendLeft > 0}
+            // 코드가 잠긴 채로 열리면(만료·시도 초과) 코드 칸 대신 이 버튼으로 포커스
+            autoFocus={autoFocus && locked}
             onClick={() => void sendAgain()}
           >
             {locked ? '새 코드 받기' : '다시 받기'}

@@ -162,6 +162,7 @@ function NewProjectForm({ projects, onCreated }: { projects: Project[]; onCreate
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
+    if (saving) return
     const trimmed = name.trim()
     if (!trimmed) {
       setError('프로젝트 이름을 적어 주세요')
@@ -218,7 +219,7 @@ function NewProjectForm({ projects, onCreated }: { projects: Project[]; onCreate
         ))}
       </div>
       <p className={styles.muted}>프로젝트 색은 테마를 바꿔도 그대로예요</p>
-      <button type="submit" className={styles.primary} disabled={saving}>
+      <button type="submit" className={styles.primary} aria-disabled={saving}>
         추가
       </button>
     </form>
