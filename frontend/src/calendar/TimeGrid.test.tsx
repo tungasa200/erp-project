@@ -145,3 +145,53 @@ describe('모바일 주 보기 훑어보기 (D-77)', () => {
     expect(onOpenDay).toHaveBeenCalledWith('2026-10-06')
   })
 })
+
+describe('오프라인 (P1-X-04)', () => {
+  beforeEach(() => {
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+      left: 0,
+      top: 0,
+      width: 100,
+      height: 1152,
+    } as DOMRect)
+  })
+  afterEach(() => vi.restoreAllMocks())
+
+  it('editable=false면 빈 칸 만들기·블록 끌기가 일어나지 않는다', () => {
+    const onCreate = vi.fn()
+    const onMove = vi.fn()
+    render(
+      <TimeGrid
+        days={[DAY]}
+        occurrences={[
+          {
+            scheduleId: 'a',
+            title: '회의',
+            allDay: false,
+            startAt: `${DAY}T09:00:00Z`,
+            endAt: `${DAY}T10:00:00Z`,
+          } as Occurrence,
+        ]}
+        timeZone="UTC"
+        today={DAY}
+        now={Date.parse(`${DAY}T00:00:00Z`)}
+        colorOf={() => null}
+        pending={null}
+        onCreate={onCreate}
+        onCreateAllDay={vi.fn()}
+        onOpen={vi.fn()}
+        onMove={onMove}
+        editable={false}
+      />,
+    )
+    const block = screen.getByRole('button', { name: /회의/ })
+    const column = block.parentElement!
+    fireEvent.pointerDown(column, { button: 0, clientX: 50, clientY: 14 * 60 * PX_PER_MINUTE })
+    fireEvent.pointerUp(column, { button: 0, clientX: 50, clientY: 14 * 60 * PX_PER_MINUTE })
+    fireEvent.pointerDown(block, { button: 0, clientX: 50, clientY: 9 * 60 * PX_PER_MINUTE + 10 })
+    fireEvent.pointerMove(block, { button: 0, clientX: 50, clientY: 12 * 60 * PX_PER_MINUTE })
+    fireEvent.pointerUp(block, { button: 0, clientX: 50, clientY: 12 * 60 * PX_PER_MINUTE })
+    expect(onCreate).not.toHaveBeenCalled()
+    expect(onMove).not.toHaveBeenCalled()
+  })
+})

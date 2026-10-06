@@ -27,6 +27,8 @@ interface Props {
   onMoveDays: (o: Occurrence, days: number) => void
   /** 모바일: 훑어보기 전용(D-77과 같은 방식). 날짜 칸 전체가 일 보기로 가는 버튼이고 칩 대신 색 점을 그린다 */
   overview?: boolean
+  /** false면(오프라인, P1-X-04) 칩 끌기·빈 칸 만들기를 끈다 */
+  editable?: boolean
 }
 
 type Drag = { occurrence: Occurrence; from: string; over: string; x: number; y: number; moved: boolean }
@@ -35,7 +37,18 @@ function chipLabel(o: Occurrence, timeZone: string) {
   return o.allDay ? o.title : `${formatMinutes(toZoned(o.startAt!, timeZone).minutes)} ${o.title}`
 }
 
-export function MonthView({ days, month, occurrences, timeZone, today, colorOf, overview = false, ...props }: Props) {
+export function MonthView({
+  days,
+  month,
+  occurrences,
+  timeZone,
+  today,
+  colorOf,
+  overview = false,
+  editable = true,
+  ...props
+}: Props) {
+  const readOnly = overview || !editable
   const byDate = useMemo(() => occurrencesByDate(occurrences, days, timeZone), [occurrences, days, timeZone])
   const [drag, setDrag] = useState<Drag | null>(null)
   const [popover, setPopover] = useState<{ date: string; x: number; y: number; opener: HTMLElement } | null>(null)
@@ -96,9 +109,9 @@ export function MonthView({ days, month, occurrences, timeZone, today, colorOf, 
         </div>
         <div
           className={styles.monthCells}
-          onPointerDown={overview ? undefined : onPointerDown}
-          onPointerMove={overview ? undefined : onPointerMove}
-          onPointerUp={overview ? undefined : onPointerUp}
+          onPointerDown={readOnly ? undefined : onPointerDown}
+          onPointerMove={readOnly ? undefined : onPointerMove}
+          onPointerUp={readOnly ? undefined : onPointerUp}
           onPointerCancel={() => setDrag(null)}
           role="presentation"
         >
@@ -140,7 +153,7 @@ export function MonthView({ days, month, occurrences, timeZone, today, colorOf, 
                 data-holiday={!!holiday || undefined}
                 data-rest={wd === 0 || wd === 6 || !!holiday || undefined}
                 data-drop={(drag?.moved && drag.over === date) || undefined}
-                onClick={(e) => e.target === e.currentTarget && props.onCreateAllDay(date)}
+                onClick={(e) => editable && e.target === e.currentTarget && props.onCreateAllDay(date)}
               >
                 <div className={styles.monthCellHead}>
                   <button

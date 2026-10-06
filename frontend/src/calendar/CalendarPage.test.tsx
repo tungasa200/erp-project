@@ -222,6 +222,128 @@ describe('캘린더', () => {
       listeners.forEach((l) => l())
     })
     expect(screen.queryByRole('complementary', { name: '할 일 상자' })).not.toBeInTheDocument()
+
+    // 1024~1279px도 접힘이 기본(P1-07-15)
+    act(() => {
+      width = 1280
+      listeners.forEach((l) => l())
+    })
+    expect(screen.getByRole('complementary', { name: '할 일 상자' })).toBeInTheDocument()
+    act(() => {
+      width = 1024
+      listeners.forEach((l) => l())
+    })
+    expect(screen.queryByRole('complementary', { name: '할 일 상자' })).not.toBeInTheDocument()
+  })
+
+  it('저장이 칸 오류로 막히면 오류 문구를 그 칸에 연결하고 포커스를 옮긴다 (P1-05-03)', async () => {
+    stubServer()
+    const user = userEvent.setup()
+    renderApp('/calendar/week/2026-10-07', routes)
+    await screen.findByRole('heading', { name: '2026년 10월 5일 – 11일' })
+    await user.click(screen.getByRole('button', { name: '일정 만들기' }))
+    const dialog = await screen.findByRole('dialog', { name: '새 일정' })
+    await user.type(within(dialog).getByLabelText('제목'), '겹침')
+    fireEvent.change(within(dialog).getByLabelText('시작'), { target: { value: '15:00' } })
+    fireEvent.change(within(dialog).getByLabelText('종료'), { target: { value: '14:00' } })
+    await user.click(within(dialog).getByRole('button', { name: '저장' }))
+
+    const end = within(dialog).getByLabelText('종료')
+    const message = within(dialog).getByRole('alert')
+    expect(message).toHaveTextContent('끝나는 시각을 시작보다 뒤로 골라 주세요')
+    expect(end).toHaveAttribute('aria-invalid', 'true')
+    expect(end).toHaveAttribute('aria-describedby', message.id)
+    await waitFor(() => expect(end).toHaveFocus())
+    expect(within(dialog).getByLabelText('시작')).not.toHaveAttribute('aria-invalid')
+
+    // 반복 횟수 칸도 같은 방식
+    fireEvent.change(end, { target: { value: '16:00' } })
+    await user.click(within(dialog).getByRole('button', { name: '매일' }))
+    await user.click(within(dialog).getByLabelText('횟수'))
+    await user.click(within(dialog).getByRole('button', { name: '저장' }))
+    const count = within(dialog).getByLabelText('반복 횟수')
+    expect(count).toHaveAttribute('aria-invalid', 'true')
+    expect(count).toHaveAccessibleDescription('반복 횟수는 1~999 사이로 적어 주세요')
+    await waitFor(() => expect(count).toHaveFocus())
+  })
+
+  it('충돌 띠의 [새로 불러오기]는 다른 곳에서 바꾼 최신 값으로 칸을 다시 채운다 (P1-05-05)', async () => {
+    const review = { ...standup, id: 'schedule-review', title: '주간 리뷰', recurrence: null }
+    Object.assign(review, { startAt: '2026-10-08T05:00:00.000Z', endAt: '2026-10-08T06:00:00.000Z' })
+    localStorage.setItem('worklog.mock.schedules', JSON.stringify([standup, review]))
+    stubServer()
+    const user = userEvent.setup()
+    renderApp('/calendar/week/2026-10-07', routes)
+    ;(await screen.findByRole('button', { name: /^주간 리뷰, / })).focus()
+    await user.keyboard('{Enter}')
+    const dialog = await screen.findByRole('dialog', { name: '일정 편집' })
+    await waitFor(() => expect(within(dialog).getByLabelText('제목')).toHaveValue('주간 리뷰'))
+
+    // 다른 탭에서 제목을 바꿔 저장한 상태
+    const stored = JSON.parse(localStorage.getItem('worklog.mock.schedules')!)
+    const other = stored.find((x: { id: string }) => x.id === 'schedule-review')
+    Object.assign(other, { title: '주간 리뷰 A수정', version: other.version + 1 })
+    localStorage.setItem('worklog.mock.schedules', JSON.stringify(stored))
+
+    await user.type(within(dialog).getByLabelText('메모'), '내 메모')
+    await user.click(within(dialog).getByRole('button', { name: '저장' }))
+    await user.click(await within(dialog).findByRole('button', { name: '새로 불러오기' }))
+    await waitFor(() => expect(within(dialog).getByLabelText('제목')).toHaveValue('주간 리뷰 A수정'))
+    expect(within(dialog).getByLabelText('메모')).toHaveValue('')
+  })
+
+  it('매주 기본 요일은 지금 시작일의 요일만, 직접 고른 요일은 시작일을 바꿔도 남는다 (P1-06-02)', async () => {
+    stubServer()
+    const user = userEvent.setup()
+    renderApp('/calendar/week/2026-10-07', routes)
+    await screen.findByRole('heading', { name: '2026년 10월 5일 – 11일' })
+    await user.click(screen.getByRole('button', { name: '일정 만들기' }))
+    const dialog = await screen.findByRole('dialog', { name: '새 일정' })
+    const date = within(dialog).getByLabelText('날짜')
+    fireEvent.change(date, { target: { value: '2026-10-12' } }) // 월
+    fireEvent.change(date, { target: { value: '2026-10-13' } }) // 화
+    await user.click(within(dialog).getByRole('button', { name: '매주' }))
+    const days = within(within(dialog).getByRole('group', { name: '반복 요일' }))
+    const pressed = () =>
+      days
+        .getAllByRole('button')
+        .filter((b) => b.getAttribute('aria-pressed') === 'true')
+        .map((b) => b.textContent)
+    expect(pressed()).toEqual(['화'])
+
+    // 목을 직접 고르고 시작일을 수요일로: 화(시작일이라 들어갔던 요일)는 빠지고 목은 남는다
+    await user.click(days.getByRole('button', { name: '목' }))
+    fireEvent.change(date, { target: { value: '2026-10-14' } })
+    expect(pressed()).toEqual(['수', '목'])
+  })
+
+  it('업무 상세 [캘린더에 배치]로 오면 그 업무의 만들기 창을 한 번 연다', async () => {
+    stubServer()
+    const user = userEvent.setup()
+    const { router } = renderApp('/calendar/week/2026-10-07', routes)
+    await screen.findByRole('heading', { name: '2026년 10월 5일 – 11일' })
+    await act(() =>
+      router.navigate('/calendar/day/2026-10-07', {
+        state: { scheduleTask: { id: 'task-report', title: '9월 매출 보고서' } },
+      }),
+    )
+    const dialog = await screen.findByRole('dialog', { name: '새 일정' })
+    expect(within(dialog).getByLabelText('제목')).toHaveValue('9월 매출 보고서')
+    // state는 지워 닫은 뒤 다시 열리지 않는다
+    await waitFor(() => expect(router.state.location.state).toBeNull())
+    await user.click(within(dialog).getByRole('button', { name: '닫기' }))
+    expect(screen.queryByRole('dialog', { name: '새 일정' })).not.toBeInTheDocument()
+  })
+
+  it('오프라인이면 단축키 C로 만들기 창이 열리지 않는다 (P1-X-04)', async () => {
+    stubServer()
+    const user = userEvent.setup()
+    const onLine = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    renderApp('/calendar/week/2026-10-07', routes)
+    await screen.findByRole('heading', { name: '2026년 10월 5일 – 11일' })
+    await user.keyboard('c')
+    expect(screen.queryByRole('dialog', { name: '새 일정' })).not.toBeInTheDocument()
+    onLine.mockRestore()
   })
 
   it('업무 패널: 마감순 카드, 날짜 없는 업무는 접고, "일정 잡기"로 업무에 연결된 일정을 만든다', async () => {

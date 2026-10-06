@@ -58,6 +58,8 @@ interface Props {
   onDropTask?: (taskId: string, range: TimeRange) => void
   /** 모바일 주 보기: 훑어보기 전용(D-77). 하루 칸 전체가 일 보기로 가는 버튼이고 블록 누름·끌기·만들기는 끈다 */
   overview?: boolean
+  /** false면(오프라인, P1-X-04) 끌기·길이 조절·빈 칸 만들기·업무 끌어 놓기를 끈다. 보기는 그대로 */
+  editable?: boolean
 }
 
 type Drag =
@@ -97,7 +99,9 @@ function timeLabel(o: Occurrence, timeZone: string) {
 }
 
 export function TimeGrid(props: Props) {
-  const { days, occurrences, timeZone, today, now, colorOf, pending, overview = false } = props
+  const { days, occurrences, timeZone, today, now, colorOf, pending, overview = false, editable = true } = props
+  // 훑어보기·오프라인이면 그리드에서 바꾸는 동작을 받지 않는다
+  const readOnly = overview || !editable
   const scrollRef = useRef<HTMLDivElement>(null)
   const columnsRef = useRef<HTMLDivElement>(null)
   const allDayRef = useRef<HTMLDivElement>(null)
@@ -339,9 +343,9 @@ export function TimeGrid(props: Props) {
           ref={allDayRef}
           className={styles.allDayCells}
           style={{ gridTemplateColumns: columns, gridTemplateRows: `repeat(${allDayRows}, 24px)` }}
-          onPointerDown={overview ? undefined : onAllDayPointerDown}
-          onPointerMove={overview ? undefined : onAllDayPointerMove}
-          onPointerUp={overview ? undefined : onAllDayPointerUp}
+          onPointerDown={readOnly ? undefined : onAllDayPointerDown}
+          onPointerMove={readOnly ? undefined : onAllDayPointerMove}
+          onPointerUp={readOnly ? undefined : onAllDayPointerUp}
           onPointerCancel={() => setDrag(null)}
           role="presentation"
         >
@@ -401,15 +405,15 @@ export function TimeGrid(props: Props) {
             ref={columnsRef}
             className={styles.columns}
             style={{ gridTemplateColumns: columns }}
-            onPointerDown={overview ? undefined : onPointerDown}
-            onPointerMove={overview ? undefined : onPointerMove}
-            onPointerUp={overview ? undefined : onPointerUp}
+            onPointerDown={readOnly ? undefined : onPointerDown}
+            onPointerMove={readOnly ? undefined : onPointerMove}
+            onPointerUp={readOnly ? undefined : onPointerUp}
             onPointerCancel={() => setDrag(null)}
-            onDragOver={overview ? undefined : onDragOver}
+            onDragOver={readOnly ? undefined : onDragOver}
             onDragLeave={() => setTaskHover(null)}
-            onDrop={overview ? undefined : onDrop}
+            onDrop={readOnly ? undefined : onDrop}
             role="presentation"
-            data-overview={overview || undefined}
+            data-readonly={readOnly || undefined}
           >
             {days.map((date, dayIndex) => {
               const wd = weekdayIndex(date)

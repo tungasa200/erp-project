@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import { Navigate, useLocation, useNavigate, useParams } from 'react-router'
 import { useAuth } from '../auth/useAuth'
 import { Skeleton } from '../components/Skeleton'
+import { useOnline } from '../components/useOnline'
 import { useSingleKeyShortcuts } from '../shortcuts/useShortcuts'
 import { useProjects } from '../projects/api'
 import { useOccurrences, type Occurrence } from './api'
@@ -52,7 +53,8 @@ const LIST_WINDOW_DAYS = 30
 const MAX_RANGE_DAYS = 400
 const HIDDEN_PROJECTS_KEY = 'worklog.calendar.hiddenProjects'
 const MOBILE_QUERY = '(max-width: 767px)'
-const DESKTOP_QUERY = '(min-width: 1024px)'
+/** 업무 패널이 기본으로 열리는 폭(P1-07-15). 1024~1279px은 사이드바·캘린더 좌측·패널을 다 놓으면 그리드가 너무 좁다 */
+const PANEL_OPEN_QUERY = '(min-width: 1280px)'
 
 function useCalendarPrefs() {
   const { user } = useAuth()
@@ -88,6 +90,11 @@ function useMediaQuery(query: string) {
     },
     () => window.matchMedia?.(query).matches ?? false,
   )
+}
+
+/** 다른 화면이 캘린더로 보낼 때의 location.state. 업무 상세 [캘린더에 배치]는 scheduleTask로 그 업무의 일정 만들기를 연다 */
+export interface CalendarLocationState {
+  scheduleTask?: { id: string; title: string }
 }
 
 /** /calendar → 오늘의 주 보기(모바일은 일 보기, 2.4) */
@@ -141,6 +148,7 @@ type Dialog = { kind: 'create'; draft: ScheduleDraft } | { kind: 'edit'; occurre
 
 function Calendar({ view, date, today, timeZone, weekStart }: CalendarProps) {
   const navigate = useNavigate()
+  const location = useLocation()
   const now = useNow()
   const projects = useProjects()
   const colorOf = useProjectColors()
@@ -156,17 +164,19 @@ function Calendar({ view, date, today, timeZone, weekStart }: CalendarProps) {
   const mainRef = useRef<HTMLElement>(null)
   const pageRef = useRef<HTMLDivElement>(null)
   useFocusRescue(pageRef)
-  // 업무 패널(SCR-CAL-09): 데스크톱은 기본 열림, 태블릿·모바일은 접힘(2.4). P로 열고 닫는다
-  const [panelOpen, setPanelOpen] = useState(() => window.matchMedia?.(DESKTOP_QUERY).matches ?? true)
-  // 데스크톱 폭을 넘나들면 그 폭의 기본으로 맞춘다(데스크톱 열림, 태블릿·모바일 접힘). 새로고침 없이 줄여도 패널이 캘린더를 덮지 않게
-  const desktop = useMediaQuery(DESKTOP_QUERY)
-  const [prevDesktop, setPrevDesktop] = useState(desktop)
-  if (desktop !== prevDesktop) {
-    setPrevDesktop(desktop)
-    setPanelOpen(desktop)
+  // 업무 패널(SCR-CAL-09): 1280px 이상은 기본 열림, 그보다 좁으면 접힘(P로 열면 떠서 보임). P로 열고 닫는다
+  const [panelOpen, setPanelOpen] = useState(() => window.matchMedia?.(PANEL_OPEN_QUERY).matches ?? true)
+  // 그 폭을 넘나들면 폭의 기본으로 맞춘다. 새로고침 없이 줄여도 패널이 캘린더를 덮지 않게
+  const wide = useMediaQuery(PANEL_OPEN_QUERY)
+  const [prevWide, setPrevWide] = useState(wide)
+  if (wide !== prevWide) {
+    setPrevWide(wide)
+    setPanelOpen(wide)
   }
   // 모바일 주 보기는 훑어보기 전용(D-77)
   const mobile = useMediaQuery(MOBILE_QUERY)
+  // 오프라인이면 끌기·만들기를 막는다(SCR-SYS-02, P1-X-04). 버튼·입력은 앱의 fieldset이 끈다
+  const online = useOnline()
 
   const askScope = useCallback(
     (occurrence: Occurrence, action: ScopeAction) =>
@@ -227,6 +237,20 @@ function Calendar({ view, date, today, timeZone, weekStart }: CalendarProps) {
     })
   }
 
+  // 업무 상세에서 [캘린더에 배치]로 오면 업무 패널 "일정 잡기"처럼 만들기 창을 한 번 연다.
+  // state를 지워 새로고침·뒤로 가기에 다시 열리지 않게 한다
+  const scheduleTask = (location.state as CalendarLocationState | null)?.scheduleTask
+  const [handledKey, setHandledKey] = useState<string | null>(null)
+  if (scheduleTask && handledKey !== location.key) {
+    // 이동마다 한 번만 연다(location.key 기준)
+    setHandledKey(location.key)
+    openCreate(scheduleTask)
+  }
+  const { pathname, search } = location
+  useEffect(() => {
+    if (scheduleTask) void navigate({ pathname, search }, { replace: true, state: null })
+  }, [scheduleTask, navigate, pathname, search])
+
   const openQuick = (target: CreateTarget) => {
     const rect = mainRef.current?.getBoundingClientRect()
     setQuick({ target, anchor: { x: (rect?.left ?? 0) + (rect?.width ?? 400) / 2 - 190, y: (rect?.top ?? 0) + 120 } })
@@ -242,7 +266,7 @@ function Calendar({ view, date, today, timeZone, weekStart }: CalendarProps) {
     // 관례(Google 캘린더·vim)대로 J=다음, K=이전
     KeyJ: () => step(1),
     KeyK: () => step(-1),
-    KeyC: () => openCreate(),
+    KeyC: () => online && openCreate(),
     KeyP: () => setPanelOpen((open) => !open),
   })
 
@@ -416,6 +440,7 @@ function Calendar({ view, date, today, timeZone, weekStart }: CalendarProps) {
             onOpenDay={view === 'week' ? (d) => go('day', d) : undefined}
             onDropTask={panel.placeById}
             overview={view === 'week' && mobile}
+            editable={online}
           />
         )}
         {!query.isPending && view === 'month' && (
@@ -431,6 +456,7 @@ function Calendar({ view, date, today, timeZone, weekStart }: CalendarProps) {
             onCreateAllDay={createAllDay}
             onMoveDays={(o, n) => void actions.move(o, shiftByDays(o, n, timeZone))}
             overview={mobile}
+            editable={online}
           />
         )}
         {!query.isPending && view === 'year' && (
@@ -475,6 +501,7 @@ function Calendar({ view, date, today, timeZone, weekStart }: CalendarProps) {
           today={today}
           pending={panel.tasks.isPending}
           loadingMore={panel.tasks.isFetchingNextPage}
+          editable={online}
           hasMore={!!panel.tasks.hasNextPage}
           onLoadMore={() => void panel.tasks.fetchNextPage()}
           onPlace={(task) => openCreate(task)}

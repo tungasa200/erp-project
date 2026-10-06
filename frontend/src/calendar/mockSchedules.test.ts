@@ -29,6 +29,17 @@ beforeEach(() => {
 })
 
 describe('가짜 일정 서버', () => {
+  it('taskId를 주면 그 업무에 연결된 일정의 회차만', async () => {
+    await call('POST', '/api/worklog/schedules', { ...daily, title: '연결', taskId: 'task-a' })
+    await call('POST', '/api/worklog/schedules', { ...daily, title: '다른 업무', taskId: 'task-b' })
+    await call('POST', '/api/worklog/schedules', { ...daily, title: '업무 없음' })
+    const res = await call(
+      'GET',
+      '/api/worklog/schedules?from=2026-10-01T00:00:00Z&to=2026-10-31T00:00:00Z&taskId=task-a',
+    )
+    expect(res.body.items.map((o: Occurrence) => o.title)).toEqual(['연결', '연결', '연결'])
+  })
+
   it('회차의 projectId는 연결된 업무의 프로젝트, 업무가 없으면 null (D-73)', async () => {
     localStorage.setItem(
       'worklog.mock.worklog',

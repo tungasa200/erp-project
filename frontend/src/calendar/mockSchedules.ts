@@ -282,7 +282,9 @@ export function handleScheduleMock(
       if (Number.isNaN(from) || Number.isNaN(to) || to <= from || to - from > 400 * 86_400_000)
         return invalid([{ field: 'to', code: 'OUT_OF_RANGE' }])
       const projects = taskProjects()
+      const taskId = params.get('taskId')
       const items = state
+        .filter((s) => !taskId || s.taskId === taskId)
         .flatMap((s) => expand(s, from, to))
         .map((o) => withProject(o, projects))
         .sort((a, b) => bounds(a, 'UTC')[0] - bounds(b, 'UTC')[0] || a.title.localeCompare(b.title))

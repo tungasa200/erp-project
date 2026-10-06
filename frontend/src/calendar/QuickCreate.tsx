@@ -1,6 +1,6 @@
 // 일정 빠른 생성 (SCR-CAL-06). 선택한 시간이 기본이고, 입력에 시간·날짜가 있으면 그 값으로 덮어쓴다.
 // 한 줄 해석은 빠른 입력(P1-09)의 parseQuickInput을 쓴다. "업무로도 만들기"(④)는 업무 API(P1-03)가 나오면 붙인다.
-import { useEffect, useId, useMemo, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { ApiError } from '../api/problem'
 import { useAuth } from '../auth/useAuth'
 import { useToast } from '../components/useToast'
@@ -75,11 +75,15 @@ export function QuickCreate({ target, timeZone, anchor, onClose, onDetails }: Pr
   }
   const overridden = draft.date !== target.date || draft.start !== target.start || draft.allDay !== target.allDay
 
+  const inputRef = useRef<HTMLInputElement>(null)
+  // 오류는 입력 칸에 연결하고 포커스를 그 칸으로(2.5). 저장 버튼을 눌러도 칸으로 돌아온다
+  const showError = (message: string) => {
+    setError(message)
+    inputRef.current?.focus()
+  }
+
   const save = async () => {
-    if (!draft.title) {
-      setError('일정 이름을 적어 주세요')
-      return
-    }
+    if (!draft.title) return showError('일정 이름을 적어 주세요')
     try {
       await create.mutateAsync(
         draft.allDay
@@ -95,8 +99,8 @@ export function QuickCreate({ target, timeZone, anchor, onClose, onDetails }: Pr
       onClose()
     } catch (err) {
       const fieldError = err instanceof ApiError ? err.problem?.errors?.[0] : undefined
-      if (fieldError?.field === 'title') setError('일정 이름을 확인해 주세요')
-      else if (fieldError) setError('시간을 확인해 주세요')
+      if (fieldError?.field === 'title') showError('일정 이름을 확인해 주세요')
+      else if (fieldError) showError('시간을 확인해 주세요')
       else {
         const { message, traceId } = toastForError(err)
         showToast(message, { traceId })
@@ -142,6 +146,7 @@ export function QuickCreate({ target, timeZone, anchor, onClose, onDetails }: Pr
             한 줄 입력
           </span>
           <input
+            ref={inputRef}
             className={styles.input}
             autoFocus
             autoComplete="off"
@@ -159,7 +164,7 @@ export function QuickCreate({ target, timeZone, anchor, onClose, onDetails }: Pr
         </label>
         {overridden && <p className={styles.muted}>입력한 시간으로 만들어요</p>}
         {error && (
-          <p id={`${id}-error`} className={styles.fieldError}>
+          <p id={`${id}-error`} role="alert" className={styles.fieldError}>
             {error}
           </p>
         )}

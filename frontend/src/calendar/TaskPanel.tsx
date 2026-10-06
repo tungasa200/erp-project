@@ -17,6 +17,8 @@ interface Props {
   pending: boolean
   /** 다음 쪽 불러오는 중 */
   loadingMore: boolean
+  /** false면(오프라인, P1-X-04) 카드를 끌 수 없다. 버튼·입력은 앱의 오프라인 처리(fieldset)가 끈다 */
+  editable?: boolean
   /** 서버에 더 있으면 */
   hasMore: boolean
   onLoadMore: () => void
@@ -41,6 +43,7 @@ export function TaskPanel({
   today,
   pending,
   loadingMore,
+  editable = true,
   hasMore,
   onLoadMore,
   onPlace,
@@ -59,7 +62,7 @@ export function TaskPanel({
       <li
         key={t.id}
         className={panel.card}
-        draggable
+        draggable={editable}
         onDragStart={(e) => {
           e.dataTransfer.setData(TASK_DRAG_TYPE, t.id)
           e.dataTransfer.setData('text/plain', t.title)

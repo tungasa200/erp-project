@@ -313,8 +313,9 @@
   border-radius: 12px;
 }
 
-/* 모바일 주 보기 훑어보기(D-77): 하루 칸 전체가 일 보기로 가는 버튼. 세로 스크롤을 막지 않는다 */
-.columns[data-overview] {
+/* 모바일 주 보기 훑어보기(D-77)·오프라인: 끌기가 없으니 세로 스크롤을 막지 않는다 */
+.columns[data-readonly],
+.columns[data-readonly] .block {
   touch-action: auto;
 }
 
@@ -1342,8 +1343,8 @@ textarea.input {
 }
 
 /* ── 반응형 (2.4): 태블릿은 업무 패널 접힘, 모바일은 사이드바도 숨기고 전체 폭 */
-@media (max-width: 1023px) {
-  /* 태블릿·모바일은 기본으로 접혀 있고(CalendarPage), P로 열면 오른쪽에 떠서 보인다 */
+/* 1279px 이하는 기본으로 접혀 있고(CalendarPage), P로 열면 오른쪽에 떠서 보인다. 자리를 차지하면 그리드·보기 전환이 잘린다(P1-07-15) */
+@media (max-width: 1279px) {
   .taskPanel {
     position: fixed;
     right: 16px;

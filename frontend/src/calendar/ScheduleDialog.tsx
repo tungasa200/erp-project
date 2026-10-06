@@ -2,14 +2,16 @@
 // 반복 일정은 저장·삭제할 때 범위를 묻는다(SCR-CAL-08). 종일 여부·반복 규칙을 바꾸면 "모든 일정"만 가능하다(계약 OccurrencePatch).
 // ④ 연결 업무는 업무 API(P1-03), ⑥ 기록 상태는 P2라 아직 없다(연결된 taskId는 그대로 둔다).
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useId, useState, type FormEvent } from 'react'
+import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { toastForError } from '../api/errorToast'
 import { ApiError } from '../api/problem'
 import { Skeleton } from '../components/Skeleton'
 import { useToast } from '../components/useToast'
 import { TASKS_QUERY_KEY } from '../tasks/api'
+import { occurrenceFocusId } from './focus'
 import { Modal } from './Modal'
 import {
+  OCCURRENCES_QUERY_KEY,
   scheduleApi,
   useInvalidateOccurrences,
   type Occurrence,
@@ -46,13 +48,21 @@ interface Form {
   end: string
   frequency: Frequency
   weekdays: Weekday[]
+  /** 사용자가 직접 고른(또는 저장된) 요일. 시작일을 바꿀 때 이전 시작일의 요일은 여기 없으면 뺀다(P1-06-02) */
+  pickedWeekdays: Weekday[]
   endKind: EndKind
   until: string
   count: string
   memo: string
 }
 
-type Errors = Partial<Record<'title' | 'time' | 'recurrence', string>>
+type TimeField = 'date' | 'endDate' | 'start' | 'end'
+type RecurrenceField = 'frequency' | 'weekdays' | 'until' | 'count'
+/** 칸별 오류(2.5). 문구는 묶음별 하나, *At은 그 문구가 가리키는 칸 */
+type Errors = Partial<Record<'title' | 'time' | 'recurrence', string>> & {
+  timeAt?: TimeField
+  recurrenceAt?: RecurrenceField
+}
 
 interface Props {
   timeZone: string
@@ -86,6 +96,7 @@ function formFromDraft(d: ScheduleDraft): Form {
     end: formatMinutes(Math.min(d.end, MINUTES_PER_DAY - 1)),
     frequency: 'NONE',
     weekdays: [WEEKDAYS[weekdayIndex(d.date)]],
+    pickedWeekdays: [],
     endKind: 'never',
     until: '',
     count: '',
@@ -107,6 +118,7 @@ function formFromOccurrence(o: Occurrence, schedule: Schedule | undefined, timeZ
     end: e ? formatMinutes(e.date > s!.date && e.minutes === 0 ? MINUTES_PER_DAY - 1 : e.minutes) : '10:00',
     frequency: r?.frequency ?? 'NONE',
     weekdays: r?.weekdays?.length ? r.weekdays : [WEEKDAYS[weekdayIndex(date)]],
+    pickedWeekdays: r?.weekdays ?? [],
     endKind: r?.until ? 'until' : r?.count ? 'count' : 'never',
     until: r?.until ?? '',
     count: r?.count ? String(r.count) : '',
@@ -134,17 +146,21 @@ function timeOf(f: Form, timeZone: string): TimeChange {
 
 function validate(f: Form): Errors {
   const errors: Errors = {}
+  const time = (message: string, at: TimeField) => Object.assign(errors, { time: message, timeAt: at })
+  const recurrence = (message: string, at: RecurrenceField) =>
+    Object.assign(errors, { recurrence: message, recurrenceAt: at })
   if (!f.title.trim()) errors.title = '일정 이름을 적어 주세요'
-  if (!f.date) errors.time = '날짜를 골라 주세요'
-  else if (f.allDay && f.endDate < f.date) errors.time = '끝나는 날을 시작일과 같거나 뒤로 골라 주세요'
-  else if (!f.allDay && (!f.start || !f.end || toMinutes(f.end) <= toMinutes(f.start)))
-    errors.time = '끝나는 시각을 시작보다 뒤로 골라 주세요'
+  if (!f.date) time('날짜를 골라 주세요', 'date')
+  else if (f.allDay && f.endDate < f.date) time('끝나는 날을 시작일과 같거나 뒤로 골라 주세요', 'endDate')
+  else if (!f.allDay && !f.start) time('시작 시각을 골라 주세요', 'start')
+  else if (!f.allDay && (!f.end || toMinutes(f.end) <= toMinutes(f.start)))
+    time('끝나는 시각을 시작보다 뒤로 골라 주세요', 'end')
   if (f.frequency === 'WEEKLY' && f.date && !f.weekdays.includes(WEEKDAYS[weekdayIndex(f.date)]))
-    errors.recurrence = `시작일의 요일(${WEEKDAY_LABELS[weekdayIndex(f.date)]})을 포함해 주세요`
-  if (f.endKind === 'until' && (!f.until || f.until < f.date))
-    errors.recurrence = '반복 종료일을 시작일 뒤로 골라 주세요'
-  if (f.endKind === 'count' && !(Number(f.count) >= 1 && Number(f.count) <= 999))
-    errors.recurrence = '반복 횟수는 1~999 사이로 적어 주세요'
+    recurrence(`시작일의 요일(${WEEKDAY_LABELS[weekdayIndex(f.date)]})을 포함해 주세요`, 'weekdays')
+  if (f.frequency !== 'NONE' && f.endKind === 'until' && (!f.until || f.until < f.date))
+    recurrence('반복 종료일을 시작일 뒤로 골라 주세요', 'until')
+  if (f.frequency !== 'NONE' && f.endKind === 'count' && !(Number(f.count) >= 1 && Number(f.count) <= 999))
+    recurrence('반복 횟수는 1~999 사이로 적어 주세요', 'count')
   return errors
 }
 
@@ -153,10 +169,26 @@ function serverErrors(error: ApiError): Errors | null {
   const list = error.problem?.errors
   if (!list?.length) return null
   const result: Errors = {}
+  const timeFields: Record<string, TimeField> = {
+    startAt: 'start',
+    endAt: 'end',
+    startDate: 'date',
+    endDate: 'endDate',
+  }
+  const recurrenceFields: Record<string, RecurrenceField> = {
+    'recurrence.weekdays': 'weekdays',
+    'recurrence.until': 'until',
+    'recurrence.count': 'count',
+  }
   for (const e of list) {
     if (e.field === 'title') result.title = '일정 이름을 확인해 주세요'
-    else if (e.field.startsWith('recurrence')) result.recurrence = '반복 설정을 확인해 주세요'
-    else result.time = '시간을 확인해 주세요'
+    else if (e.field.startsWith('recurrence')) {
+      result.recurrence ??= '반복 설정을 확인해 주세요'
+      result.recurrenceAt ??= recurrenceFields[e.field] ?? 'frequency'
+    } else {
+      result.time ??= '시간을 확인해 주세요'
+      result.timeAt ??= timeFields[e.field] ?? 'date'
+    }
   }
   return result
 }
@@ -176,9 +208,21 @@ export function ScheduleDialog({ timeZone, draft, occurrence, askScope, onDelete
   const [errors, setErrors] = useState<Errors>({})
   const [conflict, setConflict] = useState(false)
   const [saving, setSaving] = useState(false)
+  // 연 회차. [새로 불러오기] 뒤에는 서버의 최신 회차로 바꾼다(제목·시각·메모는 회차 값이라, P1-05-05)
+  const [latest, setLatest] = useState(occurrence)
+  const formRef = useRef<HTMLFormElement>(null)
+  // 저장이 칸 오류로 막히면 첫 오류 칸으로 포커스(2.5, P1-05-03)
+  const [errorFocus, setErrorFocus] = useState(0)
+  useEffect(() => {
+    if (errorFocus) formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"], [data-invalid] button')?.focus()
+  }, [errorFocus])
+  const showErrors = (found: Errors) => {
+    setErrors(found)
+    setErrorFocus((n) => n + 1)
+  }
 
   // 고칠 때는 원본(반복 규칙)을 받은 뒤 채운다
-  const current = form ?? (occurrence && schedule.data ? formFromOccurrence(occurrence, schedule.data, timeZone) : null)
+  const current = form ?? (latest && schedule.data ? formFromOccurrence(latest, schedule.data, timeZone) : null)
   const update = (patch: Partial<Form>) => {
     setForm({ ...current!, ...patch })
     setErrors({})
@@ -187,7 +231,7 @@ export function ScheduleDialog({ timeZone, draft, occurrence, askScope, onDelete
   const failed = (error: unknown) => {
     if (error instanceof ApiError && error.code === 'VERSION_CONFLICT') return setConflict(true)
     const fields = error instanceof ApiError ? serverErrors(error) : null
-    if (fields) return setErrors(fields)
+    if (fields) return showErrors(fields)
     const { message, traceId } = toastForError(error)
     showToast(message, { traceId })
   }
@@ -196,19 +240,24 @@ export function ScheduleDialog({ timeZone, draft, occurrence, askScope, onDelete
     setConflict(false)
     setForm(null)
     setErrors({})
-    await schedule.refetch()
-    void invalidate()
+    await Promise.all([schedule.refetch(), invalidate()])
+    const key = latest && occurrenceFocusId(latest)
+    const fresh = queryClient
+      .getQueriesData<Occurrence[]>({ queryKey: OCCURRENCES_QUERY_KEY })
+      .flatMap(([, data]) => (Array.isArray(data) ? data : []))
+      .find((o) => occurrenceFocusId(o) === key)
+    if (fresh) setLatest(fresh)
   }
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
     if (!current || saving) return
     const found = validate(current)
-    if (Object.keys(found).length) return setErrors(found)
+    if (Object.keys(found).length) return showErrors(found)
     setSaving(true)
     try {
-      if (!occurrence) await create(current)
-      else if (!(await save(occurrence, schedule.data!, current))) return
+      if (!latest) await create(current)
+      else if (!(await save(latest, schedule.data!, current))) return
       void invalidate()
       onClose()
     } catch (error) {
@@ -275,6 +324,9 @@ export function ScheduleDialog({ timeZone, draft, occurrence, askScope, onDelete
   }
 
   const title = occurrence ? '일정 편집' : '새 일정'
+  /** 오류 문구가 가리키는 칸이면 aria-invalid와 문구 연결 */
+  const invalid = (group: 'time' | 'recurrence', at: TimeField | RecurrenceField) =>
+    errors[`${group}At`] === at ? { 'aria-invalid': true, 'aria-describedby': `${id}-${group}-error` } : {}
 
   return (
     <Modal labelledBy={`${id}-title`} onClose={onClose}>
@@ -299,7 +351,7 @@ export function ScheduleDialog({ timeZone, draft, occurrence, askScope, onDelete
           <Skeleton shape="lines" count={4} />
         )
       ) : (
-        <form className={styles.fieldset} onSubmit={(e) => void submit(e)} noValidate>
+        <form ref={formRef} className={styles.fieldset} onSubmit={(e) => void submit(e)} noValidate>
           <label className={styles.field}>
             제목
             <input
@@ -312,7 +364,7 @@ export function ScheduleDialog({ timeZone, draft, occurrence, askScope, onDelete
             />
           </label>
           {errors.title && (
-            <p id={`${id}-title-error`} className={styles.fieldError}>
+            <p id={`${id}-title-error`} role="alert" className={styles.fieldError}>
               {errors.title}
             </p>
           )}
@@ -324,17 +376,21 @@ export function ScheduleDialog({ timeZone, draft, occurrence, askScope, onDelete
                 type="date"
                 className={styles.input}
                 value={current.date}
+                {...invalid('time', 'date')}
                 onChange={(e) => {
                   const date = e.target.value
                   if (!date) return update({ date })
-                  // 종일 일정은 기간을 유지하고, 매주 반복은 새 시작 요일을 넣는다
+                  // 종일 일정은 기간을 유지한다. 매주 반복은 새 시작 요일을 넣고, 이전 시작 요일은 직접 고른 게 아니면 뺀다
                   const weekday = WEEKDAYS[weekdayIndex(date)]
+                  const previous = current.date ? WEEKDAYS[weekdayIndex(current.date)] : null
+                  const kept = current.weekdays.filter((w) => w !== previous || current.pickedWeekdays.includes(w))
                   update({
                     date,
-                    endDate: current.allDay
-                      ? addDays(date, Math.max(0, diffDays(current.date, current.endDate)))
-                      : date,
-                    weekdays: current.weekdays.includes(weekday) ? current.weekdays : [...current.weekdays, weekday],
+                    endDate:
+                      current.allDay && current.date
+                        ? addDays(date, Math.max(0, diffDays(current.date, current.endDate)))
+                        : date,
+                    weekdays: kept.includes(weekday) ? kept : [...kept, weekday],
                   })
                 }}
               />
@@ -347,6 +403,7 @@ export function ScheduleDialog({ timeZone, draft, occurrence, askScope, onDelete
                   className={styles.input}
                   value={current.endDate}
                   min={current.date}
+                  {...invalid('time', 'endDate')}
                   onChange={(e) => update({ endDate: e.target.value })}
                 />
               </label>
@@ -359,6 +416,7 @@ export function ScheduleDialog({ timeZone, draft, occurrence, askScope, onDelete
                     step={900}
                     className={styles.input}
                     value={current.start}
+                    {...invalid('time', 'start')}
                     onChange={(e) => update({ start: e.target.value })}
                   />
                 </label>
@@ -369,13 +427,18 @@ export function ScheduleDialog({ timeZone, draft, occurrence, askScope, onDelete
                     step={900}
                     className={styles.input}
                     value={current.end}
+                    {...invalid('time', 'end')}
                     onChange={(e) => update({ end: e.target.value })}
                   />
                 </label>
               </>
             )}
           </div>
-          {errors.time && <p className={styles.fieldError}>{errors.time}</p>}
+          {errors.time && (
+            <p id={`${id}-time-error`} role="alert" className={styles.fieldError}>
+              {errors.time}
+            </p>
+          )}
           <label className={styles.check}>
             <input
               type="checkbox"
@@ -387,7 +450,13 @@ export function ScheduleDialog({ timeZone, draft, occurrence, askScope, onDelete
 
           <fieldset className={styles.fieldset}>
             <legend>반복</legend>
-            <div className={styles.segment} role="group" aria-label="반복 주기">
+            <div
+              className={styles.segment}
+              role="group"
+              aria-label="반복 주기"
+              data-invalid={errors.recurrenceAt === 'frequency' || undefined}
+              aria-describedby={errors.recurrenceAt === 'frequency' ? `${id}-recurrence-error` : undefined}
+            >
               {FREQUENCIES.map((f) => (
                 <button
                   key={f.value}
@@ -400,7 +469,13 @@ export function ScheduleDialog({ timeZone, draft, occurrence, askScope, onDelete
               ))}
             </div>
             {current.frequency === 'WEEKLY' && (
-              <div className={styles.segment} role="group" aria-label="반복 요일">
+              <div
+                className={styles.segment}
+                role="group"
+                aria-label="반복 요일"
+                data-invalid={errors.recurrenceAt === 'weekdays' || undefined}
+                aria-describedby={errors.recurrenceAt === 'weekdays' ? `${id}-recurrence-error` : undefined}
+              >
                 {[1, 2, 3, 4, 5, 6, 0].map((i) => {
                   const w = WEEKDAYS[i]
                   const on = current.weekdays.includes(w)
@@ -410,7 +485,14 @@ export function ScheduleDialog({ timeZone, draft, occurrence, askScope, onDelete
                       type="button"
                       aria-pressed={on}
                       onClick={() =>
-                        update({ weekdays: on ? current.weekdays.filter((x) => x !== w) : [...current.weekdays, w] })
+                        update(
+                          on
+                            ? {
+                                weekdays: current.weekdays.filter((x) => x !== w),
+                                pickedWeekdays: current.pickedWeekdays.filter((x) => x !== w),
+                              }
+                            : { weekdays: [...current.weekdays, w], pickedWeekdays: [...current.pickedWeekdays, w] },
+                        )
                       }
                     >
                       {WEEKDAY_LABELS[i]}
@@ -458,6 +540,7 @@ export function ScheduleDialog({ timeZone, draft, occurrence, askScope, onDelete
                   className={styles.input}
                   value={current.until}
                   min={current.date}
+                  {...invalid('recurrence', 'until')}
                   onChange={(e) => update({ until: e.target.value })}
                 />
               </label>
@@ -472,11 +555,16 @@ export function ScheduleDialog({ timeZone, draft, occurrence, askScope, onDelete
                   inputMode="numeric"
                   className={styles.input}
                   value={current.count}
+                  {...invalid('recurrence', 'count')}
                   onChange={(e) => update({ count: e.target.value })}
                 />
               </label>
             )}
-            {errors.recurrence && <p className={styles.fieldError}>{errors.recurrence}</p>}
+            {errors.recurrence && (
+              <p id={`${id}-recurrence-error`} role="alert" className={styles.fieldError}>
+                {errors.recurrence}
+              </p>
+            )}
           </fieldset>
 
           <label className={styles.field}>
@@ -491,13 +579,13 @@ export function ScheduleDialog({ timeZone, draft, occurrence, askScope, onDelete
           </label>
 
           <div className={styles.actions}>
-            {occurrence && (
+            {latest && (
               <button
                 type="button"
                 className={styles.danger}
                 onClick={() => {
                   onClose()
-                  onDelete(occurrence)
+                  onDelete(latest)
                 }}
               >
                 삭제

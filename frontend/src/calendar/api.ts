@@ -18,9 +18,11 @@ const occurrencePath = (scheduleId: string, occurrenceStart: string) =>
   `${base}/${scheduleId}/occurrences/${encodeURIComponent(occurrenceStart)}`
 
 export const scheduleApi = {
-  /** [from, to)와 겹치는 회차. 기간은 최대 400일 */
-  occurrences: (from: string, to: string) =>
-    api.request<{ items: Occurrence[] }>(`${base}?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`),
+  /** [from, to)와 겹치는 회차. 기간은 최대 400일. taskId를 주면 그 업무에 연결된 일정의 회차만 */
+  occurrences: (from: string, to: string, taskId?: string) =>
+    api.request<{ items: Occurrence[] }>(
+      `${base}?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}${taskId ? `&taskId=${encodeURIComponent(taskId)}` : ''}`,
+    ),
   get: (id: string) => api.request<Schedule>(`${base}/${id}`),
   create: (body: ScheduleCreate) => api.request<Schedule>(base, { method: 'POST', body }),
   /** 반복 일정이면 "모든 일정" */
