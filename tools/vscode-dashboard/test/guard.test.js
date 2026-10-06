@@ -9,6 +9,12 @@ const { evaluate, classify, writesApprovalFiles } = require('../hooks/wy-approva
 let fail = 0;
 const ok = (c, m) => { if (!c) { fail++; console.log('FAIL ' + m); } };
 const proj = fs.mkdtempSync(path.join(os.tmpdir(), 'wy-guard-proj-'));
+// 와일드카드 검사용: 프로젝트 안에 보호 파일과 승인 폴더 모양을 만든다
+fs.mkdirSync(path.join(proj, '.claude'), { recursive: true });
+fs.writeFileSync(path.join(proj, '.claude', 'wy-ops.json'), '{}');
+fs.mkdirSync(path.join(proj, 'h', '.claude', 'wy-approvals', 'erp-project', 'decisions'), { recursive: true });
+fs.mkdirSync(path.join(proj, 'src'), { recursive: true });
+fs.writeFileSync(path.join(proj, 'src', 'a.log'), '');
 const ev = (cmd) => evaluate({ tool_name: 'Bash', tool_input: { command: cmd }, agent_type: 'WY-backend2', cwd: proj, session_id: 's' });
 const W = String.raw;
 const NL = '\n';
@@ -56,6 +62,13 @@ const deny = [
   'cd ~/.wy-tools/vscode-dashboard/hooks && rm wy-approval-guard.js',
   W`sl C:\Users\k\.claude\wy-approvals\erp-project\decisions; ni x.json`,
   'd=~/.claude/wy-approvals/erp-project/decisions; cd $d && echo {} > x.json',
+  // 와일드카드로 보호 경로를 숨기기(WY-commit 검증에서 찾음) — 실제로 펼쳐 보고 막는다
+  'cd h/.cl*/wy-a*/erp-project/decisions && echo {} > x.json',
+  'cd h/.claude/wy-*/*/dec* && cp a.json x.json',
+  'cd nothing-here-*/zz? && echo {} > x.json',
+  'echo {} > .cl*/wy-ops.json',
+  'cp x .clau?e/wy-ops.json',
+  'rm h/.claude/wy-app*/erp-project/decisions/*',
   // 보호 파일이 나오는 명령에서 읽기 API가 없는 인터프리터 코드는 판단할 수 없어 막는다
   'cat .claude/settings.local.json | node -e "process.stdin.pipe(process.stdout)" > out.json',
 ];
@@ -93,6 +106,12 @@ const allow = [
   `printf '%s\\n' "fix: ~/.claude/wy-approvals/erp-project/decisions 경로 안내" > .git/WY_COMMIT_MSG`,
   `echo "docs: .claude/wy-ops.local.json 언급 (a > b)" > C:/Users/k/AppData/Local/Temp/msg.txt`,
   `git commit -F .git/WY_COMMIT_MSG -m ".claude/wy-ops.json 정리"`,
+  // 와일드카드가 보호 경로에 닿지 않으면 통과
+  'rm src/*.log',
+  'cp src/*.log /tmp/',
+  'node build.js src/*.js',
+  'ls h/.cl*/wy-a*/erp-project/decisions',
+  'cd src/* && echo x > out.txt',
   // 보호 폴더로 이동해 읽기만 하는 것은 통과
   'cd ~/.claude/wy-approvals/erp-project/decisions && cat x.json',
   'cd ~/.claude/wy-approvals/erp-project && ls decisions',

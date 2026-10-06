@@ -9,6 +9,7 @@
 //   판단할 수 없으면(쓰기 API·난독화·알 수 없는 코드) 막는다.
 // 훅은 오류·시간 초과 때 통과시키므로(fail open), 여기서는 어떤 오류든 종료 코드 2로 막는다.
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const store = require('../approvalStore');
 const { loadOpsConfig } = require('../opsConfig');
@@ -140,13 +141,75 @@ function leadingTokens(seg) {
 // 보호 파일을 담은 폴더(.claude, 승인 폴더, 설치 폴더). 이 안으로 이동하면 상대 경로로 보호 파일에 닿는다
 const PROTECTED_DIR = /(?:^|\/)\.claude(?:\/|$)|wy-approvals|\.wy-tools/;
 
+// 와일드카드(* ? [)가 든 경로는 실제로 펼쳐서 판단한다(cd ~/.cl*/wy-a*/… 같은 우회, WY-commit 검증에서 찾음)
+const GLOB = /[*?[]/;
+
+// 경로 패턴을 파일 시스템에서 펼친다. 결과는 소문자·/ 구분자. 펼칠 수 없으면 빈 배열
+function expandGlob(pattern, cwd) {
+  let s = String(pattern).replace(/^["']|["']$/g, '').replace(/\\/g, '/');
+  if (s === '~' || s.startsWith('~/')) s = os.homedir().replace(/\\/g, '/') + s.slice(1);
+  let base;
+  let parts;
+  if (/^\/[a-z]\//i.test(s)) {
+    base = `${s[1]}:/`; // Git Bash의 /c/… 형식
+    parts = s.slice(3).split('/');
+  } else if (/^[a-z]:\//i.test(s)) {
+    base = s.slice(0, 3);
+    parts = s.slice(3).split('/');
+  } else if (s.startsWith('/')) {
+    base = '/';
+    parts = s.slice(1).split('/');
+  } else {
+    base = cwd || process.cwd();
+    parts = s.split('/');
+  }
+  let bases = [base];
+  for (const part of parts.filter((x) => x && x !== '.')) {
+    const next = [];
+    for (const b of bases) {
+      if (part === '..' || !GLOB.test(part)) {
+        next.push(path.join(b, part));
+        continue;
+      }
+      const re = new RegExp(`^${part.replace(/[.+^${}()|\\]/g, '\\$&').replace(/\*/g, '.*').replace(/\?/g, '.')}$`, 'i');
+      let names = [];
+      try {
+        names = fs.readdirSync(b);
+      } catch {
+        // 읽을 수 없는 폴더는 건너뛴다
+      }
+      for (const n of names) if (re.test(n)) next.push(path.join(b, n));
+    }
+    bases = next.slice(0, 200);
+    if (!bases.length) return [];
+  }
+  return bases.map((x) => x.replace(/\\/g, '/').toLowerCase());
+}
+
+// 쓰기 대상이 보호 경로로 갈 수 있는지(직접 언급, 알 수 없는 값, 와일드카드를 펼친 결과)
+function riskyTarget(arg, cwd) {
+  if (mentionsProtected(arg) || UNKNOWN_TARGET.test(arg)) return true;
+  if (!GLOB.test(arg)) return false;
+  // 끝부분이 아무것도 펼치지 못하면(빈 폴더의 *) 상위 폴더로 올라가며 닿는 곳을 본다
+  for (let p = arg.replace(/\\/g, '/'), i = 0; p && p !== '.' && p !== '/' && i < 20; p = path.posix.dirname(p), i++) {
+    const hits = expandGlob(p, cwd);
+    if (hits.length) return hits.some((x) => mentionsProtected(x) || mentionsProtected(`${x}/`));
+  }
+  return false;
+}
+
 // 명령 안에 보호 폴더(또는 알 수 없는 곳)로 들어가는 이동이 있는지
-function movesIntoProtected(command) {
+function movesIntoProtected(command, cwd) {
   return segments(command).some((seg) => {
     const t = leadingTokens(seg);
     if (!t.length || !CHDIR.has(path.basename(t[0]).toLowerCase())) return false;
     const args = t.slice(1).filter((a) => !/^-/.test(a));
-    return args.some((a) => PROTECTED_DIR.test(a.replace(/\\/g, '/').toLowerCase()) || UNKNOWN_TARGET.test(a));
+    return args.some((a) => {
+      if (PROTECTED_DIR.test(a.replace(/\\/g, '/').toLowerCase()) || UNKNOWN_TARGET.test(a)) return true;
+      if (!GLOB.test(a)) return false;
+      const hits = expandGlob(a, cwd);
+      return !hits.length || hits.some((x) => PROTECTED_DIR.test(x)); // 펼칠 수 없으면 알 수 없는 곳으로 본다
+    });
   });
 }
 
@@ -154,32 +217,35 @@ function movesIntoProtected(command) {
 //  - 리다이렉트·쓰기 프로그램은 대상이 보호 경로이거나 알 수 없는 값(변수 등)일 때 막는다.
 //    다른 파일에 쓰는 것은 통과(커밋 메시지 본문에 보호 파일 이름이 들어 있는 경우 등)
 //  - 인터프리터는 코드가 읽기 API만 쓸 때만 통과시키고, 판단할 수 없으면 막는다
-function writesApprovalFiles(command) {
+function writesApprovalFiles(command, cwd) {
   // 보호 폴더로 cd 등을 했으면 그 뒤의 모든 쓰기(상대 경로)를 보호 경로 쓰기로 본다
-  const moved = movesIntoProtected(command);
-  if (!moved && !mentionsProtected(command)) return false;
+  const moved = movesIntoProtected(command, cwd);
+  const mentioned = mentionsProtected(command);
+  if (!moved && !mentioned && !GLOB.test(command)) return false;
   // 리다이렉트(> >> 2> *>). =>(화살표 함수)·->·>=는 리다이렉트가 아니다
   for (const m of command.matchAll(/(?<![=\-<])(?:\d|\*)?>{1,2}(?!=)\s*("[^"]*"|'[^']*'|[^\s|;&<>)]+)/g)) {
     const target = m[1].replace(/^["']|["']$/g, '');
     if (NULL_TARGET.test(target)) continue;
-    if (moved || mentionsProtected(target) || UNKNOWN_TARGET.test(target)) return true;
+    if (moved || riskyTarget(target, cwd)) return true;
   }
   for (const seg of segments(command)) {
     const t = leadingTokens(seg);
     if (!t.length) continue;
+    // 코드를 실행하는 것(.NET 호출·인터프리터)은 보호 경로가 언급되거나 보호 폴더로 이동한 명령에서만 따진다
+    const sensitive = moved || mentioned;
     if (/^\[[\w.]+\]::/.test(t[0])) {
       // [IO.File]::ReadAllText 같은 읽기만 통과
-      if (/^\[[\w.]+\]::(?:ReadAll|Exists)/i.test(t[0]) && !WRITE_API.test(seg)) continue;
+      if (!sensitive || (/^\[[\w.]+\]::(?:ReadAll|Exists)/i.test(t[0]) && !WRITE_API.test(seg))) continue;
       return true;
     }
     const prog = path.basename(t[0]).toLowerCase().replace(/\.(exe|cmd|bat|ps1)$/, '');
     const rest = t.slice(1);
-    // 쓰기 프로그램은 인자에 보호 경로나 알 수 없는 값이 있을 때만 막는다
-    const risky = moved || mentionsProtected(seg) || rest.some((a) => UNKNOWN_TARGET.test(a));
+    // 쓰기 프로그램은 인자가 보호 경로로 갈 수 있을 때만 막는다(직접 언급·알 수 없는 값·와일드카드 펼친 결과)
+    const risky = moved || mentionsProtected(seg) || rest.some((a) => riskyTarget(a, cwd));
     if (WRITERS.has(prog) && risky) return true;
     if (prog === 'sed' && risky && rest.some((a) => a.startsWith('-i') || a === '--in-place')) return true;
     if (prog === 'find' && risky && rest.some((a) => ['-delete', '-exec', '-execdir', '-ok'].includes(a))) return true;
-    if (INTERPRETERS.has(prog)) {
+    if (INTERPRETERS.has(prog) && sensitive) {
       const code = rest.join(' ');
       if (WRITE_API.test(code) || OBFUSCATION.test(code) || !READ_API.test(code)) return true;
     }
@@ -224,7 +290,7 @@ function markUsed(ids, input, root) {
 function evaluate(input, rootOverride) {
   const command = String((input.tool_input && input.tool_input.command) || '');
   if (!command) return null;
-  if (writesApprovalFiles(command)) {
+  if (writesApprovalFiles(command, input.cwd || process.cwd())) {
     return {
       decision: 'deny',
       reason: '승인 파일(~/.claude/wy-approvals 아래 decisions·decisions.log·used), 설치본(~/.wy-tools), 프로젝트 설정(.claude/wy-ops.json·wy-ops.local.json·settings.local.json)에는 셸 명령으로 쓸 수 없습니다. 읽기(cat·ls·tail·test)는 됩니다. 설정 변경은 내용을 WY-pm에 보내 사용자가 고치게 하세요.',

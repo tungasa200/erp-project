@@ -39,6 +39,7 @@
 | 세션 상태 | B1 `agentsReader.js`(새 파일) | B1 화면, B3 세션 레인·상태 | `readSessionStatus({root, ops})` → `[{name, id, sessionId, kind, state, status, waitingFor, view: 'working'|'idle'|'input'|'permission'|'stopped'|'failed', pending: {key, tool, command}|null, roleMissing: bool, startedAt}]` |
 | 활동 데이터 | B3 `sessionActivity.js` | B3 화면 | 3.3절 |
 | "세션 현황에서 보기" | B2 승인 센터 → 명령 `erpSessions.revealSession`(sessionId) | B1이 명령 처리 | |
+| 대기 중 종료된 세션(2026-10-07 추가) | Claude Code(`claude agents`의 `state`) | B1 표시, B2 메시지 훅 | `state:"done"`은 세션이 스스로 끝난 것(pid·status 없음), `"stopped"`는 `claude stop`으로 멈춘 것. B1은 역할 세션의 최신 백그라운드가 done이면 view `ended`("대기 중 종료됨", 경고 색)로 따로 표시. B2는 SendMessage 대상이 이 상태면 보내기 전에 알린다(B2-6) |
 
 ## 3. 갈래별 계획
 
@@ -53,6 +54,8 @@
 | B2-3 할 일 카드 | 새 종류 `todo`: 방법 단계(`steps`), 확인 방법, [했음] 버튼(메모 선택). 결정 `decision:"done"`. 요청 세션은 지금 규약(until 루프·decisions.log)으로 받아 이어 간다 | OPS-02 ③: "했음" 뒤 대화창 알림 없이 세션이 이어 감 | 가짜 vscode 왕복, 시험 세션이 할 일 카드 → 했음 → 다음 단계 실행 |
 | B2-4 권한 카드 | `hooks/wy-permission.js`(PermissionRequest): 키 = sha1(session_id·tool_name·tool_input) 16자, 권한 요청 파일을 쓰고 결정을 최대 15분 기다림(훅 timeout 960초). 허용은 그 한 번만(updatedPermissions 안 씀), 거부는 사유를 세션에 돌려줌, 시간 초과는 Q1 결정대로. PermissionDenied 훅: 분류기가 막은 명령을 할 일 카드("직접 실행", 명령 복사)로 올림. 카드에는 허용·거부와 "세션 현황에서 보기" 링크만(D-89) | OPS-02 ① 수용 기준 전부(허용 → attach 없이 진행, 거부 사유 전달, 15분 시간 초과 표시, deny·분류기 거부는 ①이 아님) | 시험 세션(실험과 같은 방식, ask 규칙)으로 허용·거부·시간 초과 3회. 훅 단위 검사(키 계산, 한 번만 사용, 결정 파일 위조 거부) |
 | B2-5 승인 센터 화면 | 새 종류(할 일·권한·형식 오류·출처 불명) 카드, 커밋 세션 경고, "활동" 탭 열기 버튼. 디자인은 4단계에서 목업으로 바꾸므로 지금은 기존 스타일 유지 | OPS-01: 처리 전 카드가 사라지지 않음 | 가짜 DOM 검사(지난 방식) |
+
+| B2-6 메시지 대상 확인(2026-10-07 추가) | `hooks/wy-message-guard.js`(PreToolUse, matcher `SendMessage`): 대상 이름의 최신 백그라운드 세션이 끝나 있으면(done·stopped·failed, 같은 이름의 살아 있는 세션 없음) 보내기를 거부하고 사유("대상 세션이 대기 중 종료됨 — WY-pm에 알리거나 session.ps1 start로 다시 띄우세요")를 돌려준다. 살아 있거나 대화형 세션이면 통과. `claude agents`를 못 읽으면 통과(평소 흐름) | 오늘 두 번 있었던 '대기 중 종료 → 메시지 유실'을 보내는 쪽이 바로 안다 | 훅 단위 검사(살아 있음·done·stopped·대화형·이름 없음·agents 실패), 시험 세션을 끝낸 뒤 그 이름으로 보내 거부 확인 |
 
 **사용자 손(B2 끝에 한 번)**: settings.local.json 수정(5장), Reload Window.
 
@@ -93,6 +96,7 @@
    - `hooks.PermissionRequest`: `node ~/.wy-tools/vscode-dashboard/hooks/wy-permission.js`, timeout 960
    - `hooks.PermissionDenied`: 같은 스크립트(`--denied`)
    - `hooks.SessionStart`: `node …/hooks/wy-session-start.js`, timeout 10
+   - `hooks.PreToolUse`에 matcher `SendMessage` 항목: `node …/hooks/wy-message-guard.js`, timeout 15(B2-6)
 2. VS Code `Developer: Reload Window`
 3. 확인: WY-commit 줄 "열기" 1회(경고 → 터미널 attach)
 훅 변경은 실행 중인 세션에 바로 반영되므로(U-03) 세션 재시작은 필요 없다.
