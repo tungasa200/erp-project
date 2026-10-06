@@ -37,7 +37,7 @@ MSA ERP 프로젝트. 이 파일은 git으로 공유되는 작업 규칙이다. 
 - 배정받은 디렉터리 밖은 수정하지 않는다. `WY-backend1`·`WY-backend2`는 공유 파일(루트 빌드 설정, docker-compose 등)을 고칠 때 서로 알리고, 서비스 간 계약과 프론트가 쓰는 계약은 확정 전에 `WY-pm`에 보고한다.
 - API 계약 초안은 저장소 루트 `contracts/{모듈}.yaml`(OpenAPI)에 둔다. 구현 후에는 springdoc 출력이 기준이다.
 - `WY-browser`는 코드를 수정하지 않는다. 결제·삭제·실제 메일 발송처럼 외부에 영향을 주는 동작은 `WY-pm`을 거쳐 사용자 승인을 받는다.
-- 메모리가 작은 PC(8GB)에서 여러 세션이 함께 돈다. gradle 빌드, vite 개발 서버, 전체 테스트, 브라우저 자동화처럼 무거운 작업은 시작 전에 여유 메모리를 확인하고(PowerShell `(Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory`), 1GB 미만이면 시작하지 말고 `WY-pm`에 알린다. 끝나면 띄운 개발 서버·브라우저를 바로 끈다. 개발 서버는 꼭 필요할 때만 띄우고, 테스트는 바뀐 파일 위주로 돌린다.
+- 메모리가 작은 PC(8GB)에서 여러 세션이 함께 돈다. gradle 빌드, vite 개발 서버, 전체 테스트, 브라우저 자동화처럼 무거운 작업은 시작 전에 여유 메모리를 확인하고(PowerShell `(Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory`), 500MB 미만이면 시작하지 말고 `WY-pm`에 알린다. 1GB는 안전 여유 기준이지 시작 조건이 아니다. 메모리를 조금 더 쓰더라도 병렬 작업과 효율을 우선한다. 끝나면 띄운 개발 서버·브라우저를 바로 끈다. 개발 서버는 꼭 필요할 때만 띄우고, 테스트는 바뀐 파일 위주로 돌린다.
 - 화면을 만들거나 고친 `WY-frontend`·`WY-frontend2`는 커밋 요청 전에 바뀐 화면에 `/impeccable harden`(접근성·엣지 케이스 점검)을 돌리고 고친 점을 보고서에 적는다. `WY-design`은 단계 끝 화면정의서를 발행하기 전에 구현된 화면에 `/impeccable audit`을 돌려 화면정의서·목업과 어긋난 점을 개정 대기에 올린다.
 - `WY-qa`는 코드를 수정하지 않는다. 결함은 재현 절차·기대 결과·실제 결과와 함께 `WY-pm`에 보고하고, `WY-pm`이 담당 세션에 배정한다. agent-browser는 자기 세션 이름으로 따로 띄우고 `WY-browser`의 전용 Chrome(CDP 9222)에는 붙지 않는다. 디자인 목업 검증은 `WY-design` 몫이다.
 
