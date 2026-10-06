@@ -14,7 +14,7 @@ MSA ERP 프로젝트. 이 파일은 git으로 공유되는 작업 규칙이다. 
 | `erp-design` | 디자인 작업, 화면정의서 담당, 목업 렌더링 검증 |
 | `project-pm` | 개발 총괄: 작업 지시, 보고 취합, 중요 결정을 사용자에게 올림 |
 | `backend1` | identity-service, 공통 모듈(`backend/common`), `backend/` 루트 빌드, `infra/` |
-| `backend2` | worklog-service, api-gateway |
+| `backend2` | worklog-service, api-gateway, 개발 도구(`tools/`: VS Code 세션 현황 대시보드 등) |
 | `frontend` | `frontend/` (공용 파일: 라우터, AppShell, API 연결·mock, 생성 타입, 디자인 토큰 포함) |
 | `frontend2` | `frontend/`의 캘린더 영역(`frontend/src/calendar/`). 공용 파일 변경은 `frontend`에 요청 |
 | `browser-controller` | 외부 서비스 콘솔 작업: Railway·Vercel 등 외부 도구 설정 |

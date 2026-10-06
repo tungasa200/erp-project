@@ -63,7 +63,7 @@ project-pm은 코드를 직접 고치지 않고, 역할 세션(backend1·backend
    "Free MB: {0}" -f [int]((Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory/1024)
    ```
 2. 한 번에 한 세션만 무거운 작업을 하게 차례를 준다. 차례를 받은 세션은 끝나면 "메모리 반납"을 알리고, pm은 다음 세션에 넘긴다. 다른 세션에는 "그동안 코드 작성만"을 알린다.
-3. 기준: 보통 1GB, 컴파일만은 900MB. qa(개발 서버+브라우저 ~600MB)와 테스트(~400MB)를 동시에 돌리지 않는다.
+3. 기준: 보통 1GB, 컴파일만은 900MB. 여러 frontend 묶음이 겹치면 작업 세션은 tsc·lint·바뀐 테스트 파일만 돌리고(동시 가능), 전체 vitest는 erp-commit이 묶음을 한 사본에 합쳐 한 번만 돌린다(2026-10-06 사용자 승인). qa(개발 서버+브라우저 ~600MB)와 테스트(~400MB)를 동시에 돌리지 않는다.
 4. 계속 모자라면 사용자에게 제안: 쉬는 세션 닫기(인수인계 저장 후), Docker 끄기(→ backend는 컴파일만, 테스트와 스냅샷은 PR CI), VS Code 탭·Java 확장 정리.
 5. erp-commit 검증이 끝났는지 알고 싶으면 `SendMessage(to: "erp-commit", notify_when_idle: true)`로 구독한다. 폴링하지 않는다.
 

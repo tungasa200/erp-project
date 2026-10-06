@@ -36,7 +36,12 @@ switch ($Cmd) {
   'start' {
     $s = Get-Bg $Role
     if ($s -and (Test-Running $s)) { "$Role 은 이미 실행 중입니다($($s.id))."; break }
-    if (-not $s) { Start-New $Role; break }
+    if (-not $s) {
+      Start-New $Role
+      # 첫 입력은 인수인계 불러오기라 지시를 함께 넘길 수 없다
+      if ($Prompt) { "지시는 넘기지 않았습니다. 세션이 ListAgents에 보이면 SendMessage로 보내세요." }
+      break
+    }
     if (-not $Prompt) { $Prompt = '[project-pm] 세션을 다시 띄웠습니다. CLAUDE.md·docs/진행현황.md에서 바뀐 점을 확인하고 pm 지시를 기다리세요.' }
     # 지시를 넘기면 대화 복사본이 새 ID로 뜬다: 이름을 다시 붙이고 멈춘 원본은 지운다(대화는 복사본에 그대로 있음)
     # PowerShell 5.1은 큰따옴표를 실행 파일 인자로 제대로 넘기지 못하므로 작은따옴표로 바꾼다
