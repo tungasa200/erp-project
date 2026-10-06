@@ -8,9 +8,11 @@
 const fs = require('fs');
 const path = require('path');
 const store = require('../approvalStore');
+const { loadOpsConfig } = require('../opsConfig');
 
-const APPROVAL_TTL = 60 * 60 * 1000; // 결정 후 60분 안에만 쓸 수 있다
-const COMMIT_SESSION = 'WY-commit';
+// 기본값. 훅 입력의 cwd에서 프로젝트 설정(.claude/wy-ops.json)을 찾으면 commitRole·approvals.ttlMinutes를 쓴다
+const DEFAULT_TTL_MINUTES = 60; // 결정 후 이 시간 안에만 쓸 수 있다
+const DEFAULT_COMMIT_SESSION = 'WY-commit';
 const GIT_OPTS_WITH_VALUE = new Set(['-C', '-c', '--git-dir', '--work-tree', '--namespace', '--exec-path']);
 const PROTECTED = ['wy-approvals/config.json', 'wy-approvals/decisions', 'wy-approvals/used', '.wy-tools/'];
 // 파일을 쓰거나 지울 수 있는 프로그램(PowerShell 별칭 포함). 인터프리터는 무엇이든 쓸 수 있어 함께 막는다
@@ -119,7 +121,7 @@ function writesApprovalFiles(command) {
 }
 
 // 같은 종류·같은 명령으로 승인된, 아직 쓰지 않은 결정을 찾는다(taken에 든 것은 건너뛴다)
-function findApproval(kind, segment, taken, root) {
+function findApproval(kind, segment, taken, root, ttlMs) {
   const p = store.paths(root);
   const want = store.normalize(segment);
   let files = [];
@@ -137,7 +139,7 @@ function findApproval(kind, segment, taken, root) {
     } catch {
       continue;
     }
-    const fresh = Date.now() - Date.parse(d.decidedAt) < APPROVAL_TTL;
+    const fresh = Date.now() - Date.parse(d.decidedAt) < ttlMs;
     if (d.decision === 'approved' && d.kind === kind && store.normalize(d.command) === want && fresh) return id;
   }
   return null;
@@ -159,6 +161,10 @@ function evaluate(input, root = store.ROOT) {
   }
   const guarded = segments(command).map((s) => ({ segment: s, kind: classify(s) })).filter((g) => g.kind);
   if (!guarded.length) return null;
+  const ops = loadOpsConfig(input.cwd || process.cwd());
+  const COMMIT_SESSION = (ops && typeof ops.commitRole === 'string' && ops.commitRole) || DEFAULT_COMMIT_SESSION;
+  const ttlMinutes = Number(ops && ops.approvals && ops.approvals.ttlMinutes);
+  const ttlMs = (ttlMinutes > 0 ? ttlMinutes : DEFAULT_TTL_MINUTES) * 60 * 1000;
   if (input.agent_type !== COMMIT_SESSION) {
     const who = input.agent_type || 'agent_type 없음';
     return { decision: 'deny', reason: `'${store.KINDS[guarded[0].kind]}' 명령은 ${COMMIT_SESSION}(--agent ${COMMIT_SESSION}로 띄운 세션)만 실행합니다(이 세션: ${who}). 커밋 요청은 ${COMMIT_SESSION}에 보내세요.` };
@@ -166,7 +172,7 @@ function evaluate(input, root = store.ROOT) {
   // 조각마다 승인을 먼저 다 찾고, 모두 있을 때만 한꺼번에 사용 표시를 남긴다(일부만 쓰고 막히면 승인이 헛되이 사라진다)
   const taken = new Set();
   for (const g of guarded) {
-    const id = findApproval(g.kind, g.segment, taken, root);
+    const id = findApproval(g.kind, g.segment, taken, root, ttlMs);
     if (!id) {
       return {
         decision: 'deny',

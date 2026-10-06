@@ -1,6 +1,6 @@
 # 운영 도구 패키지화 계획 (확정)
 
-작성: WY-backend2, 2026-10-07. 상태: **확정**(2026-10-07 사용자 결정, 7장). 패키지 이름: `wy-ops`. 진행: 1단계 완료(`.claude/wy-ops.json` 추가, 아직 읽는 코드 없음), 2단계부터는 WY-pm 지시 후.
+작성: WY-backend2, 2026-10-07. 상태: **확정**(2026-10-07 사용자 결정, 7장). 패키지 이름: `wy-ops`. 진행: 1단계 완료(f8b6cfa). 2단계 완료(커밋 대기): session.ps1·대시보드·가드 훅이 설정을 읽고, 없으면 지금 값으로 대체. 3단계부터는 WY-pm 지시 후.
 
 목표: erp-project에 묶인 운영 도구(세션 현황 대시보드·WY 승인 센터, session.ps1·pm-ops 스킬, 역할 파일, 승인 가드 훅과 승인 규약)를 다른 프로젝트에도 설치해 쓰는 패키지 하나로 만든다. 이 프로젝트는 옮기는 동안 계속 지금처럼 돌아가야 한다.
 
@@ -48,7 +48,7 @@
     { "name": "WY-pm", "summary": "개발 총괄", "agent": false }
   ],
   "rotation": { "transcriptMB": 5 },
-  "memory": { "minFreeMB": 1024, "compileMinFreeMB": 900 },
+  "memory": { "warnFreeMB": 1024, "blockFreeMB": 500 },
   "approvals": { "namespace": "erp-project", "ttlMinutes": 60 },
   "docs": { "progress": "docs/진행현황.md", "decisions": "docs/결정기록.md" },
   "handoff": { "oldNames": { "WY-commit": "erp-commit" } }
@@ -110,7 +110,7 @@ PowerShell 5.1 함정(지금 session.ps1에서 겪은 것 포함):
 | 1 | `.claude/wy-ops.json`을 지금 값 그대로 추가(아직 아무도 안 읽음) | JSON 검사, 동작 변화 없음 | pm 파일(작성은 backend2 초안) |
 | 2 | 확장·훅·session.ps1이 설정을 읽게 바꿈. **설정이 없으면 지금 하드코딩 값으로 대체** | 가짜 vscode·훅 테스트, `session.ps1 list/health` 출력이 바꾸기 전과 같음, 승인 카드 1회 왕복 | backend2(tools), pm(session.ps1) |
 | 3 | 승인 폴더를 `~/.claude/wy-approvals/erp-project/`로 이전. 확장은 옛 루트와 새 폴더를 한동안 둘 다 읽고, 대기열이 빈 시점에 훅·규약을 새 폴더로 전환 | 테스트 요청 카드 왕복, 옛 폴더에 새 파일이 생기지 않음 | backend2, WY-commit 규약 갱신 |
-| 4 | 역할 파일 생성기 도입: 공통 블록 + `.claude/ops/roles/*.md` → `agents/*.md` | 생성 결과가 지금 10개 파일과 **글자 단위로 같음**(다르면 의도한 차이만) | pm 소유 파일 |
+| 4 | 역할 파일 생성기 도입: 공통 블록 + `.claude/ops/roles/*.md` → `agents/*.md`. 공통 블록의 메모리 줄은 2026-10-07 규칙(500MB 미만이면 시작 금지, 1GB는 안전 여유, 병렬·효율 우선 — CLAUDE.md 40행)을 기준으로 하고 값은 `memory.blockFreeMB`·`warnFreeMB`에서 채운다 | 생성 결과가 그때의 10개 파일과 **글자 단위로 같음**(다르면 의도한 차이만) | pm 소유 파일 |
 | 5 | pm-ops 스킬을 코어(공통)와 `project.md`(이 프로젝트 부록: docs 경로, D-54, 비밀값 위치, impeccable 지시)로 분리 | pm이 새 세션에서 스킬을 불러 같은 절차를 따르는지 확인 | pm 소유 |
 | 6 | 패키지 저장소로 추출 + `install.ps1`. 이 프로젝트에 `migrate`(차이 확인) → `-Apply` | diff 없음, `doctor` 통과, 훅 경로가 `~/.wy-tools/current/…`로 바뀐 뒤 승인 카드 왕복 | backend2 |
 | 7 | 시험용 새 프로젝트(예: `C:\projects\ops-sandbox`)에 `init` → 세션 하나 띄우기, choice 결정 1회, 승인 1회 | 끝까지 동작, 두 프로젝트의 승인 대기열이 섞이지 않음 | backend2 + 사용자 확인 |
@@ -176,6 +176,8 @@ PowerShell 5.1 함정(지금 session.ps1에서 겪은 것 포함):
 - `.claude/agents`, `.claude/skills/pm-ops`, `session.ps1`, `CLAUDE.md`는 지금 WY-pm 영역이다. 4·5단계와 session.ps1 변경을 누가 할지 정해야 한다. 추천: 코드(session.ps1 모듈화·생성기)는 WY-backend2가 맡고, 내용(역할 본문·스킬 문구·CLAUDE.md)은 WY-pm이 검토·승인한다.
 
 ## 8. 위험과 대응
+
+- **설정 파일로 가드 우회**(2단계에서 생김): 가드 훅이 `commitRole`을 저장소의 `.claude/wy-ops.json`에서 읽으므로, 세션이 이 파일을 고치면 자기 이름을 커밋 세션으로 바꿀 수 있다. `.claude/settings.local.json`(훅 설정)을 고쳐 훅을 빼는 것과 같은 종류의 구멍이다. 대응: settings.local.json의 deny에 `Edit(/.claude/wy-ops.json)`, `Edit(/.claude/wy-ops.local.json)`, `Edit(/.claude/settings.local.json)`을 더한다(사용자 설정 변경). 대가: 이 파일들은 사람이 직접 고쳐야 한다.
 
 - **훅이 조용히 통과**: 경로가 틀리거나 node가 없으면 Claude Code가 훅을 건너뛴다 → `doctor` 필수 점검, 경로 전환은 파일 확인 뒤.
 - **승인 폴더 전환 중 대기 요청 유실**: 대기열이 빈 시점에 전환하고, 확장은 전환 기간 동안 옛 폴더도 읽는다.

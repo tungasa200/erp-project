@@ -10,7 +10,7 @@ const { execFileSync } = require('child_process');
 
 const SRC = __dirname;
 const TARGET = process.env.WY_TOOLS_DIR ? path.join(process.env.WY_TOOLS_DIR, 'vscode-dashboard') : path.join(os.homedir(), '.wy-tools', 'vscode-dashboard');
-const FILES = ['package.json', 'extension.js', 'approvalCenter.js', 'approvalStore.js', 'README.md', 'media', 'hooks'];
+const FILES = ['package.json', 'extension.js', 'approvalCenter.js', 'approvalStore.js', 'opsConfig.js', 'README.md', 'media', 'hooks'];
 
 function git(args) {
   return execFileSync('git', args, { cwd: SRC, encoding: 'utf8' }).trim();

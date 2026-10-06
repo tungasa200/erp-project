@@ -6,6 +6,7 @@ const path = require('path');
 const crypto = require('crypto');
 const { execFile } = require('child_process');
 const { ApprovalCenter } = require('./approvalCenter');
+const { loadOpsConfig } = require('./opsConfig');
 
 const VIEW_ID = 'erpSessions.panel';
 const INTERVAL = { memory: 5000, processes: 15000, sessions: 10000 };
@@ -70,10 +71,12 @@ async function readSessions() {
   }));
 }
 
-// CLAUDE.md 세션 역할 표의 이름 순서. 표를 못 찾으면 빈 목록
+// 역할 순서: 프로젝트 설정(.claude/wy-ops.json)의 roles, 없으면 CLAUDE.md 세션 역할 표, 둘 다 없으면 빈 목록
 function readRoles() {
   const folder = vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders[0];
   if (!folder) return [];
+  const ops = loadOpsConfig(folder.uri.fsPath);
+  if (ops && Array.isArray(ops.roles) && ops.roles.length) return ops.roles.map((r) => r && r.name).filter(Boolean);
   try {
     const text = fs.readFileSync(path.join(folder.uri.fsPath, 'CLAUDE.md'), 'utf8');
     const section = text.split(/^## /m).find((s) => s.startsWith('세션 역할')) || '';
