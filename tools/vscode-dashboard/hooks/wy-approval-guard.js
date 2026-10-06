@@ -216,6 +216,23 @@ function riskyTarget(arg, cwd) {
   return false;
 }
 
+// sed가 고치는 파일 인자. 스크립트(-e 값, 없으면 첫 인자)는 대상이 아니다 — 정규식의 $ [ 를 알 수 없는 대상으로 보던 오탐
+function sedFiles(args) {
+  const files = [];
+  let script = false;
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i];
+    if (a === '-e' || a === '-f' || a === '--expression' || a === '--file') {
+      script = true;
+      i++;
+    } else if (/^--(?:expression|file)=/.test(a)) script = true;
+    else if (/^-/.test(a)) continue;
+    else if (!script) script = true;
+    else files.push(a);
+  }
+  return files;
+}
+
 // 명령 안에 보호 폴더(또는 알 수 없는 곳)로 들어가는 이동이 있는지
 function movesIntoProtected(command, cwd) {
   return segments(command).some((seg) => {
@@ -239,8 +256,10 @@ function writesApprovalFiles(command, cwd) {
   // 보호 폴더로 cd 등을 했으면 그 뒤의 모든 쓰기(상대 경로)를 보호 경로 쓰기로 본다
   const moved = movesIntoProtected(command, cwd);
   // 와일드카드 인자를 펼쳐 보호 경로에 닿으면 보호 경로가 언급된 것으로 본다(인터프리터에 인자로 넘기는 우회 포함)
-  const mentioned = mentionsProtected(command) || (GLOB.test(command) && tokens(command).some((a) => GLOB.test(a) && riskyTarget(a, cwd)));
-  if (!moved && !mentioned && !GLOB.test(command)) return false;
+  // 셸 특수 변수($? $# $$ $! $@ $* $0~9)는 경로가 아니다. ?·*를 와일드카드로, $를 알 수 없는 대상으로 보던 오탐(echo "exit=$?", WY-pm 보고)
+  const scan = command.replace(/\$[?#$!@*0-9]/g, '');
+  const mentioned = mentionsProtected(command) || (GLOB.test(scan) && tokens(scan).some((a) => GLOB.test(a) && riskyTarget(a, cwd)));
+  if (!moved && !mentioned && !GLOB.test(scan)) return false;
   // 리다이렉트(> >> 2> *>). =>(화살표 함수)·->·>=는 리다이렉트가 아니다
   for (const m of command.matchAll(/(?<![=\-<])(?:\d|\*)?>{1,2}(?!=)\s*("[^"]*"|'[^']*'|[^\s|;&<>)]+)/g)) {
     const target = m[1].replace(/^["']|["']$/g, '');
@@ -262,7 +281,7 @@ function writesApprovalFiles(command, cwd) {
     // 쓰기 프로그램은 인자가 보호 경로로 갈 수 있을 때만 막는다(직접 언급·알 수 없는 값·와일드카드 펼친 결과)
     const risky = moved || mentionsProtected(seg) || rest.some((a) => riskyTarget(a, cwd));
     if (WRITERS.has(prog) && risky) return true;
-    if (prog === 'sed' && risky && rest.some((a) => a.startsWith('-i') || a === '--in-place')) return true;
+    if (prog === 'sed' && rest.some((a) => a.startsWith('-i') || a === '--in-place') && (moved || mentionsProtected(seg) || sedFiles(rest).some((a) => riskyTarget(a, cwd)))) return true;
     if (prog === 'find' && risky && rest.some((a) => ['-delete', '-exec', '-execdir', '-ok'].includes(a))) return true;
     if (INTERPRETERS.has(prog) && sensitive) {
       const code = rest.join(' ');

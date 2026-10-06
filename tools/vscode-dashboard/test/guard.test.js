@@ -77,6 +77,11 @@ const deny = [
   `node -e "console.log(1)" h/.cl*/wy-a*/erp-project/decisions/a.json`,
   // 보호 파일이 나오는 명령에서 읽기 API가 없는 인터프리터 코드는 판단할 수 없어 막는다
   'cat .claude/settings.local.json | node -e "process.stdin.pipe(process.stdout)" > out.json',
+  // sed: 스크립트가 아닌 파일 인자로 판단
+  `sed -i 's/a/b/' .clau?e/wy-ops.json`,
+  `F=.claude/wy-ops.json; sed -i -e 's/x$/y/' $F`,
+  // 특수 변수를 빼도 진짜 와일드카드 우회는 그대로 막는다
+  `node -e "require('fs').writeFileSync(process.argv[1],'x')" h/.cl*/wy-a*/erp-project/decisions/a.json; echo $?`,
 ];
 const allow = [
   // 읽기
@@ -124,6 +129,14 @@ const allow = [
   `node -e "console.log(require('fs').readFileSync(process.argv[1],'utf8'))" .cl*/wy-ops.json`,
   'ls h/.cl*/wy-a*/erp-project/decisions',
   'cd src/* && echo x > out.txt',
+  // sed 스크립트의 정규식 $ [ 는 대상이 아니다(WY-backend2 작업 중 오탐)
+  `sed -i 's/^    this.roleWarnings = \\[\\];$/x/' approvalCenter.js`,
+  `sed -i -e 's/[0-9]*$//' -e 's/^a/b/' src/a.log`,
+  // Git Bash 드라이브 경로로 이동한 뒤 실행(WY-pm 보고)
+  'cd /c/projects/erp-project && node tools/wy-ops/gen-skill.js',
+  // 셸 특수 변수 $? 등은 와일드카드·알 수 없는 대상이 아니다(WY-pm 보고 원문)
+  'cd /c/projects/erp-project && node tools/wy-ops/gen-skill.js && node tools/wy-ops/gen-skill.js --check; echo "exit=$?"',
+  'node build.js; echo "$# $* $@ $1"',
   // 보호 폴더로 이동해 읽기만 하는 것은 통과
   'cd ~/.claude/wy-approvals/erp-project/decisions && cat x.json',
   'cd ~/.claude/wy-approvals/erp-project && ls decisions',
