@@ -8,7 +8,7 @@ import { toastForError } from '../api/errorToast'
 import { weekStartNumber } from '../quickInput/dates'
 import { parseQuickInput } from '../quickInput/parse'
 import { useCreateSchedule } from './api'
-import { restoreFocus } from './focus'
+import { markFocus, restoreFocus } from './focus'
 import { MINUTES_PER_DAY, WEEKDAY_LABELS, formatMinutes, fromZoned, todayIn, weekdayIndex } from './time'
 import styles from './calendar.module.css'
 
@@ -56,7 +56,7 @@ export function QuickCreate({ target, timeZone, anchor, onClose, onDetails }: Pr
 
   // 닫으면 연 자리로 포커스를 돌린다(빈 칸을 눌러 열었으면 캘린더 제목)
   useEffect(() => {
-    const previous = document.activeElement as HTMLElement | null
+    const previous = markFocus()
     return () => restoreFocus(previous)
   }, [])
 

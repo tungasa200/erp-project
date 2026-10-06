@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, type PointerEvent } from 'react'
 import { occurrenceKey, type Occurrence } from './api'
 import { colorVars, type BlockColor } from './colors'
-import { restoreFocus } from './focus'
+import { markFocus, occurrenceFocusId, restoreFocus } from './focus'
 import { holidayName } from './holidays'
 import { occurrencesByDate } from './layout'
 import { RepeatIcon } from './TimeGrid'
@@ -46,7 +46,7 @@ export function MonthView({ days, month, occurrences, timeZone, today, colorOf, 
     const opener = popover.opener
     return () => {
       window.removeEventListener('keydown', onKey)
-      restoreFocus(opener)
+      restoreFocus(markFocus(opener))
     }
   }, [popover])
 
@@ -132,6 +132,7 @@ export function MonthView({ days, month, occurrences, timeZone, today, colorOf, 
                     key={occurrenceKey(o)}
                     type="button"
                     data-chip={`${date}#${occurrenceKey(o)}`}
+                    data-focus-id={occurrenceFocusId(o)}
                     className={styles.chip}
                     style={colorVars(colorOf(o))}
                     onClick={(e) => e.detail === 0 && props.onOpen(o)}

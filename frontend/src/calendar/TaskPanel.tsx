@@ -65,7 +65,13 @@ export function TaskPanel({ tasks, projects, today, loading, hasMore, onLoadMore
               {dueLabel(t.dueDate, today)}
             </span>
           )}
-          <button type="button" className={panel.place} onClick={() => onPlace(t)} aria-label={`${t.title} 일정 잡기`}>
+          <button
+            type="button"
+            className={panel.place}
+            onClick={() => onPlace(t)}
+            aria-label={`${t.title} 일정 잡기`}
+            data-focus-item
+          >
             일정 잡기
           </button>
         </span>
@@ -74,7 +80,7 @@ export function TaskPanel({ tasks, projects, today, loading, hasMore, onLoadMore
   }
 
   return (
-    <aside className={styles.taskPanel} aria-labelledby="task-panel-title">
+    <aside className={styles.taskPanel} aria-labelledby="task-panel-title" data-focus-list>
       <div className={styles.taskPanelHead}>
         <h2 id="task-panel-title">할 일 상자</h2>
         <kbd className={styles.kbd} aria-hidden="true">

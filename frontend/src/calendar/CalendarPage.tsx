@@ -8,6 +8,7 @@ import { useSingleKeyShortcuts } from '../shortcuts/useShortcuts'
 import { useProjects } from '../projects/api'
 import { useOccurrences, type Occurrence } from './api'
 import { projectIdOf, useProjectColors } from './colors'
+import { useFocusRescue } from './focus'
 import { ListView } from './ListView'
 import { MiniCalendar } from './MiniCalendar'
 import { MonthView } from './MonthView'
@@ -152,6 +153,8 @@ function Calendar({ view, date, today, timeZone, weekStart }: CalendarProps) {
   const [hiddenProjects, setHiddenProjects] = useState(loadHiddenProjects)
   const [listWindows, setListWindows] = useState({ past: 0, future: 2 })
   const mainRef = useRef<HTMLElement>(null)
+  const pageRef = useRef<HTMLDivElement>(null)
+  useFocusRescue(pageRef)
   // 업무 패널(SCR-CAL-09): 데스크톱은 기본 열림, 태블릿·모바일은 접힘(2.4). P로 열고 닫는다
   const [panelOpen, setPanelOpen] = useState(() => window.matchMedia?.(DESKTOP_QUERY).matches ?? true)
   // 모바일 주 보기는 훑어보기 전용(D-77)
@@ -275,7 +278,7 @@ function Calendar({ view, date, today, timeZone, weekStart }: CalendarProps) {
   const activeProjects = (projects.data ?? []).filter((p) => !p.archived)
 
   return (
-    <div className={styles.page}>
+    <div ref={pageRef} className={styles.page}>
       <aside className={styles.side} aria-label="캘린더 사이드바">
         <button type="button" className={styles.createButton} onClick={() => openCreate()} title="단축키 C">
           <svg

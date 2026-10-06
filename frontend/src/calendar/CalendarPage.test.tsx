@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ME, json, problem, renderApp } from '../test/renderApp'
@@ -135,9 +135,30 @@ describe('캘린더', () => {
     await user.click(within(scope).getByRole('button', { name: '확인' }))
 
     await waitFor(() => expect(screen.getAllByRole('button', { name: /^팀 스탠드업, / })).toHaveLength(2))
+    // 대화상자가 돌려준 블록이 사라지면 포커스는 body가 아니라 캘린더 제목으로(P1-07-18)
+    await waitFor(() => expect(document.activeElement).toHaveAttribute('data-focus-fallback'))
     expect(screen.getByText('일정을 삭제했어요')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: '되돌리기' }))
     await waitFor(() => expect(screen.getAllByRole('button', { name: /^팀 스탠드업, / })).toHaveLength(3))
+  })
+
+  it('상세 모달에서 시간을 바꿔 저장하면 포커스는 다시 그려진 같은 일정 블록으로', async () => {
+    // 반복 없는 일정: 10-08(목) 서울 14:00–15:00
+    const review = { ...standup, id: 'schedule-review', title: '주간 리뷰', recurrence: null }
+    Object.assign(review, { startAt: '2026-10-08T05:00:00.000Z', endAt: '2026-10-08T06:00:00.000Z' })
+    localStorage.setItem('worklog.mock.schedules', JSON.stringify([standup, review]))
+    stubServer()
+    const user = userEvent.setup()
+    renderApp('/calendar/week/2026-10-07', routes)
+    ;(await screen.findByRole('button', { name: /^주간 리뷰, 14:00–15:00/ })).focus()
+    await user.keyboard('{Enter}')
+    const dialog = await screen.findByRole('dialog', { name: '일정 편집' })
+    fireEvent.change(within(dialog).getByLabelText('시작'), { target: { value: '16:00' } })
+    fireEvent.change(within(dialog).getByLabelText('종료'), { target: { value: '17:00' } })
+    await user.click(within(dialog).getByRole('button', { name: '저장' }))
+
+    const moved = await screen.findByRole('button', { name: /^주간 리뷰, 16:00–17:00/ })
+    await waitFor(() => expect(moved).toHaveFocus())
   })
 
   it('업무 패널: 마감순 카드, 날짜 없는 업무는 접고, "일정 잡기"로 업무에 연결된 일정을 만든다', async () => {
@@ -156,6 +177,8 @@ describe('캘린더', () => {
     await user.click(within(dialog).getByRole('button', { name: '저장' }))
 
     await waitFor(() => expect(within(panel).queryByText('9월 매출 보고서')).not.toBeInTheDocument())
+    // 배치한 카드가 사라지면 포커스는 같은 자리의 이웃 카드로
+    await waitFor(() => expect(document.activeElement).toHaveAccessibleName(/ 일정 잡기$/))
     const post = fetchMock.mock.calls.find(([, init]) => init?.method === 'POST')
     expect(JSON.parse(String(post![1]!.body))).toMatchObject({ title: '9월 매출 보고서', taskId: 'task-report' })
   })

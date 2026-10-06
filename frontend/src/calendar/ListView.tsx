@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { occurrenceKey, type Occurrence } from './api'
 import { colorVars, type BlockColor } from './colors'
+import { occurrenceFocusId } from './focus'
 import { holidayName } from './holidays'
 import { occurrencesByDate } from './layout'
 import { RepeatIcon } from './TimeGrid'
@@ -70,6 +71,7 @@ export function ListView({ days, occurrences, timeZone, today, colorOf, projectN
                   type="button"
                   className={styles.listItem}
                   style={colorVars(colorOf(o))}
+                  data-focus-id={occurrenceFocusId(o)}
                   onClick={() => onOpen(o)}
                 >
                   <span className={styles.listTime}>{timeText(o, date, timeZone)}</span>
