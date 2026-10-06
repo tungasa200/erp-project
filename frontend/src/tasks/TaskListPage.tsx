@@ -415,6 +415,11 @@ function FilterMenu({
   const ref = useRef<HTMLDivElement>(null)
   const id = useId()
 
+  // 열면 첫 선택지로 포커스를 옮긴다(Esc로 닫으면 필터 버튼으로 돌아온다)
+  useEffect(() => {
+    if (open) ref.current?.querySelector<HTMLInputElement>('fieldset input')?.focus()
+  }, [open])
+
   useEffect(() => {
     if (!open) return
     const onPointerDown = (e: PointerEvent) => {

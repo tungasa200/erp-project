@@ -1,6 +1,9 @@
 /* 색·모양 토큰 (화면정의서 2.2·2.3). 사용자 설정값은 --color-accent·--color-ground 2개뿐이고
    applyTheme()이 바꾼다. 파생 색은 color-mix로 계산한다. */
 :root {
+  /* 누르는 영역 최소 크기 (화면정의서 2장: 터치 영역 44px 이상) */
+  --size-touch: 44px;
+
   /* 사용자 설정 (기본값) */
   --color-accent: #4b3fd6;
   --color-on-accent: #ffffff;

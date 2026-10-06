@@ -258,7 +258,8 @@
 .checkbox::after {
   content: '';
   position: absolute;
-  inset: -12px;
+  /* 테두리(2px) 안쪽 기준이라 -13px이어야 누르는 영역이 44px (P1-X-10) */
+  inset: -13px;
 }
 
 .rowTitle {
@@ -655,6 +656,20 @@
 
   .listCard {
     padding: 6px 12px 12px;
+  }
+
+  /* 모바일 누르는 영역 44px (P1-X-10). 보이는 모양은 그대로 두고 높이만 맞춘다 */
+  .segmentButton,
+  .select,
+  .tagAdd,
+  .range,
+  .smallButton {
+    min-height: var(--size-touch);
+  }
+
+  .rowTitle {
+    padding: 12px 0;
+    line-height: 20px;
   }
 }
 

@@ -1,7 +1,7 @@
 // SCR-COM-01 앱 셸 (P0 골격). 알림(SCR-COM-05)·타이머(SCR-COM-06)·프로젝트 목록·빠른 기록은 이후 단계에서 채운다.
 // 명령 팔레트(Ctrl+K)와 빠른 입력 단축키(N)는 앱 화면 어디서든 동작한다 (P1-10).
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { Link, NavLink, Outlet, useNavigate } from 'react-router'
+import { useCallback, useEffect, useId, useRef, useState } from 'react'
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router'
 import { useAuth } from '../auth/useAuth'
 import { CommandPalette } from '../palette/CommandPalette'
 import { useProjects } from '../projects/api'
@@ -95,6 +95,8 @@ export function AppShell() {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [paletteOpen, openPalette, closePalette])
 
+  const { pathname } = useLocation()
+
   return (
     <div className={styles.shell}>
       <nav className={styles.sidebar} aria-label="주 메뉴">
@@ -136,7 +138,7 @@ export function AppShell() {
         </fieldset>
       </div>
 
-      {/* 모바일 하단 탭. 빠른 기록(SCR-MOB-01)과 더보기 메뉴는 P1에서 연결한다. */}
+      {/* 모바일 하단 탭. 빠른 기록 바텀시트(SCR-MOB-01)는 P4라 P1에서는 + 가 홈 빠른 입력칸으로 보낸다(P1-X-01) */}
       <nav className={styles.tabs} aria-label="하단 탭">
         <NavLink to="/" end className={({ isActive }) => (isActive ? `${styles.tab} ${styles.tabActive}` : styles.tab)}>
           홈
@@ -147,18 +149,92 @@ export function AppShell() {
         >
           캘린더
         </NavLink>
-        <button type="button" className={styles.quick} aria-label="빠른 기록">
+        <button
+          type="button"
+          className={styles.quick}
+          aria-label="빠른 기록"
+          onClick={() => {
+            const input = document.querySelector<HTMLInputElement>('[data-quick-input]')
+            if (pathname === '/' && input) input.focus()
+            else navigate('/', { state: { focusQuick: true } })
+          }}
+        >
           <Icon d="M12 5v14M5 12h14" size={24} />
         </button>
         <NavLink to="/logs" className={({ isActive }) => (isActive ? `${styles.tab} ${styles.tabActive}` : styles.tab)}>
           일지
         </NavLink>
-        <button type="button" className={styles.tab}>
-          더보기
-        </button>
+        <MoreMenu />
       </nav>
 
       {paletteOpen && <CommandPalette onClose={closePalette} onQuickAdd={quickAdd} />}
+    </div>
+  )
+}
+
+// SCR-COM-01 ⑤ 하단 탭 '더보기' (P1-X-01). P1에 있는 화면(업무, 설정)만 담는다.
+// 열면 첫 항목으로, Esc·바깥 누르기·항목 선택으로 닫히면 더보기 버튼으로 포커스를 돌려준다.
+const MORE = [
+  { to: '/tasks', label: '업무' },
+  { to: '/settings', label: '설정' },
+]
+
+function MoreMenu() {
+  const [open, setOpen] = useState(false)
+  const id = useId()
+  const wrap = useRef<HTMLDivElement>(null)
+  const button = useRef<HTMLButtonElement>(null)
+  const { pathname } = useLocation()
+  const here = MORE.some((m) => pathname.startsWith(m.to))
+
+  const close = (refocus = true) => {
+    setOpen(false)
+    if (refocus) button.current?.focus()
+  }
+
+  useEffect(() => {
+    if (!open) return
+    wrap.current?.querySelector<HTMLElement>('a')?.focus()
+    // 바깥을 누르면 닫는다(누른 곳에 포커스를 둔다)
+    const onPointerDown = (e: PointerEvent) => {
+      if (!wrap.current?.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    return () => document.removeEventListener('pointerdown', onPointerDown)
+  }, [open])
+
+  return (
+    <div
+      ref={wrap}
+      className={styles.more}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape' && open) {
+          e.stopPropagation()
+          close()
+        }
+      }}
+    >
+      <button
+        ref={button}
+        type="button"
+        className={here ? `${styles.tab} ${styles.tabActive}` : styles.tab}
+        aria-expanded={open}
+        aria-controls={id}
+        onClick={() => setOpen((o) => !o)}
+      >
+        더보기
+      </button>
+      {open && (
+        <ul id={id} className={styles.moreMenu} aria-label="더보기 메뉴">
+          {MORE.map((m) => (
+            <li key={m.to}>
+              <Link to={m.to} className={styles.moreItem} onClick={() => close()}>
+                {m.label}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   )
 }

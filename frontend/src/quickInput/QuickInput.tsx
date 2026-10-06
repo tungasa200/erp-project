@@ -134,7 +134,15 @@ export function QuickInput({ value, onChange, onSubmit, label = '빠른 입력' 
       <label htmlFor={id} className={styles.srOnly}>
         {label}
       </label>
-      <div className={styles.field}>
+      <div
+        className={styles.field}
+        // 알약의 빈 곳(여백·N 안내)을 눌러도 입력칸으로 포커스. 버튼·입력칸을 누른 것은 그대로 둔다
+        onMouseDown={(e) => {
+          if ((e.target as Element).closest('button, input')) return
+          e.preventDefault()
+          inputRef.current?.focus()
+        }}
+      >
         <input
           ref={inputRef}
           id={id}

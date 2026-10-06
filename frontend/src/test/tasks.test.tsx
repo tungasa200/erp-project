@@ -1,6 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { Occurrence } from '../calendar/api'
 import type { Task } from '../tasks/api'
 import { json, ME, problem, renderApp, stubFetch } from './renderApp'
 
@@ -53,7 +54,10 @@ const task = (id: string, title: string, extra: Partial<Task> = {}): Task => ({
   ...extra,
 })
 
-function server(initial: Task[], options: { conflictOn?: string; rejectWith?: string } = {}) {
+function server(
+  initial: Task[],
+  options: { conflictOn?: string; rejectWith?: string; occurrences?: Occurrence[] } = {},
+) {
   let tasks = initial.map((t) => ({ ...t }))
   const calls: { method: string; url: string; body?: Record<string, unknown> }[] = []
   const handlers: Parameters<typeof stubFetch>[0] = {
@@ -61,6 +65,7 @@ function server(initial: Task[], options: { conflictOn?: string; rejectWith?: st
     'GET /api/worklog/projects': () => json(200, { items: PROJECTS }),
     'GET /api/worklog/tags': () => json(200, { items: TAGS }),
     'GET /api/worklog/tasks': () => json(200, { items: [], nextCursor: null }),
+    'GET /api/worklog/schedules': () => json(200, { items: options.occurrences ?? [] }),
   }
   const fetchMock = stubFetch(handlers)
   // 업무 경로는 동적이라 fetch를 한 번 더 감싼다
@@ -241,6 +246,17 @@ describe('SCR-TASK-01 업무 목록', () => {
     await userEvent.click(screen.getByRole('button', { name: '완료 기간 조건 지우기: 이번 주부터' }))
     expect(router.state.location.search).toBe('?status=DONE')
     expect(await screen.findByRole('link', { name: '지난주에 끝낸 일' })).toBeInTheDocument()
+  })
+
+  it('필터 메뉴를 열면 첫 선택지로 포커스가 가고, Esc로 닫으면 필터 버튼으로 돌아온다', async () => {
+    server(SAMPLE)
+    renderApp('/tasks')
+    // 묶기의 '상태' 버튼과 겹치지 않게 필터 버튼(상태: …)으로 찾는다
+    const button = await screen.findByRole('button', { name: /^상태:/ })
+    await userEvent.click(button)
+    expect(screen.getByRole('checkbox', { name: '할 일' })).toHaveFocus()
+    await userEvent.keyboard('{Escape}')
+    expect(button).toHaveFocus()
   })
 
   it('상태를 모두 끄면 빈 목록 대신 상태를 고르라고 알리고, 기본 상태로 되돌린다', async () => {

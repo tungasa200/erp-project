@@ -71,6 +71,13 @@ describe('SCR-HOME-01 첫 화면 (UX-04)', () => {
 })
 
 describe('SCR-COM-02 빠른 입력창', () => {
+  it('알약의 빈 곳을 눌러도 입력칸에 포커스가 간다 (P1-X-10)', async () => {
+    const { input } = await openHome()
+    input.blur()
+    fireEvent.mouseDown(input.parentElement!)
+    expect(input).toHaveFocus()
+  })
+
   it('해석 결과를 실제 날짜 칩으로 미리 보여 준다', async () => {
     const { input } = await openHome()
     await userEvent.type(input, '14-16 견적서 작성 @영업 #결제 #견적 !높음 ~금')
