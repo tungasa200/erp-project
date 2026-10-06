@@ -1,9 +1,16 @@
 // 활동 탭 렌더링. 상태는 activityView.js가 postMessage({type:'state'})로 보낸다.
-// 보기: 묶음(세션 칩 줄 + 단계 사슬 카드, 기본) / 피드(시간순 메시지). 요약을 누르면 원문이 펼쳐진다.
+// 보기: 묶음(세션 칩 줄 + 단계 사슬 카드, 기본) / 피드(시간순 메시지) / 시간(넓은 화면의 세션별 레인). 요약을 누르면 원문이 펼쳐진다.
 (() => {
   const vscode = acquireVsCodeApi();
   const saved = vscode.getState() || {};
-  const ui = { mode: saved.mode === 'feed' ? 'feed' : 'threads', open: new Set(saved.open || []), openMsg: new Set() };
+  const ui = {
+    mode: ['feed', 'time'].includes(saved.mode) ? saved.mode : 'threads',
+    range: [1, 3, 12].includes(saved.range) ? saved.range : 1,
+    open: new Set(saved.open || []),
+    openMsg: new Set(),
+    timeSel: null, // 시간 보기에서 고른 메시지
+  };
+  const WIDE = 680; // 이보다 좁으면 시간 보기 대신 묶음(목업: 좁은 폭은 묶음만)
   let state = null;
 
   const $ = (id) => document.getElementById(id);
@@ -183,8 +190,9 @@
   // 주기 갱신으로 다시 그려도 키보드 초점이 같은 버튼에 남게 한다
   function focusSelector() {
     const el = document.activeElement;
+    if (el && el.dataset && el.dataset.tmsg) return `[data-tmsg="${CSS.escape(el.dataset.tmsg)}"]`;
     if (!el || el.tagName !== 'BUTTON') return null;
-    for (const k of ['mode', 'thread', 'card', 'session']) if (el.dataset[k] !== undefined) return `button[data-${k}="${CSS.escape(el.dataset[k])}"]`;
+    for (const k of ['mode', 'range', 'thread', 'card', 'session']) if (el.dataset[k] !== undefined) return `button[data-${k}="${CSS.escape(el.dataset[k])}"]`;
     const li = el.closest('.msg');
     return li ? `.msg[data-msg="${CSS.escape(li.dataset.msg)}"] > button` : null;
   }
@@ -196,8 +204,13 @@
     if (again && again !== document.activeElement) again.focus();
   }
 
+  const effectiveMode = () => (ui.mode === 'time' && document.documentElement.clientWidth < WIDE ? 'threads' : ui.mode);
+
   function paint() {
-    document.querySelectorAll('.seg-ctl button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.mode === ui.mode)));
+    const mode = effectiveMode();
+    document.querySelectorAll('button[data-mode]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.mode === mode)));
+    document.querySelectorAll('button[data-range]').forEach((b) => b.setAttribute('aria-pressed', String(Number(b.dataset.range) === ui.range)));
+    $('range').hidden = mode !== 'time';
     if (!state) return;
     if (state.error) {
       $('sum').textContent = '';
@@ -207,16 +220,116 @@
     }
     renderSum();
     renderStrip();
-    $('main').innerHTML = ui.mode === 'feed' ? renderFeed() : renderThreads();
+    $('main').innerHTML = mode === 'feed' ? renderFeed() : mode === 'time' ? renderTime() : renderThreads();
   }
 
-  const save = () => vscode.setState({ mode: ui.mode, open: [...ui.open] });
+  // ── 시간 보기: 세션마다 한 줄, 가로가 시간. 띠 = 일한 구간, 화살표 = 메시지, 점선 상자 = 진행 중인 묶음 ──
+  const LANE_H = 40;
+  const TOP = 34;
+  const X0 = 150;
+  const X1 = 930;
+  const TICK = { 1: 10, 3: 30, 12: 120 }; // 범위(시간)별 눈금 간격(분)
+
+  function renderTime() {
+    const now = state.now;
+    const t0 = now - ui.range * 3600000;
+    const x = (t) => X0 + ((Math.max(t0, Math.min(now, t)) - t0) / (now - t0)) * (X1 - X0);
+    const msgs = state.feed.map((id) => ({ id, ...state.messages[id] })).filter((m) => Date.parse(m.at) >= t0);
+    const lanesBy = new Map(state.lanes.map((l) => [l.name, { bands: l.bands.filter((b) => b[1] >= t0), from: l.from }]));
+
+    // 레인: 살아 있는 세션, 이 범위에서 일했거나 메시지를 주고받은 세션. 순서는 세션 칩과 같게
+    const want = new Set(msgs.flatMap((m) => [m.from, m.to]));
+    for (const [n, l] of lanesBy) if (l.bands.length) want.add(n);
+    for (const s of state.sessions) if (!['stopped'].includes(s.view)) want.add(s.name);
+    const order = state.sessions.map((s) => s.name);
+    const names = [...want].filter((n) => n && n !== '(알 수 없음)').sort((a, b) => (order.indexOf(a) + 1 || 99) - (order.indexOf(b) + 1 || 99) || a.localeCompare(b));
+    if (!names.length) return empty('이 범위에 활동이 없습니다', '더 긴 범위를 고르거나, 세션이 일을 시작하면 여기에 띠와 화살표가 나타납니다.');
+    const y = (n) => TOP + 20 + names.indexOf(n) * LANE_H;
+    const H = TOP + 20 + names.length * LANE_H + 6;
+
+    const ticks = [];
+    const step = TICK[ui.range] * 60000;
+    for (let t = Math.ceil(t0 / step) * step; t < now - step / 3; t += step) ticks.push(`<line class="grid" x1="${x(t)}" y1="${TOP - 6}" x2="${x(t)}" y2="${H}"/><text class="tick" x="${x(t)}" y="${TOP - 12}" text-anchor="middle">${esc(clock(new Date(t).toISOString()))}</text>`);
+
+    const lanes = names.map((n) => {
+      const view = sessionView(n) || 'stopped';
+      const yy = y(n);
+      const l = lanesBy.get(n) || { bands: [], from: null };
+      // 처음 열 때 기록 끝부분만 읽으므로, 읽기 시작한 시각보다 앞은 '모름'으로 칠한다(비어 있다고 오해하지 않게)
+      const unread = l.from && l.from > t0 ? `<rect class="unread" x="${X0}" y="${yy - 7}" width="${x(l.from) - X0}" height="14" rx="3"><title>이 앞은 읽지 않음(처음 열 때 기록 끝부분만 읽습니다)</title></rect>` : '';
+      const bands = l.bands.map(([a, b]) => `<rect class="band" x="${x(a)}" y="${yy - 6}" width="${Math.max(3, x(b) - x(a))}" height="12" rx="6"/>`).join('');
+      const tail = ['permission', 'input', 'ended'].includes(view) ? `<rect class="tail tail-${view}" x="${X1 - 28}" y="${yy - 6}" width="28" height="12" rx="6"><title>${esc(VIEW[view][0])}</title></rect>` : '';
+      return `<g class="lane ${view}"><circle class="lav" cx="${16}" cy="${yy}" r="11"/><text class="lav-t" x="16" y="${yy + 4}" text-anchor="middle">${esc(initials(n))}</text><text class="lane-n" x="34" y="${yy + 4}">${esc(short(n))}</text>
+        <rect class="track" x="${X0}" y="${yy - 2}" width="${X1 - X0}" height="4" rx="2"/>${unread}${bands}${tail}</g>`;
+    }).join('');
+
+    // 진행 중인 묶음(작업 ID, 메시지 2개 이상) 중 가장 최근 것 하나를 점선 상자로(여럿이면 이름표가 겹친다)
+    const stageOf = new Map();
+    for (const b of state.bundles) for (const s of b.steps) stageOf.set(s.id, s.stage);
+    const boxes = state.bundles
+      .filter((b) => b.taskId && b.state !== 'done')
+      .map((b) => ({ b, in: b.steps.map((s) => state.messages[s.id]).filter((m) => m && Date.parse(m.at) >= t0 && names.includes(m.from) && names.includes(m.to)) }))
+      .filter((v) => v.in.length >= 2)
+      .slice(0, 1)
+      .map(({ b, in: ms }) => {
+        const xs = ms.map((m) => x(Date.parse(m.at)));
+        const ys = ms.flatMap((m) => [y(m.from), y(m.to)]);
+        const bx = Math.min(...xs) - 10;
+        const by = Math.min(...ys) - 16;
+        return `<g class="box c-${b.state}"><rect x="${bx}" y="${by}" width="${Math.max(...xs) - bx + 16}" height="${Math.max(...ys) - by + 16}" rx="10"/><text x="${bx + 8}" y="${by - 4}">${esc(b.taskId)} · ${esc((BSTATE[b.state] || BSTATE.run)[0])}</text></g>`;
+      })
+      .join('');
+
+    const arrows = msgs
+      .filter((m) => names.includes(m.from) && names.includes(m.to))
+      .map((m) => {
+        const stage = stageOf.get(m.id) || 'order';
+        const ax = x(Date.parse(m.at));
+        const y1 = y(m.from);
+        const y2 = y(m.to);
+        const d = y1 === y2 ? `M${ax} ${y1 - 7} c 8 -14, 16 -14, 18 0` : `M${ax} ${y1 + (y2 > y1 ? 7 : -7)} C ${ax + 6} ${(y1 + y2) / 2}, ${ax + 6} ${(y1 + y2) / 2}, ${ax + 8} ${y2 + (y2 > y1 ? -9 : 9)}`;
+        const sel = ui.timeSel === m.id ? ' sel' : '';
+        return `<g class="hit c-${stage}${sel}" tabindex="0" role="button" data-tmsg="${esc(m.id)}" aria-pressed="${!!sel}" aria-label="${esc(`${clock(m.at)} ${m.from}이(가) ${m.to}에게: ${m.title}`)}"><path class="halo" d="${d}"/><path class="arr" d="${d}" marker-end="url(#mk-${stage})"/><circle class="dot" cx="${ax}" cy="${y1}" r="3.5"/><title>${esc(`${clock(m.at)} ${short(m.from)} → ${short(m.to)}: ${m.title}`)}</title></g>`;
+      })
+      .join('');
+
+    const markers = Object.keys(STAGE).map((k) => `<marker id="mk-${k}" class="c-${k}" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path class="mk" d="M0 0 10 5 0 10Z"/></marker>`).join('');
+    const nowLine = `<line class="now-line" x1="${X1}" y1="${TOP - 10}" x2="${X1}" y2="${H}"/><rect class="now-pill" x="${X1 - 19}" y="${TOP - 26}" width="38" height="16" rx="8"/><text class="now-t" x="${X1}" y="${TOP - 14}" text-anchor="middle">지금</text>`;
+    const legend = [['band', '일한 구간'], ['tail-permission', '권한 대기'], ['tail-input', '입력 대기'], ['tail-ended', '대기 중 종료']]
+      .map(([c, t]) => `<span><i class="lg ${c}"></i>${t}</span>`).join('') + `<span><i class="lg box-lg"></i>진행 중인 묶음</span><span><i class="lg unread"></i>읽지 않은 앞부분</span>`;
+
+    const selRow = ui.timeSel && state.messages[ui.timeSel] ? `<ul class="feed sel-msg">${msgRow(ui.timeSel, stageOf.get(ui.timeSel) || 'order')}</ul>` : `<p class="hint">화살표를 누르면 그 메시지의 원문이 여기에 펼쳐집니다.</p>`;
+    return `<div class="lanes"><svg viewBox="0 0 ${X1 + 30} ${H}" role="group" aria-label="${esc(`최근 ${ui.range}시간 세션별 활동, 메시지 ${msgs.length}개`)}"><defs>${markers}</defs>${ticks.join('')}${boxes}${lanes}${arrows}${nowLine}</svg></div>
+      <div class="legend">${legend}</div>${selRow}`;
+  }
+
+  const save = () => vscode.setState({ mode: ui.mode, range: ui.range, open: [...ui.open] });
+
+  function pickTimeMsg(id) {
+    ui.timeSel = ui.timeSel === id ? null : id;
+    if (ui.timeSel) ui.openMsg.add(id);
+    render();
+  }
+
+  document.addEventListener('keydown', (e) => {
+    const g = e.target.closest && e.target.closest('[data-tmsg]');
+    if (g && (e.key === 'Enter' || e.key === ' ')) {
+      e.preventDefault();
+      pickTimeMsg(g.dataset.tmsg);
+    }
+  });
 
   document.addEventListener('click', (e) => {
+    const g = e.target.closest('[data-tmsg]');
+    if (g) return pickTimeMsg(g.dataset.tmsg);
     const t = e.target.closest('button');
     if (!t) return;
     if (t.dataset.mode) {
       ui.mode = t.dataset.mode;
+      save();
+      render();
+    } else if (t.dataset.range) {
+      ui.range = Number(t.dataset.range);
       save();
       render();
     } else if (t.dataset.thread) {
@@ -242,6 +355,15 @@
   window.addEventListener('message', (e) => {
     if (e.data && e.data.type === 'state') {
       state = e.data.state;
+      render();
+    }
+  });
+  // 폭이 기준을 넘나들면 시간 보기와 묶음을 바꿔 그린다
+  let wasWide = document.documentElement.clientWidth >= WIDE;
+  window.addEventListener('resize', () => {
+    const wide = document.documentElement.clientWidth >= WIDE;
+    if (wide !== wasWide) {
+      wasWide = wide;
       render();
     }
   });

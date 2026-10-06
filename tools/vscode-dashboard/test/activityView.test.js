@@ -58,7 +58,8 @@ test('탭을 열면 메시지·묶음·세션 상태·카드 연결을 보낸다
   const { fake, view, dir } = setup();
   try {
     fs.writeFileSync(path.join(dir, 'pm.jsonl'), [line({ type: 'agent-name', agentName: 'WY-pm' }), recv(30, 'WY-qa', 'm1', '[결함] P1-09-09 입력 손실\n재현 3단계')].join('\n') + '\n');
-    fs.writeFileSync(path.join(dir, 'f2.jsonl'), [line({ type: 'agent-name', agentName: 'WY-frontend2' }), recv(20, 'WY-pm', 'm2', 'WY-pm 지시: P1-09-09 결함 수정')].join('\n') + '\n');
+    const work = (minAgo) => line({ type: 'assistant', timestamp: at(minAgo), message: { role: 'assistant', content: [{ type: 'text', text: 'x' }] } });
+    fs.writeFileSync(path.join(dir, 'f2.jsonl'), [line({ type: 'agent-name', agentName: 'WY-frontend2' }), recv(20, 'WY-pm', 'm2', 'WY-pm 지시: P1-09-09 결함 수정'), work(19), work(18)].join('\n') + '\n');
     view.status = { list: [{ name: 'WY-frontend2', sessionId: 'f2-sid', view: 'permission', pending: { command: 'npx vitest' }, startedAt: 1 }, { name: 'WY-qa', view: 'working', startedAt: 1 }], error: null, at: now };
 
     // 이 세션들에 걸린 승인 카드(읽기만 한다)
@@ -81,6 +82,12 @@ test('탭을 열면 메시지·묶음·세션 상태·카드 연결을 보낸다
     assert.deepStrictEqual(b.steps.map((s) => s.stage), ['bug', 'order']);
     assert.strictEqual(b.state, 'perm', '참여 세션이 권한 대기면 묶음도 권한 대기');
     assert.strictEqual(b.card && b.card.id, 'card-1', '묶음 세션의 대기 카드');
+
+    // 시간 보기 레인: 일한 구간이 30초 단위로 맞춰지고, 읽기 시작 시각이 있다
+    const lane = st.lanes.find((l) => l.name === 'WY-frontend2');
+    assert.strictEqual(lane.bands.length, 1);
+    assert.ok(lane.bands[0][0] % 30000 === 0 && lane.bands[0][1] % 30000 === 0 && lane.bands[0][1] > lane.bands[0][0]);
+    assert.ok(lane.from <= Date.parse(at(19)));
 
     const f2 = st.sessions.find((s) => s.name === 'WY-frontend2');
     assert.deepStrictEqual([f2.view, f2.pending.command], ['permission', 'npx vitest']);

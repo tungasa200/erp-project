@@ -80,7 +80,7 @@ test('큰 파일은 끝부분만 읽고, 이름 줄은 앞에서 찾는다', () 
   const dir = tmpDir();
   const filler = Array.from({ length: 300 }, (_, i) => ({ type: 'system', n: i, pad: 'x'.repeat(200) }));
   write(dir, 'b.jsonl', [nameLine('WY-pm', 'b'), recvLine(0, 'WY-qa', 'old', '옛 메시지'), ...filler, recvLine(5, 'WY-qa', 'new', '새 메시지')]);
-  const r = new ActivityReader({ dir, now: () => T0, firstTail: 4096 });
+  const r = new ActivityReader({ dir, now: () => Date.now() + 4 * 3600000, firstTail: 4096 }); // 최근 3시간 밖: 4KB만 읽음
   r.poll();
   const feed = r.feed();
   assert.deepStrictEqual(feed.map((m) => m.id), ['new']);
@@ -121,6 +121,20 @@ test('세션별 마지막 동작을 기록한다', () => {
   const r = new ActivityReader({ dir, now: () => T0 });
   r.poll();
   assert.deepStrictEqual(r.lastActions().map((s) => [s.name, s.doing]), [['WY-qa', 'WY-pm에 메시지']]);
+});
+
+test('일한 구간은 90초 안으로 이어진 줄을 묶고, 같은 이름의 기록은 합친다', () => {
+  const dir = tmpDir();
+  const sec = (s) => new Date(T0 + s * 1000).toISOString();
+  const work = (s) => ({ type: 'assistant', timestamp: sec(s), message: { role: 'assistant', content: [{ type: 'text', text: 'x' }] } });
+  write(dir, 'a.jsonl', [nameLine('WY-qa', 'a'), work(0), work(60), work(120), work(600), recvLine(20, 'WY-pm', 'm1', 'x')]);
+  write(dir, 'b.jsonl', [nameLine('WY-qa', 'b'), work(150)]);
+  const r = new ActivityReader({ dir, now: () => T0 });
+  r.poll();
+  const qa = r.bandsSince(T0 - 1).find((x) => x.name === 'WY-qa');
+  assert.deepStrictEqual(qa.bands, [[T0, T0 + 150000], [T0 + 600000, T0 + 600000]], '받은 메시지 자체는 일한 것으로 세지 않는다');
+  assert.strictEqual(qa.from, T0, '읽은 기록의 시작');
+  assert.deepStrictEqual(r.bandsSince(T0 + 300000).find((x) => x.name === 'WY-qa').bands, [[T0 + 600000, T0 + 600000]]);
 });
 
 test('단계와 작업 ID를 머리표·본문 앞부분에서 읽는다', () => {

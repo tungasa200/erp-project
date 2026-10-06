@@ -13,6 +13,8 @@ const VIEW_TYPE = 'wyActivity';
 const OPEN_COMMAND = 'wyActivity.open';
 const INTERVAL = { transcripts: 3000, status: 10000 }; // 메시지는 10초 안에 보여야 한다(OPS-09)
 const MAX_BUNDLES = 40;
+const LANE_HOURS = 12; // 시간 보기가 고를 수 있는 가장 긴 범위
+const LANE_STEP = 30000;
 
 // 세션 상태: WY-backend1의 agentsReader.readSessionStatus(계획 2.2)가 생기면 그것을, 없으면 claude agents를 직접 읽는다
 function statusReader() {
@@ -200,6 +202,12 @@ class ActivityView {
       messages: Object.fromEntries(feed.map((m) => [m.id, { from: m.from, to: m.to, at: m.at, title: m.title, body: m.body }])),
       feed: feed.map((m) => m.id).reverse(),
       bundles,
+      // 시간 보기(B3-3): 세션별 일한 구간. 30초 단위로 맞춰, 일하는 동안 3초마다 상태를 다시 보내지 않게 한다
+      lanes: this.reader.bandsSince(Date.now() - LANE_HOURS * 3600000).map((l) => ({
+        name: l.name,
+        bands: l.bands.map(([a, b]) => [Math.floor(a / LANE_STEP) * LANE_STEP, Math.ceil((b + 1) / LANE_STEP) * LANE_STEP]),
+        from: Math.floor(l.from / LANE_STEP) * LANE_STEP, // 이 앞은 읽지 않은 구간
+      })),
       unreadable: this.reader.unreadable,
       windowHours: 24,
     };

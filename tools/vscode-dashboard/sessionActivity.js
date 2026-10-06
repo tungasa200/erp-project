@@ -15,6 +15,9 @@ const HEAD_FOR_NAME = 64 * 1024; // 끝부분에 이름 줄이 없으면 앞에�
 const CHUNK = 1024 * 1024; // 한 번에 읽는 최대 크기(큰 파일을 통째로 올리지 않는다)
 const MAX_AGE = 24 * 60 * 60 * 1000; // 처음 열 때 이보다 오래 손대지 않은 기록은 건너뛴다
 const MAX_MESSAGES = 400;
+const BAND_GAP = 90 * 1000; // 줄 사이가 이보다 짧으면 계속 일한 것으로 본다
+const MAX_BANDS = 500; // 기록 하나에 남기는 구간 수
+const RECENT = 3 * 60 * 60 * 1000; // 이 안에 쓴 기록은 처음에 끝부분을 4배(1MB) 읽는다
 
 // 저장소 경로 → 대화 기록 폴더 이름(영숫자 외 문자를 '-'로): C:\projects\erp-project → C--projects-erp-project
 function transcriptDir(repoRoot, home = os.homedir()) {
@@ -101,8 +104,10 @@ class ActivityReader {
     const st = fs.statSync(file);
     let s = this.files.get(f);
     if (!s) {
-      if (this.now() - st.mtimeMs > this.maxAge) return false;
-      s = { offset: Math.max(0, st.size - this.firstTail), rest: '', skipFirst: st.size > this.firstTail, sessionId: f.replace(/\.jsonl$/, ''), name: null, pending: new Map() };
+      const age = this.now() - st.mtimeMs;
+      if (age > this.maxAge) return false;
+      const tail = age < RECENT ? this.firstTail * 4 : this.firstTail; // 최근에 쓴 기록은 시간 보기의 띠가 비지 않게 더 읽는다
+      s = { offset: Math.max(0, st.size - tail), rest: '', skipFirst: st.size > tail, sessionId: f.replace(/\.jsonl$/, ''), name: null, pending: new Map(), bands: [] };
       this.files.set(f, s);
       if (s.skipFirst) s.name = this.nameFromHead(file, st.size);
     }
@@ -155,6 +160,7 @@ class ActivityReader {
     }
     if (o.isSidechain) return false; // 하위 에이전트 대화는 세션 간 메시지가 아니다
     if (o.type === 'user' && o.origin && o.origin.kind === 'peer') return this.received(s, o);
+    if ((o.type === 'assistant' || o.type === 'user') && o.timestamp) this.band(s, Date.parse(o.timestamp));
     const c = o.message && o.message.content;
     if (!Array.isArray(c)) return false;
     let changed = false;
@@ -187,6 +193,42 @@ class ActivityReader {
   bad() {
     this.unreadable += 1;
     return false;
+  }
+
+  // 일한 구간: 대화 줄(응답·도구 결과)이 BAND_GAP 안으로 이어지면 한 구간이다(시간 보기의 띠)
+  band(s, t) {
+    if (!Number.isFinite(t)) return;
+    if (!s.firstAt || t < s.firstAt) s.firstAt = t; // 읽은 기록의 시작(이 앞은 처음 열 때 읽지 않았다)
+    const last = s.bands[s.bands.length - 1];
+    if (last && t >= last[0] && t - last[1] <= BAND_GAP) last[1] = Math.max(last[1], t);
+    else s.bands.push([t, t]);
+    if (s.bands.length > MAX_BANDS) s.bands.shift();
+  }
+
+  // since 이후 세션 이름별 일한 구간. 같은 이름의 여러 기록(다시 띄운 세션)은 합친다.
+  // from: 그 이름의 기록을 읽기 시작한 가장 이른 시각(이보다 앞은 모름)
+  bandsSince(since) {
+    const byName = new Map();
+    const from = new Map();
+    for (const s of this.files.values()) {
+      if (!s.name || !s.firstAt) continue;
+      const list = byName.get(s.name) || [];
+      for (const b of s.bands) if (b[1] >= since) list.push([Math.max(b[0], since), b[1]]);
+      byName.set(s.name, list);
+      from.set(s.name, Math.min(from.get(s.name) || Infinity, s.firstAt));
+    }
+    const out = [];
+    for (const [name, list] of byName) {
+      list.sort((a, b) => a[0] - b[0]);
+      const merged = [];
+      for (const b of list) {
+        const last = merged[merged.length - 1];
+        if (last && b[0] - last[1] <= BAND_GAP) last[1] = Math.max(last[1], b[1]);
+        else merged.push([b[0], b[1]]);
+      }
+      out.push({ name, bands: merged, from: from.get(name) });
+    }
+    return out;
   }
 
   touch(s, at, doing) {
