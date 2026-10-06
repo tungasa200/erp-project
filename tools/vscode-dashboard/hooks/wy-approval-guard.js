@@ -5,7 +5,8 @@
 // - 승인 한 건은 한 번만 쓴다(used/<id>.json).
 // - 승인 폴더는 훅 입력의 cwd가 속한 프로젝트의 것(~/.claude/wy-approvals/<namespace>, 설정이 없으면 바탕 폴더).
 // - 승인 파일(decisions/·decisions.log·used/), 설치본(~/.wy-tools), 프로젝트 설정(.claude/wy-ops.json·wy-ops.local.json·settings.local.json)에
-//   쓰는 셸 명령은 막는다. 읽기(cat·ls·tail·test, 감시 루프)는 통과한다. 이 경로를 언급하는 인터프리터(node·powershell 등)는 읽기여도 막는다.
+//   쓰는 셸 명령은 막는다. 읽기(cat·ls·tail·test, 감시 루프)와 읽기 API만 쓰는 node·python·PowerShell 코드는 통과한다.
+//   판단할 수 없으면(쓰기 API·난독화·알 수 없는 코드) 막는다.
 // 훅은 오류·시간 초과 때 통과시키므로(fail open), 여기서는 어떤 오류든 종료 코드 2로 막는다.
 const fs = require('fs');
 const path = require('path');
@@ -22,13 +23,31 @@ const PROTECTED = [
   /\.wy-tools\//,
   /\.claude\/(?:wy-ops(?:\.local)?\.json|settings\.local\.json)/,
 ];
-// 파일을 쓰거나 지울 수 있는 프로그램(PowerShell 별칭 포함). 인터프리터는 무엇이든 쓸 수 있어 함께 막는다
+// 파일을 쓰거나 지울 수 있는 프로그램(PowerShell 별칭 포함)
 const WRITERS = new Set([
   'cp', 'mv', 'rm', 'rmdir', 'del', 'erase', 'copy', 'move', 'ren', 'rename', 'touch', 'mkdir', 'tee', 'truncate', 'dd', 'install', 'ln', 'chmod', 'chown', 'xargs',
   'set-content', 'sc', 'add-content', 'ac', 'out-file', 'new-item', 'ni', 'remove-item', 'ri', 'rd', 'copy-item', 'cpi', 'move-item', 'mi',
-  'rename-item', 'rni', 'clear-content', 'clc', 'set-item', 'si', 'tee-object',
-  'node', 'python', 'python3', 'py', 'perl', 'ruby', 'deno', 'bun', 'powershell', 'pwsh', 'cmd', 'bash', 'sh', 'invoke-expression', 'iex',
+  'rename-item', 'rni', 'clear-content', 'clc', 'set-item', 'si', 'tee-object', 'invoke-expression', 'iex', 'start-process',
 ]);
+// 코드를 받아 실행하는 프로그램. 코드 안을 보고 읽기만 하는지 판단한다
+const INTERPRETERS = new Set(['node', 'python', 'python3', 'py', 'perl', 'ruby', 'deno', 'bun', 'powershell', 'pwsh', 'cmd', 'bash', 'sh']);
+// 쓰기·실행 API. 하나라도 있으면 막는다
+const WRITE_API = new RegExp(
+  [
+    'writeFile', 'appendFile', 'createWriteStream', 'copyFile', 'cpSync', '\\brename', 'unlink', '\\brm(?:Sync)?\\s*\\(', 'rmdir', 'mkdir', 'symlink', '\\blink(?:Sync)?\\s*\\(',
+    'truncate', 'chmod', 'chown', 'utimes', '\\.write\\s*\\(', 'write_text', 'write_bytes', 'shutil\\.', 'os\\.(?:remove|rename|replace|unlink|makedirs|mkdir|rmdir|system|popen)',
+    'subprocess', 'child_process', '\\bexecSync', '\\bspawn', '\\bopen\\s*\\([^)]*,\\s*(?:mode\\s*=\\s*)?[\'"][^\'"]*[wax+]',
+    'Set-Content', 'Add-Content', 'Out-File', 'New-Item', 'Remove-Item', 'Copy-Item', 'Move-Item', 'Rename-Item', 'Clear-Content', 'Set-Item', 'Tee-Object', 'Start-Process',
+    '\\]::(?:Write|Append|Copy|Move|Delete|Create|Replace|Open)', '\\bdel\\s', '\\bcopy\\s', '\\bmove\\s',
+  ].join('|'),
+  'i',
+);
+// 쓰기 API를 숨기는 흔한 방법(계산된 이름, eval 등). 있으면 판단할 수 없으니 막는다
+const OBFUSCATION = /\[[^\]]*\+[^\]]*\]|\beval\b|\bFunction\s*\(|getattr|__import__|\bexec\s*\(|\bcompile\s*\(|fromCharCode|\batob\b|\\x[0-9a-f]{2}|\\u[0-9a-f]{4}|Buffer\.from|Invoke-Expression|\biex\b|-EncodedCommand|-enc\b|globalThis|process\.binding|\bimportlib\b/i;
+// 읽기 API. 인터프리터 코드가 이것만 쓰면 통과
+const READ_API = /readFileSync|readFile|\brequire\s*\(|existsSync|statSync|readdirSync|JSON\.parse|json\.load|\bopen\s*\(|read_text|Get-Content|Test-Path|Get-ChildItem|Get-Item|ConvertFrom-Json|\]::(?:ReadAll|Exists)|\bcat\b|\btype\b/i;
+// 버리는 리다이렉트 대상
+const NULL_TARGET = /^(?:\/dev\/null|nul|\$null|&\d)$/i;
 const LEADING_KEYWORDS = new Set(['do', 'then', 'else', 'elif', 'until', 'while', 'if', '!', '{', '(', 'time', 'exec', 'sudo', 'env', '&']);
 
 // 명령을 &&, ||, ;, |, 줄바꿈으로 나눈다(따옴표 안은 나누지 않는다)
@@ -107,22 +126,33 @@ const mentionsProtected = (t) => {
   return PROTECTED.some((re) => re.test(c));
 };
 
-// 보호 경로에 쓰는 명령인지 본다. 경로를 읽기만 하는 명령은 통과시킨다
+// 보호 경로에 쓸 수 있는 명령인지 본다. 보호 경로가 나오는 명령에서
+//  - 리다이렉트(버리는 대상 제외), 쓰기 프로그램, 쓰기 API는 어느 조각에 있든 막는다(변수 경로로 우회하는 것까지)
+//  - 인터프리터는 코드가 읽기 API만 쓸 때만 통과시키고, 판단할 수 없으면 막는다
 function writesApprovalFiles(command) {
   if (!mentionsProtected(command)) return false;
-  // 리다이렉트 대상(> >> 2> *>)
-  for (const m of command.matchAll(/>{1,2}\s*("[^"]*"|'[^']*'|[^\s|;&<>]+)/g)) if (mentionsProtected(m[1])) return true;
+  // 리다이렉트(> >> 2> *>). =>(화살표 함수)·->·>=는 리다이렉트가 아니다
+  for (const m of command.matchAll(/(?<![=\-<])(?:\d|\*)?>{1,2}(?!=)\s*("[^"]*"|'[^']*'|[^\s|;&<>)]+)/g)) {
+    if (!NULL_TARGET.test(m[1].replace(/^["']|["']$/g, ''))) return true;
+  }
   for (const seg of segments(command)) {
-    if (!mentionsProtected(seg)) continue;
     let t = tokens(seg);
-    while (t.length && (LEADING_KEYWORDS.has(t[0]) || /^[A-Za-z_][A-Za-z0-9_]*=/.test(t[0]))) t = t.slice(1);
+    while (t.length && (LEADING_KEYWORDS.has(t[0]) || /^[A-Za-z_][A-Za-z0-9_]*=/.test(t[0]) || /^\$\w+\s*=/.test(t[0]))) t = t.slice(1);
     if (!t.length) continue;
-    if (/^\[[\w.]+\]::/.test(t[0])) return true; // [IO.File]::WriteAllText 같은 .NET 호출
+    if (/^\[[\w.]+\]::/.test(t[0])) {
+      // [IO.File]::ReadAllText 같은 읽기만 통과
+      if (/^\[[\w.]+\]::(?:ReadAll|Exists)/i.test(t[0]) && !WRITE_API.test(seg)) continue;
+      return true;
+    }
     const prog = path.basename(t[0]).toLowerCase().replace(/\.(exe|cmd|bat|ps1)$/, '');
     const rest = t.slice(1);
     if (WRITERS.has(prog)) return true;
     if (prog === 'sed' && rest.some((a) => a.startsWith('-i') || a === '--in-place')) return true;
     if (prog === 'find' && rest.some((a) => ['-delete', '-exec', '-execdir', '-ok'].includes(a))) return true;
+    if (INTERPRETERS.has(prog)) {
+      const code = rest.join(' ');
+      if (WRITE_API.test(code) || OBFUSCATION.test(code) || !READ_API.test(code)) return true;
+    }
   }
   return false;
 }
