@@ -406,12 +406,15 @@ function TaskForm({
           id={`${id}-project`}
           className={styles.select}
           value={projectId}
+          // 프로젝트 목록을 받기 전에는 고를 수 없다(받기 전에 '없음'으로 보이지 않게 아래 자리 표시)
+          disabled={projects.isPending}
           onChange={(e) => {
             setProjectId(e.target.value)
             void commit({ projectId: e.target.value || null })
           }}
         >
           <option value="">없음</option>
+          {projectId && !projects.data && <option value={projectId}>불러오는 중…</option>}
           {(projects.data ?? [])
             .filter((p) => !p.archived || p.id === projectId)
             .map((p) => (

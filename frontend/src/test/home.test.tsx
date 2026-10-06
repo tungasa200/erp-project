@@ -81,7 +81,7 @@ const OCCURRENCES = [
   occurrence('s3', '스프린트 리뷰', '2026-10-08T01:00:00Z', '2026-10-08T02:30:00Z'),
 ]
 
-function server(options: { remaining?: Task[]; occurrences?: Occurrence[] } = {}) {
+function server(options: { remaining?: Task[]; occurrences?: Occurrence[]; holdTasks?: boolean } = {}) {
   // 완료(PATCH)하면 남은 업무 응답에서 빠진다
   const remaining = (options.remaining ?? REMAINING).map((t) => ({ ...t }))
   const calls: { method: string; url: string; body?: Record<string, unknown> }[] = []
@@ -98,6 +98,8 @@ function server(options: { remaining?: Task[]; occurrences?: Occurrence[] } = {}
       const body = init?.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : undefined
       calls.push({ method, url, body })
       if (method === 'GET') {
+        // 응답을 끝내 주지 않아 불러오는 중 상태를 본다
+        if (options.holdTasks) return new Promise<Response>(() => {})
         const done = new URLSearchParams(url.split('?')[1]).getAll('status').includes('DONE')
         return json(200, { items: done ? DONE : remaining.filter((t) => t.status !== 'DONE'), nextCursor: null })
       }
@@ -128,6 +130,15 @@ describe('SCR-HOME-01 홈 대시보드 1차', () => {
     )
     // 확인 대기 카드는 P2
     expect(within(cards).queryByText('확인 대기')).not.toBeInTheDocument()
+  })
+
+  it('P1-11-07 불러오는 동안 카드에 "없음"을 먼저 보이지 않고 숫자·보조 문구를 스켈레톤으로 둔다', async () => {
+    server({ holdTasks: true })
+    renderApp('/')
+    const card = within(await screen.findByRole('list', { name: '요약' })).getByRole('link', { name: /남은 업무/ })
+    await waitFor(() => expect(within(card).getAllByRole('status')).toHaveLength(2))
+    expect(card).not.toHaveTextContent('마감 초과 없음')
+    expect(card).not.toHaveTextContent(/\d/)
   })
 
   it('남은 업무는 마감 초과 → 오늘 → 이번 주로 묶고, 날짜 없는 업무는 접어 둔다', async () => {

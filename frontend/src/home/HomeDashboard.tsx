@@ -59,19 +59,23 @@ export function HomeDashboard({ empty }: { empty: ReactNode }) {
           to="/tasks"
           label="남은 업무"
           value={cardValue(remaining, `${remaining.items.length}${more(remaining)}`)}
-          sub={overdue > 0 ? `마감 초과 ${overdue}건` : '마감 초과 없음'}
+          sub={cardSub(remaining, overdue > 0 ? `마감 초과 ${overdue}건` : '마감 초과 없음')}
           accent
         />
         <SummaryCard
           to={`/calendar/day/${today}`}
           label="오늘 일정"
           value={cardValue(occurrences, String(todayList.length))}
-          sub={todayList.length === 0 ? '일정 없음' : todayLeft === 0 ? '모두 끝났어요' : `${todayLeft}개 남았어요`}
+          sub={cardSub(
+            occurrences,
+            todayList.length === 0 ? '일정 없음' : todayLeft === 0 ? '모두 끝났어요' : `${todayLeft}개 남았어요`,
+          )}
         />
         <SummaryCard
           to="/tasks?status=DONE&completed=week"
           label="이번 주 완료"
           value={cardValue(doneThisWeek, `${doneThisWeek.items.length}${more(doneThisWeek)}`)}
+          // 기간 문구는 데이터와 상관없어 불러오는 중에도 그대로 둔다
           sub={`${shortDate(weekFirst)}부터`}
         />
       </ul>
@@ -111,6 +115,12 @@ function cardValue(query: { isPending: boolean; isError: boolean }, value: strin
   return query.isPending ? <Skeleton shape="line" /> : value
 }
 
+/** 보조 문구도 데이터를 받은 뒤에만. 그 전에 '없음'을 보이면 아직 모르는데 없다고 읽힌다 (P1-11-07) */
+function cardSub(query: { isPending: boolean; isError: boolean }, text: string): ReactNode {
+  if (query.isError) return '불러오지 못했어요'
+  return query.isPending ? <Skeleton shape="line" /> : text
+}
+
 /** 1분마다 바뀌는 현재 시각 (남은 일정 수·날짜 넘김) */
 function useNow() {
   const [now, setNow] = useState(() => Date.now())
@@ -121,7 +131,7 @@ function useNow() {
   return now
 }
 
-function SummaryCard(props: { to: string; label: string; value: ReactNode; sub: string; accent?: boolean }) {
+function SummaryCard(props: { to: string; label: string; value: ReactNode; sub: ReactNode; accent?: boolean }) {
   return (
     <li>
       <Link to={props.to} className={props.accent ? `${styles.card} ${styles.cardAccent}` : styles.card}>
