@@ -1,13 +1,13 @@
 // 일정 빠른 생성 (SCR-CAL-06). 선택한 시간이 기본이고, 입력에 시간·날짜가 있으면 그 값으로 덮어쓴다.
-// 한 줄 해석은 빠른 입력(P1-09)의 parseQuickInput을 쓴다. "업무로도 만들기"(④)는 업무 API(P1-03)가 나오면 붙인다.
+// 한 줄 해석은 빠른 입력(P1-09)의 parseQuickInput을 쓰되 @·#·!·~ 토큰은 제목에 남긴다(scheduleParse). 해석 칩·"업무로도 만들기"(④)는 P2.
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { ApiError } from '../api/problem'
 import { useAuth } from '../auth/useAuth'
 import { useToast } from '../components/useToast'
 import { toastForError } from '../api/errorToast'
 import { weekStartNumber } from '../quickInput/dates'
-import { parseQuickInput } from '../quickInput/parse'
 import { useCreateSchedule } from './api'
+import { parseForSchedule } from './scheduleParse'
 import { markFocus, restoreFocus } from './focus'
 import { MINUTES_PER_DAY, WEEKDAY_LABELS, formatMinutes, fromZoned, todayIn, weekdayIndex } from './time'
 import styles from './calendar.module.css'
@@ -62,7 +62,7 @@ export function QuickCreate({ target, timeZone, anchor, onClose, onDetails }: Pr
 
   const today = todayIn(timeZone)
   const parsed = useMemo(
-    () => parseQuickInput(text, { today, weekStart: weekStartNumber(user?.weekStart) }),
+    () => parseForSchedule(text, { today, weekStart: weekStartNumber(user?.weekStart) }),
     [text, today, user?.weekStart],
   )
   // 입력에 시간이 있으면 시간 일정, 날짜가 있으면 그 날짜로 바꾼다
