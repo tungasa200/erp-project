@@ -144,6 +144,23 @@ const PROTECTED_DIR = /(?:^|\/)\.claude(?:\/|$)|wy-approvals|\.wy-tools/;
 // 와일드카드(* ? [)가 든 경로는 실제로 펼쳐서 판단한다(cd ~/.cl*/wy-a*/… 같은 우회, WY-commit 검증에서 찾음)
 const GLOB = /[*?[]/;
 
+// 경로 한 조각의 와일드카드를 정규식으로. [ ]는 짝이 맞으면 글자 집합, 아니면 글자. 만들 수 없으면 null
+function globRegExp(part) {
+  const body = (keepClass) =>
+    part
+      .replace(keepClass ? /[.+^${}()|\\]/g : /[.+^${}()|\\[\]]/g, '\\$&')
+      .replace(/\*/g, '.*')
+      .replace(/\?/g, '.');
+  for (const keepClass of [true, false]) {
+    try {
+      return new RegExp(`^${body(keepClass)}$`, 'i');
+    } catch {
+      // 짝 없는 [ 등: 글자로 보고 다시
+    }
+  }
+  return null;
+}
+
 // 경로 패턴을 파일 시스템에서 펼친다. 결과는 소문자·/ 구분자. 펼칠 수 없으면 빈 배열
 function expandGlob(pattern, cwd) {
   let s = String(pattern).replace(/^["']|["']$/g, '').replace(/\\/g, '/');
@@ -171,7 +188,8 @@ function expandGlob(pattern, cwd) {
         next.push(path.join(b, part));
         continue;
       }
-      const re = new RegExp(`^${part.replace(/[.+^${}()|\\]/g, '\\$&').replace(/\*/g, '.*').replace(/\?/g, '.')}$`, 'i');
+      const re = globRegExp(part);
+      if (!re) continue; // 와일드카드로 볼 수 없는 조각(grep 정규식의 짝 없는 [ 등)은 펼치지 않는다
       let names = [];
       try {
         names = fs.readdirSync(b);
@@ -220,7 +238,8 @@ function movesIntoProtected(command, cwd) {
 function writesApprovalFiles(command, cwd) {
   // 보호 폴더로 cd 등을 했으면 그 뒤의 모든 쓰기(상대 경로)를 보호 경로 쓰기로 본다
   const moved = movesIntoProtected(command, cwd);
-  const mentioned = mentionsProtected(command);
+  // 와일드카드 인자를 펼쳐 보호 경로에 닿으면 보호 경로가 언급된 것으로 본다(인터프리터에 인자로 넘기는 우회 포함)
+  const mentioned = mentionsProtected(command) || (GLOB.test(command) && tokens(command).some((a) => GLOB.test(a) && riskyTarget(a, cwd)));
   if (!moved && !mentioned && !GLOB.test(command)) return false;
   // 리다이렉트(> >> 2> *>). =>(화살표 함수)·->·>=는 리다이렉트가 아니다
   for (const m of command.matchAll(/(?<![=\-<])(?:\d|\*)?>{1,2}(?!=)\s*("[^"]*"|'[^']*'|[^\s|;&<>)]+)/g)) {

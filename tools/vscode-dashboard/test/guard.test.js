@@ -69,6 +69,10 @@ const deny = [
   'echo {} > .cl*/wy-ops.json',
   'cp x .clau?e/wy-ops.json',
   'rm h/.claude/wy-app*/erp-project/decisions/*',
+  // 와일드카드 인자를 인터프리터 쓰기 API로 넘기기(WY-commit 검증에서 찾음)
+  `node -e "require('fs').writeFileSync(process.argv[1],'x')" h/.cl*/wy-a*/erp-project/decisions/a.json`,
+  `python -c "import sys;open(sys.argv[1],'w').write('x')" .cl*/wy-ops.json`,
+  `node -e "console.log(1)" h/.cl*/wy-a*/erp-project/decisions/a.json`,
   // 보호 파일이 나오는 명령에서 읽기 API가 없는 인터프리터 코드는 판단할 수 없어 막는다
   'cat .claude/settings.local.json | node -e "process.stdin.pipe(process.stdout)" > out.json',
 ];
@@ -110,6 +114,11 @@ const allow = [
   'rm src/*.log',
   'cp src/*.log /tmp/',
   'node build.js src/*.js',
+  // 정규식에 쓰인 [ ](와일드카드 아님) — 배포본이 정규식 오류로 막던 것(WY-commit 결함 보고)
+  `grep -nE "require\\(['\\"](jsdom|[a-z@][^./'\\"]*)['\\"]\\)" a.js | grep -vE "'(fs|os)'"`,
+  `sed -n '/^\\[/p' notes.txt`,
+  `rg "\\[(완료|차단)\\]" docs/`,
+  `node -e "console.log(require('fs').readFileSync(process.argv[1],'utf8'))" .cl*/wy-ops.json`,
   'ls h/.cl*/wy-a*/erp-project/decisions',
   'cd src/* && echo x > out.txt',
   // 보호 폴더로 이동해 읽기만 하는 것은 통과
