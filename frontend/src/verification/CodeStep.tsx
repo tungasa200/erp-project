@@ -6,6 +6,10 @@ import { useAuth } from '../auth/useAuth'
 import { codeFailure, sendLimitMessage, timesOf, type CodeIssued, type CodeTimes } from './api'
 import { CodeInput } from './CodeInput'
 import { mmss, useCountdown } from './useCountdown'
+
+/** AUTH-08: 코드는 10분간 유효, 다시 받기는 60초 간격 */
+const CODE_VALID_SECONDS = 600
+const RESEND_INTERVAL_SECONDS = 60
 import styles from './verification.module.css'
 
 interface Props {
@@ -26,8 +30,9 @@ export function CodeStep({ initial, check, resend, onVerified, verified = false,
   const [message, setMessage] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
-  const left = useCountdown(times.expiresAt ?? null)
-  const resendLeft = useCountdown(times.resendAt ?? null) ?? 0
+  // 화면에 보이는 남은 시간은 규칙(AUTH-08: 코드 10분, 다시 받기 60초)보다 길 수 없다
+  const left = useCountdown(times.expiresAt ?? null, CODE_VALID_SECONDS)
+  const resendLeft = useCountdown(times.resendAt ?? null, RESEND_INTERVAL_SECONDS) ?? 0
   const locked = expired || left === 0
 
   // 확인·다시 받기 중에는 코드 칸·버튼이 잠겨 포커스가 BODY로 빠진다. 끝나면 코드 칸(잠겼으면 이 단계)으로 돌려준다.
