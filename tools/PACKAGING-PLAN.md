@@ -1,6 +1,12 @@
 # 운영 도구 패키지화 계획 (확정)
 
-작성: WY-backend2, 2026-10-07. 상태: **확정**(2026-10-07 사용자 결정, 7장). 패키지 이름: `wy-ops`. 진행: 1단계 완료(f8b6cfa). 2단계 완료(324eab0, 설치본 v0.3.0 배포): session.ps1·대시보드·가드 훅이 설정을 읽고, 없으면 지금 값으로 대체. 4단계 완료(커밋 대기): `tools/wy-ops/gen-agents.js` + `.claude/ops/agent.md`·`roles/*.md` → 지금 역할 파일 10개와 글자 단위로 같음. 역할 파일은 아직 손으로 고치는 원본이고, 생성기로 넘길지는 WY-pm 결정. 3단계는 WY-pm 지시 후.
+작성: WY-backend2, 2026-10-07. 상태: **확정**(2026-10-07 사용자 결정, 7장). 패키지 이름: `wy-ops`. 진행:
+- 1단계 완료(f8b6cfa): `.claude/wy-ops.json` 추가.
+- 2단계 완료(324eab0, 설치본 v0.3.0): session.ps1·대시보드·가드 훅이 설정을 읽고, 없으면 지금 값으로 대체.
+- 4단계 완료(52fb94d): `tools/wy-ops/gen-agents.js` + `.claude/ops/agent.md`·`roles/*.md` → 역할 파일 10개와 글자 단위로 같음(CRLF 체크아웃 포함). 역할 문구의 원본은 이제 `.claude/ops/`(WY-pm 결정, 2026-10-07).
+- 3단계 완료(c1f343c, 설치본 v0.4.0 배포로 전환): 승인 폴더 `~/.claude/wy-approvals/erp-project/`, 가드 훅이 cwd의 프로젝트 폴더를 쓰고 설정 파일 3개의 셸 쓰기를 막음.
+- 5단계 완료(커밋 대기, WY-pm 승인): pm-ops를 코어 템플릿(`tools/wy-ops/templates/pm-ops/SKILL.md`)과 프로젝트 부록(`.claude/ops/pm-ops.project.md`)으로 나누고 `tools/wy-ops/gen-skill.js`가 합쳐 `.claude/skills/pm-ops/SKILL.md`를 만든다. 앞으로 pm-ops 문구는 부록·코어 템플릿을 고치고 생성한다.
+- 다음: 6단계(패키지 추출·install.ps1·확장 id 변경), 7단계(시험 프로젝트).
 
 목표: erp-project에 묶인 운영 도구(세션 현황 대시보드·WY 승인 센터, session.ps1·pm-ops 스킬, 역할 파일, 승인 가드 훅과 승인 규약)를 다른 프로젝트에도 설치해 쓰는 패키지 하나로 만든다. 이 프로젝트는 옮기는 동안 계속 지금처럼 돌아가야 한다.
 
