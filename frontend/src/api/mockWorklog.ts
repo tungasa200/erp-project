@@ -1,6 +1,7 @@
 // 개발용 가짜 worklog 서버 (contracts/worklog.yaml의 프로젝트·태그·업무). mockServer가 로그인 확인 뒤 여기로 넘긴다.
 // 목업 SET-08·TASK-01과 같은 예시 데이터로 시작하고, 고친 내용은 localStorage에 남는다.
 // 예전 저장본에 tasks가 없으면 예시 업무를 채워 넣는다.
+import { scheduledTaskIds } from '../calendar/mockSchedules'
 import type { Project, Tag } from '../projects/api'
 import type { Task } from '../tasks/api'
 
@@ -242,6 +243,10 @@ function handleTasks(
   r: Respond,
 ): Response | null {
   const path = url.split('?')[0]
+  if (!path.startsWith('/api/worklog/tasks')) return null
+  // 일정 배치 여부는 가짜 일정 서버(frontend2 mockSchedules)의 연결 업무로 매번 계산한다
+  const linked = scheduledTaskIds()
+  for (const t of state.tasks) t.hasSchedule = linked.has(t.id)
   if (method === 'GET' && path === '/api/worklog/tasks') {
     const q = new URLSearchParams(url.split('?')[1] ?? '')
     const statuses = q.getAll('status')
