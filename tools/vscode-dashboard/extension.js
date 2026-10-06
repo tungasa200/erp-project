@@ -1,10 +1,11 @@
-// 세션 현황 대시보드: 메모리·프로세스·Claude 세션을 사이드바 webview에 보여 준다(읽기 전용).
+// 세션 현황 대시보드: 메모리·프로세스·Claude 세션을 사이드바 webview에 보여 주고, WY 승인 센터 탭을 띄운다.
 const vscode = require('vscode');
 const os = require('os');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { execFile } = require('child_process');
+const { ApprovalCenter } = require('./approvalCenter');
 
 const VIEW_ID = 'erpSessions.panel';
 const INTERVAL = { memory: 5000, processes: 15000, sessions: 10000 };
@@ -186,6 +187,12 @@ function activate(context) {
     vscode.commands.registerCommand('erpSessions.refresh', () => provider.refreshAll()),
     { dispose: () => provider.stop() },
   );
+  // 승인 센터가 실패해도 세션 현황은 계속 쓸 수 있게 따로 띄운다
+  try {
+    new ApprovalCenter(context);
+  } catch (err) {
+    vscode.window.showErrorMessage(`WY 승인 센터를 시작하지 못했습니다: ${err.message}`);
+  }
 }
 
 function deactivate() {}

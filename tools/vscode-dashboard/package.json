@@ -1,30 +1,58 @@
 {
   "name": "erp-session-dashboard",
   "displayName": "ERP 세션 현황",
-  "description": "메모리·프로세스·Claude 역할 세션 상태를 사이드바에서 본다(읽기 전용)",
-  "version": "0.1.0",
+  "description": "메모리·프로세스·Claude 역할 세션 상태를 사이드바에서 보고, WY 승인 센터에서 커밋·푸시 요청을 승인한다",
+  "version": "0.2.0",
   "publisher": "erp-project",
   "private": true,
-  "engines": { "vscode": "^1.85.0" },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
   "main": "./extension.js",
-  "activationEvents": [],
+  "activationEvents": [
+    "onStartupFinished",
+    "onWebviewPanel:wyApprovals"
+  ],
   "contributes": {
     "viewsContainers": {
       "activitybar": [
-        { "id": "erpSessions", "title": "세션 현황", "icon": "media/icon.svg" }
+        {
+          "id": "erpSessions",
+          "title": "세션 현황",
+          "icon": "media/icon.svg"
+        }
       ]
     },
     "views": {
       "erpSessions": [
-        { "type": "webview", "id": "erpSessions.panel", "name": "세션 현황" }
+        {
+          "type": "webview",
+          "id": "erpSessions.panel",
+          "name": "세션 현황"
+        }
       ]
     },
     "commands": [
-      { "command": "erpSessions.refresh", "title": "새로고침", "category": "세션 현황", "icon": "$(refresh)" }
+      {
+        "command": "erpSessions.refresh",
+        "title": "새로고침",
+        "category": "세션 현황",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "wyApprovals.open",
+        "title": "승인 센터 열기",
+        "category": "WY",
+        "icon": "$(shield)"
+      }
     ],
     "menus": {
       "view/title": [
-        { "command": "erpSessions.refresh", "when": "view == erpSessions.panel", "group": "navigation" }
+        {
+          "command": "erpSessions.refresh",
+          "when": "view == erpSessions.panel",
+          "group": "navigation"
+        }
       ]
     }
   }
