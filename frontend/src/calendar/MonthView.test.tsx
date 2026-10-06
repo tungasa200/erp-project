@@ -50,6 +50,36 @@ describe('월 보기 (P1-07-11)', () => {
     expect(screen.getByRole('button', { name: '+2개 더보기' })).toBeInTheDocument()
   })
 
+  it('시각 일정 칩: 좁은 칸에서 숨길 수 있게 시각을 따로 감싸고, 접근 이름에는 시각을 둔다 (SCR-CAL-03 v1.7)', () => {
+    render(
+      <MonthView
+        days={days}
+        month="2026-10"
+        occurrences={[
+          {
+            scheduleId: 't',
+            occurrenceStart: '2026-10-07T00:30:00Z',
+            title: '팀 스탠드업',
+            allDay: false,
+            startAt: '2026-10-07T00:30:00Z',
+            endAt: '2026-10-07T01:00:00Z',
+            recurring: true,
+          } as Occurrence,
+        ]}
+        timeZone="Asia/Seoul"
+        today="2026-10-07"
+        colorOf={() => null}
+        onOpen={vi.fn()}
+        onOpenDay={vi.fn()}
+        onCreateAllDay={vi.fn()}
+        onMoveDays={vi.fn()}
+      />,
+    )
+    const chip = screen.getByRole('button', { name: '09:30 팀 스탠드업, 반복' })
+    expect(chip.querySelector('.chipTime')).toHaveTextContent('09:30')
+    expect(chip).toHaveTextContent('09:30 팀 스탠드업')
+  })
+
   it('모바일 훑어보기: 날짜 칸 전체가 일 보기 버튼이고, 칩·더보기·빈 칸 만들기는 없다', () => {
     const { onOpenDay, onCreateAllDay } = renderMonth(true)
     expect(screen.queryByRole('button', { name: '기획 회의' })).not.toBeInTheDocument()

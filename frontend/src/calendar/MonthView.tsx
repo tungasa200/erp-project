@@ -176,9 +176,16 @@ export function MonthView({
                     className={styles.chip}
                     style={colorVars(colorOf(o))}
                     onClick={(e) => e.detail === 0 && props.onOpen(o)}
+                    // 칸이 좁으면 시각을 숨기므로(제목 우선, SCR-CAL-03) 접근 이름에는 시각을 그대로 둔다
+                    aria-label={`${chipLabel(o, timeZone)}${o.recurring ? ', 반복' : ''}`}
                   >
                     {o.recurring && <RepeatIcon />}
-                    <span className={styles.chipText}>{chipLabel(o, timeZone)}</span>
+                    <span className={styles.chipText}>
+                      {!o.allDay && (
+                        <span className={styles.chipTime}>{formatMinutes(toZoned(o.startAt!, timeZone).minutes)} </span>
+                      )}
+                      {o.title}
+                    </span>
                   </button>
                 ))}
                 {list.length > shown.length && (

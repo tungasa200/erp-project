@@ -502,6 +502,7 @@ describe('캘린더', () => {
     const user = userEvent.setup()
     renderApp('/calendar/week/2026-10-07', routes)
     const panel = await screen.findByRole('complementary', { name: '할 일 상자' })
+    expect(within(panel).getByLabelText('업무 빠른 입력')).toHaveAttribute('placeholder', '+ 업무 추가')
     await user.type(within(panel).getByLabelText('업무 빠른 입력'), '보고서 정리{Enter}')
     expect(await screen.findByText('업무를 만들었어요')).toBeInTheDocument()
     const post = fetchMock.mock.calls.find(([url, init]) => url === '/api/worklog/tasks' && init?.method === 'POST')

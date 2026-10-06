@@ -388,24 +388,27 @@ function Calendar({ view, date, today, timeZone, weekStart }: CalendarProps) {
               <button type="button" className={styles.pillButton} onClick={() => go(view, today)} title="단축키 T">
                 오늘
               </button>
-              <button
-                type="button"
-                className={styles.iconButton}
-                aria-label={`이전 ${unit}`}
-                title="단축키 K"
-                onClick={() => step(-1)}
-              >
-                ‹
-              </button>
-              <button
-                type="button"
-                className={styles.iconButton}
-                aria-label={`다음 ${unit}`}
-                title="단축키 J"
-                onClick={() => step(1)}
-              >
-                ›
-              </button>
+              {/* 이전·다음은 한 묶음으로 줄바꿈하지 않는다(390px) */}
+              <span className={styles.stepper}>
+                <button
+                  type="button"
+                  className={styles.iconButton}
+                  aria-label={`이전 ${unit}`}
+                  title="단축키 K"
+                  onClick={() => step(-1)}
+                >
+                  ‹
+                </button>
+                <button
+                  type="button"
+                  className={styles.iconButton}
+                  aria-label={`다음 ${unit}`}
+                  title="단축키 J"
+                  onClick={() => step(1)}
+                >
+                  ›
+                </button>
+              </span>
             </>
           )}
           <div className={styles.grow} />
@@ -518,7 +521,14 @@ function Calendar({ view, date, today, timeZone, weekStart }: CalendarProps) {
           onLoadMore={() => void panel.tasks.fetchNextPage()}
           onPlace={(task) => openCreate(task)}
           quickInput={
-            <QuickInput label="업무 빠른 입력" value={panelText} onChange={setPanelText} onSubmit={panel.quickSave} />
+            <QuickInput
+              label="업무 빠른 입력"
+              // 좁은 패널에 맞춘 짧은 안내(목업 CAL-09)
+              placeholder="+ 업무 추가"
+              value={panelText}
+              onChange={setPanelText}
+              onSubmit={panel.quickSave}
+            />
           }
         />
       )}

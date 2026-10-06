@@ -126,6 +126,12 @@
   flex-grow: 1;
 }
 
+.stepper {
+  display: inline-flex;
+  flex: none;
+  gap: 10px;
+}
+
 .viewSwitch {
   display: flex;
   background: var(--color-ground);
@@ -481,6 +487,7 @@ button.column {
 }
 
 .monthCell {
+  container: monthcell / inline-size;
   height: 132px;
   box-sizing: border-box;
   border-radius: 14px;
@@ -574,6 +581,13 @@ button.column {
   cursor: grab;
   touch-action: none;
   flex: none;
+}
+
+/* 칸이 좁으면 시각을 숨기고 제목을 먼저 보인다(SCR-CAL-03 v1.7). 120px 아래면 시각 + 제목 두세 글자밖에 안 남는다 */
+@container monthcell (max-width: 119px) {
+  .chipTime {
+    display: none;
+  }
 }
 
 /* 칸이 좁아지면 칩 제목을 말줄임한다(P1-07-11). 칩은 flex라 글자를 따로 감싸야 말줄임이 된다 */
