@@ -233,6 +233,12 @@
             "maxLength" : 50,
             "type" : "string"
           },
+          "openTaskCount" : {
+            "description" : "남은 업무 수: 보관하지 않았고 완료(DONE)가 아닌 업무 (사이드바 프로젝트 목록, SCR-COM-01)",
+            "format" : "int64",
+            "minimum" : 0,
+            "type" : "integer"
+          },
           "taskCount" : {
             "description" : "보관(소프트 삭제)하지 않은 업무 수 (상태 무관)",
             "format" : "int64",
@@ -244,7 +250,7 @@
             "type" : "integer"
           }
         },
-        "required" : [ "archived", "color", "createdAt", "id", "name", "taskCount", "version" ],
+        "required" : [ "archived", "color", "createdAt", "id", "name", "openTaskCount", "taskCount", "version" ],
         "type" : "object"
       },
       "ProjectCreate" : {

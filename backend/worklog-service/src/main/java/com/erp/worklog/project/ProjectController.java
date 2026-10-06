@@ -50,12 +50,15 @@ class ProjectController {
 			@Schema(types = { "string", "null" }, format = "date-time") Instant archivedAt,
 			@Schema(requiredMode = RequiredMode.REQUIRED, minimum = "0", description = "보관(소프트 삭제)하지 않은 업무 수 (상태 무관)")
 			long taskCount,
+			@Schema(requiredMode = RequiredMode.REQUIRED, minimum = "0",
+					description = "남은 업무 수: 보관하지 않았고 완료(DONE)가 아닌 업무 (사이드바 프로젝트 목록, SCR-COM-01)")
+			long openTaskCount,
 			@Schema(requiredMode = RequiredMode.REQUIRED) Instant createdAt,
 			@Schema(requiredMode = RequiredMode.REQUIRED) long version) {
 
 		static ProjectView of(ProjectInfo p) {
 			return new ProjectView(p.id(), p.name(), p.color(), p.archivedAt() != null, p.archivedAt(), p.taskCount(),
-					p.createdAt(), p.version());
+					p.openTaskCount(), p.createdAt(), p.version());
 		}
 	}
 

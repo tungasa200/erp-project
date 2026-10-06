@@ -14,12 +14,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-/** 프로젝트 (P1-02). 업무 수는 보관하지 않은 업무만 센다. */
+/** 프로젝트 (P1-02). 업무 수는 보관하지 않은 업무만 센다. 남은 업무 수는 그중 완료(DONE)가 아닌 것 (사이드바, SCR-COM-01). */
 @Service
 public class ProjectService {
 
 	public record ProjectInfo(UUID id, String name, String color, Instant archivedAt, long taskCount,
-			Instant createdAt, long version) {
+			long openTaskCount, Instant createdAt, long version) {
+	}
+
+	private record Counts(long all, long open) {
+		static final Counts NONE = new Counts(0, 0);
 	}
 
 	public record Change(long version, String name, String color, Boolean archived) {
@@ -39,14 +43,14 @@ public class ProjectService {
 	public List<ProjectInfo> list(UUID ownerId, boolean includeArchived) {
 		List<Project> found = includeArchived ? projects.findByOwnerIdOrderByIdAsc(ownerId)
 				: projects.findByOwnerIdAndArchivedAtIsNullOrderByIdAsc(ownerId);
-		Map<UUID, Long> counts = taskCounts(ownerId);
-		return found.stream().map(p -> info(p, counts.getOrDefault(p.id(), 0L))).toList();
+		Map<UUID, Counts> counts = taskCounts(ownerId);
+		return found.stream().map(p -> info(p, counts.getOrDefault(p.id(), Counts.NONE))).toList();
 	}
 
 	@Transactional(readOnly = true)
 	public ProjectInfo get(UUID ownerId, UUID id) {
 		Project p = projects.findByIdAndOwnerId(id, ownerId).orElseThrow(Errors::notFound);
-		return info(p, taskCounts(ownerId).getOrDefault(id, 0L));
+		return info(p, taskCounts(ownerId).getOrDefault(id, Counts.NONE));
 	}
 
 	@Transactional
@@ -55,7 +59,7 @@ public class ProjectService {
 		if (!projects.findIdsByName(ownerId, trimmed).isEmpty()) {
 			throw Errors.duplicateName();
 		}
-		return info(saveChecked(new Project(ownerId, trimmed, color, clock.instant())), 0);
+		return info(saveChecked(new Project(ownerId, trimmed, color, clock.instant())), Counts.NONE);
 	}
 
 	@Transactional
@@ -69,7 +73,7 @@ public class ProjectService {
 			throw Errors.duplicateName();
 		}
 		p.update(name, change.color(), change.archived(), clock.instant());
-		return info(saveChecked(p), taskCounts(ownerId).getOrDefault(id, 0L));
+		return info(saveChecked(p), taskCounts(ownerId).getOrDefault(id, Counts.NONE));
 	}
 
 	/** 응답에 바뀐 version을 실으려고 바로 반영한다. 이름 확인과 저장 사이에 같은 이름이 들어오면 유니크 인덱스가 막는다. */
@@ -81,14 +85,16 @@ public class ProjectService {
 		}
 	}
 
-	private Map<UUID, Long> taskCounts(UUID ownerId) {
-		Map<UUID, Long> counts = new HashMap<>();
+	private Map<UUID, Counts> taskCounts(UUID ownerId) {
+		Map<UUID, Counts> counts = new HashMap<>();
 		jdbc.sql("""
-						SELECT project_id, count(*) AS n FROM task
+						SELECT project_id, count(*) AS n, count(*) FILTER (WHERE status <> 'DONE') AS open_n
+						FROM task
 						WHERE owner_id = ? AND deleted_at IS NULL AND project_id IS NOT NULL
 						GROUP BY project_id""")
 				.param(ownerId)
-				.query((rs, i) -> counts.put(rs.getObject("project_id", UUID.class), rs.getLong("n")))
+				.query((rs, i) -> counts.put(rs.getObject("project_id", UUID.class),
+						new Counts(rs.getLong("n"), rs.getLong("open_n"))))
 				.list();
 		return counts;
 	}
@@ -101,7 +107,8 @@ public class ProjectService {
 		return trimmed;
 	}
 
-	private static ProjectInfo info(Project p, long taskCount) {
-		return new ProjectInfo(p.id(), p.name(), p.color(), p.archivedAt(), taskCount, p.createdAt(), p.version());
+	private static ProjectInfo info(Project p, Counts counts) {
+		return new ProjectInfo(p.id(), p.name(), p.color(), p.archivedAt(), counts.all(), counts.open(), p.createdAt(),
+				p.version());
 	}
 }

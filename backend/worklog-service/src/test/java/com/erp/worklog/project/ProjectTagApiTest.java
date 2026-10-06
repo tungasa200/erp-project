@@ -61,6 +61,7 @@ class ProjectTagApiTest {
 				.andExpect(jsonPath("$.color").value("P3"))
 				.andExpect(jsonPath("$.archived").value(false))
 				.andExpect(jsonPath("$.taskCount").value(0))
+				.andExpect(jsonPath("$.openTaskCount").value(0))
 				.andExpect(jsonPath("$.version").value(0)));
 
 		send(ALICE, patch("/api/worklog/projects/" + id), "{\"version\":0,\"archived\":true}")
@@ -129,10 +130,17 @@ class ProjectTagApiTest {
 		String tag = id(send(ALICE, post("/api/worklog/tags"), "{\"name\":\"회의\"}"));
 		UUID live = insertTask(project, null);
 		UUID deleted = insertTask(project, "now()");
+		UUID done = insertTask(project, null);
+		jdbc.sql("UPDATE task SET status = 'DONE', completed_at = now() WHERE id = ?").param(done).update();
 		tagTask(live, tag);
 		tagTask(deleted, tag);
 
-		mvc.perform(get("/api/worklog/projects/" + project).with(user(ALICE))).andExpect(jsonPath("$.taskCount").value(1));
+		// 업무 수는 완료 포함(설정 화면), 남은 업무 수는 완료 제외(사이드바). 둘 다 보관한 업무는 세지 않는다
+		mvc.perform(get("/api/worklog/projects/" + project).with(user(ALICE)))
+				.andExpect(jsonPath("$.taskCount").value(2))
+				.andExpect(jsonPath("$.openTaskCount").value(1));
+		mvc.perform(get("/api/worklog/projects").with(user(ALICE)))
+				.andExpect(jsonPath("$.items[0].openTaskCount").value(1));
 		mvc.perform(get("/api/worklog/tags").with(user(ALICE))).andExpect(jsonPath("$.items[0].usageCount").value(1));
 	}
 
