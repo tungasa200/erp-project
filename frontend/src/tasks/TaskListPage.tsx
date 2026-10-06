@@ -93,6 +93,8 @@ export function TaskListPage() {
     const closed = openedTaskId.current
     openedTaskId.current = taskId
     if (!closed || taskId) return
+    // 패널에서 보관해 목록을 다시 받은 것이 먼저 끝났으면 이미 이웃 행으로 옮겼다. 포커스를 잃었을 때만 돌려준다
+    if (document.activeElement && document.activeElement !== document.body) return
     const row = document.querySelector<HTMLElement>(`[data-row-link="${closed}"]`)
     ;(row ?? headingRef.current)?.focus()
   }, [taskId])

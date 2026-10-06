@@ -144,7 +144,7 @@ describe('SCR-SET-08 프로젝트 보관 포커스', () => {
     ;(await screen.findByRole('button', { name: '개발 보관' })).focus()
     await userEvent.keyboard('{Enter}')
     await waitFor(() => expect(screen.queryByRole('button', { name: '개발 보관' })).not.toBeInTheDocument())
-    expect(screen.getByRole('button', { name: '영업 보관' })).toHaveFocus()
+    await waitFor(() => expect(screen.getByRole('button', { name: '영업 보관' })).toHaveFocus())
   })
 })
 

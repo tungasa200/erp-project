@@ -190,12 +190,12 @@ describe('SCR-TASK-01 업무 목록', () => {
     ;(await screen.findByRole('checkbox', { name: '견적서 작성 완료' })).focus()
     await userEvent.keyboard('{Enter}')
     await waitFor(() => expect(screen.queryByRole('link', { name: '견적서 작성' })).not.toBeInTheDocument())
-    expect(screen.getByRole('checkbox', { name: '결제 API 문서화 완료' })).toHaveFocus()
+    await waitFor(() => expect(screen.getByRole('checkbox', { name: '결제 API 문서화 완료' })).toHaveFocus())
 
     // Delete로 보관 → 다음 행(팀 회고 정리)
     fireEvent.keyDown(screen.getByRole('link', { name: '결제 API 문서화' }), { key: 'Delete' })
     await waitFor(() => expect(screen.queryByRole('link', { name: '결제 API 문서화' })).not.toBeInTheDocument())
-    expect(screen.getByRole('checkbox', { name: '팀 회고 정리 완료' })).toHaveFocus()
+    await waitFor(() => expect(screen.getByRole('checkbox', { name: '팀 회고 정리 완료' })).toHaveFocus())
   })
 
   it('남은 행이 없으면 포커스를 목록 제목(h1)으로 옮긴다', async () => {
@@ -204,7 +204,7 @@ describe('SCR-TASK-01 업무 목록', () => {
     ;(await screen.findByRole('checkbox', { name: '혼자 남은 업무 완료' })).focus()
     await userEvent.keyboard('{Enter}')
     await waitFor(() => expect(screen.queryByRole('link', { name: '혼자 남은 업무' })).not.toBeInTheDocument())
-    expect(screen.getByRole('heading', { level: 1 })).toHaveFocus()
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1 })).toHaveFocus())
     expect(document.activeElement).not.toBe(document.body)
   })
 
@@ -320,7 +320,7 @@ describe('SCR-TASK-02 업무 상세', () => {
     renderApp('/tasks/later')
     await userEvent.click(await screen.findByRole('button', { name: '보관' }))
     await waitFor(() => expect(screen.queryByRole('link', { name: '결제 API 문서화' })).not.toBeInTheDocument())
-    expect(screen.getByRole('checkbox', { name: '팀 회고 정리 완료' })).toHaveFocus()
+    await waitFor(() => expect(screen.getByRole('checkbox', { name: '팀 회고 정리 완료' })).toHaveFocus())
   })
 
   it('P1-03-09 보관한 업무는 마감일도 막고, 복원하면 제목 칸으로 포커스를 옮긴다', async () => {
@@ -328,7 +328,7 @@ describe('SCR-TASK-02 업무 상세', () => {
     renderApp('/tasks/arch')
     expect(await screen.findByLabelText('마감일')).toBeDisabled()
     await userEvent.click(screen.getByRole('button', { name: '복원' }))
-    expect(screen.getByRole('textbox', { name: '제목' })).toHaveFocus()
+    await waitFor(() => expect(screen.getByRole('textbox', { name: '제목' })).toHaveFocus())
   })
 
   it('마감일을 키보드로 치면 중간값은 저장하지 않고 blur·Enter에서 한 번 저장하며, 말이 안 되는 날짜는 되돌린다', async () => {

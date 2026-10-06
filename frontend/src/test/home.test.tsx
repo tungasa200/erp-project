@@ -166,7 +166,7 @@ describe('SCR-HOME-01 홈 대시보드 1차', () => {
     check.focus()
     await userEvent.keyboard('{Enter}')
     await waitFor(() => expect(screen.queryByText('견적서 작성')).not.toBeInTheDocument())
-    expect(screen.getByRole('checkbox', { name: '결제 API 문서화 완료' })).toHaveFocus()
+    await waitFor(() => expect(screen.getByRole('checkbox', { name: '결제 API 문서화 완료' })).toHaveFocus())
   })
 
   it('다가오는 일정은 오늘 남은 일정부터 7일, 공휴일을 함께 보여 준다', async () => {
