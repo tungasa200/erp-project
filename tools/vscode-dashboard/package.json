@@ -2,7 +2,7 @@
   "name": "erp-session-dashboard",
   "displayName": "ERP 세션 현황",
   "description": "메모리·프로세스·Claude 역할 세션 상태를 사이드바에서 보고, WY 승인 센터에서 git 명령 요청을 승인하고 결정 요청에 답한다",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "publisher": "erp-project",
   "private": true,
   "engines": {
@@ -11,7 +11,8 @@
   "main": "./extension.js",
   "activationEvents": [
     "onStartupFinished",
-    "onWebviewPanel:wyApprovals"
+    "onWebviewPanel:wyApprovals",
+    "onWebviewPanel:wyActivity"
   ],
   "contributes": {
     "viewsContainers": {
@@ -44,6 +45,17 @@
         "title": "승인 센터 열기",
         "category": "WY",
         "icon": "$(shield)"
+      },
+      {
+        "command": "erpSessions.revealSession",
+        "title": "세션 현황에서 보기",
+        "category": "세션 현황"
+      },
+      {
+        "command": "wyActivity.open",
+        "title": "활동 보기",
+        "category": "WY",
+        "icon": "$(pulse)"
       }
     ],
     "menus": {

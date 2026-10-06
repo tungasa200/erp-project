@@ -24,7 +24,8 @@ class ApprovalCenter {
 
     context.subscriptions.push(
       this.status,
-      vscode.commands.registerCommand(OPEN_COMMAND, () => this.open()),
+      // 인자 { id }(요청 id)를 주면 탭을 열고 그 카드를 고른다(활동 탭의 "카드 열기", 계획 2.2)
+      vscode.commands.registerCommand(OPEN_COMMAND, (arg) => this.open(arg)),
       vscode.window.registerWebviewPanelSerializer(VIEW_TYPE, {
         // VS Code를 다시 열면 탭을 되살린다
         deserializeWebviewPanel: async (panel) => this.attach(panel),
@@ -90,9 +91,11 @@ class ApprovalCenter {
     this.status.show();
   }
 
-  open() {
+  open(arg) {
+    this.selectId = arg && typeof arg.id === 'string' ? arg.id : undefined;
     if (this.panel) {
       this.panel.reveal();
+      if (this.selectId) this.post({ type: 'select', id: this.selectId });
       return;
     }
     const panel = vscode.window.createWebviewPanel(VIEW_TYPE, 'WY 승인 센터', vscode.ViewColumn.Active, {
@@ -116,7 +119,10 @@ class ApprovalCenter {
 
   onMessage(msg) {
     try {
-      if (msg.type === 'ready') this.reload();
+      if (msg.type === 'ready') {
+        this.reload();
+        if (this.selectId) this.post({ type: 'select', id: this.selectId }); // 화면에서 카드 고르기는 B2-5
+      }
       else if (msg.type === 'decide') {
         store.decide(msg.id, msg.decision, { reason: msg.reason, root: this.root });
         this.reload();

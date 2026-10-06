@@ -1,8 +1,9 @@
 #!/usr/bin/env node
-// 설치본 갱신: 저장소의 개발본(tools/vscode-dashboard)을 저장소 밖 설치 폴더로 복사한다.
-//   node tools/vscode-dashboard/deploy.js [--force]
-// VS Code 확장과 승인 가드 훅은 설치 폴더를 쓰므로, 개발 중인 파일이 쓰는 확장에 바로 실리지 않는다.
-// 커밋 안 된 변경이 있으면 거부한다(--force로 무시). 새 폴더를 다 만든 뒤 이름을 바꿔 한 번에 교체한다.
+// 설치본 갱신: 커밋된(HEAD) tools/vscode-dashboard를 저장소 밖 설치 폴더로 꺼낸다.
+//   node tools/vscode-dashboard/deploy.js
+// VS Code 확장과 승인 가드 훅은 설치 폴더를 쓰므로, 개발 중인 파일이 쓰는 확장에 실리지 않는다.
+// 여러 세션이 이 폴더에서 동시에 일하므로(운영 도구 구현 계획 2.1) 워킹트리가 아니라 HEAD를 배포한다.
+// 커밋 안 된 변경은 배포되지 않는다는 안내만 한다. 새 폴더를 다 만든 뒤 이름을 바꿔 한 번에 교체한다.
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -10,29 +11,34 @@ const { execFileSync } = require('child_process');
 
 const SRC = __dirname;
 const TARGET = process.env.WY_TOOLS_DIR ? path.join(process.env.WY_TOOLS_DIR, 'vscode-dashboard') : path.join(os.homedir(), '.wy-tools', 'vscode-dashboard');
-const FILES = ['package.json', 'extension.js', 'approvalCenter.js', 'approvalStore.js', 'opsConfig.js', 'README.md', 'media', 'hooks'];
+const EXCLUDE = ['test', 'deploy.js']; // 설치본에 필요 없는 것
 
-function git(args) {
-  return execFileSync('git', args, { cwd: SRC, encoding: 'utf8' }).trim();
+function git(args, opts = {}) {
+  return execFileSync('git', args, { cwd: SRC, maxBuffer: 64 * 1024 * 1024, ...opts });
 }
 
 function main() {
-  const force = process.argv.includes('--force');
-  const dirty = git(['status', '--porcelain', '--untracked-files=all', '--', '.']);
-  if (dirty && !force) {
-    console.error('커밋 안 된 변경이 있어 배포하지 않습니다(--force로 무시):\n' + dirty);
-    process.exit(1);
-  }
-  const version = JSON.parse(fs.readFileSync(path.join(SRC, 'package.json'), 'utf8')).version;
+  const repo = git(['rev-parse', '--show-toplevel'], { encoding: 'utf8' }).trim();
+  const rel = path.relative(repo, SRC).replace(/\\/g, '/');
+  const commit = git(['rev-parse', '--short', 'HEAD'], { encoding: 'utf8' }).trim();
+  const dirty = git(['status', '--porcelain', '--untracked-files=all', '--', '.'], { encoding: 'utf8' }).trim();
   const stage = `${TARGET}.new`;
   const old = `${TARGET}.old`;
   fs.rmSync(stage, { recursive: true, force: true });
   fs.mkdirSync(stage, { recursive: true });
-  for (const f of FILES) fs.cpSync(path.join(SRC, f), path.join(stage, f), { recursive: true });
-  fs.writeFileSync(
-    path.join(stage, 'deployed.json'),
-    JSON.stringify({ version, commit: git(['rev-parse', '--short', 'HEAD']), dirty: !!dirty, deployedAt: new Date().toISOString() }, null, 2) + '\n',
-  );
+  // HEAD의 이 폴더 파일을 하나씩 꺼낸다(tar는 Git Bash와 Windows tar.exe가 경로를 다르게 해석해 쓰지 않는다. index도 건드리지 않음)
+  const entries = git(['ls-tree', '-r', '-z', 'HEAD', '--', `${rel}/`], { encoding: 'utf8', cwd: repo }).split('\0').filter(Boolean);
+  for (const e of entries) {
+    const [meta, file] = e.split('\t');
+    const sha = meta.split(' ')[2];
+    const relFile = file.slice(rel.length + 1);
+    if (EXCLUDE.some((x) => relFile === x || relFile.startsWith(`${x}/`))) continue;
+    const dest = path.join(stage, relFile);
+    fs.mkdirSync(path.dirname(dest), { recursive: true });
+    fs.writeFileSync(dest, git(['cat-file', 'blob', sha]));
+  }
+  const version = JSON.parse(fs.readFileSync(path.join(stage, 'package.json'), 'utf8')).version;
+  fs.writeFileSync(path.join(stage, 'deployed.json'), JSON.stringify({ version, commit, source: 'HEAD', deployedAt: new Date().toISOString() }, null, 2) + '\n');
 
   fs.rmSync(old, { recursive: true, force: true });
   try {
@@ -46,8 +52,9 @@ function main() {
     fs.rmSync(stage, { recursive: true, force: true });
     console.warn(`폴더 교체 대신 덮어썼습니다(${err.code || err.message}).`);
   }
-  console.log(`배포했습니다: ${TARGET} (v${version}${dirty ? ', 커밋 안 된 변경 포함' : ''})`);
-  console.log('VS Code에서 "Developer: Reload Window"를 실행하면 새 코드가 실립니다.');
+  console.log(`배포했습니다: ${TARGET} (v${version}, 커밋 ${commit})`);
+  if (dirty) console.log('참고: 커밋 안 된 변경은 배포되지 않았습니다.');
+  console.log('VS Code에서 "Developer: Reload Window"를 실행하면 새 코드가 실립니다. 훅은 바로 적용됩니다.');
 }
 
 main();

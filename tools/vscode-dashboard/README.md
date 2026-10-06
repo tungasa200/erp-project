@@ -15,8 +15,9 @@ VS Code 사이드바에서 메모리, 프로세스 그룹별 사용량, Claude �
 
 ### 갱신
 
-1. 바뀐 코드가 커밋된 뒤 `node tools/vscode-dashboard/deploy.js`를 실행한다. 커밋 안 된 변경이 있으면 거부한다(`--force`로 무시). 새 폴더를 다 만든 뒤 이름을 바꿔 한 번에 교체하므로 반쯤 복사된 상태가 남지 않는다.
-2. `Developer: Reload Window`를 실행한다. 다시 설치할 필요는 없다(같은 폴더라서).
+1. 바뀐 코드가 커밋된 뒤 `node tools/vscode-dashboard/deploy.js`를 실행한다. 워킹트리가 아니라 **커밋본(HEAD)**의 이 폴더를 꺼내 배포하므로, 다른 세션의 미커밋 변경은 실리지 않는다(`test/`·`deploy.js`는 빼고 배포). 새 폴더를 다 만든 뒤 이름을 바꿔 한 번에 교체하므로 반쯤 복사된 상태가 남지 않는다. 배포는 WY-backend2가 한다.
+2. 테스트: `node tools/vscode-dashboard/test/<이름>.test.js`(가짜 vscode 모듈 `test/fakeVscode.js`, Extension Development Host 없이).
+3. `Developer: Reload Window`를 실행한다. 다시 설치할 필요는 없다(같은 폴더라서).
 
 설치 폴더의 `deployed.json`에 배포한 버전·커밋·시각이 남는다.
 

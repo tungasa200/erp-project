@@ -213,4 +213,16 @@ function answer(id, answers, { note = '', root = ROOT } = {}) {
   return writeDecision(id, req, { decision: 'answered', answers: out, note: text(note).trim() }, root);
 }
 
-module.exports = { ROOT, KINDS, GIT_KINDS, ROUTINE_KINDS, LIMITS, ID_RE, rootFor, paths, ensureDirs, readJson, writeJsonAtomic, readState, countPending, readRequest, decide, answer, normalize };
+// 권한 요청 파일(requests/perm-<key>.json) 목록. B2-4에서 채운다. 형식: 운영 도구 구현 계획 2.2
+//   [{ key, sessionId, sessionName, tool, toolInput, command, permissionMode, createdAt, expiresAt, decision: null|'approved'|'rejected'|'expired' }]
+function listPermissionRequests(root = ROOT) {
+  return [];
+}
+
+// 세션 등록 기록(sessions/<sessionId>.json, SessionStart 훅이 씀). B2-1에서 채운다.
+//   Map<sessionId, { sessionId, agentType, startedAt, cwd, source }>
+function readSessionRegistry(root = ROOT) {
+  return new Map();
+}
+
+module.exports = { listPermissionRequests, readSessionRegistry, ROOT, KINDS, GIT_KINDS, ROUTINE_KINDS, LIMITS, ID_RE, rootFor, paths, ensureDirs, readJson, writeJsonAtomic, readState, countPending, readRequest, decide, answer, normalize };
