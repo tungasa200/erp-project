@@ -2,6 +2,7 @@
 // 틀리면 "코드가 맞지 않아요(남은 시도 n회)", 5회를 다 틀렸거나 10분이 지나면 입력을 잠그고 "새 코드 받기"만 남긴다.
 import { useEffect, useRef, useState } from 'react'
 import { toastForError } from '../api/errorToast'
+import { useAuth } from '../auth/useAuth'
 import { codeFailure, sendLimitMessage, timesOf, type CodeIssued, type CodeTimes } from './api'
 import { CodeInput } from './CodeInput'
 import { mmss, useCountdown } from './useCountdown'
@@ -18,6 +19,7 @@ interface Props {
 }
 
 export function CodeStep({ initial, check, resend, onVerified, verified = false, autoFocus }: Props) {
+  const { user } = useAuth()
   const [code, setCode] = useState('')
   const [times, setTimes] = useState(initial)
   const [expired, setExpired] = useState(initial.expiresAt === null)
@@ -70,7 +72,8 @@ export function CodeStep({ initial, check, resend, onVerified, verified = false,
       setCode('')
       setMessage('새 코드를 보냈어요')
     } catch (error) {
-      const limited = sendLimitMessage(error)
+      // 로그인 전(비밀번호 재설정)이면 user가 없어 브라우저 시간대로 보인다
+      const limited = sendLimitMessage(error, user?.timezone)
       if (limited) {
         setMessage(limited.message)
         if (limited.retryAt) setTimes((t) => ({ ...t, resendAt: limited.retryAt }))

@@ -1,6 +1,8 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { ApiError } from '../api/problem'
+import { sendLimitMessage } from '../verification/api'
 import { json, ME, problem, renderApp, stubFetch } from './renderApp'
 
 afterEach(() => {
@@ -54,14 +56,36 @@ describe('SCR-AUTH-04·05 비밀번호 찾기·재설정', () => {
     expect(fetchMock.mock.calls.some(([url]) => url === '/api/auth/password-reset')).toBe(false)
   })
 
-  it('하루 발송 한도를 넘으면 내일 다시 시도하라고 알린다', async () => {
+  it('발송 한도(24시간 10통, D-64)를 넘으면 다시 받을 수 있는 시각을 알린다("내일"이라고 하지 않음)', async () => {
     stubFetch({ 'POST /api/auth/password-reset': () => problem(429, 'DAILY_SEND_LIMIT', { retryAfterSeconds: 3600 }) })
     renderApp('/password/forgot')
     await userEvent.type(await screen.findByRole('textbox', { name: '이메일' }), 'me@example.com')
     await userEvent.click(screen.getByRole('button', { name: '인증번호 받기' }))
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      '하루 발송 한도(10통)를 넘었어요. 내일 다시 시도해 주세요',
+    // 로그인 전이라 브라우저 시간대로 보인다
+    const hhmm = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+    const candidates = [0, 1].map((m) => hhmm.format(new Date(Date.now() + 3600_000 - m * 60_000)))
+    const alert = await screen.findByRole('alert')
+    expect(candidates.map((t) => `코드는 24시간에 10통까지 받을 수 있어요. ${t} 이후에 다시 받을 수 있어요`)).toContain(
+      alert.textContent,
     )
+    expect(alert).not.toHaveTextContent('내일')
+  })
+
+  it('발송 한도 시각은 사용자 시간대로 보인다', () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-10-07T03:00:00Z'))
+    const error = new ApiError(429, {
+      type: 'about:blank',
+      title: 'DAILY_SEND_LIMIT',
+      status: 429,
+      code: 'DAILY_SEND_LIMIT',
+      traceId: 't',
+      retryAfterSeconds: 3600,
+    })
+    expect(sendLimitMessage(error, 'Asia/Seoul')?.message).toBe(
+      '코드는 24시간에 10통까지 받을 수 있어요. 13:00 이후에 다시 받을 수 있어요',
+    )
+    vi.useRealTimers()
   })
 
   it('비밀번호 찾기를 거치지 않고 들어오면 처음 단계로 보낸다', async () => {

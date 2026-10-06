@@ -3,6 +3,7 @@ import { api } from '../api'
 import type { components } from '../api/generated/identity'
 import { ApiError } from '../api/problem'
 import type { Me } from '../api/types'
+import { formatMinutes, toZoned } from '../calendar/time'
 
 type Schemas = components['schemas']
 /** 코드를 새로 발급했을 때의 시각 (UTC ISO) */
@@ -52,16 +53,23 @@ export function codeFailure(error: unknown): CodeFailure {
   return { kind: 'other', error }
 }
 
-/** 발송 제한(429 SendLimited) 안내. 다시 받을 수 있는 시각도 돌려준다 */
+/**
+ * 발송 제한(429 SendLimited) 안내. 다시 받을 수 있는 시각도 돌려준다.
+ * 발송 한도는 보낸 시각부터 24시간(rolling, D-64)이라 자정에 풀리지 않으므로 "내일" 대신 다시 받을 수 있는 시각을 쓴다.
+ * 시각은 timeZone(로그인 전이면 브라우저 시간대)으로 보인다.
+ */
 export function sendLimitMessage(
   error: unknown,
+  timeZone: string = Intl.DateTimeFormat().resolvedOptions().timeZone,
 ): { code: string | undefined; message: string; retryAt: Date | null } | null {
   if (!(error instanceof ApiError) || error.status !== 429) return null
   const seconds = error.problem?.retryAfterSeconds
   const retryAt = seconds === undefined ? null : new Date(Date.now() + seconds * 1000)
   const message =
     error.code === 'DAILY_SEND_LIMIT'
-      ? '하루 발송 한도(10통)를 넘었어요. 내일 다시 시도해 주세요'
+      ? retryAt
+        ? `코드는 24시간에 10통까지 받을 수 있어요. ${formatMinutes(toZoned(retryAt.getTime(), timeZone).minutes)} 이후에 다시 받을 수 있어요`
+        : '코드는 24시간에 10통까지 받을 수 있어요'
       : error.code === 'RESEND_TOO_SOON'
         ? '방금 코드를 보냈어요. 잠시 후 다시 받을 수 있어요'
         : '요청이 많아요. 잠시 후 다시 시도해 주세요'
