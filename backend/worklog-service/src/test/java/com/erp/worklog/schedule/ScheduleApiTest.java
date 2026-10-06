@@ -253,6 +253,43 @@ class ScheduleApiTest {
 		list(ALICE, "2026-10-05T15:00:00Z", "2026-10-06T15:00:00Z").andExpect(jsonPath("$.items[0].projectId").value(project));
 	}
 
+	@Test
+	void 업무_id로_거르면_그_업무의_회차만_주고_남의_업무는_빈_목록() throws Exception {
+		String task = id(send(ALICE, post("/api/worklog/tasks"), "{\"title\":\"a\"}"));
+		String otherTask = id(send(ALICE, post("/api/worklog/tasks"), "{\"title\":\"b\"}"));
+		String bobTask = id(send(BOB, post("/api/worklog/tasks"), "{\"title\":\"c\"}"));
+		send(ALICE, post("/api/worklog/schedules"), """
+				{"title":"반복","allDay":false,"startAt":"2026-10-06T01:00:00Z","endAt":"2026-10-06T02:00:00Z","taskId":"%s",
+				 "recurrence":{"frequency":"DAILY","count":3}}""".formatted(task)).andExpect(status().isCreated());
+		send(ALICE, post("/api/worklog/schedules"), """
+				{"title":"한 번","allDay":true,"startDate":"2026-10-10","endDate":"2026-10-10","taskId":"%s"}""".formatted(task))
+			.andExpect(status().isCreated());
+		send(ALICE, post("/api/worklog/schedules"), """
+				{"title":"다른 업무","allDay":false,"startAt":"2026-10-06T03:00:00Z","endAt":"2026-10-06T04:00:00Z","taskId":"%s"}"""
+			.formatted(otherTask)).andExpect(status().isCreated());
+		send(ALICE, post("/api/worklog/schedules"), """
+				{"title":"업무 없음","allDay":false,"startAt":"2026-10-06T05:00:00Z","endAt":"2026-10-06T06:00:00Z"}""")
+			.andExpect(status().isCreated());
+		send(BOB, post("/api/worklog/schedules"), """
+				{"title":"밥","allDay":false,"startAt":"2026-10-06T07:00:00Z","endAt":"2026-10-06T08:00:00Z","taskId":"%s"}"""
+			.formatted(bobTask)).andExpect(status().isCreated());
+		String range = "from=2026-10-01T00:00:00Z&to=2026-11-01T00:00:00Z";
+
+		// 반복 회차(3개)와 종일 일정, 기간 밖 회차는 빠진다
+		assertThat(keys(ALICE, range + "&taskId=" + task)).containsExactly("2026-10-06T01:00:00Z", "2026-10-07T01:00:00Z",
+				"2026-10-08T01:00:00Z", "2026-10-09T15:00:00Z");
+		assertThat(keys(ALICE, "from=2026-10-07T00:00:00Z&to=2026-10-08T00:00:00Z&taskId=" + task))
+			.containsExactly("2026-10-07T01:00:00Z");
+		assertThat(keys(ALICE, range)).hasSize(6);
+
+		// 남의 업무·없는 업무는 존재 여부를 드러내지 않고 빈 목록
+		assertThat(keys(ALICE, range + "&taskId=" + bobTask)).isEmpty();
+		assertThat(keys(ALICE, range + "&taskId=" + UUID.randomUUID())).isEmpty();
+		assertThat(keys(BOB, range + "&taskId=" + bobTask)).containsExactly("2026-10-06T07:00:00Z");
+
+		expectFieldError(send(ALICE, get("/api/worklog/schedules?" + range + "&taskId=abc"), ""), "taskId", "INVALID_FORMAT");
+	}
+
 	private void snapshot(UUID user, String timezone) {
 		jdbc.sql("""
 				INSERT INTO user_snapshot (user_id, timezone, week_start, work_days, last_seq, synced_at)

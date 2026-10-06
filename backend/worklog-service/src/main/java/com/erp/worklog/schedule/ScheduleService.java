@@ -55,7 +55,7 @@ class ScheduleService {
 	}
 
 	@Transactional(readOnly = true)
-	List<OccurrenceView> list(UUID ownerId, Instant from, Instant to) {
+	List<OccurrenceView> list(UUID ownerId, Instant from, Instant to, UUID taskId) {
 		List<FieldErrorDetail> errors = new ArrayList<>();
 		if (from == null) {
 			errors.add(error("from", "REQUIRED"));
@@ -73,7 +73,9 @@ class ScheduleService {
 
 		record Sorted(Instant start, OccurrenceView view) {
 		}
-		List<Schedule> found = schedules.findOverlapping(ownerId, from, to);
+		List<Schedule> found = schedules.findOverlapping(ownerId, from, to).stream()
+				.filter(s -> taskId == null || taskId.equals(s.getTaskId()))
+				.toList();
 		Map<UUID, UUID> projects = projectsOf(found.stream().map(Schedule::getTaskId).filter(Objects::nonNull).toList());
 		List<Sorted> result = new ArrayList<>();
 		for (Schedule s : found) {

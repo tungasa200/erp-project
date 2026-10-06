@@ -56,7 +56,8 @@ class ScheduleController {
 	@Operation(operationId = "listOccurrences", summary = "기간 안의 일정 회차 (캘린더 일·주·월·연·목록 보기)",
 			description = """
 					[from, to)와 겹치는 회차를 시작 시각순으로 준다. 반복 일정은 회차로 전개하고, "이 일정만"으로 바꾼 회차는 바뀐 값으로,
-					삭제한 회차는 빼고 준다. 종일 일정은 일정 시간대의 [startDate 0시, endDate 다음 날 0시)로 겹침을 판단한다. 기간은 최대 400일.""",
+					삭제한 회차는 빼고 준다. 종일 일정은 일정 시간대의 [startDate 0시, endDate 다음 날 0시)로 겹침을 판단한다. 기간은 최대 400일.
+					taskId를 주면 그 업무에 연결된 일정의 회차만 준다(다른 사용자의 업무면 빈 목록).""",
 			security = @SecurityRequirement(name = SecurityConfig.COOKIE_SCHEME))
 	@ApiResponse(responseCode = "200", description = "조회 성공")
 	@ApiResponse(responseCode = "400", description = "from·to 누락(REQUIRED)·순서(INVALID_ORDER)·400일 초과(OUT_OF_RANGE)·형식 오류(INVALID_FORMAT)",
@@ -64,8 +65,9 @@ class ScheduleController {
 	OccurrenceList list(@Parameter(hidden = true) CurrentUser user,
 			@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
 			@Parameter(description = "from보다 뒤, from + 400일 이내") @RequestParam(required = false)
-			@DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to) {
-		return new OccurrenceList(schedules.list(user.id(), from, to));
+			@DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to,
+			@Parameter(description = "이 업무에 연결된 일정의 회차만") @RequestParam(required = false) UUID taskId) {
+		return new OccurrenceList(schedules.list(user.id(), from, to, taskId));
 	}
 
 	@PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)

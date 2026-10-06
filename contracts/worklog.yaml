@@ -542,6 +542,8 @@ paths:
         "이 일정만"으로 바꾼 회차는 바뀐 값으로, 삭제한 회차는 빼고 준다.
         겹침 판단: 시간 일정은 [startAt, endAt), 종일 일정은 일정 시간대(timezone)의 [startDate 0시, endDate 다음 날 0시).
         기간은 최대 400일(연 보기 대비). 페이지네이션 없이 한 번에 준다.
+        taskId를 주면 그 업무에 연결된 일정의 회차만 준다(업무 상세의 연결 일정). 다른 사용자의 업무이거나
+        없는 업무면 빈 목록이다(존재 여부를 드러내지 않음).
       parameters:
         - name: from
           in: query
@@ -556,6 +558,13 @@ paths:
           schema:
             type: string
             format: date-time
+        - name: taskId
+          in: query
+          required: false
+          description: 이 업무에 연결된 일정의 회차만
+          schema:
+            type: string
+            format: uuid
       responses:
         '200':
           description: 조회 성공
