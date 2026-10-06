@@ -152,3 +152,9 @@ test('같은 작업 ID의 보고·수정·재검증은 한 묶음에 순서대�
   assert.deepStrictEqual(other.messages.map((x) => x.id), ['2', '5'], 'ID 없는 메시지는 같은 두 세션의 응답끼리 묶인다');
   assert.strictEqual(other.state, 'done');
 });
+
+test('ID 없는 대화는 [완료] 뒤에 새 묶음으로 시작한다', () => {
+  const m = (min, body) => ({ id: `${min}`, from: 'WY-commit', to: 'WY-pm', at: at(min), body, summary: '', title: body });
+  const bs = bundle([m(1, '커밋 요청 받음'), m(2, '[완료] 커밋 끝'), m(3, '[완료] 다른 커밋 끝')]);
+  assert.deepStrictEqual(bs.map((b) => b.messages.map((x) => x.id)).sort(), [['1', '2'], ['3']]);
+});

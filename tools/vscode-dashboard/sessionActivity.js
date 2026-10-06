@@ -245,7 +245,7 @@ const HEAD = 400;
 const STAGES = [
   ['bug', /\[결함\]/],
   ['block', /\[차단\]/],
-  ['ask', /\[결정 요청\]|\[pm 결정\]|결정 카드/],
+  ['ask', /\[결정 요청\]|결정 카드/],
   ['done', /\[완료\]|재검증\s*통과/],
   ['commit', /커밋 요청|\[커밋/],
   ['verify', /재검증/],
@@ -287,7 +287,9 @@ function bundle(feed) {
     else {
       const pair = [m.from, m.to].sort().join('|');
       const prev = openPairs.get(pair);
-      key = prev && Date.parse(m.at) - Date.parse(prev.lastAt) <= PAIR_GAP ? prev.key : `pair:${pair}:${m.at}`;
+      // 응답이 [완료]로 끝났으면 다음 메시지는 새 묶음이다(ID 없는 대화가 몇 시간씩 이어 붙지 않게)
+      const open = prev && prev.stages[prev.stages.length - 1] !== 'done' && Date.parse(m.at) - Date.parse(prev.lastAt) <= PAIR_GAP;
+      key = open ? prev.key : `pair:${pair}:${m.at}`;
     }
     let b = byKey.get(key);
     if (!b) {

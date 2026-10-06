@@ -1,17 +1,83 @@
 // 활동 탭(작업창 webview): 세션 간 메시지 피드·세션 상태·결함 흐름 묶음(OPS-09). 담당 WY-backend3(운영 도구 구현 계획 3.3).
-// 지금은 빈 틀이다. extension.js는 register(context)만 부른다.
+// extension.js는 register(context)만 부른다. 데이터는 sessionActivity.js(대화 기록)와 세션 상태(claude agents).
 const vscode = require('vscode');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const { execFile } = require('child_process');
+const { ActivityReader, transcriptDir, bundle } = require('./sessionActivity');
+const { loadOpsConfig } = require('./opsConfig');
+const store = require('./approvalStore');
 
 const VIEW_TYPE = 'wyActivity';
 const OPEN_COMMAND = 'wyActivity.open';
+const INTERVAL = { transcripts: 3000, status: 10000 }; // 메시지는 10초 안에 보여야 한다(OPS-09)
+const MAX_BUNDLES = 40;
+
+// 세션 상태: WY-backend1의 agentsReader.readSessionStatus(계획 2.2)가 생기면 그것을, 없으면 claude agents를 직접 읽는다
+function statusReader() {
+  try {
+    const { readSessionStatus } = require('./agentsReader');
+    if (typeof readSessionStatus === 'function') return readSessionStatus;
+  } catch {
+    // B1-1 전
+  }
+  return readAgentsFallback;
+}
+
+const PERMISSION_WAITS = ['permission prompt', 'sandbox request', 'worker request'];
+const INPUT_WAITS = ['dialog open', 'input needed'];
+
+// 계획 2.2의 view 값으로 나눈다(B1-1과 같은 기준: dialog open은 입력 대기, U-05)
+function classify(s) {
+  if (s.state === 'failed') return 'failed';
+  if (PERMISSION_WAITS.includes(s.waitingFor)) return 'permission';
+  if (INPUT_WAITS.includes(s.waitingFor)) return 'input';
+  if (!s.status) return s.state === 'done' ? 'ended' : s.state === 'stopped' ? 'stopped' : 'idle'; // 프로세스 없음: done이면 대기 중 종료(B1과 같은 기준)
+  if (s.status === 'busy' || s.state === 'working') return 'working';
+  if (s.state === 'blocked' || s.state === 'done') return 'input';
+  return 'idle';
+}
+
+function readAgentsFallback() {
+  return new Promise((resolve, reject) => {
+    execFile(process.env.ComSpec || 'cmd.exe', ['/d', '/s', '/c', 'claude agents --json --all'], { timeout: 8000, windowsHide: true, maxBuffer: 4 * 1024 * 1024 }, (err, out) => {
+      if (err) return reject(new Error(err.killed ? 'claude agents 응답 없음' : `claude agents 실패(종료 코드 ${err.code})`));
+      try {
+        resolve(JSON.parse(out).map((s) => ({ name: s.name || '(이름 없음)', id: s.id, sessionId: s.sessionId, kind: s.kind, state: s.state, status: s.status, waitingFor: s.waitingFor, view: classify(s), pending: null, startedAt: s.startedAt })));
+      } catch {
+        reject(new Error('claude agents 출력을 해석하지 못함'));
+      }
+    });
+  });
+}
+
+// 이름마다 한 줄: 살아 있는 것 우선, 그다음 최신 startedAt(WY-backend1·2와 합의)
+function latestByName(list) {
+  const out = new Map();
+  for (const s of list) {
+    const cur = out.get(s.name);
+    const alive = (x) => (x.alive !== undefined ? x.alive : x.view !== 'stopped' && x.view !== 'ended');
+    if (!cur || (alive(s) && !alive(cur)) || (alive(s) === alive(cur) && (s.startedAt || 0) > (cur.startedAt || 0))) out.set(s.name, s);
+  }
+  return out;
+}
 
 class ActivityView {
   constructor(context) {
     this.context = context;
     this.panel = undefined;
+    this.timers = [];
+    this.status = { list: [], error: null, at: 0 };
+    this.lastSent = '';
+    const folder = vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders[0];
+    this.repo = folder ? folder.uri.fsPath : null;
+    const ops = this.repo ? loadOpsConfig(this.repo) : null;
+    this.root = ops ? ops.root : this.repo;
+    this.ops = ops;
+    this.roles = ops && Array.isArray(ops.roles) ? ops.roles.map((r) => r && r.name).filter(Boolean) : [];
+    this.reader = this.root ? new ActivityReader({ dir: transcriptDir(this.root) }) : null;
+    this.approvalsRoot = store.rootFor(this.repo);
   }
 
   open() {
@@ -20,7 +86,7 @@ class ActivityView {
       return;
     }
     const media = vscode.Uri.joinPath(this.context.extensionUri, 'media');
-    this.attach(vscode.window.createWebviewPanel(VIEW_TYPE, 'WY 활동', vscode.ViewColumn.Active, { enableScripts: true, localResourceRoots: [media] }));
+    this.attach(vscode.window.createWebviewPanel(VIEW_TYPE, 'WY 활동', vscode.ViewColumn.Active, { enableScripts: true, retainContextWhenHidden: false, localResourceRoots: [media] }));
   }
 
   attach(panel) {
@@ -29,13 +95,114 @@ class ActivityView {
     panel.webview.options = { enableScripts: true, localResourceRoots: [media] };
     panel.webview.html = this.html(panel.webview, media);
     panel.webview.onDidReceiveMessage((msg) => this.onMessage(msg));
+    if (panel.onDidChangeViewState) panel.onDidChangeViewState(() => (panel.visible ? this.start() : this.stop()));
     panel.onDidDispose(() => {
+      this.stop();
       this.panel = undefined;
     });
   }
 
   onMessage(msg) {
-    if (msg.type === 'ready') this.post({ type: 'state', state: { feed: [], sessions: [], bundles: [] } });
+    if (msg.type === 'ready') {
+      // 숨겼다 다시 보이면 webview가 새로 뜨므로 ready마다 전부 다시 보낸다
+      this.lastSent = '';
+      this.refresh();
+      if (this.panel && this.panel.visible) this.start();
+    } else if (msg.type === 'openCard' && typeof msg.id === 'string') {
+      vscode.commands.executeCommand('wyApprovals.open', { id: msg.id });
+    } else if (msg.type === 'revealSession' && typeof msg.sessionId === 'string') {
+      vscode.commands.executeCommand('erpSessions.revealSession', msg.sessionId);
+    }
+  }
+
+  // 보이는 동안만 읽는다
+  start() {
+    this.stop();
+    this.updateStatus();
+    this.timers = [setInterval(() => this.refresh(), INTERVAL.transcripts), setInterval(() => this.updateStatus(), INTERVAL.status)];
+  }
+
+  stop() {
+    this.timers.forEach(clearInterval);
+    this.timers = [];
+  }
+
+  async updateStatus() {
+    if (this.statusInflight) return;
+    this.statusInflight = true;
+    try {
+      const list = await statusReader()({ root: this.root, ops: this.ops });
+      this.status = { list: Array.isArray(list) ? list : [], error: null, at: Date.now() };
+    } catch (err) {
+      this.status = { ...this.status, error: String((err && err.message) || err).split(/\r?\n/)[0] };
+    }
+    this.statusInflight = false;
+    this.refresh();
+  }
+
+  refresh() {
+    if (!this.panel) return;
+    let state;
+    try {
+      state = this.buildState();
+    } catch (err) {
+      state = { error: `활동을 읽지 못했습니다: ${err.message}` };
+    }
+    const text = JSON.stringify(state); // 바뀐 것이 있을 때만 보낸다(now는 보낼 때 붙인다)
+    if (text === this.lastSent) return;
+    this.lastSent = text;
+    this.post({ type: 'state', state: { ...state, now: Date.now() } });
+  }
+
+  buildState() {
+    if (!this.reader) return { error: '열린 폴더가 없어 대화 기록 위치를 알 수 없습니다.' };
+    this.reader.poll();
+    const feed = this.reader.feed();
+    const byName = latestByName(this.status.list);
+    const actions = new Map(this.reader.lastActions().map((a) => [a.name, a]));
+
+    // 세션 칩: 프로젝트 역할 순서, 역할 목록이 없으면 claude agents 순서
+    const names = this.roles.length ? this.roles : [...byName.keys()];
+    const sessions = names.map((name) => {
+      const s = byName.get(name);
+      const a = actions.get(name);
+      return { name, view: s ? s.view : 'stopped', sessionId: s ? s.sessionId : null, pending: s ? s.pending || null : null, doing: a ? a.doing : null, lastAt: a ? a.lastAt : null };
+    });
+
+    const views = new Map(sessions.map((s) => [s.name, s.view]));
+    let cards = [];
+    try {
+      cards = store.readState(this.approvalsRoot).pending.filter((r) => !r.broken);
+    } catch {
+      // 승인 폴더가 없으면 카드 연결 없이 보여 준다
+    }
+    const bundles = bundle(feed)
+      .slice(0, MAX_BUNDLES)
+      .map((b) => {
+        const card = cards.filter((c) => b.sessions.includes(c.session) && String(c.createdAt || '') >= b.startedAt).pop();
+        const blockedBy = b.state !== 'done' ? b.sessions.find((n) => views.get(n) === 'permission') : null;
+        return {
+          key: b.key,
+          taskId: b.taskId,
+          title: b.title,
+          state: blockedBy ? 'perm' : card && b.state !== 'done' ? 'me' : b.state,
+          startedAt: b.startedAt,
+          lastAt: b.lastAt,
+          sessions: b.sessions,
+          steps: b.messages.map((m, i) => ({ id: m.id, from: m.from, stage: b.stages[i] })),
+          card: card ? { id: card.id, title: card.title } : null,
+        };
+      });
+
+    return {
+      sessions,
+      statusError: this.status.error,
+      messages: Object.fromEntries(feed.map((m) => [m.id, { from: m.from, to: m.to, at: m.at, title: m.title, body: m.body }])),
+      feed: feed.map((m) => m.id).reverse(),
+      bundles,
+      unreadable: this.reader.unreadable,
+      windowHours: 24,
+    };
   }
 
   html(webview, media) {
@@ -60,8 +227,9 @@ function register(context) {
   context.subscriptions.push(
     vscode.commands.registerCommand(OPEN_COMMAND, () => view.open()),
     vscode.window.registerWebviewPanelSerializer(VIEW_TYPE, { deserializeWebviewPanel: async (panel) => view.attach(panel) }),
+    { dispose: () => view.stop() },
   );
   return view;
 }
 
-module.exports = { register, VIEW_TYPE, OPEN_COMMAND };
+module.exports = { register, VIEW_TYPE, OPEN_COMMAND, classify, latestByName };
