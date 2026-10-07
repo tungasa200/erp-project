@@ -106,3 +106,29 @@ describe('가짜 업무 기록 수정(SCR-REC-01)', () => {
     expect((await call('PATCH', url, { version: 3, content: '정리 2' })).status).toBe(200)
   })
 })
+
+describe('가짜 타이머(P2-06)', () => {
+  const on = { timeTrackingEnabled: true }
+  const call = async (method: string, url: string, body = {}, settings = on) => {
+    const res = handleWorklog(method, url, body, r, settings)!
+    return { status: res.status, body: (await res.json()) as Record<string, never> }
+  }
+
+  it('옵션이 꺼져 있으면 시작은 409, 시작하면 실행 중, 다시 시작하면 앞 타이머를 멈추고(1분 미만은 버림) 정지는 멱등', async () => {
+    expect(
+      (await call('POST', '/api/worklog/timer/start', { content: '정리' }, { timeTrackingEnabled: false })).body,
+    ).toEqual({ code: 'TIME_TRACKING_DISABLED' })
+    const [task] = await tasks()
+    const first = await call('POST', '/api/worklog/timer/start', { taskId: task.id })
+    expect(first.body.running).toMatchObject({ content: task.title, taskId: task.id, endAt: null, status: 'CONFIRMED' })
+    expect((await call('GET', '/api/worklog/timer')).body.running).toMatchObject({ taskId: task.id })
+
+    const second = await call('POST', '/api/worklog/timer/start', { content: '메일' })
+    expect(second.body.stopped).toMatchObject({ discarded: true, capped: false })
+    expect(second.body.running).toMatchObject({ content: '메일', taskId: null })
+
+    expect((await call('POST', '/api/worklog/timer/stop')).body.stopped).toMatchObject({ discarded: true })
+    expect((await call('POST', '/api/worklog/timer/stop')).body).toEqual({ stopped: null, next: null })
+    expect((await call('GET', '/api/worklog/timer')).body.running).toBeNull()
+  })
+})

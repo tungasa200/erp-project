@@ -66,6 +66,8 @@ export function stubFetch(handlers: Record<string, Handler>) {
     if (key === 'POST /api/auth/refresh') return problem(401, 'REFRESH_INVALID')
     // 시간 기록 옵션(useTimeTracking)을 읽는 화면(홈 ③ 등). 등록하지 않았으면 꺼짐으로 답한다
     if (key === 'GET /api/worklog/me') return json(200, { userId: 'u-1', settings: { timeTrackingEnabled: false } })
+    // 옵션이 켜지면 앱 셸 타이머 미니 플레이어가 실행 중인 타이머를 묻는다. 등록하지 않았으면 없음으로 답한다
+    if (key === 'GET /api/worklog/timer') return json(200, { running: null })
     return problem(401, 'UNAUTHENTICATED')
   })
   vi.stubGlobal('fetch', fetchMock)

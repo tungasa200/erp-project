@@ -302,7 +302,11 @@ export const mockFetch: typeof fetch = async (input, init) => {
       problem: (s: number, c: string, e?: Record<string, unknown>) => problem(s, c, e as Partial<Problem>),
     }
     // 일정(P1-05·06)은 캘린더 쪽 mock이 맡는다 (frontend2)
-    const handled = handleScheduleMock(method, path, body, respond) ?? handleWorklog(method, path, body, respond)
+    const settings = {
+      timeTrackingEnabled: state.accounts[state.session.email]?.settings?.timeTrackingEnabled ?? false,
+    }
+    const handled =
+      handleScheduleMock(method, path, body, respond) ?? handleWorklog(method, path, body, respond, settings)
     if (handled) return handled
   }
 

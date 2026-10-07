@@ -651,3 +651,53 @@ describe('SCR-TASK-03 완료 결과 입력 (P2-02)', () => {
     expect(screen.getByRole('combobox', { name: '상태' })).toBeInTheDocument()
   })
 })
+
+describe('SCR-TASK-01 타이머 시작 (P2-06, 업무 목록 진입점)', () => {
+  function withTimer() {
+    const started: unknown[] = []
+    let running: Record<string, unknown> | null = null
+    const fetchMock = vi.mocked(fetch)
+    const inner = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url === '/api/worklog/me') return json(200, { userId: 'u-1', settings: { timeTrackingEnabled: true } })
+      if (url === '/api/worklog/timer') return json(200, { running })
+      if (url === '/api/worklog/timer/start') {
+        const body = JSON.parse(String(init!.body)) as { taskId: string }
+        started.push(body)
+        running = {
+          id: 'rec-t',
+          content: '견적서 작성',
+          taskId: body.taskId,
+          startAt: '2026-10-07T03:00:00Z',
+          endAt: null,
+        }
+        return json(200, { running, stopped: null })
+      }
+      return inner(input, init)
+    })
+    return { started }
+  }
+
+  it('옵션이 꺼져 있으면 시작 버튼이 없다', async () => {
+    server(SAMPLE)
+    renderApp('/tasks')
+    await screen.findByRole('link', { name: '견적서 작성' })
+    expect(screen.queryByRole('button', { name: /타이머 시작/ })).not.toBeInTheDocument()
+  })
+
+  it('켜져 있으면 행의 시작 버튼이 POST /timer/start {taskId}, 토스트 후 그 행은 실행 중', async () => {
+    server(SAMPLE)
+    const { started } = withTimer()
+    renderApp('/tasks')
+    const button = await screen.findByRole('button', { name: '견적서 작성 타이머 시작' })
+    button.focus()
+    await userEvent.keyboard('{Enter}')
+    expect(await screen.findByText('‘견적서 작성’ 타이머를 시작했어요')).toBeInTheDocument()
+    expect(started).toEqual([{ taskId: 'today' }])
+    const runningButton = await screen.findByRole('button', { name: '견적서 작성 타이머 실행 중' })
+    expect(runningButton).toHaveAttribute('aria-disabled', 'true')
+    // 누른 버튼은 그대로 남아 포커스를 잃지 않는다
+    expect(runningButton).toHaveFocus()
+  })
+})

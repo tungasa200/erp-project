@@ -13,6 +13,8 @@ import { useProjects, useTags, type Project } from '../projects/api'
 import { projectColor } from '../projects/palette'
 import { todayIn, weekStartNumber } from '../quickInput/dates'
 import { QuickInput } from '../quickInput/QuickInput'
+import { useTimeTracking } from '../settings/useWorklogSettings'
+import { clip, startFailedMessage, stoppedMessage, useRunningTimer, useTimerCommands } from '../timer/api'
 import { refreshTasks, taskApi, useTasks, type Task } from './api'
 import { isCompletionResultFocused } from './completionResultContext'
 import styles from './tasks.module.css'
@@ -553,6 +555,7 @@ function TaskRow({ task, today, weekStart, projects, tagNames, selected, onLeave
   const refresh = () => refreshTasks(queryClient)
   const online = useOnline()
   const complete = useCompleteTask()
+  const timed = useTimeTracking()
 
   const failed = (error: unknown) => {
     onStay()
@@ -617,7 +620,9 @@ function TaskRow({ task, today, weekStart, projects, tagNames, selected, onLeave
 
   return (
     <li
-      className={[styles.row, selected && styles.rowSelected, !online && styles.rowOffline].filter(Boolean).join(' ')}
+      className={[styles.row, timed && styles.rowTimed, selected && styles.rowSelected, !online && styles.rowOffline]
+        .filter(Boolean)
+        .join(' ')}
       onKeyDown={(e) => {
         // 행 안에 포커스가 있을 때 Delete로 보관 (입력칸 안의 Delete는 글자 지우기). 끊긴 동안에는 막는다
         if (online && e.key === 'Delete' && !(e.target instanceof HTMLInputElement)) {
@@ -673,6 +678,53 @@ function TaskRow({ task, today, weekStart, projects, tagNames, selected, onLeave
       >
         ◷
       </span>
+      {timed && <TimerStartCell task={task} />}
     </li>
+  )
+}
+
+// 업무에서 바로 타이머 시작(P2-06 사용자 결정 2026-10-07: 업무 목록 진입점). 시간 기록 옵션이 켜져 있을 때만.
+// 다른 타이머가 돌고 있으면 서버가 먼저 정지한다(동시 1개). 이 업무가 이미 돌고 있으면 '실행 중'으로 막는다
+function TimerStartCell({ task }: { task: Task }) {
+  const online = useOnline()
+  const running = useRunningTimer().data ?? null
+  const { start } = useTimerCommands()
+  const { showToast } = useToast()
+  const [busy, setBusy] = useState(false)
+  if (task.status === 'DONE') return <span />
+  const mine = running?.taskId === task.id
+
+  const onStart = async () => {
+    if (busy || mine) return
+    setBusy(true)
+    try {
+      const { running: started, stopped } = await start({ taskId: task.id })
+      const before = stopped ? `${stoppedMessage(stopped)} · ` : ''
+      showToast(`${before}‘${clip(started.content)}’ 타이머를 시작했어요`)
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 404) showToast('업무를 찾지 못했어요. 보관됐을 수 있어요')
+      else {
+        const known = startFailedMessage(error)
+        const { message, traceId } = toastForError(error)
+        showToast(known ?? message, known ? undefined : { traceId })
+      }
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      className={mine ? `${styles.timerStart} ${styles.timerRunning}` : styles.timerStart}
+      aria-label={mine ? `${task.title} 타이머 실행 중` : `${task.title} 타이머 시작`}
+      title={mine ? '타이머 실행 중' : online ? '타이머 시작' : '연결되면 시작할 수 있어요'}
+      // 누른 버튼이 막히며 포커스를 잃지 않게 시작 중·실행 중은 aria-disabled로만 막는다(끊김은 disabled)
+      disabled={!online}
+      aria-disabled={busy || mine || undefined}
+      onClick={() => void onStart()}
+    >
+      <span aria-hidden="true">{mine ? '●' : '▶'}</span>
+    </button>
   )
 }

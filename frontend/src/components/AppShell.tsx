@@ -1,17 +1,24 @@
-// SCR-COM-01 앱 셸 (P0 골격). 알림(SCR-COM-05)·타이머(SCR-COM-06)·프로젝트 목록·빠른 기록은 이후 단계에서 채운다.
+// SCR-COM-01 앱 셸 (P0 골격). 알림(SCR-COM-05)·빠른 기록은 이후 단계에서 채운다.
 // 명령 팔레트(Ctrl+K)와 빠른 입력 단축키(N)는 앱 화면 어디서든 동작한다 (P1-10).
+// 타이머 미니 플레이어(SCR-COM-06, P2-06)는 사이드바 하단과 모바일 하단 탭 위에 하나씩 달고 CSS로 한쪽만 보인다.
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router'
+import { toastForError } from '../api/errorToast'
 import { useAuth } from '../auth/useAuth'
 import { CommandPalette } from '../palette/CommandPalette'
 import { useProjects } from '../projects/api'
 import { projectColor } from '../projects/palette'
 import { useSingleKeyShortcuts } from '../shortcuts/useShortcuts'
+import { useTimeTracking } from '../settings/useWorklogSettings'
 import { CompletionResultHost } from '../tasks/CompletionResult'
+import { stoppedMessage, useRunningTimer, useTimerCommands } from '../timer/api'
+import { TimerMiniPlayer } from '../timer/TimerMiniPlayer'
+import { TimerStartDialog } from '../timer/TimerStartDialog'
 import { UnverifiedBanner } from '../verification/UnverifiedBanner'
 import styles from './AppShell.module.css'
 import { useFocusRescue } from './focusRescue'
 import { useOnline } from './useOnline'
+import { useToast } from './useToast'
 
 const MENU = [
   { to: '/', label: '홈', icon: 'M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z' },
@@ -61,6 +68,7 @@ export function AppShell() {
   const online = useOnline()
   const navigate = useNavigate()
   const [paletteOpen, setPaletteOpen] = useState(false)
+  const timer = usePaletteTimer()
 
   // 지금 화면에 빠른 입력창이 있으면 거기로, 없으면 홈의 입력창으로 간다.
   const quickAdd = useCallback(
@@ -131,6 +139,9 @@ export function AppShell() {
         ))}
         <SidebarProjects />
         <div className={styles.spacer} />
+        <div className={styles.timerSide}>
+          <TimerMiniPlayer />
+        </div>
         <NavLink to="/settings" className={navClass} title="설정">
           <Icon d={SETTINGS_ICON} />
           <span className={styles.navLabel}>설정</span>
@@ -146,6 +157,10 @@ export function AppShell() {
             <Outlet />
           </CompletionResultHost>
         </div>
+      </div>
+
+      <div className={styles.timerMobile}>
+        <TimerMiniPlayer />
       </div>
 
       {/* 모바일 하단 탭. 빠른 기록 바텀시트(SCR-MOB-01)는 P4라 P1에서는 + 가 홈 빠른 입력칸으로 보낸다(P1-X-01) */}
@@ -178,9 +193,39 @@ export function AppShell() {
         <MoreMenu />
       </nav>
 
-      {paletteOpen && <CommandPalette onClose={closePalette} onQuickAdd={quickAdd} />}
+      {paletteOpen && <CommandPalette onClose={closePalette} onQuickAdd={quickAdd} timer={timer.commands} />}
+      {timer.dialog}
     </div>
   )
+}
+
+// SCR-COM-03 ② 타이머 시작·정지 명령(P2-06). 시간 기록 옵션이 꺼져 있으면 commands=null(팔레트에서 숨김).
+// 시작은 업무 고르기 창(실행 중이면 '다른 업무로 전환'), 정지는 결과를 토스트로 알린다
+function usePaletteTimer() {
+  const timed = useTimeTracking()
+  const running = useRunningTimer(timed).data ?? null
+  const { stop } = useTimerCommands()
+  const { showToast } = useToast()
+  const [starting, setStarting] = useState(false)
+
+  const commands = timed
+    ? {
+        running: running !== null,
+        start: () => setStarting(true),
+        stop: async () => {
+          try {
+            showToast(stoppedMessage((await stop()).stopped))
+          } catch (error) {
+            const { message, traceId } = toastForError(error)
+            showToast(message, { traceId })
+          }
+        },
+      }
+    : null
+  const dialog = starting ? (
+    <TimerStartDialog runningName={running?.content} onClose={() => setStarting(false)} />
+  ) : null
+  return { commands, dialog }
 }
 
 // SCR-COM-01 ⑤ 하단 탭 '더보기' (P1-X-01). P1에 있는 화면(업무, 설정)만 담는다.

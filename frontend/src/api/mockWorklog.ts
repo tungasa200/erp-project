@@ -84,13 +84,12 @@ function seedPending(state: WorklogState, records: MockRecord[]) {
 }
 
 /** 끝난 회차(최근 7일)마다 확인 대기 기록을 만든다 — 서버가 조회 때 하는 일(D-100). 회차는 mock 캘린더에서 읽고, plan은 회차의 지금 값 */
-function syncPlanRecords(state: WorklogState, records: MockRecord[]) {
-  const nowMs = Date.now()
-  const from = new Date(`${shiftDate(seoulToday(), -6)}T00:00:00+09:00`).toISOString()
+/** 캘린더 mock의 회차 목록(from~to)을 읽는다 */
+function occurrencesBetween(from: string, to: string): Occurrence[] {
   let occurrences: Occurrence[] = []
   handleScheduleMock(
     'GET',
-    `/api/worklog/schedules?from=${from}&to=${new Date(nowMs).toISOString()}`,
+    `/api/worklog/schedules?from=${from}&to=${to}`,
     {},
     {
       json: (_status, body) => {
@@ -100,7 +99,13 @@ function syncPlanRecords(state: WorklogState, records: MockRecord[]) {
       problem: () => new Response(null),
     },
   )
-  for (const o of occurrences) {
+  return occurrences
+}
+
+function syncPlanRecords(state: WorklogState, records: MockRecord[]) {
+  const nowMs = Date.now()
+  const from = new Date(`${shiftDate(seoulToday(), -6)}T00:00:00+09:00`).toISOString()
+  for (const o of occurrencesBetween(from, new Date(nowMs).toISOString())) {
     const end = o.allDay ? Date.parse(`${shiftDate(o.endDate!, 1)}T00:00:00+09:00`) : Date.parse(o.endAt!)
     if (end > nowMs) continue
     const plan = {
@@ -275,7 +280,13 @@ const sameName = (a: string, b: string) => a.trim().toLowerCase() === b.trim().t
 const byName = (a: Tag, b: Tag) => a.name.localeCompare(b.name)
 
 /** 처리한 요청이면 응답, 아니면 null */
-export function handleWorklog(method: string, url: string, body: Record<string, unknown>, r: Respond): Response | null {
+export function handleWorklog(
+  method: string,
+  url: string,
+  body: Record<string, unknown>,
+  r: Respond,
+  settings: { timeTrackingEnabled: boolean } = { timeTrackingEnabled: false },
+): Response | null {
   const path = url.split('?')[0]
   const state = load()
   // 남은 업무 수는 업무 목록으로 매번 계산한다(보관·완료 제외)
@@ -344,6 +355,9 @@ export function handleWorklog(method: string, url: string, body: Record<string, 
 
   const records = handleRecords(method, url, body, state, r)
   if (records) return records
+
+  const timer = handleTimer(method, path, body, state, r, settings.timeTrackingEnabled)
+  if (timer) return timer
 
   const tagMatch = /^\/api\/worklog\/tags\/([^/]+)$/.exec(path)
   if (tagMatch) {
@@ -687,4 +701,140 @@ function handleRecords(
     return new Response(null, { status: 204 })
   }
   return null
+}
+
+// 타이머(P2-06, D-101): 실행 중 타이머 = endAt 없는 확정 기록(하나). 정지 규칙: 1분 미만 버림, 24시간 상한
+const MINUTE = 60_000
+const DAY = 24 * 60 * MINUTE
+
+const runningOf = (records: MockRecord[]) => records.find((x) => !x.deletedAt && x.startAt && !x.endAt)
+
+function stopRunning(records: MockRecord[]) {
+  const running = runningOf(records)
+  if (!running) return null
+  const startMs = Date.parse(running.startAt!)
+  const elapsed = Date.now() - startMs
+  if (elapsed < MINUTE) {
+    // 회차를 가져간 기록은 시간만 비워 확인 대기로, 직접 시작한 기록은 지운다
+    if (running.occurrenceStart) {
+      Object.assign(running, { status: 'PENDING', startAt: null, endAt: null, durationMin: null })
+      Object.assign(running, { version: running.version + 1, updatedAt: now() })
+    } else records.splice(records.indexOf(running), 1)
+    return { record: { ...running }, discarded: true, capped: false }
+  }
+  const capped = elapsed > DAY
+  const end = capped ? startMs + DAY : startMs + elapsed
+  Object.assign(running, {
+    endAt: new Date(end).toISOString(),
+    durationMin: Math.round((end - startMs) / MINUTE),
+    version: running.version + 1,
+    updatedAt: now(),
+  })
+  return { record: running, discarded: false, capped }
+}
+
+const sameOccurrence = (x: MockRecord, scheduleId: string, occurrenceStart: string) =>
+  x.scheduleId === scheduleId && Date.parse(x.occurrenceStart ?? '') === Date.parse(occurrenceStart)
+
+/** 이어달리기 제안: 오늘 끝나지 않은 시간 회차 중 확정·하지 않음 기록이 없는 것 — 진행 중 우선, 그다음 가장 이른 것 */
+function nextPlan(records: MockRecord[]) {
+  const nowMs = Date.now()
+  const today = seoulToday()
+  const open = occurrencesBetween(
+    new Date(`${today}T00:00:00+09:00`).toISOString(),
+    new Date(`${shiftDate(today, 1)}T00:00:00+09:00`).toISOString(),
+  )
+    .filter((o) => !o.allDay && Date.parse(o.endAt!) > nowMs)
+    .filter(
+      (o) =>
+        !records.some(
+          (x) => !x.deletedAt && x.status !== 'PENDING' && sameOccurrence(x, o.scheduleId, o.occurrenceStart),
+        ),
+    )
+    .sort((a, b) => Date.parse(a.startAt!) - Date.parse(b.startAt!))
+  const o = open.find((x) => Date.parse(x.startAt!) <= nowMs) ?? open[0]
+  if (!o) return null
+  return {
+    scheduleId: o.scheduleId,
+    occurrenceStart: o.occurrenceStart,
+    title: o.title,
+    startAt: o.startAt!,
+    endAt: o.endAt!,
+    taskId: o.taskId ?? null,
+  }
+}
+
+function handleTimer(
+  method: string,
+  path: string,
+  body: Record<string, unknown>,
+  state: WorklogState,
+  r: Respond,
+  timeTracking: boolean,
+): Response | null {
+  if (!path.startsWith('/api/worklog/timer')) return null
+  const records: MockRecord[] = (state.records ??= [])
+  if (method === 'GET' && path === '/api/worklog/timer') return r.json(200, { running: runningOf(records) ?? null })
+  // 옵션이 꺼져 있어도 남은 타이머는 멈출 수 있다
+  if (method === 'POST' && path === '/api/worklog/timer/stop') {
+    const stopped = stopRunning(records)
+    save(state)
+    return r.json(200, { stopped, next: stopped ? nextPlan(records) : null })
+  }
+  if (method !== 'POST' || path !== '/api/worklog/timer/start') return null
+  if (!timeTracking) return r.problem(409, 'TIME_TRACKING_DISABLED')
+  const taskId = (body.taskId as string | null | undefined) ?? null
+  const content = String(body.content ?? '').trim()
+  const scheduleId = (body.scheduleId as string | null | undefined) ?? null
+  const occurrenceStart = (body.occurrenceStart as string | null | undefined) ?? null
+  const task = taskId ? state.tasks.find((t) => t.id === taskId && !t.deletedAt) : undefined
+  if (taskId && !task) return r.problem(404, 'NOT_FOUND')
+  let occurrence: Occurrence | undefined
+  let taken: MockRecord | undefined
+  if (scheduleId || occurrenceStart) {
+    if (!scheduleId || !occurrenceStart)
+      return r.problem(400, 'VALIDATION_FAILED', { errors: [{ field: 'scheduleId', code: 'REQUIRED' }] })
+    const key = Date.parse(occurrenceStart)
+    occurrence = occurrencesBetween(new Date(key - DAY).toISOString(), new Date(key + DAY).toISOString()).find(
+      (o) => o.scheduleId === scheduleId && Date.parse(o.occurrenceStart) === key,
+    )
+    if (!occurrence) return r.problem(404, 'NOT_FOUND')
+    taken = records.find((x) => sameOccurrence(x, scheduleId, occurrenceStart))
+    if (taken && (taken.status !== 'PENDING' || taken.deletedAt)) return r.problem(409, 'ALREADY_RECORDED')
+  } else if (!task && !content) {
+    return r.problem(400, 'VALIDATION_FAILED', { errors: [{ field: 'content', code: 'REQUIRED' }] })
+  }
+  const stopped = stopRunning(records)
+  const linked = task ?? state.tasks.find((t) => t.id === occurrence?.taskId && !t.deletedAt)
+  const fields = {
+    status: 'CONFIRMED' as const,
+    content: content || task?.title || occurrence?.title || '',
+    taskId: linked?.id ?? null,
+    projectId: linked?.projectId ?? null,
+    tagIds: linked?.tagIds ?? [],
+    startAt: now(),
+    endAt: null,
+    durationMin: null,
+    workDate: seoulToday(),
+  }
+  let running: MockRecord
+  if (taken) running = Object.assign(taken, fields, { version: taken.version + 1, updatedAt: now() })
+  else {
+    running = {
+      id: id(),
+      ...fields,
+      scheduleId: occurrence?.scheduleId ?? null,
+      occurrenceStart: occurrence?.occurrenceStart ?? null,
+      result: null,
+      outcome: null,
+      progress: null,
+      deletedAt: null,
+      createdAt: now(),
+      updatedAt: now(),
+      version: 0,
+    }
+    records.push(running)
+  }
+  save(state)
+  return r.json(200, { running, stopped })
 }

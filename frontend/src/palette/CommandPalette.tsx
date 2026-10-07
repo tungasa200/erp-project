@@ -1,5 +1,5 @@
 // SCR-COM-03 명령 팔레트 (UX-01). 동작(업무 추가)·화면 이동·날짜 이동·업무 검색(P1-10-08)이 있다.
-// 일지 검색, 하루 마감·타이머 같은 동작은 해당 기능 단계에서 COMMANDS에 더한다.
+// 타이머 시작·정지(P2-06)는 시간 기록 옵션이 켜져 있을 때만 보인다. 일지 검색·하루 마감은 해당 기능 단계에서 더한다.
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { Command } from 'cmdk'
 import { useEffect, useMemo, useState } from 'react'
@@ -77,13 +77,31 @@ function useTaskSearch(q: string) {
   return { items, loading, error: q !== '' && result.isError }
 }
 
+function timerCommands(timer: Props['timer']): PaletteCommand[] {
+  if (!timer) return []
+  const start: PaletteCommand = {
+    id: 'timer-start',
+    label: timer.running ? '타이머 — 다른 업무로 전환' : '타이머 시작',
+    group: '동작',
+    keywords: '타이머 시작 시간 재기 전환 바꾸기',
+    run: timer.start,
+  }
+  if (!timer.running) return [start]
+  return [
+    { id: 'timer-stop', label: '타이머 정지', group: '동작', keywords: '타이머 멈추기 끝내기', run: timer.stop },
+    start,
+  ]
+}
+
 interface Props {
   onClose: () => void
   /** 빠른 입력창으로 이동(N과 같은 동작). 글자를 주면 미리 채운다 */
   onQuickAdd: (text?: string) => void
+  /** 타이머 명령. 시간 기록 옵션이 꺼져 있으면 null(명령을 숨긴다) */
+  timer?: { running: boolean; start: () => void; stop: () => void } | null
 }
 
-export function CommandPalette({ onClose, onQuickAdd }: Props) {
+export function CommandPalette({ onClose, onQuickAdd, timer }: Props) {
   const navigate = useNavigate()
   const { user } = useAuth()
   const shortcutsEnabled = useShortcutsEnabled()
@@ -101,6 +119,7 @@ export function CommandPalette({ onClose, onQuickAdd }: Props) {
         shortcut: shortcutsEnabled ? 'N' : undefined,
         run: () => onQuickAdd(),
       },
+      ...timerCommands(timer),
       { id: 'go-home', label: '홈', group: '이동', keywords: '대시보드', run: go('/') },
       { id: 'go-calendar', label: '캘린더', group: '이동', keywords: '일정', run: go('/calendar') },
       { id: 'go-tasks', label: '업무 목록', group: '이동', keywords: '할일', run: go('/tasks') },
@@ -115,7 +134,7 @@ export function CommandPalette({ onClose, onQuickAdd }: Props) {
         run: go('/settings/recording'),
       },
     ]
-  }, [navigate, onQuickAdd, shortcutsEnabled])
+  }, [navigate, onQuickAdd, shortcutsEnabled, timer])
 
   const q = query.trim()
   const today = todayIn(user?.timezone ?? 'Asia/Seoul')

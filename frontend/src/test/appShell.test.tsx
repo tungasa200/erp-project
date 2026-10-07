@@ -64,3 +64,46 @@ describe('SCR-COM-01 ⑤ 모바일 하단 탭 (P1-X-01)', () => {
     expect(router.state.location.pathname).toBe('/tasks')
   })
 })
+
+describe('SCR-COM-03 ② 타이머 명령 (P2-06)', () => {
+  const running = { id: 't-1', content: '보고서 작성', startAt: '2026-10-07T00:00:00Z', endAt: null }
+  const openPalette = async () => {
+    await screen.findByRole('navigation', { name: '주 메뉴' })
+    await userEvent.keyboard('{Control>}k{/Control}')
+    return screen.findByRole('dialog', { name: '명령 팔레트' })
+  }
+
+  it('시간 기록 옵션이 꺼져 있으면 타이머 명령이 없다', async () => {
+    stubFetch({ 'GET /api/users/me': () => json(200, ME) })
+    renderApp('/')
+    const palette = await openPalette()
+    expect(within(palette).queryByText(/타이머/)).not.toBeInTheDocument()
+  })
+
+  it('켜져 있고 실행 중이면 정지·전환, 정지는 POST /timer/stop 후 결과 토스트', async () => {
+    const fetchMock = stubFetch({
+      'GET /api/users/me': () => json(200, ME),
+      'GET /api/worklog/me': () => json(200, { userId: 'u-1', settings: { timeTrackingEnabled: true } }),
+      'GET /api/worklog/timer': () => json(200, { running }),
+      'POST /api/worklog/timer/stop': () =>
+        json(200, {
+          stopped: { record: { ...running, endAt: '2026-10-07T01:00:00Z' }, discarded: false, capped: false },
+          next: null,
+        }),
+    })
+    renderApp('/')
+    await screen.findAllByRole('region', { name: '타이머: 보고서 작성' })
+    let palette = await openPalette()
+    expect(within(palette).getByText('타이머 — 다른 업무로 전환')).toBeInTheDocument()
+    await userEvent.click(within(palette).getByText('타이머 정지'))
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith('/api/worklog/timer/stop', expect.objectContaining({ method: 'POST' })),
+    )
+    expect(await screen.findByText('기록을 남겼어요')).toBeInTheDocument()
+
+    palette = await openPalette()
+    // 서버는 계속 실행 중이라고 답하므로 전환 문구로 시작 창이 열린다
+    await userEvent.click(within(palette).getByText('타이머 — 다른 업무로 전환'))
+    expect(await screen.findByRole('dialog', { name: '다른 업무로 전환' })).toBeInTheDocument()
+  })
+})
