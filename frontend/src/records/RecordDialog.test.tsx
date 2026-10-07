@@ -63,7 +63,7 @@ function server(options: { timed?: boolean; handlers?: Parameters<typeof stubFet
   return { sent, fetchMock }
 }
 
-function Harness(props: { recordId?: string }) {
+function Harness(props: { recordId?: string; planned?: { startAt: string; endAt: string } }) {
   const [open, setOpen] = useState(false)
   const [closed, setClosed] = useState<string>('')
   return (
@@ -86,7 +86,7 @@ function Harness(props: { recordId?: string }) {
   )
 }
 
-async function open(props: { recordId?: string } = {}) {
+async function open(props: { recordId?: string; planned?: { startAt: string; endAt: string } } = {}) {
   const user = userEvent.setup()
   renderApp('/', [{ path: '/', element: <Harness {...props} /> }])
   await user.click(await screen.findByRole('button', { name: '열기' }))
@@ -154,6 +154,49 @@ describe('기록 추가·수정 (SCR-REC-01)', () => {
       content: '주간 회의 — 일정 조정',
       status: 'CONFIRMED',
     })
+  })
+
+  it('확인 대기 기록은 시작·종료 칸을 계획 시각으로 채우고, 그대로 저장해도 시각과 status=CONFIRMED를 보낸다', async () => {
+    const pending = record({ status: 'PENDING', scheduleId: 's-1', occurrenceStart: '2026-10-07T01:00:00Z' })
+    const { sent } = server({
+      timed: true,
+      handlers: {
+        'GET /api/worklog/records/r-1': () => json(200, pending),
+        'PATCH /api/worklog/records/r-1': () => json(200, { ...pending, status: 'CONFIRMED', version: 4 }),
+      },
+    })
+    const { user, dialog } = await open({
+      recordId: 'r-1',
+      planned: { startAt: '2026-10-07T01:00:00Z', endAt: '2026-10-07T02:00:00Z' },
+    })
+    expect(await within(dialog).findByLabelText('시작')).toHaveValue('10:00')
+    expect(within(dialog).getByLabelText('종료')).toHaveValue('11:00')
+    await user.click(within(dialog).getByRole('button', { name: '저장' }))
+
+    await waitFor(() => expect(screen.getByText('바뀜')).toBeInTheDocument())
+    expect(sent.find((x) => x.key.startsWith('PATCH'))?.body).toEqual({
+      version: 3,
+      startAt: '2026-10-07T01:00:00.000Z',
+      endAt: '2026-10-07T02:00:00.000Z',
+      durationMin: null,
+      status: 'CONFIRMED',
+    })
+  })
+
+  it('시작이 있는 기록에는 계획 시각을 덮어쓰지 않는다', async () => {
+    server({
+      timed: true,
+      handlers: {
+        'GET /api/worklog/records/r-1': () =>
+          json(200, record({ startAt: '2026-10-07T03:00:00Z', endAt: '2026-10-07T04:00:00Z' })),
+      },
+    })
+    const { dialog } = await open({
+      recordId: 'r-1',
+      planned: { startAt: '2026-10-07T01:00:00Z', endAt: '2026-10-07T02:00:00Z' },
+    })
+    expect(await within(dialog).findByLabelText('시작')).toHaveValue('12:00')
+    expect(within(dialog).getByLabelText('종료')).toHaveValue('13:00')
   })
 
   it('시간 기록 옵션이 켜지면 시작·종료를 같이 받고, 순서가 틀리면 막고, 겹치면 경고만 한다', async () => {

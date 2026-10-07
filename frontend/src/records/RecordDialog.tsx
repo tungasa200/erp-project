@@ -3,6 +3,8 @@
 // 확인 대기 기록을 고치면(SCR-HOME-02 "수정") 고친 칸과 status=CONFIRMED를 한 요청으로 보낸다(계약 PATCH 설명).
 // 시간 칸은 옵션이 켜졌을 때만 보이고, 꺼져 있으면 저장된 시간을 건드리지 않는다(옵션은 화면 표시만 바꾼다, TIME-09).
 // 시작을 적으면 종료도 받는다(D-101 초안: startAt이면 endAt 필수, 진행 중 기록은 타이머만 만든다).
+// 확인 대기 기록은 시간이 비어 있어(D-100) planned로 받은 계획 시각을 시작·종료 칸에 채워 둔다(WY-pm 결정 2026-10-07).
+// 채운 값은 기록과 다르므로 저장하면 고친 칸처럼 startAt·endAt을 함께 보낸다.
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { toastForError } from '../api/errorToast'
@@ -10,7 +12,7 @@ import { ApiError } from '../api/problem'
 import { useAuth } from '../auth/useAuth'
 import { Modal } from '../calendar/Modal'
 import { TaskLinkField } from '../calendar/TaskLinkField'
-import { formatMinutes, fromZoned, toZoned } from '../calendar/time'
+import { MINUTES_PER_DAY, formatMinutes, fromZoned, toZoned } from '../calendar/time'
 import calendar from '../calendar/calendar.module.css'
 import { Skeleton } from '../components/Skeleton'
 import { useOnline } from '../components/useOnline'
@@ -45,6 +47,8 @@ interface Props {
   recordId?: string
   /** 새 기록의 처음 값 */
   defaults?: { workDate: string; taskId?: string | null; content?: string }
+  /** 고칠 기록에 시작이 없을 때(확인 대기) 시작·종료 칸에 채울 계획 시각. 종일 계획이면 넘기지 않는다 */
+  planned?: { startAt: string; endAt: string }
   /** changed: 저장하거나 삭제했으면 true */
   onClose: (changed: boolean) => void
 }
@@ -68,6 +72,17 @@ function formFromRecord(r: WorkRecord, timeZone: string): Form {
     end: e ? formatMinutes(e.minutes) : '',
     duration: !s && r.durationMin ? String(r.durationMin) : '',
   }
+}
+
+/** 시작이 빈 기록이면 계획 시각으로 시작·종료를 채운 폼. 날짜는 기록의 날짜를 둔다(시작·종료가 그 날로 간다) */
+function formWithPlan(r: WorkRecord, timeZone: string, planned: Props['planned']): Form {
+  const form = formFromRecord(r, timeZone)
+  if (r.startAt || !planned) return form
+  const s = toZoned(planned.startAt, timeZone)
+  const e = toZoned(planned.endAt, timeZone)
+  // 다음 날 0시에 끝나면 그날 23:59로, 그보다 늦게 끝나면 종료는 비워 둔다(기록은 하루 안)
+  const end = e.date === s.date ? formatMinutes(e.minutes) : e.minutes === 0 ? formatMinutes(MINUTES_PER_DAY - 1) : ''
+  return { ...form, start: formatMinutes(s.minutes), end, duration: '' }
 }
 
 /** 시작~종료(분). 둘 다 있고 순서가 맞을 때만 */
@@ -134,7 +149,7 @@ const overlaps = (a: [number, number], b: [string, string]) => {
   return a[0] < d && c < a[1]
 }
 
-export function RecordDialog({ recordId, defaults, onClose }: Props) {
+export function RecordDialog({ recordId, defaults, planned, onClose }: Props) {
   const id = useId()
   const { user } = useAuth()
   const timeZone = user?.timezone ?? 'Asia/Seoul'
@@ -166,7 +181,7 @@ export function RecordDialog({ recordId, defaults, onClose }: Props) {
   const contentRef = useRef<HTMLTextAreaElement>(null)
   const closeRef = useRef<HTMLButtonElement>(null)
 
-  const current = form ?? (original ? formFromRecord(original, timeZone) : null)
+  const current = form ?? (original ? formWithPlan(original, timeZone, planned) : null)
   const running = !!original?.startAt && !original.endAt
   const archived = !!original?.deletedAt
   const editable = online && !archived
