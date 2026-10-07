@@ -2,6 +2,19 @@
 
 작성: WY-backend2, 2026-10-07. 상태: **확정**(2026-10-07 사용자 결정 K1~K4 모두 추천안, 승인 센터 1140. WY-planner의 OPS-10 대조 6건과 pm 결정 U-12·13·14 반영). 기준 요구사항: `docs/운영도구_요구사항.md` OPS-10(10-1·10-2·10-3), 6장(이 PC에만 있는 것)·8장(미결).
 
+## 진행 (2026-10-07, R1~R7 완료)
+
+| 단계 | 상태 | 커밋·확인 |
+|---|---|---|
+| R1 패키지 폴더 | 완료 | 7708464(tools/vscode-dashboard → tools/wy-ops/vscode, 설치본 해시 동일) |
+| R2 버전 설치·껍데기 확장 | 완료 | f65b121, bbe7276(npm 없는 vsix) |
+| R3 설치 명령 | 완료 | 0d8dc77·ee08c2c(doctor·legacy·plugins·NEW-PC, WY-backend1), 0bd7f00(install.ps1·lib/install.js), 2ad5696(init·session.ps1 템플릿·.gitignore), 7c22d37(템플릿·update, WY-backend1), f72615c(update 연결·뷰 id wyOps.*), 4e65140(R4 전환 조건) |
+| R4 이 PC 전환 | 완료 | 사용자 setup·Reload. 훅 5종 current 경로, 껍데기 wy-ops.wy-ops만, doctor 14개 ok. 시험 카드: 결정·할 일·권한(--agent 세션) 왕복. git은 이후 실제 커밋 카드로 확인 |
+| R5 다른 PC 리허설 | 완료 | WY-backend1. 영문 경로 통과 뒤 한글·공백 경로 결함 2건(rmSync·cpSync 비정상 종료, cmd 인자 따옴표) → 0879dc3·eae4783·cf8de84·c29f7fb로 고친 뒤 재시험 통과 |
+| R6 새 프로젝트 | 완료 | C:\projects\ops-sandbox에 init → doctor 14개 ok, 결정 카드 answered, git 커밋 카드 approved → 시험 저장소 커밋 생성(가드가 그 프로젝트 승인 폴더·커밋 역할만 인정), 두 프로젝트 대기열이 섞이지 않음. 시험 폴더·세션 정리 |
+| R7 업데이트·되돌리기 | 완료 | WY-backend1 시험 + 사용자 update → Reload, doctor 14개 ok(설치본 0.6.0 @ c29f7fb). lock 파일 .claude/wy-ops.lock.json은 커밋 대상(PC마다 같은 해시) |
+| (P4 이후) 별도 저장소 분리 | 대기 | 사용자 결정(U-06) |
+
 사용자 결정(2026-10-07, OPS-10):
 - 개발 위치: 이 저장소 `tools/`에서 계속 개발한다. P4 이후 최종 마무리 뒤에 별도 저장소로 분리한다(U-06).
 - 메모리 폴더: 옮기지 않는다. 기준은 CLAUDE.md·docs다(U-07).
@@ -170,6 +183,13 @@ R5에서 카드 왕복과 역할 세션을 하지 않는 이유와 남는 위험
 - **플러그인 버전**: 외부 마켓플레이스라 ref 고정은 마켓플레이스 단위다. 마켓플레이스가 태그를 안 쓰면 커밋으로 고정하고, doctor는 버전이 달라도 경고만 한다(일을 막지 않음).
 - **R1 이동 중 다른 세션의 미커밋 변경**: 이동 커밋은 tools/ 아래 미커밋 파일이 없을 때만 한다(WY-pm이 시점을 잡는다).
 - **여러 VS Code 창**: 창마다 자기 워크스페이스의 설정·대기열을 본다(지금과 같음). wy-ops.json이 없는 워크스페이스에서는 승인 센터를 끈다.
+
+R4~R6에서 확인한 것(2026-10-07):
+- **Claude Code 신뢰는 VS Code 작성자 신뢰와 따로다**: 새 폴더에서 백그라운드 세션(`claude --bg`)은 "Workspace not trusted"로 뜨지 않는다. VS Code의 '작성자 신뢰'나 Claude 패널로는 생기지 않고, 그 폴더의 터미널에서 `claude`를 한 번 실행해 신뢰에 Yes를 해야 한다(`~/.claude.json`의 hasTrustDialogAccepted). 새 PC·새 프로젝트 체크리스트(NEW-PC.md)에 넣는다. R6에서 이 단계를 빠뜨린 할 일 카드가 '했음'으로 닫혀 시험이 한 번 멈췄다.
+- **따옴표가 든 지시를 PowerShell 5.1로 claude에 넘기지 않는다**: PowerShell 5.1은 네이티브 프로그램 인자 안의 큰따옴표를 이스케이프하지 않아, 프롬프트 속 `-m "sandbox test"`가 `-m sandbox`로 바뀌어 전달됐다(승인 명령과 달라 가드가 막음). 세션을 띄우는 지시는 Git Bash(작은따옴표로 감싼 프롬프트)로 넘긴다. 설치 명령의 cmd 인자도 같은 이유로 .cmd 래퍼만 `cmd /d /s /c "…"`(verbatim)로 부른다(eae4783).
+- **이어 띄운 세션의 역할**: 백그라운드 세션을 다른 옵션으로 이어 띄우면 새 복사본(새 id)으로 뜨지만 `--agent` 역할은 그대로 가져간다(R6에서 가드가 SB-commit으로 인정). SessionStart 기록은 null일 수 있어 역할 판정은 가드가 도구 사용 때 남긴 값(agentTypeSeen)을 쓴다(1c83943).
+- **시험 세션의 자기 보고를 근거로 삼지 않는다**: 권한 카드가 허용되면 세션 쪽에서는 확인 창이 없었던 것으로 보인다. 결과는 승인 폴더의 decisions·used 기록과 실제 결과(git log 등)로 확인한다.
+- **node 24의 fs.rmSync·cpSync는 한글 경로에서 프로세스를 죽인다**(0xC0000409, 오류 메시지 없음). 패키지 안의 지우기·복사는 lib/fsx.js를 쓴다(R5).
 
 ## 8. 바뀌지 않는 것
 
