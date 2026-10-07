@@ -19,7 +19,8 @@ import java.util.UUID;
 
 /**
  * 자주 하는 업무 제안 (P2-04, REC-05, contracts/worklog.yaml listFrequentTasks).
- * 사건은 지금은 업무를 만든 시각이다(P2-01 뒤 확정 기록을 더한다). at 이전 8주, 사용자 시간대 하루 4구간(6시간씩) 중
+ * 사건은 업무를 만든 시각과 업무에 연결된 확정(CONFIRMED) 기록의 시각(startAt → 회차 시작 → 만든 시각)이다.
+ * 업무가 없는 기록은 대표 업무(latestTaskId)가 없어 세지 않는다. at 이전 8주, 사용자 시간대 하루 4구간(6시간씩) 중
  * at과 같은 구간에서 정규화한 제목별로 센다. 같은 요일에서 2번 이상인 것을 먼저, 3개가 안 되면 요일 무관으로 채운다.
  */
 @Component
@@ -48,17 +49,27 @@ public class FrequentTaskQueries {
 		UUID idFloor = new UUID((from.toEpochMilli() << 16) | 0x7000L, Long.MIN_VALUE);
 
 		List<Group> groups = jdbc.sql("""
-						WITH slot AS (
-						    SELECT t.id, t.title, t.project_id, t.created_at,
-						           lower(btrim(regexp_replace(t.title, '\\s+', ' ', 'g'))) AS k,
-						           extract(isodow FROM t.created_at AT TIME ZONE :tz) = :dow AS same_day
+						WITH ev AS (
+						    SELECT t.id, t.title, t.project_id, t.created_at, t.created_at AS ev_at
 						    FROM task t
 						    WHERE t.owner_id = :owner AND t.deleted_at IS NULL
 						      AND t.id >= :idFloor AND t.created_at >= :from AND t.created_at < :at
-						      AND floor(extract(hour FROM t.created_at AT TIME ZONE :tz) / 6) = :bucket
+						    UNION ALL
+						    SELECT t.id, t.title, t.project_id, t.created_at, coalesce(r.start_at, r.occurrence_start, r.created_at)
+						    FROM work_record r JOIN task t ON t.id = r.task_id
+						    WHERE r.owner_id = :owner AND r.deleted_at IS NULL AND r.status = 'CONFIRMED'
+						      AND r.work_date BETWEEN :fromDate AND :atDate
+						      AND t.owner_id = :owner AND t.deleted_at IS NULL
+						), slot AS (
+						    SELECT id, title, project_id, created_at, ev_at,
+						           lower(btrim(regexp_replace(title, '\\s+', ' ', 'g'))) AS k,
+						           extract(isodow FROM ev_at AT TIME ZONE :tz) = :dow AS same_day
+						    FROM ev
+						    WHERE ev_at >= :from AND ev_at < :at
+						      AND floor(extract(hour FROM ev_at AT TIME ZONE :tz) / 6) = :bucket
 						), agg AS (
 						    SELECT k, count(*) AS n, count(*) FILTER (WHERE same_day) AS n_day,
-						           max(created_at) AS last_any, max(created_at) FILTER (WHERE same_day) AS last_day
+						           max(ev_at) AS last_any, max(ev_at) FILTER (WHERE same_day) AS last_day
 						    FROM slot GROUP BY k HAVING count(*) >= 2
 						), rep AS (
 						    SELECT DISTINCT ON (k) k, id, title, project_id FROM slot ORDER BY k, created_at DESC, id DESC
@@ -74,6 +85,9 @@ public class FrequentTaskQueries {
 				.param("idFloor", idFloor)
 				.param("from", OffsetDateTime.ofInstant(from, ZoneOffset.UTC))
 				.param("at", OffsetDateTime.ofInstant(at, ZoneOffset.UTC))
+				// work_date는 기록 저장 때의 시간대 날짜라 지금 시간대와 하루 어긋날 수 있다: 앞뒤 하루씩 넓혀 인덱스로 거르고 ev_at으로 정확히 자른다
+				.param("fromDate", from.atZone(ZoneOffset.UTC).toLocalDate().minusDays(1))
+				.param("atDate", at.atZone(ZoneOffset.UTC).toLocalDate().plusDays(1))
 				.query((rs, i) -> {
 					Array tagArray = rs.getArray("tag_ids");
 					List<UUID> tagIds = Arrays.stream((Object[]) tagArray.getArray()).map(UUID.class::cast).toList();

@@ -119,6 +119,34 @@ class FrequentTaskApiTest {
 	}
 
 	@Test
+	void confirmedRecordsAreEventsAtStartThenOccurrenceThenCreated() throws Exception {
+		// 8주 전보다 먼저 만든 업무도 확정 기록이 있으면 센다. 시각: startAt → 회차 시작 → 만든 시각
+		UUID standup = task(ALICE, "스탠드업", kst("2026-07-01T09:00"));
+		record(standup, "CONFIRMED", kst("2026-09-30T09:00"), null, kst("2026-09-30T20:00"), false);
+		record(standup, "CONFIRMED", null, kst("2026-09-23T09:30"), kst("2026-09-23T20:00"), false);
+		record(standup, "CONFIRMED", null, null, kst("2026-09-16T10:00"), false);
+		// 확인 대기·하지 않음·보관한 기록, 다른 구간의 기록은 세지 않는다
+		record(standup, "PENDING", null, kst("2026-09-09T09:00"), kst("2026-09-09T09:00"), false);
+		record(standup, "DISMISSED", null, kst("2026-09-02T09:00"), kst("2026-09-02T09:00"), false);
+		record(standup, "CONFIRMED", kst("2026-09-02T08:00"), null, kst("2026-09-02T08:00"), true);
+		record(standup, "CONFIRMED", kst("2026-08-26T13:00"), null, kst("2026-08-26T13:00"), false);
+		// 업무 만든 시각과 그 업무의 확정 기록은 각각 사건이다
+		UUID report = task(ALICE, "주간 보고", kst("2026-09-30T09:00"));
+		record(report, "CONFIRMED", kst("2026-09-30T11:00"), null, kst("2026-09-30T11:00"), false);
+		// 보관한 업무의 기록은 세지 않는다
+		UUID gone = task(ALICE, "지운 일", kst("2026-07-01T09:00"));
+		record(gone, "CONFIRMED", kst("2026-09-30T09:00"), null, kst("2026-09-30T09:00"), false);
+		record(gone, "CONFIRMED", kst("2026-09-23T09:00"), null, kst("2026-09-23T09:00"), false);
+		deleted(gone);
+
+		frequent(ALICE, "?at=" + AT)
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.items[*].title").value(contains("스탠드업", "주간 보고")))
+				.andExpect(jsonPath("$.items[*].count").value(contains(3, 2)))
+				.andExpect(jsonPath("$.items[0].latestTaskId").value(standup.toString()));
+	}
+
+	@Test
 	void emptyWhenNothingRepeatsAndBadAtIs400() throws Exception {
 		task(ALICE, "한 번", kst("2026-09-30T09:00"));
 		frequent(ALICE, "?at=" + AT).andExpect(status().isOk()).andExpect(jsonPath("$.items").value(empty()));
@@ -142,6 +170,23 @@ class FrequentTaskApiTest {
 				INSERT INTO task (id, owner_id, title, status, priority, progress, version, created_at, updated_at)
 				VALUES (?, ?, ?, 'TODO', 'NORMAL', 0, 0, ?, ?)""").params(id, owner, title, at, at).update();
 		return id;
+	}
+
+	private void record(UUID taskId, String status, Instant startAt, Instant occurrenceStart, Instant createdAt,
+			boolean deleted) {
+		OffsetDateTime created = OffsetDateTime.ofInstant(createdAt, ZoneOffset.UTC);
+		Instant dateFrom = startAt != null ? startAt : occurrenceStart != null ? occurrenceStart : createdAt;
+		jdbc.sql("""
+				INSERT INTO work_record (id, owner_id, task_id, occurrence_start, status, work_date, content, start_at, end_at,
+				                         deleted_at, version, created_at, updated_at)
+				VALUES (?, ?, ?, ?, ?, ?, '기록', ?, ?, CASE WHEN ? THEN now() END, 0, ?, ?)""")
+				.params(UUID.randomUUID(), ALICE, taskId,
+						occurrenceStart == null ? null : OffsetDateTime.ofInstant(occurrenceStart, ZoneOffset.UTC), status,
+						dateFrom.atZone(java.time.ZoneId.of("Asia/Seoul")).toLocalDate(),
+						startAt == null ? null : OffsetDateTime.ofInstant(startAt, ZoneOffset.UTC),
+						startAt == null ? null : OffsetDateTime.ofInstant(startAt.plus(Duration.ofMinutes(30)), ZoneOffset.UTC),
+						deleted, created, created)
+				.update();
 	}
 
 	private void deleted(UUID taskId) {
