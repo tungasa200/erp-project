@@ -1,0 +1,23 @@
+/* SCR-REC-01 기록 추가·수정. 모달 틀·칸은 캘린더(calendar.module.css)와 같고, 여기는 이 화면에만 있는 줄 */
+
+/* ⑥ 출처 표시: 계획에서 온 기록 */
+.source {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--color-accent-soft);
+  color: var(--color-accent-ink);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+/* 시간 겹침 경고(저장은 된다, TIME-06) */
+.warning {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--color-warning-soft);
+  color: var(--color-warning-text);
+  font-size: 12.5px;
+  font-weight: 700;
+}

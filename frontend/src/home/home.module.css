@@ -32,6 +32,67 @@
   background: var(--color-accent-ink);
 }
 
+/* 확인 대기 카드는 패널을 여는 버튼(P2-03). 링크 카드와 같은 모양으로 */
+button.card {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+button.card[aria-disabled='true'] {
+  cursor: default;
+}
+
+button.card[aria-disabled='true']:hover {
+  background: var(--color-surface);
+}
+
+/* 확인 대기 색(화면정의서 2.3 목록 카드형) */
+.cardPending,
+.cardPending:hover {
+  background: var(--status-pending-card-bg);
+  box-shadow: inset 0 0 0 1px var(--status-pending-card-border);
+  color: var(--status-pending-text);
+}
+
+.cardPending:hover {
+  background: var(--status-pending-bg);
+}
+
+.pendingBand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: var(--size-touch);
+  margin: 0;
+  padding: 10px 16px;
+  border: 2px solid var(--status-pending-border);
+  border-radius: 16px;
+  background: var(--status-pending-bg);
+  color: var(--status-pending-text);
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.pendingBand:hover {
+  background: var(--status-pending-card-bg);
+}
+
+.pendingTag {
+  flex: none;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--status-pending-tag-bg);
+  color: var(--status-pending-tag-text);
+  font-size: 12px;
+}
+
 .cardLabel {
   font-size: 13px;
   font-weight: 700;
@@ -388,4 +449,10 @@
   .panel {
     padding: 18px;
   }
+}
+
+/* 끊긴 동안에는 완료 처리를 막는다(SCR-SYS-02 ③) */
+.check:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }

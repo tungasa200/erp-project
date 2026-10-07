@@ -1,9 +1,10 @@
-// SCR-HOME-01 홈 대시보드 1차 (P1-11): ② 요약 카드 · ④ 남은 업무 · ⑥ 다가오는 일정.
-// ③ 오늘 일정·확인 대기(P2)와 ⑤⑦ 일지(P3)는 아직 없다. 그래서 확인 대기 카드는 빼고(카드 3개),
+// SCR-HOME-01 홈 대시보드 (P1-11): ② 요약 카드 · ④ 남은 업무 · ⑥ 다가오는 일정.
+// 확인 대기(P2-03): 요약 카드와 2건 이상일 때 띠, 누르면 SCR-HOME-02 패널. ③ 오늘 일정(P2-08)은 TodayTimeline, ⑤⑦ 일지(P3)는 아직 없다.
 // 다가오는 일정은 오늘 남은 일정부터 7일 뒤까지 보여 준다(pm 승인 가정).
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import { useAuth } from '../auth/useAuth'
+import { useOnline } from '../components/useOnline'
 import { occurrenceKey, useOccurrences, type Occurrence } from '../calendar/api'
 import { holidayName } from '../calendar/holidays'
 import { occurrencesByDate } from '../calendar/layout'
@@ -12,11 +13,15 @@ import { focusSectionHeading } from '../components/focusFallback'
 import { Skeleton } from '../components/Skeleton'
 import { useProjects, type Project } from '../projects/api'
 import { projectColor } from '../projects/palette'
+import { PendingPanel } from '../records/PendingPanel'
+import { usePendingRecords } from '../records/pending'
 import { addDays, isoWeekday, shortDate, todayIn, WEEKDAY_NAMES, weekStartNumber } from '../quickInput/dates'
 import { useTasks, type Task } from '../tasks/api'
+import { isCompletionResultFocused } from '../tasks/completionResultContext'
 import { useCompleteTask } from '../tasks/useCompleteTask'
 import { DEFAULT_STATUSES, dueLabel, dueState, groupTasks } from '../tasks/view'
 import styles from './home.module.css'
+import { TodayTimeline } from './TodayTimeline'
 
 const UPCOMING_DAYS = 7
 const UPCOMING_LIMIT = 8
@@ -52,6 +57,25 @@ export function HomeDashboard({ empty }: { empty: ReactNode }) {
   const more = (q: { hasNextPage: boolean }) => (q.hasNextPage ? '+' : '')
   const noTasks = !remaining.isPending && !remaining.isError && remaining.items.length === 0
 
+  const pending = usePendingRecords()
+  const pendingCount = pending.data?.length ?? 0
+  const [pendingOpen, setPendingOpen] = useState(false)
+  // 닫으면 연 버튼으로 포커스를 돌려준다. 띠는 처리하다 사라질 수 있어 그때는 요약 카드로
+  const opener = useRef<HTMLElement | null>(null)
+  const pendingCard = useRef<HTMLButtonElement>(null)
+  const openPending = (e: { currentTarget: HTMLElement }) => {
+    if (pendingCount === 0) return
+    opener.current = e.currentTarget
+    setPendingOpen(true)
+  }
+  const closePending = useCallback((emptied: boolean) => {
+    setPendingOpen(false)
+    // 패널이 사라지기 전에 옮긴다(늦으면 BODY로 빠져 포커스 안전망이 화면 제목으로 보낸다).
+    // 다 처리해 닫히면 띠도 곧 사라지므로 요약 카드로
+    const back = !emptied && opener.current?.isConnected ? opener.current : pendingCard.current
+    back?.focus()
+  }, [])
+
   return (
     <>
       <ul className={styles.cards} aria-label="요약">
@@ -71,6 +95,22 @@ export function HomeDashboard({ empty }: { empty: ReactNode }) {
             todayList.length === 0 ? '일정 없음' : todayLeft === 0 ? '모두 끝났어요' : `${todayLeft}개 남았어요`,
           )}
         />
+        <li>
+          <button
+            ref={pendingCard}
+            type="button"
+            className={pendingCount > 0 ? `${styles.card} ${styles.cardPending}` : styles.card}
+            aria-disabled={pending.isSuccess && pendingCount === 0 ? true : undefined}
+            aria-haspopup="dialog"
+            onClick={openPending}
+          >
+            <span className={styles.cardLabel}>확인 대기</span>
+            <span className={styles.cardValue}>{cardValue(pending, String(pendingCount))}</span>
+            <span className={styles.cardSub}>
+              {cardSub(pending, pendingCount === 0 ? '처리할 것 없어요' : '최근 7일')}
+            </span>
+          </button>
+        </li>
         <SummaryCard
           to="/tasks?status=DONE&completed=week"
           label="이번 주 완료"
@@ -79,6 +119,25 @@ export function HomeDashboard({ empty }: { empty: ReactNode }) {
           sub={`${shortDate(weekFirst)}부터`}
         />
       </ul>
+
+      {pendingCount >= 2 && (
+        <button type="button" className={styles.pendingBand} aria-haspopup="dialog" onClick={openPending}>
+          <span className={styles.pendingTag}>확인해 주세요</span>
+          확인 대기 {pendingCount}건 한 번에 처리
+        </button>
+      )}
+      {pendingOpen && <PendingPanel today={today} timeZone={timeZone} onClose={closePending} />}
+
+      <TodayTimeline
+        occurrences={todayList}
+        loading={occurrences.isPending}
+        failed={occurrences.isError}
+        onRetry={() => void occurrences.refetch()}
+        today={today}
+        timeZone={timeZone}
+        now={now}
+        onOpenPending={openPending}
+      />
 
       <div className={styles.columns}>
         {noTasks ? (
@@ -169,6 +228,8 @@ function RemainingTasks({ tasks, loading, failed, onRetry, today, weekStart, pro
   useEffect(() => {
     const pending = focusAfter.current
     if (!pending || tasks.some((t) => t.id === pending.gone)) return
+    // 결과 팝오버(SCR-TASK-03)가 포커스를 가졌으면 뺏지 않는다. 팝오버를 닫을 때 restoreFocus로 옮긴다
+    if (isCompletionResultFocused()) return
     focusAfter.current = null
     const next = pending.next && document.querySelector<HTMLElement>(`[data-complete="${pending.next}"]`)
     ;(next || headingRef.current)?.focus()
@@ -179,7 +240,15 @@ function RemainingTasks({ tasks, loading, failed, onRetry, today, weekStart, pro
     const index = visible.findIndex((t) => t.id === task.id)
     const next = visible[index + 1] ?? visible[index - 1]
     focusAfter.current = { gone: task.id, next: next?.id ?? null }
-    if (!(await complete(task))) focusAfter.current = null
+    const restoreFocus = () => {
+      const own = document.querySelector<HTMLElement>(`[data-complete="${task.id}"]`)
+      if (own) return own.focus()
+      const pending = focusAfter.current
+      focusAfter.current = null
+      const target = pending?.next && document.querySelector<HTMLElement>(`[data-complete="${pending.next}"]`)
+      ;(target || headingRef.current)?.focus()
+    }
+    if (!(await complete(task, { returnFocus: restoreFocus }))) focusAfter.current = null
   }
 
   return (
@@ -270,6 +339,7 @@ function TaskRow(props: {
   onComplete: () => void
 }) {
   const { task, project, today, weekStart } = props
+  const online = useOnline()
   const color = project ? projectColor(project.color) : null
   const state = dueState(task.dueDate, today, weekStart)
   const dueClass =
@@ -288,6 +358,7 @@ function TaskRow(props: {
         data-complete={task.id}
         className={styles.check}
         style={color ? { borderColor: color.base } : undefined}
+        disabled={!online}
         onClick={props.onComplete}
       />
       <Link to={`/tasks/${task.id}`} className={styles.rowBody}>

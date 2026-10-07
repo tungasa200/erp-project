@@ -29,7 +29,7 @@ describe('SCR-COM-02 qa 회귀', () => {
   it('P1-09-01 칩 class에 undefined가 들어가지 않고 마감·우선순위 칩은 종류 class를 갖는다', async () => {
     renderApp('/')
     await userEvent.type(await screen.findByRole('textbox', { name: '빠른 기록' }), '견적서 회신 @영업 !낮음 ~금')
-    const chips = within(screen.getByRole('list', { name: '해석 결과' })).getAllByRole('listitem')
+    const chips = within(screen.getByRole('list', { name: '해석 결과' })).getAllByRole('button')
     for (const chip of chips) expect(chip.className).not.toContain('undefined')
     expect(chips.find((c) => c.textContent === '마감 10/9(금)')).toHaveClass('chip', 'due')
     expect(chips.find((c) => c.textContent === '우선순위 낮음')).toHaveClass('chip', 'priority')

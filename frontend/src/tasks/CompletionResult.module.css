@@ -1,0 +1,218 @@
+/* SCR-TASK-03 완료 결과 입력. 데스크톱 우하단(되돌리기 토스트는 좌하단), 모바일은 하단 탭·토스트 위 */
+.popover {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 110;
+  width: min(400px, calc(100vw - 48px));
+  box-sizing: border-box;
+  padding: 16px;
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: 0 12px 32px rgba(26, 28, 43, 0.18);
+}
+
+@media (max-width: 767px) {
+  .popover {
+    left: 16px;
+    right: 16px;
+    /* 하단 탭(토스트 자리 88px) + 되돌리기 토스트(64px) + 틈 */
+    bottom: 164px;
+    width: auto;
+  }
+
+  /* iOS Safari는 16px보다 작은 입력칸에 포커스가 가면 화면을 확대한다 */
+  .input {
+    font-size: 16px;
+  }
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.done {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 11px;
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  font-size: 13px;
+}
+
+.taskTitle {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.input {
+  height: 46px;
+  box-sizing: border-box;
+  padding: 0 14px;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-input);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.input:focus-visible {
+  outline: none;
+  border: 2px solid var(--color-accent);
+}
+
+.input[aria-invalid='true'] {
+  border-color: var(--color-danger);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+/* 라디오를 칩으로: 실제 입력은 칩 전체를 덮어 누르는 영역이 칩 크기(44px)다 */
+.chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--size-touch);
+  padding: 0 16px;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  color: var(--color-text-body);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.chip input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.chip:has(input:checked) {
+  border-color: var(--color-accent);
+  background: var(--color-accent-soft);
+  color: var(--color-accent-ink);
+}
+
+.chip:has(input:focus-visible) {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.chips:disabled .chip {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.progress {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: var(--size-touch);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+}
+
+.progress input {
+  flex: 1;
+  accent-color: var(--color-accent);
+}
+
+.error {
+  margin: 0;
+  color: var(--color-danger);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.hint {
+  flex: 1;
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+/* 터치 기기에는 키보드 안내가 쓸모없다 */
+@media (pointer: coarse) {
+  .hint {
+    visibility: hidden;
+  }
+}
+
+.skip,
+.save {
+  min-height: var(--size-touch);
+  padding: 0 18px;
+  border: 0;
+  border-radius: 22px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.skip {
+  background: var(--color-ground);
+  color: var(--color-text-body);
+}
+
+.save {
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+.skip:disabled,
+.save:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}

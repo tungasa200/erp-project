@@ -1,0 +1,74 @@
+/* 결과 칩 — SCR-TASK-03(tasks/CompletionResult.module.css)과 같은 모양 */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+/* 라디오를 칩으로: 실제 입력은 칩 전체를 덮어 누르는 영역이 칩 크기(44px)다 */
+.chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--size-touch);
+  padding: 0 16px;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  color: var(--color-text-body);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.chip input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.chip:has(input:checked) {
+  border-color: var(--color-accent);
+  background: var(--color-accent-soft);
+  color: var(--color-accent-ink);
+}
+
+.chip:has(input:focus-visible) {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.chips:disabled .chip {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.progress {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: var(--size-touch);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+}
+
+.progress input {
+  flex: 1;
+  accent-color: var(--color-accent);
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}

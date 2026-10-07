@@ -172,6 +172,15 @@
   min-height: 24px;
 }
 
+/* 타이머 미니 플레이어(SCR-COM-06): 사이드바에서는 설정 위, 모바일에서는 하단 탭 위. 크기는 플레이어가 컨테이너 쿼리로 맞춘다 */
+.timerSide {
+  width: 100%;
+}
+
+.timerMobile {
+  display: none;
+}
+
 .content {
   flex: 1;
   min-width: 0;
@@ -182,13 +191,7 @@
 
 .main {
   min-width: 0;
-  margin: 0;
   padding: 28px 32px 32px 8px;
-  border: 0;
-}
-
-.main:disabled {
-  opacity: 0.55;
 }
 
 .tabs {
@@ -222,6 +225,10 @@
   .main {
     padding: 24px 24px 32px 8px;
   }
+  .timerSide {
+    padding: 0 6px;
+    box-sizing: border-box;
+  }
 }
 
 /* 모바일 (~767px): 사이드바 대신 하단 탭 */
@@ -231,6 +238,18 @@
   }
   .main {
     padding: 20px 16px 96px;
+  }
+  /* 타이머가 하단 탭 위에 떠 있으면 본문 끝이 그 아래에 가리지 않게 여백을 늘린다 */
+  .timerMobile {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: 108px; /* 탭(72px) + 위로 솟은 + 버튼(26px) + 틈 */
+    z-index: 19;
+    display: block;
+  }
+  .shell:has(.timerMobile section) .main {
+    padding-bottom: 200px;
   }
   .tabs {
     position: fixed;
@@ -318,4 +337,10 @@
   justify-content: center;
   box-shadow: var(--shadow-accent);
   cursor: pointer;
+}
+
+/* 끊긴 동안에는 기록할 수 없다(SCR-SYS-02 ③) */
+.quick:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }

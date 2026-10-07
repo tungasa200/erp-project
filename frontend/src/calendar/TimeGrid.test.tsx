@@ -195,3 +195,101 @@ describe('오프라인 (P1-X-04)', () => {
     expect(onMove).not.toHaveBeenCalled()
   })
 })
+
+describe('블록을 마우스로 열면 포커스 (CAL-07 기록 창 복귀)', () => {
+  beforeEach(() => {
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+      left: 0,
+      top: 0,
+      width: 100,
+      height: 1152,
+    } as DOMRect)
+  })
+  afterEach(() => vi.restoreAllMocks())
+
+  it('끌기 처리가 기본 동작을 막아도 누른 블록이 포커스를 받아, 연 창을 닫으면 그 블록으로 돌아온다', () => {
+    const onOpen = vi.fn()
+    render(
+      <TimeGrid
+        days={[DAY]}
+        occurrences={[
+          {
+            scheduleId: 'a',
+            title: '회의',
+            allDay: false,
+            startAt: `${DAY}T09:00:00Z`,
+            endAt: `${DAY}T10:00:00Z`,
+          } as Occurrence,
+        ]}
+        timeZone="UTC"
+        today={DAY}
+        now={Date.parse(`${DAY}T00:00:00Z`)}
+        colorOf={() => null}
+        pending={null}
+        onCreate={vi.fn()}
+        onCreateAllDay={vi.fn()}
+        onOpen={onOpen}
+        onMove={vi.fn()}
+      />,
+    )
+    const block = screen.getByRole('button', { name: /회의/ })
+    const clientY = 9 * 60 * PX_PER_MINUTE + 10
+    fireEvent.pointerDown(block, { button: 0, clientX: 50, clientY })
+    fireEvent.pointerUp(block, { button: 0, clientX: 50, clientY })
+    expect(onOpen).toHaveBeenCalledTimes(1)
+    expect(block).toHaveFocus()
+  })
+})
+
+describe('오프라인 마우스 click (SCR-SYS-02 ③ 열어 보기)', () => {
+  const renderGrid = (editable: boolean) => {
+    const onOpen = vi.fn()
+    render(
+      <TimeGrid
+        days={[DAY]}
+        occurrences={[
+          {
+            scheduleId: 'a',
+            title: '회의',
+            allDay: false,
+            startAt: `${DAY}T09:00:00Z`,
+            endAt: `${DAY}T10:00:00Z`,
+          } as Occurrence,
+          {
+            scheduleId: 'b',
+            occurrenceStart: `${DAY}T00:00:00Z`,
+            title: '워크숍',
+            allDay: true,
+            startDate: DAY,
+            endDate: DAY,
+          } as Occurrence,
+        ]}
+        timeZone="UTC"
+        today={DAY}
+        now={Date.parse(`${DAY}T00:00:00Z`)}
+        colorOf={() => null}
+        pending={null}
+        onCreate={vi.fn()}
+        onCreateAllDay={vi.fn()}
+        onOpen={onOpen}
+        onMove={vi.fn()}
+        editable={editable}
+      />,
+    )
+    return onOpen
+  }
+
+  it('오프라인이면 끌기 처리가 꺼져도 블록·종일 막대를 마우스로 누르면 연다', () => {
+    const onOpen = renderGrid(false)
+    fireEvent.click(screen.getByRole('button', { name: /회의/ }), { detail: 1 })
+    fireEvent.click(screen.getByRole('button', { name: /워크숍/ }), { detail: 1 })
+    expect(onOpen.mock.calls.map(([o]) => o.title)).toEqual(['회의', '워크숍'])
+  })
+
+  it('온라인이면 마우스 click은 pointer 처리가 열므로 click에서 다시 열지 않는다', () => {
+    const onOpen = renderGrid(true)
+    fireEvent.click(screen.getByRole('button', { name: /회의/ }), { detail: 1 })
+    fireEvent.click(screen.getByRole('button', { name: /워크숍/ }), { detail: 1 })
+    expect(onOpen).not.toHaveBeenCalled()
+  })
+})

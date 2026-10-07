@@ -160,7 +160,9 @@ export function TimeGrid(props: Props) {
       const [date, key] = blockEl.dataset.segment!.split('#')
       const segment = segments.get(date)?.find((s) => occurrenceKey(s.occurrence) === key)
       if (!segment) return
+      // 끌기를 위해 기본 동작을 막으면 블록이 포커스를 받지 못한다. 직접 옮겨 두어야 연 창을 닫을 때 이 블록으로 돌아온다
       e.preventDefault()
+      blockEl.focus({ preventScroll: true })
       e.currentTarget.setPointerCapture(e.pointerId)
       if (target.dataset.handle === 'resize') setDrag({ kind: 'resize', segment, end: segment.end })
       else
@@ -245,6 +247,7 @@ export function TimeGrid(props: Props) {
     const bar = bars.find((b) => occurrenceKey(b.occurrence) === barEl.dataset.bar)
     if (!bar) return
     e.preventDefault()
+    barEl.focus({ preventScroll: true })
     e.currentTarget.setPointerCapture(e.pointerId)
     setDrag({
       kind: 'moveAllDay',
@@ -381,8 +384,9 @@ export function TimeGrid(props: Props) {
                   gridRow: bar.row + 1,
                   ...colorVars(color),
                 }}
-                // 마우스는 pointer 처리에서 연다. 키보드(Enter·Space)로 누른 click만 여기서 연다
-                onClick={(e) => e.detail === 0 && props.onOpen(bar.occurrence)}
+                // 마우스는 pointer 처리에서 연다. 키보드(Enter·Space)로 누른 click만 여기서 연다.
+                // 오프라인이면 pointer 처리가 꺼지므로 마우스 click도 여기서 연다(SCR-SYS-02 ③ 열어 보기)
+                onClick={(e) => (e.detail === 0 || readOnly) && props.onOpen(bar.occurrence)}
               >
                 {bar.occurrence.recurring && <RepeatIcon />}
                 {bar.occurrence.title}
@@ -445,6 +449,7 @@ export function TimeGrid(props: Props) {
                       now={now}
                       drag={drag}
                       overview={overview}
+                      readOnly={readOnly}
                       onOpen={props.onOpen}
                     />
                   ))}
@@ -488,6 +493,7 @@ function Block({
   now,
   drag,
   overview,
+  readOnly,
   onOpen,
 }: {
   segment: TimedSegment
@@ -496,6 +502,8 @@ function Block({
   now: number
   drag: Drag | null
   overview: boolean
+  /** 오프라인: pointer 처리가 꺼져 마우스 click으로 연다 */
+  readOnly: boolean
   onOpen: (o: Occurrence) => void
 }) {
   const o = segment.occurrence
@@ -534,7 +542,7 @@ function Block({
       data-now={active || undefined}
       data-dragging={dragging || undefined}
       style={blockStyle(color, top, height, segment.column, segment.columns)}
-      onClick={(e) => e.detail === 0 && onOpen(o)}
+      onClick={(e) => (e.detail === 0 || readOnly) && onOpen(o)}
       aria-label={`${o.title}, ${timeLabel(o, timeZone)}${o.recurring ? ', 반복' : ''}`}
     >
       {content}

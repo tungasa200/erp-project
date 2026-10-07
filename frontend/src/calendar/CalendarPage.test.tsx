@@ -43,6 +43,13 @@ function stubServer() {
       return handleScheduleMock(method, url, body, { json, problem })!
     }
     if (url === '/api/users/me') return json(200, ME)
+    // 일 보기 "이날의 기록"·일정 상세 ⑥이 받는 그날 기록과 기록 한 건
+    if (url.startsWith('/api/worklog/records?')) return json(200, { items: records })
+    const one = /^\/api\/worklog\/records\/([^/?]+)$/.exec(url)
+    if (one) {
+      const found = records.find((r) => r.id === one[1])
+      return found ? json(200, found) : problem(404, 'NOT_FOUND')
+    }
     if (url.startsWith('/api/worklog/projects')) return json(200, { items: [] })
     if (url === '/api/worklog/tasks' && method === 'POST') {
       const body = JSON.parse(String(init!.body))
@@ -82,8 +89,33 @@ const task = (id: string, title: string, dueDate: string | null) => ({
 })
 const tasks = [task('task-report', '9월 매출 보고서', '2026-10-06'), task('task-idea', '아이디어 정리', null)]
 
+const workRecord = (id: string, over: Record<string, unknown>) => ({
+  id,
+  status: 'CONFIRMED',
+  workDate: '2026-10-07',
+  content: '',
+  taskId: null,
+  projectId: null,
+  tagIds: [],
+  scheduleId: null,
+  occurrenceStart: null,
+  result: null,
+  outcome: null,
+  progress: null,
+  startAt: null,
+  endAt: null,
+  durationMin: null,
+  deletedAt: null,
+  createdAt: '2026-10-07T00:00:00Z',
+  updatedAt: '2026-10-07T00:00:00Z',
+  version: 0,
+  ...over,
+})
+let records: ReturnType<typeof workRecord>[] = []
+
 beforeEach(() => {
   localStorage.setItem('worklog.mock.schedules', JSON.stringify([standup]))
+  records = []
 })
 
 // matchMedia 등 테스트에서 바꾼 전역을 다음 테스트로 넘기지 않는다
@@ -351,6 +383,91 @@ describe('캘린더', () => {
     onLine.mockRestore()
   })
 
+  it('오프라인이면 일정은 열어 보기만 하고, 기간 이동은 된다 (SCR-SYS-02 ③)', async () => {
+    stubServer()
+    const user = userEvent.setup()
+    const onLine = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    renderApp('/calendar/week/2026-10-07', routes)
+    const panel = await screen.findByRole('complementary', { name: '할 일 상자' })
+    expect(await within(panel).findByRole('button', { name: '9월 매출 보고서 일정 잡기' })).toBeDisabled()
+    expect(within(panel).getByLabelText('업무 빠른 입력')).toBeDisabled()
+    expect(screen.getByRole('button', { name: '일정 만들기' })).toBeDisabled()
+
+    ;(await screen.findAllByRole('button', { name: /^팀 스탠드업, / }))[0].focus()
+    await user.keyboard('{Enter}')
+    const dialog = await screen.findByRole('dialog', { name: '일정 편집' })
+    await waitFor(() => expect(within(dialog).getByLabelText('제목')).toHaveValue('팀 스탠드업'))
+    expect(within(dialog).getByRole('status')).toHaveTextContent('연결이 끊겼어요')
+    expect(within(dialog).getByLabelText('제목')).toBeDisabled()
+    expect(within(dialog).getByRole('button', { name: '저장' })).toBeDisabled()
+    expect(within(dialog).getByRole('button', { name: '삭제' })).toBeDisabled()
+    await user.click(within(dialog).getByRole('button', { name: '취소' }))
+    expect(screen.queryByRole('dialog', { name: '일정 편집' })).not.toBeInTheDocument()
+
+    await user.keyboard('j')
+    expect(await screen.findByRole('heading', { name: '2026년 10월 12일 – 18일' })).toBeInTheDocument()
+    onLine.mockRestore()
+  })
+
+  it('편집 중에 연결이 끊기면 칸이 꺼지고 포커스는 닫기 버튼으로 간다', async () => {
+    stubServer()
+    const user = userEvent.setup()
+    renderApp('/calendar/week/2026-10-07', routes)
+    ;(await screen.findAllByRole('button', { name: /^팀 스탠드업, / }))[0].focus()
+    await user.keyboard('{Enter}')
+    const dialog = await screen.findByRole('dialog', { name: '일정 편집' })
+    const title = within(dialog).getByLabelText('제목')
+    await waitFor(() => expect(title).toHaveValue('팀 스탠드업'))
+    title.focus()
+
+    const onLine = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    act(() => {
+      window.dispatchEvent(new Event('offline'))
+    })
+    expect(title).toBeDisabled()
+    await waitFor(() => expect(within(dialog).getByRole('button', { name: '닫기' })).toHaveFocus())
+    onLine.mockRestore()
+    // React Query onlineManager도 offline 이벤트로 멈췄으니 online으로 되돌려 다음 테스트의 저장이 멈추지 않게 한다
+    act(() => {
+      window.dispatchEvent(new Event('online'))
+    })
+  })
+
+  it('끊긴 채로 처음 연 일정은 캘린더에 있는 제목·시간·반복을 읽기 전용으로 보이고 나머지는 연결되면 불러온다 (SCR-SYS-02 ③)', async () => {
+    stubServer()
+    const user = userEvent.setup()
+    renderApp('/calendar/week/2026-10-07', routes)
+    ;(await screen.findAllByRole('button', { name: /^팀 스탠드업, / }))[0].focus()
+    const onLine = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    act(() => {
+      window.dispatchEvent(new Event('offline'))
+    })
+    try {
+      await user.keyboard('{Enter}')
+      const dialog = await screen.findByRole('dialog', { name: '일정 편집' })
+      expect(await within(dialog).findByText('연결이 끊겼어요. 연결되면 나머지를 불러와요')).toBeInTheDocument()
+      expect(within(dialog).getByText('팀 스탠드업')).toBeInTheDocument()
+      expect(within(dialog).getByText(/10:00~11:00$/)).toBeInTheDocument()
+      expect(within(dialog).getByText('반복 일정')).toBeInTheDocument()
+      // 고칠 칸·삭제·저장은 없다(열어 보기만)
+      expect(within(dialog).queryByRole('textbox')).toBeNull()
+      expect(within(dialog).queryByRole('button', { name: '삭제' })).toBeNull()
+
+      onLine.mockRestore()
+      act(() => {
+        window.dispatchEvent(new Event('online'))
+      })
+      // 다시 연결되면 저절로 채운다
+      await waitFor(() => expect(within(dialog).getByLabelText('제목')).toHaveValue('팀 스탠드업'))
+    } finally {
+      // 실패해도 React Query onlineManager를 되돌려야 뒤 테스트의 요청이 멈추지 않는다
+      onLine.mockRestore()
+      act(() => {
+        window.dispatchEvent(new Event('online'))
+      })
+    }
+  })
+
   it('상세 모달에서 업무를 검색해 연결하면 저장 때 taskId를 보낸다 (P1-05-06)', async () => {
     const review = { ...standup, id: 'schedule-review', title: '주간 리뷰', recurrence: null }
     Object.assign(review, { startAt: '2026-10-08T05:00:00.000Z', endAt: '2026-10-08T06:00:00.000Z' })
@@ -508,5 +625,64 @@ describe('캘린더', () => {
     const post = fetchMock.mock.calls.find(([url, init]) => url === '/api/worklog/tasks' && init?.method === 'POST')
     expect(JSON.parse(String(post![1]!.body))).toMatchObject({ title: '보고서 정리' })
     expect(within(panel).getByLabelText('업무 빠른 입력')).toHaveValue('')
+  })
+
+  it('일 보기 "이날의 기록": 시간 없는 기록까지 상태와 함께 보이고, 누르면 기록 창, [기록 추가]는 그날 새 기록 (SCR-CAL-02)', async () => {
+    stubServer()
+    records = [
+      workRecord('r-plan', {
+        status: 'PENDING',
+        content: '팀 스탠드업',
+        scheduleId: standup.id,
+        occurrenceStart: standup.startAt,
+      }),
+      workRecord('r-note', { content: '견적 메일 회신', result: '금요일까지 확정' }),
+    ]
+    const user = userEvent.setup()
+    renderApp('/calendar/day/2026-10-07', routes)
+    const panel = await screen.findByRole('region', { name: '이날의 기록' })
+    const note = await within(panel).findByRole('button', { name: /견적 메일 회신/ })
+    expect(note).toHaveTextContent('했어요')
+    expect(note).toHaveTextContent('금요일까지 확정')
+    expect(within(panel).getByRole('button', { name: /팀 스탠드업/ })).toHaveTextContent('확인 대기')
+    // 확인 대기는 시간이 비어 있어 계획 시간을 적는다(홈 확인 대기 목록과 같게)
+    expect(within(panel).getByRole('button', { name: /팀 스탠드업/ })).toHaveTextContent('계획 10:00 – 11:00')
+
+    await user.click(within(panel).getByRole('button', { name: /팀 스탠드업/ }))
+    const dialog = await screen.findByRole('dialog', { name: '확인 대기 수정' })
+    await user.click(within(dialog).getByRole('button', { name: '닫기' }))
+    await waitFor(() => expect(within(panel).getByRole('button', { name: /팀 스탠드업/ })).toHaveFocus())
+
+    await user.click(within(panel).getByRole('button', { name: '기록 추가' }))
+    const add = await screen.findByRole('dialog', { name: '기록 추가' })
+    expect(within(add).getByLabelText('날짜')).toHaveValue('2026-10-07')
+  })
+
+  it('일정 상세 ⑥ [기록 보기]는 일정 창을 닫고 그 회차의 기록 창을 연다 (SCR-CAL-07)', async () => {
+    stubServer()
+    records = [
+      workRecord('r-plan', {
+        status: 'DISMISSED',
+        content: '팀 스탠드업',
+        scheduleId: standup.id,
+        occurrenceStart: standup.startAt,
+      }),
+    ]
+    const user = userEvent.setup()
+    renderApp('/calendar/week/2026-10-07', routes)
+    const [block] = await screen.findAllByRole('button', { name: /^팀 스탠드업, 10:00–11:00, 반복$/ })
+    block.focus()
+    await user.keyboard('{Enter}')
+    const dialog = await screen.findByRole('dialog', { name: '일정 편집' })
+    expect(await within(dialog).findByText('안 했어요')).toBeInTheDocument()
+    await user.click(within(dialog).getByRole('button', { name: '기록 보기' }))
+    const recordDialog = await screen.findByRole('dialog', { name: '기록 수정' })
+    expect(screen.queryByRole('dialog', { name: '일정 편집' })).toBeNull()
+    // 일정 창은 이미 닫혔으므로 기록 창을 닫으면 그 일정 블록으로 돌아간다
+    await waitFor(() => expect(within(recordDialog).getByLabelText(/한 일/)).toHaveFocus())
+    await user.keyboard('{Escape}')
+    await waitFor(() =>
+      expect(screen.getAllByRole('button', { name: /^팀 스탠드업, 10:00–11:00, 반복$/ })[0]).toHaveFocus(),
+    )
   })
 })

@@ -46,7 +46,7 @@ describe('설정 화면 틀', () => {
     const { router } = renderApp('/settings')
     expect(await screen.findByRole('heading', { name: '프로필' })).toBeInTheDocument()
     expect(router.state.location.pathname).toBe('/settings/profile')
-    expect(within(screen.getByRole('navigation', { name: '설정 메뉴' })).getAllByRole('link')).toHaveLength(3)
+    expect(within(screen.getByRole('navigation', { name: '설정 메뉴' })).getAllByRole('link')).toHaveLength(4)
   })
 
   it('사이드바 프로필 영역을 누르면 프로필 설정으로 간다', async () => {
@@ -228,5 +228,16 @@ describe('SCR-SET-02 일반', () => {
     toggle.blur()
     await userEvent.keyboard('n')
     expect(screen.queryByRole('textbox', { name: '빠른 기록' })).not.toBeInTheDocument()
+  })
+})
+
+describe('오프라인 (SCR-SYS-02 ③, P1-X-04)', () => {
+  it('끊긴 동안 설정 입력은 막고, 탭 이동은 된다', async () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    fakeServer()
+    const { router } = renderApp('/settings/profile')
+    expect(await screen.findByRole('textbox', { name: '이름' })).toBeDisabled()
+    await userEvent.click(screen.getByRole('link', { name: /일반/ }))
+    expect(router.state.location.pathname).toBe('/settings/general')
   })
 })

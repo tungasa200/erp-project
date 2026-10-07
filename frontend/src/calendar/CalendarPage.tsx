@@ -1,20 +1,26 @@
 // 캘린더 (SCR-CAL-01~05). 보기와 날짜는 URL이 기준이다: /calendar/{day|week|month|year}/:date, /calendar/list.
 // 표시는 사용자의 현재 시간대(D-40), 주 시작 요일은 프로필 설정(AUTH-05)을 따른다.
-// P1 범위 밖: 기록 상태(2.3)와 범례·일지 상태 점·이날의 기록 패널(P2 데이터), 상단 검색(일정 검색 API 없음).
+// 일 보기는 그리드 옆에 "이날의 기록"(SCR-CAL-02 ③)을 둔다. 기록을 누르거나 일정 상세 ⑥ [기록 보기]면 SCR-REC-01.
+// 아직 없음: 블록의 기록 상태(2.3)와 범례·일지 상태 점, 상단 검색(일정 검색 API 없음).
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from 'react'
 import { Navigate, useLocation, useNavigate, useParams } from 'react-router'
 import { useAuth } from '../auth/useAuth'
 import { Skeleton } from '../components/Skeleton'
 import { useOnline } from '../components/useOnline'
+import { RecordDialog } from '../records/RecordDialog'
+import type { WorkRecord } from '../records/api'
 import { useSingleKeyShortcuts } from '../shortcuts/useShortcuts'
 import { useProjects } from '../projects/api'
 import { useOccurrences, type Occurrence } from './api'
 import { projectIdOf, useProjectColors } from './colors'
+import { DayRecords } from './DayRecords'
 import { useFocusRescue } from './focus'
 import { ListView } from './ListView'
 import { MiniCalendar } from './MiniCalendar'
 import { MonthView } from './MonthView'
 import { QuickCreate, type CreateTarget, type ScheduleDraft } from './QuickCreate'
+import { occurrenceOf, plannedOf } from './recordStatus'
+import recordStyles from './records.module.css'
 import { ScheduleDialog } from './ScheduleDialog'
 import { ScopeDialog } from './ScopeDialog'
 import { TimeGrid, type TimeRange } from './TimeGrid'
@@ -145,6 +151,8 @@ interface CalendarProps {
 }
 
 type Dialog = { kind: 'create'; draft: ScheduleDraft } | { kind: 'edit'; occurrence: Occurrence } | null
+/** 기록 창(SCR-REC-01): 고칠 기록이면 id와 계획 시각, 새 기록이면 날짜 */
+type RecordOpen = { recordId: string; planned?: { startAt: string; endAt: string } } | { workDate: string } | null
 
 function Calendar({ view, date, today, timeZone, weekStart }: CalendarProps) {
   const navigate = useNavigate()
@@ -154,6 +162,7 @@ function Calendar({ view, date, today, timeZone, weekStart }: CalendarProps) {
   const colorOf = useProjectColors()
   const [quick, setQuick] = useState<{ target: CreateTarget; anchor: { x: number; y: number } } | null>(null)
   const [dialog, setDialog] = useState<Dialog>(null)
+  const [recordOpen, setRecordOpen] = useState<RecordOpen>(null)
   const [scopeAsk, setScopeAsk] = useState<{
     occurrence: Occurrence
     action: ScopeAction
@@ -187,7 +196,7 @@ function Calendar({ view, date, today, timeZone, weekStart }: CalendarProps) {
   }, [panelOpen, wide])
   // 모바일 주 보기는 훑어보기 전용(D-77)
   const mobile = useMediaQuery(MOBILE_QUERY)
-  // 오프라인이면 끌기·만들기를 막는다(SCR-SYS-02, P1-X-04). 버튼·입력은 앱의 fieldset이 끈다
+  // 오프라인이면 끌기·만들기·저장을 막고 기간 이동·일정 열어 보기는 둔다(SCR-SYS-02 ③, P1-X-04)
   const online = useOnline()
 
   const askScope = useCallback(
@@ -322,10 +331,37 @@ function Calendar({ view, date, today, timeZone, weekStart }: CalendarProps) {
 
   const activeProjects = (projects.data ?? []).filter((p) => !p.archived)
 
+  // 일·주 보기 그리드. 일 보기는 옆에 "이날의 기록"을 둔다
+  const timeGrid = (
+    <TimeGrid
+      days={days}
+      occurrences={occurrences}
+      timeZone={timeZone}
+      today={today}
+      now={now}
+      colorOf={colorOf}
+      pending={quick && !quick.target.allDay ? (quick.target as TimeRange) : null}
+      onCreate={(range) => openQuick({ ...range, allDay: false })}
+      onCreateAllDay={createAllDay}
+      onOpen={(o) => setDialog({ kind: 'edit', occurrence: o })}
+      onMove={(o, change) => void actions.move(o, change)}
+      onOpenDay={view === 'week' ? (d) => go('day', d) : undefined}
+      onDropTask={panel.placeById}
+      overview={view === 'week' && mobile}
+      editable={online}
+    />
+  )
+
   return (
     <div ref={pageRef} className={styles.page}>
       <aside className={styles.side} aria-label="캘린더 사이드바">
-        <button type="button" className={styles.createButton} onClick={() => openCreate()} title="단축키 C">
+        <button
+          type="button"
+          className={styles.createButton}
+          onClick={() => openCreate()}
+          disabled={!online}
+          title="단축키 C"
+        >
           <svg
             width="20"
             height="20"
@@ -439,24 +475,19 @@ function Calendar({ view, date, today, timeZone, weekStart }: CalendarProps) {
             )}
           </div>
         )}
-        {!query.isPending && (view === 'day' || view === 'week') && (
-          <TimeGrid
-            days={days}
-            occurrences={occurrences}
-            timeZone={timeZone}
-            today={today}
-            now={now}
-            colorOf={colorOf}
-            pending={quick && !quick.target.allDay ? (quick.target as TimeRange) : null}
-            onCreate={(range) => openQuick({ ...range, allDay: false })}
-            onCreateAllDay={createAllDay}
-            onOpen={(o) => setDialog({ kind: 'edit', occurrence: o })}
-            onMove={(o, change) => void actions.move(o, change)}
-            onOpenDay={view === 'week' ? (d) => go('day', d) : undefined}
-            onDropTask={panel.placeById}
-            overview={view === 'week' && mobile}
-            editable={online}
-          />
+        {!query.isPending && view === 'week' && timeGrid}
+        {!query.isPending && view === 'day' && (
+          <div className={recordStyles.dayLayout}>
+            <div className={recordStyles.dayGrid}>{timeGrid}</div>
+            <DayRecords
+              date={date}
+              timeZone={timeZone}
+              occurrences={query.data ?? []}
+              editable={online}
+              onOpen={(r) => setRecordOpen({ recordId: r.id, planned: plannedOf(occurrenceOf(query.data ?? [], r)) })}
+              onAdd={() => setRecordOpen({ workDate: date })}
+            />
+          </div>
         )}
         {!query.isPending && view === 'month' && (
           <MonthView
@@ -521,14 +552,16 @@ function Calendar({ view, date, today, timeZone, weekStart }: CalendarProps) {
           onLoadMore={() => void panel.tasks.fetchNextPage()}
           onPlace={(task) => openCreate(task)}
           quickInput={
-            <QuickInput
-              label="업무 빠른 입력"
-              // 좁은 패널에 맞춘 짧은 안내(목업 CAL-09)
-              placeholder="+ 업무 추가"
-              value={panelText}
-              onChange={setPanelText}
-              onSubmit={panel.quickSave}
-            />
+            <fieldset className={styles.fieldset} disabled={!online}>
+              <QuickInput
+                label="업무 빠른 입력"
+                // 좁은 패널에 맞춘 짧은 안내(목업 CAL-09)
+                placeholder="+ 업무 추가"
+                value={panelText}
+                onChange={setPanelText}
+                onSubmit={panel.quickSave}
+              />
+            </fieldset>
           }
         />
       )}
@@ -553,7 +586,17 @@ function Calendar({ view, date, today, timeZone, weekStart }: CalendarProps) {
           occurrence={dialog.kind === 'edit' ? dialog.occurrence : undefined}
           askScope={askScope}
           onDelete={(o) => void actions.remove(o)}
+          onOpenRecord={(r: WorkRecord, planned) => setRecordOpen({ recordId: r.id, planned })}
           onClose={() => setDialog(null)}
+        />
+      )}
+      {recordOpen && (
+        <RecordDialog
+          key={'recordId' in recordOpen ? recordOpen.recordId : 'new'}
+          {...('recordId' in recordOpen
+            ? { recordId: recordOpen.recordId, planned: recordOpen.planned }
+            : { defaults: { workDate: recordOpen.workDate } })}
+          onClose={() => setRecordOpen(null)}
         />
       )}
       {scopeAsk && (

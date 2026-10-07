@@ -85,7 +85,7 @@ choice 요청에는 카드 필수 칸 what(무엇을)·why(왜)·onClick(누르�
 ## 6-1. 세션 띄우기·멈추기·교대 (백그라운드 세션)
 
 역할 세션은 `.claude/skills/pm-ops/scripts/session.ps1`로 다룬다(PowerShell). 역할 정의는 `.claude/agents/<역할>.md`이고, 그 원본은 `.claude/ops/`(생성: `node tools/wy-ops/gen-agents.js`).
-- `list` / `health`(대화 토큰·MB·교대 권장) / `start <역할> "<지시>"` / `stop <역할>` / `prep <역할>` / `rotate <역할> <경로|none>` / `adopt <역할> <세션ID>` / `pm-cmd`
+- `list` / `health`(대화 토큰·MB·교대 권장) / `start <역할> "<지시>"` / `stop <역할>` / `prep <역할>` / `rotate <역할> <경로|none>` / `adopt <역할> <세션ID>` / `pm-cmd` / `pin <역할>`·`unpin <역할>`(고정 목록 `~/.claude/jobs/pins.json`, 멈춘 세션 id 정리)
 - **재사용 정책(토큰 절감, 사용자 결정 2026-10-07): 작업 사이에도 세션을 멈추지 않고 대기로 둔다.** 매 턴 대화 전체를 다시 읽으므로 비용 ≈ 턴 수 × 대화 크기다. 다음 작업을 줄 때 `health`의 대화가 15만 토큰(`rotation.contextTokens`, 기본 150000) 미만이면 그 세션에 이어서 지시하고, 이상이면 `rotate`로 새로 띄운다(새 세션 기본 약 7만).
 - **멈춘 큰 세션을 `start`로 이어 띄우지 않는다.** 캐시가 만료돼 대화 전체를 다시 쓰므로 새로 띄우는 것보다 비싸다. `start`는 멈춘 대화가 기준 이상이면 이어 띄우지 않고 `rotate`를 권한다(`-Force`로 강행).
 - 메모리가 막는 선(500MB) 근처로 몰리면 대화가 가장 큰 대기 세션부터 `stop`한다. 멈춘 세션은 메모리 0이고 대화는 남지만, 위 기준 이상이면 다음에는 `rotate`로 새로 띄운다.
@@ -152,6 +152,8 @@ WY-pm은 VS Code Claude 패널 대신 터미널의 `claude`로 띄운다. 패널
 ### 6-1. 세션
 - `claude attach`로 깨운 세션이 `--agent` 없이 뜬 사례: 2026-10-07 WY-commit이 이렇게 떠서 가드 훅에 커밋이 막혔다.
 - 재사용 정책의 근거(실측 2026-10-07): 90분 캐시 읽기 2억 900만 토큰 중 96%가 대화 80만 넘게 자란 Opus 세션 4개에서 나왔다. 사용자 기준은 "자주 껐다 켜기보다 대기로 두고(메모리를 좀 더 써도 됨) 토큰을 덜 쓴다". claude-mem 제거는 보류.
+- WY-commit은 백그라운드로 두고 고정(pin)한다(사용자 결정 2026-10-07, 카드 20261007-1640). 데몬은 메모리가 부족하면 고정 안 된 쉬는 세션부터 정리한다(daemon.log의 `bg retire ... [low memory]`). 고정 목록 `~/.claude/jobs/pins.json`은 세션이 쓰면 권한 분류기가 막으므로, 교대 때마다 pm이 사용자에게 고정 할 일 카드(`claude.cmd agents` → 고정 키)를 올린다.
+- 고정은 `session.ps1 pin WY-commit`으로 한다(사용자 결정 2026-10-07, 카드 20261007-1700: 사용자 허용 규칙으로 이 명령만 연다). WY-commit을 띄우거나(start) 교대한(rotate) 뒤 바로 부른다. start·rotate는 스스로 고정하지 않는다. 데몬의 정리 시작선은 여유 메모리 약 1GB라, pm은 여유가 1GB 아래로 내려가면 일을 마친 세션부터 stop한다.
 
 ### 6-2. 터미널(이 PC, 2026-10-07)
 - 계기: 메모리 절감을 위해 WY-pm을 패널 대신 터미널로 옮겼다. 긴 pm 패널을 닫자 VS Code가 약 3.5GB에서 1.4GB로 줄었다.

@@ -4,6 +4,7 @@
 import type { CSSProperties } from 'react'
 import styles from './Skeleton.module.css'
 import { useDelayed } from './useDelayed'
+import { useOnline } from './useOnline'
 
 /**
  * lines: 길이가 다른 여러 줄(목록·섹션) · line: 글자 자리 막대 하나(카드 숫자 등, 인라인)
@@ -17,11 +18,23 @@ interface Props {
   count?: number
   /** block·card 높이(px) */
   height?: number
+  /** 끊긴 동안 대신 보일 안내. 기본 "연결되면 불러올게요" (예: "연결되면 업무를 불러올게요") */
+  offlineText?: string
 }
 
-export function Skeleton({ shape = 'lines', count = 3, height }: Props) {
+export function Skeleton({ shape = 'lines', count = 3, height, offlineText = '연결되면 불러올게요' }: Props) {
   const shown = useDelayed()
+  const online = useOnline()
   if (!shown) return null
+  // 끊긴 동안에는 조회가 멈춰(react-query paused) 첫 로딩이 끝나지 않는다. 막대만 돌리지 않고 이유를 알린다(P1-X-04).
+  // 글자 자리(line)·칩은 자리가 좁아 그대로 두고, 화면 위 끊김 띠가 이유를 알린다
+  if (!online && shape !== 'line' && shape !== 'chip') {
+    return (
+      <p role="status" className={styles.offline}>
+        {offlineText}
+      </p>
+    )
+  }
   const label = <span className={styles.srOnly}>불러오는 중</span>
   if (shape === 'line') {
     return (

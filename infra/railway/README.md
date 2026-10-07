@@ -42,7 +42,7 @@ Railway 프로젝트 WY-ERP(싱가포르)에 백엔드 3개와 PostgreSQL, Verce
 | `IDENTITY_URI` | `http://identity-service.railway.internal:8081` | private 도메인 |
 | `WORKLOG_URI` | `http://worklog-service.railway.internal:8082` | private 도메인 |
 | `IDENTITY_JWKS_URI` | `http://identity-service.railway.internal:8081/.well-known/jwks.json` | private 도메인 |
-| `ALLOWED_ORIGINS` | `https://project-7qtt1.vercel.app,https://wy-worklog.com` (운영 도메인만. www는 apex로 리디렉션되므로 넣지 않고, 프리뷰 도메인도 넣지 않는다. project-7qtt1은 전환 기간 동안 유지) | 입력 |
+| `ALLOWED_ORIGINS` | `https://wy-worklog.com` (운영 도메인만. www는 apex로 리디렉션되므로 넣지 않고, 프리뷰 도메인도 넣지 않는다. 옛 주소 project-7qtt1.vercel.app은 D-81로 2026-10-07 제거) | 입력 |
 | `ORIGIN_SECRET` | 🔒 32바이트 이상 난수 (`openssl rand -hex 32`), Vercel과 같은 값 | 입력 |
 
 **identity-service**
@@ -85,7 +85,7 @@ Railway 프로젝트 WY-ERP(싱가포르)에 백엔드 3개와 PostgreSQL, Verce
 | Root Directory | `frontend` (여기에 있는 [vercel.json](../../frontend/vercel.json)이 적용된다) |
 | 프레임워크·빌드 | Vite, `npm run build`, 출력 `dist` |
 | 환경 변수 | `ORIGIN_SECRET` 🔒 gateway와 같은 값 (Production·Preview) |
-| 도메인 | `wy-worklog.com`(기본), `www.wy-worklog.com` → apex 308, `project-7qtt1.vercel.app`(전환 기간 유지). D-55 |
+| 도메인 | `wy-worklog.com`(기본), `www.wy-worklog.com` → apex 308, 옛 주소 `project-7qtt1.vercel.app` → `wy-worklog.com` 308(경로·쿼리 유지, D-81). D-55 |
 | DNS | 가비아(네임서버는 옮기지 않음): `A @ 216.198.79.1`, `CNAME www a7a87af42f090385.vercel-dns-017.com.` |
 | SSL | Let's Encrypt, Vercel 자동 갱신 (2026-10-05 기준 만료 2027-01-03) |
 
@@ -106,7 +106,7 @@ vercel.json이 하는 일: `/api/*`를 Gateway 공개 도메인으로 프록시�
 | 항목 | 결과 |
 |---|---|
 | Gateway 공개 도메인 | `api-gateway-production-9d89.up.railway.app` (대상 포트 8080) |
-| Vercel 운영 도메인 | `project-7qtt1.vercel.app`, 이후 `wy-worklog.com` 추가(D-55) |
+| Vercel 운영 도메인 | `project-7qtt1.vercel.app`, 이후 `wy-worklog.com` 추가(D-55). 2026-10-07 옛 주소는 리디렉트로 전환(D-81) |
 | Gateway 직접 호출 | 404. 공개되는 actuator는 `/actuator/health`(상세 없이 status만)뿐이고 `/actuator`·`/actuator/env` 등은 404 |
 | Vercel 경유 `/api` | `/api/worklog/health` → 401 problem+json (비밀 헤더 통과) |
 | `x-vercel-cache` | MISS |
@@ -125,6 +125,6 @@ qa 시트 "도메인 전환 재검증"(DOM-01~10, [docs/qa/P0-화면테스트_v1
 | 인증 흐름 (wy-worklog.com) | 가입 201 → 로그인 200 → `/api/users/me` 200. 새로고침·새 탭에서 유지, access 만료 뒤 자동 갱신(me 401 → refresh 204 → me 200) |
 | 쿠키 | HttpOnly·Secure·SameSite=Strict, Domain 속성 없음(host-only) |
 | 리디렉션 | www·http → apex https 308 (경로·쿼리·POST `/api/*` 유지), HSTS 있음 |
-| Origin 검사 | evil·www·http·Origin 없음 → 403. 기존 `project-7qtt1.vercel.app`은 통과(전환 기간, 기존 도메인을 내릴 때 `ALLOWED_ORIGINS`에서 뺀다) |
+| Origin 검사 | evil·www·http·Origin 없음 → 403. 기존 `project-7qtt1.vercel.app`은 당시 통과(전환 기간). D-81 적용(2026-10-07) 뒤 `ALLOWED_ORIGINS`에서 빠져 옛·외부 Origin 모두 403 |
 | `x-vercel-cache` | API 응답 MISS (정적 `/`는 HIT, 정상) |
-| 기존 도메인 | 로그인 계속 동작, 세션은 도메인별로 따로 |
+| 기존 도메인 | 당시 로그인 계속 동작, 세션은 도메인별로 따로. D-81 뒤로는 wy-worklog.com으로 308 |

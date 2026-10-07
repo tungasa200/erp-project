@@ -73,6 +73,12 @@
   cursor: pointer;
 }
 
+.createButton:disabled {
+  opacity: 0.55;
+  box-shadow: none;
+  cursor: default;
+}
+
 .card {
   background: var(--color-surface);
   border-radius: var(--radius-card);
@@ -1093,6 +1099,9 @@ button.monthCell {
   position: fixed;
   width: 380px;
   max-width: calc(100vw - 32px);
+  /* 칩이 여러 줄이어도 낮은 화면 밖으로 나가지 않게 */
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
   box-sizing: border-box;
   background: var(--color-surface);
   border-radius: 22px;
@@ -1158,6 +1167,71 @@ button.monthCell {
   color: var(--color-accent-ink);
   display: flex;
   align-items: center;
+}
+
+/* 빠른 생성 ③ 해석 칩: 빠른 입력(SCR-COM-02) 칩과 같은 모양. 프로젝트 칩은 그 프로젝트 tint/ink를 인라인으로 준다 */
+.parseChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.parseChip {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  min-height: 28px;
+  max-width: 100%;
+  padding: 0 12px;
+  border-radius: 14px;
+  font-size: 12.5px;
+  font-weight: 700;
+  background: var(--color-divider);
+  color: var(--color-text-body);
+  overflow-wrap: anywhere;
+}
+
+.parseChip[data-strong] {
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+}
+
+.parseChipTag {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.parseChipTag[data-new] {
+  border-style: dashed;
+  border-color: var(--color-text-muted);
+}
+
+.parseChipBadge {
+  margin-left: 4px;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--color-text-muted);
+}
+
+/* 아직 없는 프로젝트: 눌러서 만든다(누르는 높이 32px) */
+.parseChipNew {
+  min-height: 32px;
+  border: 2px dashed var(--color-accent);
+  background: var(--color-surface);
+  color: var(--color-accent-ink);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.parseChipNew:disabled {
+  opacity: 0.55;
+  cursor: default;
 }
 
 .field {
@@ -1231,9 +1305,14 @@ textarea.input {
   margin: 0;
   border: 0;
   padding: 0;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+fieldset.fieldset:disabled {
+  opacity: 0.55;
 }
 
 .fieldset legend {
@@ -1241,6 +1320,31 @@ textarea.input {
   font-size: 13px;
   font-weight: 700;
   color: var(--color-text-body);
+}
+
+/* 오프라인 일정 창: 캘린더 목록의 회차 값만 읽기 전용으로 (SCR-SYS-02 ③) */
+.offlineSummary {
+  margin: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px 16px;
+  font-size: 14px;
+}
+
+.offlineSummary dt {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-body);
+}
+
+.offlineSummary dd {
+  margin: 0;
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+
+.offlineMemo {
+  white-space: pre-wrap;
 }
 
 .segment {
@@ -1281,6 +1385,27 @@ textarea.input {
   font-weight: 700;
 }
 
+/* 일정 상세: 오늘의 시간 일정이면 타이머 시작(P2-06) */
+.timerBand {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 10px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: var(--color-accent-soft);
+  color: var(--color-accent-ink);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.timerOffline {
+  margin-inline-start: auto;
+  font-size: 12px;
+  color: var(--color-text-body);
+}
+
 .actions {
   display: flex;
   align-items: center;
@@ -1318,10 +1443,20 @@ textarea.input {
   color: #3b3f52;
 }
 
+.secondary:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
 .danger {
   background: transparent;
   color: var(--color-danger);
   padding: 0 8px;
+}
+
+.danger:disabled {
+  color: var(--color-text-muted);
+  cursor: default;
 }
 
 .link {

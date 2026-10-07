@@ -29,7 +29,17 @@
 
 .quick {
   flex: 1 1 340px;
+  min-width: 0;
   max-width: 520px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.quick:disabled,
+.example:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .empty {

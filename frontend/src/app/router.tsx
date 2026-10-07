@@ -13,6 +13,7 @@ import { SignupPage } from '../pages/SignupPage'
 import { GeneralSettings } from '../settings/GeneralSettings'
 import { ProfileSettings } from '../settings/ProfileSettings'
 import { ProjectSettings } from '../settings/ProjectSettings'
+import { RecordingSettings } from '../settings/RecordingSettings'
 import { SettingsIndex, SettingsLayout } from '../settings/SettingsLayout'
 import { TaskDetailPanel } from '../tasks/TaskDetailPanel'
 import { TaskListPage } from '../tasks/TaskListPage'
@@ -56,6 +57,7 @@ export const routes = [
                   { index: true, element: <SettingsIndex /> },
                   { path: 'profile', element: <ProfileSettings /> },
                   { path: 'general', element: <GeneralSettings /> },
+                  { path: 'recording', element: <RecordingSettings /> },
                   { path: 'projects', element: <ProjectSettings /> },
                 ],
               },

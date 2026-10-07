@@ -1,15 +1,24 @@
-// SCR-COM-01 앱 셸 (P0 골격). 알림(SCR-COM-05)·타이머(SCR-COM-06)·프로젝트 목록·빠른 기록은 이후 단계에서 채운다.
+// SCR-COM-01 앱 셸 (P0 골격). 알림(SCR-COM-05)·빠른 기록은 이후 단계에서 채운다.
 // 명령 팔레트(Ctrl+K)와 빠른 입력 단축키(N)는 앱 화면 어디서든 동작한다 (P1-10).
+// 타이머 미니 플레이어(SCR-COM-06, P2-06)는 사이드바 하단과 모바일 하단 탭 위에 하나씩 달고 CSS로 한쪽만 보인다.
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router'
+import { toastForError } from '../api/errorToast'
 import { useAuth } from '../auth/useAuth'
 import { CommandPalette } from '../palette/CommandPalette'
 import { useProjects } from '../projects/api'
 import { projectColor } from '../projects/palette'
 import { useSingleKeyShortcuts } from '../shortcuts/useShortcuts'
+import { useTimeTracking } from '../settings/useWorklogSettings'
+import { CompletionResultHost } from '../tasks/CompletionResult'
+import { stoppedMessage, useRunningTimer, useTimerCommands } from '../timer/api'
+import { TimerMiniPlayer } from '../timer/TimerMiniPlayer'
+import { TimerStartDialog } from '../timer/TimerStartDialog'
 import { UnverifiedBanner } from '../verification/UnverifiedBanner'
 import styles from './AppShell.module.css'
+import { useFocusRescue } from './focusRescue'
 import { useOnline } from './useOnline'
+import { useToast } from './useToast'
 
 const MENU = [
   { to: '/', label: '홈', icon: 'M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z' },
@@ -59,6 +68,7 @@ export function AppShell() {
   const online = useOnline()
   const navigate = useNavigate()
   const [paletteOpen, setPaletteOpen] = useState(false)
+  const timer = usePaletteTimer()
 
   // 지금 화면에 빠른 입력창이 있으면 거기로, 없으면 홈의 입력창으로 간다.
   const quickAdd = useCallback(
@@ -82,7 +92,8 @@ export function AppShell() {
     lastFocus.current = null
   }, [])
 
-  useSingleKeyShortcuts({ KeyN: () => quickAdd() })
+  // 끊긴 동안에는 기록할 수 없으니 N도 막는다(SCR-SYS-02 ③)
+  useSingleKeyShortcuts({ KeyN: () => online && quickAdd() })
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -97,9 +108,35 @@ export function AppShell() {
 
   const { pathname } = useLocation()
 
+  // 모바일에서 하단 탭 위 타이머가 떠 있으면 토스트를 그 위로 올린다(TC-P2A-02). 타이머 높이는 안내 줄 수에 따라 달라 잰다.
+  // 데스크톱·태블릿은 토스트가 사이드바 오른쪽에 떠서(Toast.module.css) 사이드바 타이머를 덮지 않는다
+  const timerMobileRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const dock = timerMobileRef.current
+    if (!dock) return
+    const root = document.documentElement
+    const sync = () => {
+      const h = dock.offsetHeight
+      // 108px: 타이머의 bottom(AppShell.module.css), 8px: 틈
+      if (h > 0) root.style.setProperty('--toast-bottom-mobile', `${108 + h + 8}px`)
+      else root.style.removeProperty('--toast-bottom-mobile')
+    }
+    const observer = new ResizeObserver(sync)
+    observer.observe(dock)
+    sync()
+    return () => {
+      observer.disconnect()
+      root.style.removeProperty('--toast-bottom-mobile')
+    }
+  }, [])
+
+  // 누른 요소가 사라져 포커스가 body로 빠지면 이웃·화면 제목으로 되살린다(마지막 안전망, 화면별 처리가 우선)
+  const contentRef = useRef<HTMLDivElement>(null)
+  useFocusRescue(contentRef)
+
   return (
     <div className={styles.shell}>
-      <nav className={styles.sidebar} aria-label="주 메뉴">
+      <nav className={styles.sidebar} aria-label="주 메뉴" data-app-sidebar>
         <div className={styles.brand}>
           <span className={styles.logo} aria-hidden="true">
             w
@@ -124,18 +161,28 @@ export function AppShell() {
         ))}
         <SidebarProjects />
         <div className={styles.spacer} />
+        <div className={styles.timerSide}>
+          <TimerMiniPlayer />
+        </div>
         <NavLink to="/settings" className={navClass} title="설정">
           <Icon d={SETTINGS_ICON} />
           <span className={styles.navLabel}>설정</span>
         </NavLink>
       </nav>
 
-      <div className={styles.content}>
+      <div ref={contentRef} className={styles.content}>
         <UnverifiedBanner />
-        {/* 끊긴 동안에는 입력을 막는다 (SCR-SYS-02 ③, 오프라인 기록은 범위 밖) */}
-        <fieldset className={styles.main} disabled={!online}>
-          <Outlet />
-        </fieldset>
+        {/* 끊긴 동안에는 화면마다 저장·편집 영역만 막는다(SCR-SYS-02 ③, 오프라인 기록은 범위 밖). 이동·열람은 된다 */}
+        <div className={styles.main}>
+          {/* 업무 완료 결과 입력(SCR-TASK-03)은 목록·홈·상세 어디서 완료해도 같은 팝오버를 띄운다 */}
+          <CompletionResultHost>
+            <Outlet />
+          </CompletionResultHost>
+        </div>
+      </div>
+
+      <div ref={timerMobileRef} className={styles.timerMobile}>
+        <TimerMiniPlayer />
       </div>
 
       {/* 모바일 하단 탭. 빠른 기록 바텀시트(SCR-MOB-01)는 P4라 P1에서는 + 가 홈 빠른 입력칸으로 보낸다(P1-X-01) */}
@@ -153,6 +200,7 @@ export function AppShell() {
           type="button"
           className={styles.quick}
           aria-label="빠른 기록"
+          disabled={!online}
           onClick={() => {
             const input = document.querySelector<HTMLInputElement>('[data-quick-input]')
             if (pathname === '/' && input) input.focus()
@@ -167,9 +215,46 @@ export function AppShell() {
         <MoreMenu />
       </nav>
 
-      {paletteOpen && <CommandPalette onClose={closePalette} onQuickAdd={quickAdd} />}
+      {paletteOpen && <CommandPalette onClose={closePalette} onQuickAdd={quickAdd} timer={timer.commands} />}
+      {timer.dialog}
     </div>
   )
+}
+
+// SCR-COM-03 ② 타이머 시작·정지 명령(P2-06). 시간 기록 옵션이 꺼져 있으면 commands=null(팔레트에서 숨김).
+// 시작은 업무 고르기 창(실행 중이면 '다른 업무로 전환'), 정지는 결과를 토스트로 알린다.
+// 끊긴 동안에는 미니 플레이어처럼 막고 이유를 토스트로 알린다(SCR-SYS-02 ③)
+function usePaletteTimer() {
+  const timed = useTimeTracking()
+  const online = useOnline()
+  const running = useRunningTimer(timed).data ?? null
+  const { stop } = useTimerCommands()
+  const { showToast } = useToast()
+  const [starting, setStarting] = useState(false)
+
+  const commands = timed
+    ? {
+        running: running !== null,
+        offline: !online,
+        start: () => {
+          if (online) setStarting(true)
+          else showToast(running ? '연결되면 타이머를 바꿀 수 있어요' : '연결되면 타이머를 시작할 수 있어요')
+        },
+        stop: async () => {
+          if (!online) return showToast('연결되면 타이머를 멈출 수 있어요')
+          try {
+            showToast(stoppedMessage((await stop()).stopped))
+          } catch (error) {
+            const { message, traceId } = toastForError(error)
+            showToast(message, { traceId })
+          }
+        },
+      }
+    : null
+  const dialog = starting ? (
+    <TimerStartDialog runningName={running?.content} onClose={() => setStarting(false)} />
+  ) : null
+  return { commands, dialog }
 }
 
 // SCR-COM-01 ⑤ 하단 탭 '더보기' (P1-X-01). P1에 있는 화면(업무, 설정)만 담는다.

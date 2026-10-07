@@ -35,4 +35,11 @@ describe('Skeleton (화면정의서 2장 로딩)', () => {
     act(() => vi.advanceTimersByTime(300))
     expect(screen.getByRole('status').tagName).toBe('SPAN')
   })
+  it('끊긴 동안에는 막대 대신 연결되면 불러온다는 안내를 보인다 (P1-X-04)', () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    render(<Skeleton count={4} offlineText="연결되면 업무를 불러올게요" />)
+    act(() => vi.advanceTimersByTime(300))
+    expect(screen.getByRole('status')).toHaveTextContent('연결되면 업무를 불러올게요')
+    vi.restoreAllMocks()
+  })
 })

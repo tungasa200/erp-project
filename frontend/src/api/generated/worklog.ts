@@ -103,6 +103,189 @@ export interface paths {
         patch: operations["updateProject"];
         trace?: never;
     };
+    "/api/worklog/records": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 기간 안의 업무 기록 (일 보기 "이날의 기록", 업무 상세 기록 이력, 일지 원본)
+         * @description workDate가 [from, to](양끝 포함)인 기록을 준다. 보관(소프트 삭제)한 기록은 빼고 준다.
+         *     정렬: workDate → startAt(없으면 뒤) → occurrenceStart(없으면 뒤) → id. 페이지네이션 없이 한 번에 준다(기간 최대 400일).
+         *     status를 생략하면 세 상태를 모두 준다(일 보기는 확인 대기·하지 않음도 상태로 그린다, SCR-CAL-01 states).
+         *     from과 to가 같은 날이면 그날 끝난 회차의 확인 대기 기록을 먼저 만든다(7일 범위와 관계없이, D-39).
+         */
+        get: operations["listRecords"];
+        put?: never;
+        /**
+         * 업무 기록 추가 — 직접 쓴 기록은 바로 확정 (REC-01, SCR-REC-01)
+         * @description 사용자가 직접 쓴 기록이라 status=CONFIRMED로 만든다(확인 대기는 서버만 만든다, P2-03).
+         *     날짜 귀속(D-40, NFR-04): startAt이 있으면 workDate는 저장 시점 사용자 시간대(프로필)로 startAt의 날짜를 계산하고
+         *     보낸 workDate는 무시한다. startAt이 없으면 workDate가 필수다.
+         *     시간 칸은 시간 기록 옵션(WorklogSettings.timeTrackingEnabled)과 관계없이 받는다(TIME-09).
+         *     startAt이 있는데 프로필 사본이 없으면 identity에서 바로 가져온다(실패하면 503).
+         */
+        post: operations["createRecord"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/worklog/records/gaps": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 빈 시간과 후보 (P2-07, TIME-11 — SCR-HOME-03, 하루 마감 1단계)
+         * @description date의 업무 시간대(WorklogSettings.workHoursStart~End, 사용자의 현재 시간대) 중 기록이 없는 15분 이상 구간을 시간순으로 준다.
+         *     - 덮은 구간: 보관하지 않은 확정 기록의 [startAt, endAt), 실행 중 타이머는 [startAt, 지금). workDate와 관계없이 시각으로 본다.
+         *     - 오늘이면 지금 이후는 빼고, 미래 날짜면 빈 배열. 업무 요일이 아닌 날도 계산한다(표시 여부는 화면이 정한다).
+         *     - 먼저 그날 끝난 회차의 확인 대기를 만든다(D-31) — 계획 후보가 그 기록을 가리키게.
+         *     구간마다 후보 3종(없으면 null): previous(직전 업무 이어서), plan(이 시간 계획, 확인 대기면 pendingRecordId),
+         *     frequent(구간 시작 시각 기준 자주 하는 업무 1위, GET /tasks/frequent?at=).
+         *     채우기는 기존 API를 쓴다: 새 기록은 POST /records(startAt·endAt=구간), 확인 대기는 PATCH /records/{id}.
+         *     시간 기록 옵션과 관계없이 응답한다.
+         */
+        get: operations["listTimeGaps"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/worklog/records/pending": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 확인 대기 목록 (P2-03 — SCR-HOME-01 확인 대기 띠·요약 카드, SCR-HOME-02, 하루 마감 1단계)
+         * @description 먼저 끝난 회차의 확인 대기 기록을 만들고(D-31, 보여줄 때 생성) 확인 대기 기록을 준다. 요약 카드의 개수는 items 길이다.
+         *     범위(D-39): 사용자의 현재 시간대 기준 오늘을 포함한 최근 7일(오늘-6일 ~ 오늘). 기록의 workDate로 판단한다.
+         *     생성 대상: 업무가 연결된 일정(반복 회차 포함)의 끝난 회차(끝 시각 ≤ 지금, 종일 일정은 마지막 날 다음 날 0시).
+         *     연결 업무가 보관 상태면 만들지 않는다. workDate는 회차 시작의 일정 시간대 날짜(NFR-04). 취소한 회차는 만들지 않는다.
+         *     이미 (일정, 회차 시작) 기록이 있으면 상태·보관 여부와 관계없이 다시 만들지 않는다(UNIQUE, 동시 호출에도 하나).
+         *     만드는 값: status=PENDING, content=회차 제목, taskId=일정의 업무, scheduleId·occurrenceStart=회차 키.
+         *     시간 칸(startAt·endAt·durationMin)은 비운다(계획 시간은 실제 시간이 아니다).
+         *     7일이 지난 확인 대기 기록은 상태를 유지한 채 여기서 빠진다(일 보기에서는 보이고 처리할 수 있다).
+         *     정렬: workDate → occurrenceStart → id. 보관한 기록은 빼고 준다.
+         */
+        get: operations["listPendingRecords"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/worklog/records/pending/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 모두 했어요 (P2-03 — SCR-HOME-02 ③)
+         * @description 보낸 id의 확인 대기 기록을 한 번에 CONFIRMED로 바꾼다. 화면에 보인 것만 확정하도록 id를 받는다
+         *     (목록을 받은 뒤 새로 생긴 확인 대기는 확정하지 않는다 — 확인은 반드시 사람이, REC-03).
+         *     최근 7일 범위 밖, 이미 처리함(CONFIRMED·DISMISSED), 보관함, 다른 사용자·없는 id는 건너뛴다(오류 아님, 멱등).
+         *     version을 받지 않는다. 되돌리기는 응답의 version으로 각 기록을 PATCH status=PENDING.
+         */
+        post: operations["confirmPendingRecords"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/worklog/records/time-summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 소요시간 집계 (P2-07, TIME-07 — SCR-LOG-02, SCR-STAT-01)
+         * @description workDate가 [from, to](양끝 포함, 최대 400일)인 확정(CONFIRMED)·보관하지 않은 기록의 durationMin을 더한다.
+         *     일·주·월은 화면이 기간으로 정한다(주는 프로필의 주 시작 요일로 화면이 계산). 실행 중 타이머와 시간 없는 기록은 빼고
+         *     recordCount에도 넣지 않는다. 겹친 기록은 겹친 만큼 두 번 센다(겹침은 경고일 뿐 저장되므로, TIME-06).
+         *     프로젝트는 연결 업무의 지금 프로젝트다. 업무 없는 기록은 taskId=null 한 줄로, 프로젝트 없는 업무는 projectId=null 한 줄로 묶는다.
+         */
+        get: operations["getTimeSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/worklog/records/{recordId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 업무 기록 조회 (보관한 기록 포함) */
+        get: operations["getRecord"];
+        put?: never;
+        post?: never;
+        /**
+         * 업무 기록 보관 (소프트 삭제, SCR-REC-01 ⑦)
+         * @description deletedAt을 기록한다. 이미 보관했으면 204. version을 받지 않는다.
+         *     계획에서 온 기록은 보관해도 (일정, 회차 시작) 행이 남으므로 확인 대기가 다시 생기지 않는다.
+         */
+        delete: operations["deleteRecord"];
+        options?: never;
+        head?: never;
+        /**
+         * 업무 기록 수정·확인·하지 않음 (SCR-REC-01, SCR-HOME-02 했어요/수정/안 했어요, 되돌리기)
+         * @description 보낸 칸만 바꾼다. nullable 칸은 null을 보내면 비운다. 상태 전이:
+         *     - 계획에서 온 기록(occurrenceStart가 있음): PENDING·CONFIRMED·DISMISSED 사이 어느 쪽으로든
+         *       (했어요 = CONFIRMED, 안 했어요 = DISMISSED, 되돌리기 토스트 = PENDING). "수정"은 내용과 status=CONFIRMED를 한 요청에 보낸다.
+         *     - 직접 쓴 기록: CONFIRMED만(다른 값이면 409 INVALID_STATUS). 지우려면 DELETE.
+         *     startAt을 바꾸면 workDate를 저장 시점 사용자 시간대로 다시 계산한다. startAt을 null로 비우면 workDate는 그대로 두거나 보낸 값으로 바꾼다.
+         *     같은 값을 다시 보내면 version이 오르지 않는다. 보관한 기록은 수정할 수 없다(409 RECORD_DELETED, 먼저 복원).
+         */
+        patch: operations["updateRecord"];
+        trace?: never;
+    };
+    "/api/worklog/records/{recordId}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 보관한 기록 복원 (되돌리기 토스트)
+         * @description deletedAt을 비운다. 보관하지 않은 기록이면 그대로 200.
+         */
+        post: operations["restoreRecord"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/worklog/schedules": {
         parameters: {
             query?: never;
@@ -251,6 +434,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/worklog/tasks/frequent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 자주 하는 업무 제안 (같은 요일·시간대 상위 3개)
+         * @description 빠른 입력에 포커스가 가면(SCR-COM-02 ④) 부른다. 빈도 집계이며 AI를 쓰지 않는다 (REC-05).
+         *     사건은 업무를 만든 시각(P2-01 뒤 확정 기록을 더함), 기간은 at 이전 8주.
+         *     시간대 구간은 사용자의 현재 시간대 기준 하루 4구간 — 새벽 00–06, 오전 06–12, 오후 12–18, 저녁 18–24(시작 포함, 끝 제외).
+         *     at과 같은 요일·같은 구간에서 정규화한 제목(앞뒤·연속 공백, 대소문자 무시)별로 센다. 보관한 업무는 빼고 완료한 업무는 센다.
+         *     순위는 사건 수 내림차순 → 마지막 사건이 최근인 순, 2번 이상인 것만. 같은 요일로 3개가 안 되면 요일 무관 같은 구간에서 채운다.
+         *     대표 값은 묶음에서 가장 최근에 만든 업무이고, 그 프로젝트가 보관 상태면 projectId는 null. 결과가 없으면 items는 빈 배열.
+         */
+        get: operations["listFrequentTasks"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/worklog/tasks/{taskId}": {
         parameters: {
             query?: never;
@@ -298,10 +506,112 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/worklog/timer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 지금 실행 중인 타이머 (SCR-COM-06)
+         * @description 타이머는 따로 저장하지 않는다. 실행 중 타이머 = startAt이 있고 endAt·durationMin이 없는 보관하지 않은 기록.
+         *     사용자당 하나뿐이다(DB 부분 UNIQUE, TIME-03). 브라우저를 닫아도 서버의 startAt 기준으로 이어진다.
+         *     시간 기록 옵션이 꺼져 있어도 응답한다(TIME-09).
+         */
+        get: operations["getTimer"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/worklog/timer/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 타이머 시작 — 실행 중인 타이머는 자동 정지 (TIME-03·10)
+         * @description 한 트랜잭션에서 (1) 실행 중인 타이머가 있으면 지금 시각으로 정지하고(규칙은 /timer/stop과 같다)
+         *     (2) startAt=지금, status=CONFIRMED인 기록을 만든다. workDate는 지금의 사용자 시간대 날짜(D-40).
+         *     - taskId만: content는 업무 제목. content를 함께 보내면 그 값. content만: 업무 없이 시작.
+         *     - scheduleId+occurrenceStart(이어달리기, TIME-10): 그 회차를 가져간다. 회차의 확인 대기 기록이 있으면 그 기록을
+         *       실행 중으로 바꾸고, 없으면 회차 키를 단 새 기록을 만든다(회차가 끝나도 확인 대기가 따로 생기지 않는다).
+         *       taskId·content를 안 보내면 회차의 업무·제목을 쓴다. 그 회차의 기록이 이미 확정·하지 않음·보관이면 409 ALREADY_RECORDED.
+         *     시간 기록 옵션이 꺼져 있으면 409 TIME_TRACKING_DISABLED.
+         */
+        post: operations["startTimer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/worklog/timer/stop": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 타이머 정지 + 이어달리기 제안 (TIME-03·10)
+         * @description 실행 중인 타이머의 endAt을 지금으로 채운다. 실행 중인 타이머가 없으면 stopped=null(멱등, 200).
+         *     - 1분이 안 되면 버린다(discarded=true): 직접 시작한 기록은 지우고(하드 삭제), 회차를 가져간 기록은 시간 칸을 비워 확인 대기로 되돌린다.
+         *     - 24시간을 넘으면 endAt=startAt+24시간으로 멈추고 capped=true(소요시간 최대 1440분). 화면은 안내 후 수정을 권한다.
+         *     - 시간 기록 옵션과 관계없이 동작한다(꺼진 상태에서도 남은 타이머를 멈출 수 있게).
+         *     이어달리기(next): 사용자 시간대 오늘과 겹치는 시간 일정 회차(종일·취소 제외) 중 끝 시각이 지금 이후이고
+         *     아직 기록이 없는 것 하나 — 시작이 이른 순(지금 진행 중인 회차가 먼저). 업무가 없는 회차도 제안한다. 없으면 null.
+         *     수락하면 화면이 /timer/start에 회차 키를 보낸다.
+         */
+        post: operations["stopTimer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        ConfirmPendingRequest: {
+            /** @description 확정할 확인 대기 기록 (화면에 보인 것) */
+            ids: string[];
+        };
+        FrequentTask: {
+            /**
+             * Format: int32
+             * @description 집계 창 안의 사건 수
+             */
+            count: number;
+            /**
+             * Format: uuid
+             * @description 대표 업무 ID (모바일 빠른 기록 SCR-MOB-01에서 기록을 붙일 업무)
+             */
+            latestTaskId: string;
+            /**
+             * Format: uuid
+             * @description 대표 업무의 프로젝트. 없거나 보관한 프로젝트면 null
+             */
+            projectId: string | null;
+            /** @description 대표 업무의 태그 */
+            tagIds: string[];
+            /** @description 묶음에서 가장 최근에 만든 업무의 제목 (원래 표기 그대로) */
+            title: string;
+        };
+        FrequentTaskList: {
+            items: components["schemas"]["FrequentTask"][];
+        };
         /**
          * @description 캘린더에 그리는 일정 회차 하나. 반복이 없는 일정도 회차 하나로 준다.
          *     occurrenceStart는 회차 키(원래 시작 시각, 종일은 원래 날짜의 일정 시간대 0시)이며 회차를 옮겨도 바뀌지 않는다.
@@ -359,6 +669,111 @@ export interface components {
              * @description 일정(Schedule)의 version
              */
             version: number;
+        };
+        /**
+         * @description 확인 대기 목록의 항목 (P2-03). 기록 전체에 지금의 계획(회차)을 붙인다(SCR-HOME-02 ① 계획 시간).
+         *     회차를 옮기거나 지우면 그 회차의 확인 대기는 지워지므로 plan은 늘 있다.
+         */
+        PendingRecord: {
+            /** @description 한 일. 확인 대기 기록은 만들 때 회차 제목을 복사한다 */
+            content: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            deletedAt?: string | null;
+            /**
+             * Format: int32
+             * @description 소요시간(분). startAt·endAt이 있으면 서버가 계산하고, 둘 다 없을 때만 직접 넣는다
+             */
+            durationMin?: number | null;
+            /**
+             * Format: date-time
+             * @description startAt보다 늦다. startAt만 있고 endAt이 null이면 진행 중(타이머, P2-06)
+             */
+            endAt?: string | null;
+            /** Format: uuid */
+            id: string;
+            /**
+             * Format: date-time
+             * @description 회차 키 (Occurrence.occurrenceStart, D-71). (scheduleId, occurrenceStart)는 유일하다
+             */
+            occurrenceStart?: string | null;
+            /**
+             * @description 결과 칩 (REC-02) — 완료 / 검토 요청 / 진행 중(진행률 n%)
+             * @enum {string|null}
+             */
+            outcome?: "DONE" | "REVIEW_REQUESTED" | "IN_PROGRESS" | null;
+            plan: components["schemas"]["PendingRecordPlan"];
+            /**
+             * Format: int32
+             * @description outcome=IN_PROGRESS일 때만 값이 있다
+             */
+            progress?: number | null;
+            /**
+             * Format: uuid
+             * @description 연결 업무의 프로젝트 (읽기 전용, 블록 색·일지 묶음)
+             */
+            projectId?: string | null;
+            /** @description 결과 한 줄 (REC-02) */
+            result?: string | null;
+            /** Format: uuid */
+            scheduleId?: string | null;
+            /** Format: date-time */
+            startAt?: string | null;
+            /**
+             * @description 확인 대기 / 확정 / 하지 않음 (REC-03). 일지와 자주 하는 업무 집계는 CONFIRMED만 쓴다
+             * @enum {string}
+             */
+            status: "PENDING" | "CONFIRMED" | "DISMISSED";
+            /** @description 연결 업무의 태그 (읽기 전용, 일지·필터용). 업무가 없으면 빈 배열 */
+            tagIds: string[];
+            /**
+             * Format: uuid
+             * @description 연결 업무 (선택). 확인 대기 기록은 일정의 연결 업무를 복사한다. 업무를 보관해도 남는다
+             */
+            taskId?: string | null;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: int64 */
+            version: number;
+            /**
+             * Format: date
+             * @description 귀속 날짜. 저장한 뒤 시간대를 바꿔도 바뀌지 않는다 (D-40)
+             */
+            workDate: string;
+        };
+        PendingRecordList: {
+            items: components["schemas"]["PendingRecord"][];
+        };
+        /** @description 회차의 지금 값. 시간 일정은 startAt·endAt, 종일 일정은 startDate·endDate(포함)만 있다. */
+        PendingRecordPlan: {
+            allDay: boolean;
+            /** Format: date-time */
+            endAt?: string | null;
+            /** Format: date */
+            endDate?: string | null;
+            /** Format: date-time */
+            startAt?: string | null;
+            /** Format: date */
+            startDate?: string | null;
+            title: string;
+        };
+        /** @description 계획 회차 하나 (이어달리기 제안). 시간 일정만. */
+        PlanBlock: {
+            /** Format: date-time */
+            endAt: string;
+            /**
+             * Format: date-time
+             * @description 회차 키 (D-71). /timer/start에 그대로 보낸다
+             */
+            occurrenceStart: string;
+            /** Format: uuid */
+            scheduleId: string;
+            /** Format: date-time */
+            startAt: string;
+            /** Format: uuid */
+            taskId: string | null;
+            title: string;
         };
         /** @description RFC 9457 Problem Details + 확장 필드 (P0-10 공통 모듈 형식) */
         Problem: {
@@ -637,6 +1052,243 @@ export interface components {
             title?: string;
             /** Format: int64 */
             version: number;
+        };
+        TimeGap: {
+            /** Format: date-time */
+            endAt: string;
+            frequent: components["schemas"]["FrequentTask"] | null;
+            /** Format: int32 */
+            minutes: number;
+            plan: components["schemas"]["TimeGapPlan"] | null;
+            previous: components["schemas"]["TimeGapPrevious"] | null;
+            /** Format: date-time */
+            startAt: string;
+        };
+        TimeGapList: {
+            /** @description 시간순 */
+            items: components["schemas"]["TimeGap"][];
+        };
+        /**
+         * @description 이 시간 계획: 구간과 가장 많이 겹치는 시간 일정 회차(이미 처리한 회차 제외). pendingRecordId가 있으면 새로 만들지 말고
+         *     그 기록을 PATCH(startAt·endAt·status=CONFIRMED)한다(같은 계획이 두 번 세어지지 않게).
+         */
+        TimeGapPlan: {
+            /** Format: date-time */
+            endAt: string;
+            /** Format: date-time */
+            occurrenceStart: string;
+            /** Format: uuid */
+            pendingRecordId: string | null;
+            /** Format: uuid */
+            scheduleId: string;
+            /** Format: date-time */
+            startAt: string;
+            /** Format: uuid */
+            taskId: string | null;
+            title: string;
+        };
+        /** @description 직전 업무 이어서: 구간 시작 이전에 끝난 가장 가까운 같은 날 시간 기록 */
+        TimeGapPrevious: {
+            content: string;
+            /** Format: uuid */
+            taskId: string | null;
+        };
+        /** @description 정렬: minutes 내림차순 → id(null은 뒤) */
+        TimeSummary: {
+            /** Format: date */
+            from: string;
+            projects: components["schemas"]["TimeSummaryProject"][];
+            /**
+             * Format: int32
+             * @description 더한 기록 수
+             */
+            recordCount: number;
+            tasks: components["schemas"]["TimeSummaryTask"][];
+            /** Format: date */
+            to: string;
+            /** Format: int32 */
+            totalMin: number;
+        };
+        TimeSummaryProject: {
+            /** Format: int32 */
+            minutes: number;
+            /**
+             * Format: uuid
+             * @description null = 업무 없는 기록·프로젝트 없는 업무
+             */
+            projectId: string | null;
+        };
+        TimeSummaryTask: {
+            /** Format: int32 */
+            minutes: number;
+            /**
+             * Format: uuid
+             * @description 업무의 지금 프로젝트
+             */
+            projectId: string | null;
+            /**
+             * Format: uuid
+             * @description null = 업무 없는 기록
+             */
+            taskId: string | null;
+        };
+        /**
+         * @description taskId·content·회차 키 중 하나 이상(content REQUIRED). scheduleId와 occurrenceStart는 함께 보낸다(빠진 쪽 INVALID_FORMAT).
+         *     taskId는 보관하지 않은 내 업무(NOT_FOUND). content는 앞뒤 공백을 뺀다. taskId만 보내면 content는 업무 제목.
+         */
+        TimerStart: {
+            content?: string | null;
+            /** Format: date-time */
+            occurrenceStart?: string | null;
+            /** Format: uuid */
+            scheduleId?: string | null;
+            /** Format: uuid */
+            taskId?: string | null;
+        };
+        TimerStartResult: {
+            running: components["schemas"]["WorkRecord"];
+            stopped: components["schemas"]["TimerStopped"] | null;
+        };
+        TimerState: {
+            running: components["schemas"]["WorkRecord"] | null;
+        };
+        TimerStopResult: {
+            next: components["schemas"]["PlanBlock"] | null;
+            stopped: components["schemas"]["TimerStopped"] | null;
+        };
+        TimerStopped: {
+            /** @description 24시간을 넘어 startAt+24시간으로 멈췄다 */
+            capped: boolean;
+            /** @description 1분 미만이라 버렸다. 직접 시작한 기록은 지웠고(record는 마지막 값), 회차를 가져간 기록은 확인 대기로 되돌렸다 */
+            discarded: boolean;
+            record: components["schemas"]["WorkRecord"];
+        };
+        /**
+         * @description 업무 기록 (REC-01, 요구사항 6장 WorkRecord). "무엇을 했고 결과가 어떤가".
+         *     계획에서 온 기록은 scheduleId·occurrenceStart를 가진다(SCR-REC-01 ⑥ 출처 표시). 일정을 지우면 scheduleId는 null이 되고
+         *     occurrenceStart는 남는다(출처 표시는 occurrenceStart로 판단). 시간 칸(startAt·endAt·durationMin)은 모두 null일 수 있다.
+         */
+        WorkRecord: {
+            /** @description 한 일. 확인 대기 기록은 만들 때 회차 제목을 복사한다 */
+            content: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            deletedAt?: string | null;
+            /**
+             * Format: int32
+             * @description 소요시간(분). startAt·endAt이 있으면 서버가 계산하고, 둘 다 없을 때만 직접 넣는다
+             */
+            durationMin?: number | null;
+            /**
+             * Format: date-time
+             * @description startAt보다 늦다. startAt만 있고 endAt이 null이면 진행 중(타이머, P2-06)
+             */
+            endAt?: string | null;
+            /** Format: uuid */
+            id: string;
+            /**
+             * Format: date-time
+             * @description 회차 키 (Occurrence.occurrenceStart, D-71). (scheduleId, occurrenceStart)는 유일하다
+             */
+            occurrenceStart?: string | null;
+            /**
+             * @description 결과 칩 (REC-02) — 완료 / 검토 요청 / 진행 중(진행률 n%)
+             * @enum {string|null}
+             */
+            outcome?: "DONE" | "REVIEW_REQUESTED" | "IN_PROGRESS" | null;
+            /**
+             * Format: int32
+             * @description outcome=IN_PROGRESS일 때만 값이 있다
+             */
+            progress?: number | null;
+            /**
+             * Format: uuid
+             * @description 연결 업무의 프로젝트 (읽기 전용, 블록 색·일지 묶음)
+             */
+            projectId?: string | null;
+            /** @description 결과 한 줄 (REC-02) */
+            result?: string | null;
+            /** Format: uuid */
+            scheduleId?: string | null;
+            /** Format: date-time */
+            startAt?: string | null;
+            /**
+             * @description 확인 대기 / 확정 / 하지 않음 (REC-03). 일지와 자주 하는 업무 집계는 CONFIRMED만 쓴다
+             * @enum {string}
+             */
+            status: "PENDING" | "CONFIRMED" | "DISMISSED";
+            /** @description 연결 업무의 태그 (읽기 전용, 일지·필터용). 업무가 없으면 빈 배열 */
+            tagIds: string[];
+            /**
+             * Format: uuid
+             * @description 연결 업무 (선택). 확인 대기 기록은 일정의 연결 업무를 복사한다. 업무를 보관해도 남는다
+             */
+            taskId?: string | null;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: int64 */
+            version: number;
+            /**
+             * Format: date
+             * @description 귀속 날짜. 저장한 뒤 시간대를 바꿔도 바뀌지 않는다 (D-40)
+             */
+            workDate: string;
+        };
+        /**
+         * @description startAt이 없으면 workDate 필수(REQUIRED). endAt은 startAt 없이 보낼 수 없고 startAt보다 늦어야 한다(INVALID_ORDER).
+         *     startAt을 보내면 endAt도 필수(endAt REQUIRED). 진행 중(endAt 없음) 기록은 타이머(/timer/start)만 만든다(동시 1개, P2-06).
+         *     PATCH도 같다: 끝난 기록의 endAt을 비울 수 없고, 실행 중인 타이머는 endAt 없이 startAt·내용·업무를 고칠 수 있으며 endAt을 넣으면 정지와 같다.
+         *     durationMin은 startAt과 함께 보낼 수 없다(INVALID_FORMAT). progress는 outcome=IN_PROGRESS일 때만(INVALID_FORMAT).
+         *     taskId는 보관하지 않은 내 업무여야 한다(NOT_FOUND). 내용·결과는 앞뒤 공백을 빼고 저장한다(빈 결과는 null).
+         *     다른 기록과 시간이 겹쳐도 저장한다(겹침 경고는 화면이 같은 날 목록으로 계산, TIME-06).
+         */
+        WorkRecordCreate: {
+            content: string;
+            /** Format: int32 */
+            durationMin?: number | null;
+            /** Format: date-time */
+            endAt?: string | null;
+            /** @enum {string|null} */
+            outcome?: "DONE" | "REVIEW_REQUESTED" | "IN_PROGRESS" | null;
+            /** Format: int32 */
+            progress?: number | null;
+            result?: string | null;
+            /** Format: date-time */
+            startAt?: string | null;
+            /** Format: uuid */
+            taskId?: string | null;
+            /** Format: date */
+            workDate?: string | null;
+        };
+        WorkRecordList: {
+            items: components["schemas"]["WorkRecord"][];
+        };
+        /** @description 보낸 칸만 바꾼다. 검증 규칙은 WorkRecordCreate와 같다(바꾼 뒤의 전체 값으로 검사). scheduleId·occurrenceStart는 바꿀 수 없다. */
+        WorkRecordPatch: {
+            content?: string;
+            /** Format: int32 */
+            durationMin?: number | null;
+            /** Format: date-time */
+            endAt?: string | null;
+            /** @enum {string|null} */
+            outcome?: "DONE" | "REVIEW_REQUESTED" | "IN_PROGRESS" | null;
+            /** Format: int32 */
+            progress?: number | null;
+            result?: string | null;
+            /** Format: date-time */
+            startAt?: string | null;
+            /** @enum {string} */
+            status?: "PENDING" | "CONFIRMED" | "DISMISSED";
+            /** Format: uuid */
+            taskId?: string | null;
+            /** Format: int64 */
+            version: number;
+            /**
+             * Format: date
+             * @description startAt이 있으면 무시한다(startAt으로 계산)
+             */
+            workDate?: string;
         };
         WorklogMe: {
             profile: components["schemas"]["ProfileSnapshot"];
@@ -946,6 +1598,401 @@ export interface operations {
                 };
             };
             /** @description version 불일치(code=VERSION_CONFLICT) 또는 같은 이름(code=DUPLICATE_NAME) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listRecords: {
+        parameters: {
+            query: {
+                from: string;
+                /** @description from 이후(같아도 됨), from + 400일 이내 */
+                to: string;
+                /** @description 여러 개면 OR */
+                status?: ("PENDING" | "CONFIRMED" | "DISMISSED")[];
+                /** @description 이 업무에 연결된 기록만 (업무 상세 기록 이력). 다른 사용자·없는 업무면 빈 목록 */
+                taskId?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 조회 성공 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkRecordList"];
+                };
+            };
+            /** @description 값 형식 오류 (code=VALIDATION_FAILED) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    createRecord: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkRecordCreate"];
+            };
+        };
+        responses: {
+            /** @description 생성됨 */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkRecord"];
+                };
+            };
+            /** @description 입력 오류 (code=VALIDATION_FAILED). 참조한 업무가 없으면 errors[].code=NOT_FOUND */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description identity 조회 실패 (code=PROFILE_UNAVAILABLE) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listTimeGaps: {
+        parameters: {
+            query: {
+                date: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 빈 구간 (시간순) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TimeGapList"];
+                };
+            };
+            /** @description 값 형식 오류 (code=VALIDATION_FAILED) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description identity 조회 실패 (code=PROFILE_UNAVAILABLE) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listPendingRecords: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 확인 대기 기록 (최근 7일) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PendingRecordList"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description identity 조회 실패 (code=PROFILE_UNAVAILABLE) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    confirmPendingRecords: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConfirmPendingRequest"];
+            };
+        };
+        responses: {
+            /** @description 이번 요청으로 확정한 기록 (건너뛴 것은 빠짐) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkRecordList"];
+                };
+            };
+            /** @description 입력 오류 (code=VALIDATION_FAILED) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description identity 조회 실패 (code=PROFILE_UNAVAILABLE) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getTimeSummary: {
+        parameters: {
+            query: {
+                from: string;
+                /** @description from 이후(같아도 됨), from + 400일 이내 */
+                to: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 집계 결과 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TimeSummary"];
+                };
+            };
+            /** @description 값 형식 오류 (code=VALIDATION_FAILED) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    getRecord: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                recordId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 조회 성공 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkRecord"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description 없거나 다른 사용자의 기록 (code=NOT_FOUND) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    deleteRecord: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                recordId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 보관됨 */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description 없거나 다른 사용자의 기록 (code=NOT_FOUND) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    updateRecord: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                recordId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkRecordPatch"];
+            };
+        };
+        responses: {
+            /** @description 수정 후 전체 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkRecord"];
+                };
+            };
+            /** @description 입력 오류 (code=VALIDATION_FAILED) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description 없거나 다른 사용자의 기록 (code=NOT_FOUND) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description version 불일치(code=VERSION_CONFLICT), 직접 쓴 기록의 상태 변경(code=INVALID_STATUS), 보관한 기록(code=RECORD_DELETED) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description identity 조회 실패 (code=PROFILE_UNAVAILABLE) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    restoreRecord: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                recordId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 복원 후 전체 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkRecord"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description 없거나 다른 사용자의 기록 (code=NOT_FOUND) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description 보관 중 실행 중이던 타이머인데 지금 다른 타이머가 실행 중 (code=TIMER_RUNNING, 동시 1개) */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -1482,6 +2529,48 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
         };
     };
+    listFrequentTasks: {
+        parameters: {
+            query?: {
+                /** @description 기준 시각(UTC ISO-8601). 생략하면 지금. 빈 시간 메우기(SCR-HOME-03)처럼 지난 구간의 후보를 볼 때 쓴다. */
+                at?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 제안 목록 (0~3개, 순위 순) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FrequentTaskList"];
+                };
+            };
+            /** @description at 형식 오류 (code=VALIDATION_FAILED) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description identity 조회 실패 (code=PROFILE_UNAVAILABLE) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     getTask: {
         parameters: {
             query?: never;
@@ -1621,6 +2710,118 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             /** @description 없거나 다른 사용자의 업무 (code=NOT_FOUND) */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getTimer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description running이 null이면 실행 중인 타이머 없음 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TimerState"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    startTimer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TimerStart"];
+            };
+        };
+        responses: {
+            /** @description 새로 실행 중인 타이머와, 자동 정지한 앞 타이머(없으면 null) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TimerStartResult"];
+                };
+            };
+            /** @description 입력 오류 (code=VALIDATION_FAILED). 업무가 없으면 errors[].code=NOT_FOUND */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description 회차(scheduleId·occurrenceStart)가 없거나 취소됨 (code=NOT_FOUND) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description 시간 기록 옵션 꺼짐(code=TIME_TRACKING_DISABLED), 그 회차는 이미 기록됨(code=ALREADY_RECORDED) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description identity 조회 실패 (code=PROFILE_UNAVAILABLE) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    stopTimer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 정지 결과와 이어달리기 제안 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TimerStopResult"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description identity 조회 실패 (code=PROFILE_UNAVAILABLE) */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

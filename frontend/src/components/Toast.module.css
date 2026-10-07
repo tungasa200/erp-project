@@ -10,11 +10,27 @@
   max-width: calc(100vw - 48px);
 }
 
+/* 앱 화면에서는 사이드바(아래쪽에 타이머 미니 플레이어) 오른쪽에 띄워 정지·전환을 덮지 않는다(TC-P2A-02) */
+@media (min-width: 1024px) {
+  :global(:root:has([data-app-sidebar])) .region {
+    left: calc(248px + 24px);
+    max-width: calc(100vw - 248px - 48px);
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  :global(:root:has([data-app-sidebar])) .region {
+    left: calc(76px + 16px);
+    max-width: calc(100vw - 76px - 40px);
+  }
+}
+
+/* 모바일: 하단 탭 위, 타이머가 떠 있으면 그 위(AppShell이 --toast-bottom-mobile을 잰다) */
 @media (max-width: 767px) {
   .region {
     left: 16px;
     right: 16px;
-    bottom: 88px;
+    bottom: var(--toast-bottom-mobile, 88px);
     max-width: none;
   }
 }

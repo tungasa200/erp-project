@@ -27,6 +27,20 @@ export interface QuickParse {
   tags?: string[]
   priority?: Priority
   due?: string
+  /** 해석한 낱말이 원문에서 차지하는 [시작, 끝) 글자 위치. 칩 수정 드롭다운이 그 낱말만 바꿔 쓴다 (P1-09-12) */
+  spans: QuickSpans
+}
+
+export type Span = [number, number]
+
+export interface QuickSpans {
+  time?: Span
+  date?: Span
+  project?: Span
+  priority?: Span
+  due?: Span
+  /** 태그 이름(소문자) → 위치 */
+  tags?: Record<string, Span>
 }
 
 export interface ParseOptions {
@@ -128,8 +142,14 @@ function matchTime(t: string): { start: string; end: string } | null {
 
 export function parseQuickInput(text: string, options: ParseOptions): QuickParse {
   const opts = { today: options.today, weekStart: options.weekStart ?? 1 }
-  const tokens = text.trim().split(/\s+/).filter(Boolean)
-  const result: QuickParse = { title: '' }
+  const found = [...text.matchAll(/\S+/g)]
+  const tokens = found.map((m) => m[0])
+  const span = (from: number, len: number): Span => {
+    const last = found[from + len - 1]
+    return [found[from].index, last.index + last[0].length]
+  }
+  const spans: QuickSpans = {}
+  const result: QuickParse = { title: '', spans }
   const rest: string[] = []
 
   let i = 0
@@ -139,23 +159,29 @@ export function parseQuickInput(text: string, options: ParseOptions): QuickParse
     const time = result.time ? null : matchTime(t)
     if (time) {
       result.time = time
+      spans.time = span(i, 1)
       i += 1
       continue
     }
     if (!result.project && /^@\S{1,50}$/.test(t)) {
       result.project = t.slice(1)
+      spans.project = span(i, 1)
       i += 1
       continue
     }
     if (/^#[^\s#]{1,30}$/.test(t)) {
       const tag = t.slice(1)
       const tags = (result.tags ??= [])
-      if (!tags.some((x) => x.toLowerCase() === tag.toLowerCase())) tags.push(tag)
+      if (!tags.some((x) => x.toLowerCase() === tag.toLowerCase())) {
+        tags.push(tag)
+        ;(spans.tags ??= {})[tag.toLowerCase()] = span(i, 1)
+      }
       i += 1
       continue
     }
     if (!result.priority && Object.hasOwn(PRIORITY, t)) {
       result.priority = PRIORITY[t]
+      spans.priority = span(i, 1)
       i += 1
       continue
     }
@@ -163,6 +189,7 @@ export function parseQuickInput(text: string, options: ParseOptions): QuickParse
       const due = matchDate([t.slice(1), ...tokens.slice(i + 1)], 0, opts, true)
       if (due) {
         result.due = due.date
+        spans.due = span(i, due.len)
         i += due.len
         continue
       }
@@ -171,6 +198,7 @@ export function parseQuickInput(text: string, options: ParseOptions): QuickParse
     if (date) {
       result.date = date.date
       result.dateText = tokens.slice(i, i + date.len).join(' ')
+      spans.date = span(i, date.len)
       i += date.len
       continue
     }
@@ -199,4 +227,12 @@ export function toDraft(parsed: QuickParse, today: string): QuickDraft {
   // 시각 없이 쓴 날짜는 마감으로 본다. ~ 마감이 따로 있으면 날짜 글자를 제목에 돌려놓는다 (P1-09 결정 A안).
   if (date && !due) return { title, project, tags, priority, due: date }
   return { title: dateText ? `${dateText} ${title}`.trim() : title, project, tags, priority, due }
+}
+
+/** 원문의 span 자리를 replacement로 바꾼다. 빈 글자면 그 낱말을 빼고 앞뒤 공백을 하나로 줄인다 */
+export function replaceSpan(text: string, [start, end]: Span, replacement: string): string {
+  if (replacement !== '') return text.slice(0, start) + replacement + text.slice(end)
+  const before = text.slice(0, start).replace(/\s+$/, '')
+  const after = text.slice(end).replace(/^\s+/, '')
+  return before && after ? `${before} ${after}` : before + after
 }

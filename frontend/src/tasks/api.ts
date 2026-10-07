@@ -12,6 +12,7 @@ export type TaskCreate = Schemas['TaskCreate']
 export type TaskPatch = Schemas['TaskPatch']
 export type TaskStatus = Task['status']
 export type TaskPriority = Task['priority']
+export type FrequentTask = Schemas['FrequentTask']
 
 /** GET /api/worklog/tasks 조건. 배열은 OR (?status=TODO&status=DONE) */
 export interface TaskFilter {
@@ -64,6 +65,24 @@ export const taskApi = {
   /** 보관(소프트 삭제). 되돌리기는 restore */
   remove: (id: string) => api.request<void>(`/api/worklog/tasks/${id}`, { method: 'DELETE' }),
   restore: (id: string) => api.request<Task>(`/api/worklog/tasks/${id}/restore`, { method: 'POST' }),
+  /** 자주 하는 업무 제안(P2-04, REC-05). 0~3개, 순위 순 */
+  frequent: () => api.request<Schemas['FrequentTaskList']>('/api/worklog/tasks/frequent'),
+}
+
+const SLOT_MS = 15 * 60_000
+
+/**
+ * 자주 하는 업무 제안. 계약대로 같은 15분 칸 안에서는 응답을 다시 쓴다: 받은 칸이 끝날 때까지 신선하다.
+ * 빠른 입력에 처음 포커스가 갈 때부터 받는다(enabled). 칸이 지난 뒤 다시 포커스가 가면 쓰는 쪽이 refetch한다
+ */
+export function useFrequentTasks(enabled: boolean) {
+  return useQuery({
+    // ['tasks', …] 밖에 둔다: 업무를 만들 때마다 refreshTasks로 다시 받지 않게(같은 칸 안에서는 다시 쓴다)
+    queryKey: ['frequentTasks'],
+    queryFn: async () => (await taskApi.frequent()).items,
+    enabled,
+    staleTime: (query) => (Math.floor(query.state.dataUpdatedAt / SLOT_MS) + 1) * SLOT_MS - Date.now(),
+  })
 }
 
 /** 커서로 이어 받는 목록. pages를 펼친 items도 함께 준다 */

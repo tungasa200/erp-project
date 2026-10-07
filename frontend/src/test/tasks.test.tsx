@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Occurrence } from '../calendar/api'
@@ -56,15 +56,17 @@ const task = (id: string, title: string, extra: Partial<Task> = {}): Task => ({
 
 function server(
   initial: Task[],
-  options: { conflictOn?: string; rejectWith?: string; occurrences?: Occurrence[] } = {},
+  options: { conflictOn?: string; rejectWith?: string; occurrences?: Occurrence[]; recordFails?: boolean } = {},
 ) {
   let tasks = initial.map((t) => ({ ...t }))
   const calls: { method: string; url: string; body?: Record<string, unknown> }[] = []
+  const recordCalls: { method: string; url: string; body?: Record<string, unknown> }[] = []
   const handlers: Parameters<typeof stubFetch>[0] = {
     'GET /api/users/me': () => json(200, ME),
     'GET /api/worklog/projects': () => json(200, { items: PROJECTS }),
     'GET /api/worklog/tags': () => json(200, { items: TAGS }),
     'GET /api/worklog/tasks': () => json(200, { items: [], nextCursor: null }),
+    'GET /api/worklog/tasks/frequent': () => json(200, { items: [] }),
     'GET /api/worklog/schedules': () => json(200, { items: options.occurrences ?? [] }),
   }
   const fetchMock = stubFetch(handlers)
@@ -75,7 +77,19 @@ function server(
     const method = init?.method ?? 'GET'
     const body = init?.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : undefined
     const path = url.split('?')[0]
-    if (path.startsWith('/api/worklog/tasks')) {
+    // 업무 기록(P2-02 결과 팝오버)
+    if (path.startsWith('/api/worklog/records')) {
+      // 업무 상세 ⑥ 기록 이력(P2)이 여는 목록. 결과 팝오버 호출 순서를 보는 테스트라 세지 않는다
+      if (method === 'GET' && path === '/api/worklog/records') return json(200, { items: [] })
+      recordCalls.push({ method, url, body })
+      if (method === 'POST') {
+        if (options.recordFails) return problem(500, 'INTERNAL_ERROR')
+        return json(201, { id: `r-${recordCalls.length}`, status: 'CONFIRMED', ...body })
+      }
+      return new Response(null, { status: 204 })
+    }
+    // 자주 하는 업무 제안은 업무 id 경로가 아니다
+    if (path.startsWith('/api/worklog/tasks') && path !== '/api/worklog/tasks/frequent') {
       calls.push({ method, url, body })
       if (method === 'GET' && path === '/api/worklog/tasks') {
         const q = new URLSearchParams(url.split('?')[1])
@@ -120,7 +134,7 @@ function server(
     }
     return base(input, init)
   })
-  return { calls, tasks: () => tasks }
+  return { calls, recordCalls, tasks: () => tasks }
 }
 
 const SAMPLE = [
@@ -197,6 +211,9 @@ describe('SCR-TASK-01 업무 목록', () => {
     ;(await screen.findByRole('checkbox', { name: '견적서 작성 완료' })).focus()
     await userEvent.keyboard('{Enter}')
     await waitFor(() => expect(screen.queryByRole('link', { name: '견적서 작성' })).not.toBeInTheDocument())
+    // 결과 팝오버가 포커스를 가져가고, Esc로 건너뛰면 다음 행으로
+    expect(screen.getByRole('textbox', { name: '결과 한 줄' })).toHaveFocus()
+    await userEvent.keyboard('{Escape}')
     await waitFor(() => expect(screen.getByRole('checkbox', { name: '결제 API 문서화 완료' })).toHaveFocus())
 
     // Delete로 보관 → 다음 행(팀 회고 정리)
@@ -211,6 +228,7 @@ describe('SCR-TASK-01 업무 목록', () => {
     ;(await screen.findByRole('checkbox', { name: '혼자 남은 업무 완료' })).focus()
     await userEvent.keyboard('{Enter}')
     await waitFor(() => expect(screen.queryByRole('link', { name: '혼자 남은 업무' })).not.toBeInTheDocument())
+    await userEvent.keyboard('{Escape}')
     await waitFor(() => expect(screen.getByRole('heading', { level: 1 })).toHaveFocus())
     expect(document.activeElement).not.toBe(document.body)
   })
@@ -446,5 +464,242 @@ describe('SCR-TASK-02 업무 상세', () => {
     await userEvent.click(await screen.findByRole('button', { name: '보관' }))
     await waitFor(() => expect(router.state.location.pathname).toBe('/tasks'))
     expect(await screen.findByText('업무 1개를 보관했어요')).toBeInTheDocument()
+  })
+})
+
+describe('오프라인 (SCR-SYS-02 ③, P1-X-04)', () => {
+  it('끊긴 동안 추가·완료·Delete 보관·상세 편집을 막고, 검색·열어 보기·닫기는 된다', async () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    const { calls } = server(SAMPLE)
+    renderApp('/tasks')
+    expect(await screen.findByRole('textbox', { name: '업무 추가' })).toBeDisabled()
+    expect(await screen.findByRole('checkbox', { name: '견적서 작성 완료' })).toBeDisabled()
+    expect(screen.getByRole('searchbox', { name: '제목 검색' })).toBeEnabled()
+
+    const link = screen.getByRole('link', { name: '견적서 작성' })
+    fireEvent.keyDown(link, { key: 'Delete' })
+    expect(calls.some((c) => c.method === 'DELETE')).toBe(false)
+
+    link.focus()
+    await userEvent.keyboard('{Enter}')
+    expect(await screen.findByRole('combobox', { name: '상태' })).toBeDisabled()
+    expect(screen.getByRole('textbox', { name: '제목' })).toHaveAttribute('readonly')
+    expect(screen.getByRole('button', { name: '보관' })).toBeDisabled()
+    await userEvent.click(screen.getByRole('button', { name: '닫기' }))
+    await waitFor(() => expect(screen.getByRole('link', { name: '견적서 작성' })).toHaveFocus())
+  })
+
+  it('끊긴 채로 처음 연 업무는 스켈레톤 대신 연결되면 불러온다고 알린다', async () => {
+    server(SAMPLE)
+    renderApp('/tasks')
+    const link = await screen.findByRole('link', { name: '견적서 작성' })
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    act(() => {
+      window.dispatchEvent(new Event('offline'))
+    })
+    await userEvent.click(link)
+    expect(await screen.findByText('연결되면 업무를 불러올게요')).toBeInTheDocument()
+    // React Query onlineManager는 이벤트로만 상태를 바꾸므로 되돌려야 뒤 테스트의 요청이 멈추지 않는다
+    act(() => {
+      window.dispatchEvent(new Event('online'))
+    })
+  })
+})
+
+describe('SCR-TASK-03 완료 결과 입력 (P2-02)', () => {
+  const recordPosts = (recordCalls: { method: string; body?: Record<string, unknown> }[]) =>
+    recordCalls.filter((c) => c.method === 'POST').map((c) => c.body)
+
+  it('완료하면 결과 칸에 포커스가 가고, 결과·칩을 고르고 Enter로 확정 기록을 만든 뒤 다음 행으로 돌아온다', async () => {
+    const { recordCalls } = server(SAMPLE)
+    renderApp('/tasks')
+    ;(await screen.findByRole('checkbox', { name: '견적서 작성 완료' })).focus()
+    await userEvent.keyboard('{Enter}')
+    const dialog = await screen.findByRole('dialog', { name: /견적서 작성/ })
+    const input = within(dialog).getByRole('textbox', { name: '결과 한 줄' })
+    expect(input).toHaveFocus()
+    expect(within(dialog).getByRole('radio', { name: '완료' })).toBeChecked()
+    await userEvent.type(input, '  초안 공유 ')
+    await userEvent.click(within(dialog).getByRole('radio', { name: '검토 요청' }))
+    // 칩에서 Enter도 저장이다
+    await userEvent.keyboard('{Enter}')
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(recordPosts(recordCalls)).toEqual([
+      {
+        content: '견적서 작성',
+        taskId: 'today',
+        workDate: '2026-10-07',
+        result: '초안 공유',
+        outcome: 'REVIEW_REQUESTED',
+        progress: null,
+      },
+    ])
+    await waitFor(() => expect(screen.getByRole('checkbox', { name: '결제 API 문서화 완료' })).toHaveFocus())
+  })
+
+  it('건너뛰기는 결과 없이 "완료"로 기록한다', async () => {
+    const { recordCalls } = server(SAMPLE)
+    renderApp('/tasks')
+    await userEvent.click(await screen.findByRole('checkbox', { name: '팀 회고 정리 완료' }))
+    await userEvent.click(await screen.findByRole('button', { name: '건너뛰기' }))
+    await waitFor(() =>
+      expect(recordPosts(recordCalls)).toEqual([
+        {
+          content: '팀 회고 정리',
+          taskId: 'none',
+          workDate: '2026-10-07',
+          result: null,
+          outcome: 'DONE',
+          progress: null,
+        },
+      ]),
+    )
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('팝오버를 연 채 페이지를 떠나면(새로고침) 결과 없이 "완료"로 기록한다', async () => {
+    const { recordCalls } = server(SAMPLE)
+    renderApp('/tasks')
+    await userEvent.click(await screen.findByRole('checkbox', { name: '팀 회고 정리 완료' }))
+    await screen.findByRole('button', { name: '건너뛰기' })
+    act(() => {
+      window.dispatchEvent(new Event('pagehide'))
+    })
+    await waitFor(() => expect(recordPosts(recordCalls)).toHaveLength(1))
+    expect(recordPosts(recordCalls)[0]).toMatchObject({ result: null, outcome: 'DONE', progress: null })
+  })
+
+  it('진행 중 칩은 업무 진행률에서 시작해 10 단위로 바꾸고, 다른 칩으로 바꾸면 progress를 null로 보낸다', async () => {
+    const { recordCalls } = server([task('a', '자료 조사', { progress: 40 }), task('b', '정리')])
+    renderApp('/tasks')
+    await userEvent.click(await screen.findByRole('checkbox', { name: '자료 조사 완료' }))
+    const dialog = await screen.findByRole('dialog')
+    await userEvent.click(within(dialog).getByRole('radio', { name: '진행 중 40%' }))
+    const slider = within(dialog).getByRole('slider', { name: '진행률' })
+    fireEvent.change(slider, { target: { value: '60' } })
+    expect(within(dialog).getByRole('radio', { name: '진행 중 60%' })).toBeChecked()
+    await userEvent.click(within(dialog).getByRole('button', { name: '저장' }))
+    await waitFor(() => expect(recordPosts(recordCalls)).toHaveLength(1))
+    expect(recordPosts(recordCalls)[0]).toMatchObject({ outcome: 'IN_PROGRESS', progress: 60 })
+
+    // 진행 중에서 완료로 바꾸면 진행률 칸이 사라지고 progress는 null
+    await userEvent.click(await screen.findByRole('checkbox', { name: '정리 완료' }))
+    const next = await screen.findByRole('dialog', { name: /정리/ })
+    await userEvent.click(within(next).getByRole('radio', { name: /진행 중/ }))
+    await userEvent.click(within(next).getByRole('radio', { name: '완료' }))
+    expect(within(next).queryByRole('slider')).not.toBeInTheDocument()
+    await userEvent.click(within(next).getByRole('button', { name: '저장' }))
+    await waitFor(() => expect(recordPosts(recordCalls)).toHaveLength(2))
+    expect(recordPosts(recordCalls)[1]).toMatchObject({ outcome: 'DONE', progress: null })
+  })
+
+  it('되돌리면 남긴 기록을 보관하고 업무를 원래 상태로 돌린다', async () => {
+    const { calls, recordCalls } = server(SAMPLE)
+    renderApp('/tasks')
+    await userEvent.click(await screen.findByRole('checkbox', { name: '팀 회고 정리 완료' }))
+    await userEvent.type(await screen.findByRole('textbox', { name: '결과 한 줄' }), '정리 끝{Enter}')
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    await userEvent.click(screen.getByRole('button', { name: '되돌리기' }))
+    await waitFor(() =>
+      expect(recordCalls.map((c) => `${c.method} ${c.url}`)).toEqual([
+        'POST /api/worklog/records',
+        'DELETE /api/worklog/records/r-1',
+      ]),
+    )
+    await waitFor(() =>
+      expect(calls.filter((c) => c.method === 'PATCH').map((c) => c.body)).toEqual([
+        { version: 0, status: 'DONE' },
+        { version: 1, status: 'TODO' },
+      ]),
+    )
+  })
+
+  it('팝오버가 열린 채 되돌리면 기록을 남기지 않는다', async () => {
+    const { recordCalls } = server(SAMPLE)
+    renderApp('/tasks')
+    ;(await screen.findByRole('checkbox', { name: '팀 회고 정리 완료' })).focus()
+    await userEvent.keyboard('{Enter}')
+    await screen.findByRole('dialog')
+    // 토스트의 되돌리기를 키보드로 누른다(바깥 누르기로 닫히지 않게 포인터를 쓰지 않는다)
+    const undo = screen.getByRole('button', { name: '되돌리기' })
+    undo.focus()
+    await userEvent.keyboard('{Enter}')
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(recordCalls).toEqual([])
+  })
+
+  it('저장이 실패하면 팝오버를 닫지 않고 쓴 결과를 남긴 채 알린다', async () => {
+    server(SAMPLE, { recordFails: true })
+    renderApp('/tasks')
+    await userEvent.click(await screen.findByRole('checkbox', { name: '팀 회고 정리 완료' }))
+    const input = await screen.findByRole('textbox', { name: '결과 한 줄' })
+    await userEvent.type(input, '정리 끝{Enter}')
+    expect(await screen.findByRole('alert')).toHaveTextContent('저장하지 못했어요')
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    expect(input).toHaveValue('정리 끝')
+    expect(input).toHaveFocus()
+  })
+
+  it('상세 패널에서 상태를 완료로 바꾸면 팝오버가 열리고, 닫으면 상태 칸으로 돌아온다', async () => {
+    const { recordCalls } = server(SAMPLE)
+    renderApp('/tasks/none')
+    const status = await screen.findByRole('combobox', { name: '상태' })
+    await userEvent.selectOptions(status, '완료')
+    expect(await screen.findByRole('textbox', { name: '결과 한 줄' })).toHaveFocus()
+    await userEvent.keyboard('{Escape}')
+    await waitFor(() => expect(screen.getByRole('combobox', { name: '상태' })).toHaveFocus())
+    await waitFor(() => expect(recordPosts(recordCalls)).toMatchObject([{ taskId: 'none', outcome: 'DONE' }]))
+    // 상세 패널은 Esc로 닫히지 않았다(팝오버가 Esc를 먹는다)
+    expect(screen.getByRole('combobox', { name: '상태' })).toBeInTheDocument()
+  })
+})
+
+describe('SCR-TASK-01 타이머 시작 (P2-06, 업무 목록 진입점)', () => {
+  function withTimer() {
+    const started: unknown[] = []
+    let running: Record<string, unknown> | null = null
+    const fetchMock = vi.mocked(fetch)
+    const inner = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url === '/api/worklog/me') return json(200, { userId: 'u-1', settings: { timeTrackingEnabled: true } })
+      if (url === '/api/worklog/timer') return json(200, { running })
+      if (url === '/api/worklog/timer/start') {
+        const body = JSON.parse(String(init!.body)) as { taskId: string }
+        started.push(body)
+        running = {
+          id: 'rec-t',
+          content: '견적서 작성',
+          taskId: body.taskId,
+          startAt: '2026-10-07T03:00:00Z',
+          endAt: null,
+        }
+        return json(200, { running, stopped: null })
+      }
+      return inner(input, init)
+    })
+    return { started }
+  }
+
+  it('옵션이 꺼져 있으면 시작 버튼이 없다', async () => {
+    server(SAMPLE)
+    renderApp('/tasks')
+    await screen.findByRole('link', { name: '견적서 작성' })
+    expect(screen.queryByRole('button', { name: /타이머 시작/ })).not.toBeInTheDocument()
+  })
+
+  it('켜져 있으면 행의 시작 버튼이 POST /timer/start {taskId}, 토스트 후 그 행은 실행 중', async () => {
+    server(SAMPLE)
+    const { started } = withTimer()
+    renderApp('/tasks')
+    const button = await screen.findByRole('button', { name: '견적서 작성 타이머 시작' })
+    button.focus()
+    await userEvent.keyboard('{Enter}')
+    expect(await screen.findByText('‘견적서 작성’ 타이머를 시작했어요')).toBeInTheDocument()
+    expect(started).toEqual([{ taskId: 'today' }])
+    const runningButton = await screen.findByRole('button', { name: '견적서 작성 타이머 실행 중' })
+    expect(runningButton).toHaveAttribute('aria-disabled', 'true')
+    // 누른 버튼은 그대로 남아 포커스를 잃지 않는다
+    expect(runningButton).toHaveFocus()
   })
 })

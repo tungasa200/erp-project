@@ -1,5 +1,5 @@
 // SCR-TASK-01 업무 목록 (P1-03·04). 필터는 URL에 둔다. 행을 누르면 오른쪽 상세 패널(/tasks/:id)이 열린다.
-// 완료 체크·Delete 보관은 확인창 없이 바로 하고 되돌리기 토스트를 띄운다(UX-03). 완료 결과 입력(SCR-TASK-03)은 P2.
+// 완료 체크·Delete 보관은 확인창 없이 바로 하고 되돌리기 토스트를 띄운다(UX-03). 완료하면 결과 입력 팝오버(SCR-TASK-03)도 띄운다.
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { Link, Outlet, useNavigate, useParams, useSearchParams } from 'react-router'
@@ -7,13 +7,18 @@ import { toastForError } from '../api/errorToast'
 import { ApiError } from '../api/problem'
 import { useAuth } from '../auth/useAuth'
 import { Skeleton } from '../components/Skeleton'
+import { useOnline } from '../components/useOnline'
 import { useToast } from '../components/useToast'
 import { useProjects, useTags, type Project } from '../projects/api'
 import { projectColor } from '../projects/palette'
 import { todayIn, weekStartNumber } from '../quickInput/dates'
 import { QuickInput } from '../quickInput/QuickInput'
+import { useTimeTracking } from '../settings/useWorklogSettings'
+import { clip, startFailedMessage, stoppedMessage, useRunningTimer, useTimerCommands } from '../timer/api'
 import { refreshTasks, taskApi, useTasks, type Task } from './api'
+import { isCompletionResultFocused } from './completionResultContext'
 import styles from './tasks.module.css'
+import { useCompleteTask } from './useCompleteTask'
 import { useQuickSave } from './useQuickSave'
 import {
   DEFAULT_STATUSES,
@@ -48,6 +53,7 @@ export function TaskListPage() {
   const weekStart = weekStartNumber(user?.weekStart)
   const [quickText, setQuickText] = useState('')
   const quickSave = useQuickSave()
+  const online = useOnline()
 
   const projects = useProjects()
   const tags = useTags()
@@ -79,6 +85,8 @@ export function TaskListPage() {
     const pending = focusAfter.current
     if (!pending) return
     if ((pending.list === 'main' ? main.items : done.items).some((t) => t.id === pending.gone)) return
+    // 결과 팝오버가 포커스를 가졌으면 뺏지 않는다. 팝오버를 닫을 때 restoreFocus로 옮긴다
+    if (isCompletionResultFocused()) return
     focusAfter.current = null
     const next = pending.next && document.querySelector<HTMLElement>(`[data-complete="${pending.next}"]`)
     ;(next || headingRef.current)?.focus()
@@ -91,6 +99,15 @@ export function TaskListPage() {
     },
     onStay: () => {
       focusAfter.current = null
+    },
+    // 결과 팝오버를 닫을 때: 행이 남아 있으면 그 완료 체크로(빠지면 위 effect가 이웃으로 옮긴다), 없으면 이웃 행·목록 제목으로
+    restoreFocus: () => {
+      const own = document.querySelector<HTMLElement>(`[data-complete="${task.id}"]`)
+      if (own) return own.focus()
+      const pending = focusAfter.current
+      focusAfter.current = null
+      const next = pending?.next && document.querySelector<HTMLElement>(`[data-complete="${pending.next}"]`)
+      ;(next || headingRef.current)?.focus()
     },
   })
   const mainVisible = groups.flatMap((g) => g.items)
@@ -130,7 +147,10 @@ export function TaskListPage() {
           </h1>
         </div>
 
-        <QuickInput value={quickText} onChange={setQuickText} onSubmit={quickSave} label="업무 추가" />
+        {/* 끊긴 동안에는 추가를 막는다(SCR-SYS-02 ③). 검색·필터·열어 보기는 그대로 */}
+        <fieldset className={styles.quickGuard} disabled={!online}>
+          <QuickInput value={quickText} onChange={setQuickText} onSubmit={quickSave} label="업무 추가" />
+        </fieldset>
 
         <div className={styles.toolbar}>
           <SearchBox value={params.q} onChange={(q) => update({ q })} />
@@ -233,7 +253,7 @@ export function TaskListPage() {
         </div>
 
         <section aria-label="업무 목록" className={styles.listCard}>
-          {main.isPending && mainEnabled && <Skeleton count={5} />}
+          {main.isPending && mainEnabled && <Skeleton count={5} offlineText="연결되면 업무를 불러올게요" />}
           {main.isError && (
             <p role="alert" className={styles.error}>
               업무를 불러오지 못했어요
@@ -519,9 +539,11 @@ interface RowProps {
   onLeave: () => void
   /** 동작이 실패하면 부른다 */
   onStay: () => void
+  /** 완료 결과 팝오버를 닫을 때 부른다 */
+  restoreFocus: () => void
 }
 
-function TaskRow({ task, today, weekStart, projects, tagNames, selected, onLeave, onStay }: RowProps) {
+function TaskRow({ task, today, weekStart, projects, tagNames, selected, onLeave, onStay, restoreFocus }: RowProps) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const [search] = useSearchParams()
@@ -531,6 +553,9 @@ function TaskRow({ task, today, weekStart, projects, tagNames, selected, onLeave
   const done = task.status === 'DONE'
   const state = dueState(task.dueDate, today, weekStart)
   const refresh = () => refreshTasks(queryClient)
+  const online = useOnline()
+  const complete = useCompleteTask()
+  const timed = useTimeTracking()
 
   const failed = (error: unknown) => {
     onStay()
@@ -546,12 +571,16 @@ function TaskRow({ task, today, weekStart, projects, tagNames, selected, onLeave
   const toggleDone = async () => {
     const before = task.status
     onLeave()
+    if (!done) {
+      if (!(await complete(task, { returnFocus: restoreFocus }))) onStay()
+      return
+    }
     try {
-      const updated = await taskApi.update(task.id, { version: task.version, status: done ? 'TODO' : 'DONE' })
+      const updated = await taskApi.update(task.id, { version: task.version, status: 'TODO' })
       refresh()
       showUndo({
-        group: done ? 'reopen-task' : 'complete-task',
-        message: (n) => (done ? `업무 ${n}개를 다시 열었어요` : `업무 ${n}개를 완료했어요`),
+        group: 'reopen-task',
+        message: (n) => `업무 ${n}개를 다시 열었어요`,
         undo: async () => {
           const latest = await taskApi.get(task.id)
           await taskApi.update(task.id, { version: latest.version, status: before })
@@ -591,10 +620,12 @@ function TaskRow({ task, today, weekStart, projects, tagNames, selected, onLeave
 
   return (
     <li
-      className={selected ? `${styles.row} ${styles.rowSelected}` : styles.row}
+      className={[styles.row, timed && styles.rowTimed, selected && styles.rowSelected, !online && styles.rowOffline]
+        .filter(Boolean)
+        .join(' ')}
       onKeyDown={(e) => {
-        // 행 안에 포커스가 있을 때 Delete로 보관 (입력칸 안의 Delete는 글자 지우기)
-        if (e.key === 'Delete' && !(e.target instanceof HTMLInputElement)) {
+        // 행 안에 포커스가 있을 때 Delete로 보관 (입력칸 안의 Delete는 글자 지우기). 끊긴 동안에는 막는다
+        if (online && e.key === 'Delete' && !(e.target instanceof HTMLInputElement)) {
           e.preventDefault()
           void archive()
         }
@@ -606,6 +637,7 @@ function TaskRow({ task, today, weekStart, projects, tagNames, selected, onLeave
         aria-checked={done}
         aria-label={`${task.title} 완료`}
         data-complete={task.id}
+        disabled={!online}
         className={done ? `${styles.checkbox} ${styles.checkboxDone}` : styles.checkbox}
         style={color ? ({ '--check-color': color.base } as CSSProperties) : undefined}
         onClick={() => void toggleDone()}
@@ -646,6 +678,53 @@ function TaskRow({ task, today, weekStart, projects, tagNames, selected, onLeave
       >
         ◷
       </span>
+      {timed && <TimerStartCell task={task} />}
     </li>
+  )
+}
+
+// 업무에서 바로 타이머 시작(P2-06 사용자 결정 2026-10-07: 업무 목록 진입점). 시간 기록 옵션이 켜져 있을 때만.
+// 다른 타이머가 돌고 있으면 서버가 먼저 정지한다(동시 1개). 이 업무가 이미 돌고 있으면 '실행 중'으로 막는다
+function TimerStartCell({ task }: { task: Task }) {
+  const online = useOnline()
+  const running = useRunningTimer().data ?? null
+  const { start } = useTimerCommands()
+  const { showToast } = useToast()
+  const [busy, setBusy] = useState(false)
+  if (task.status === 'DONE') return <span />
+  const mine = running?.taskId === task.id
+
+  const onStart = async () => {
+    if (busy || mine) return
+    setBusy(true)
+    try {
+      const { running: started, stopped } = await start({ taskId: task.id })
+      const before = stopped ? `${stoppedMessage(stopped)} · ` : ''
+      showToast(`${before}‘${clip(started.content)}’ 타이머를 시작했어요`)
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 404) showToast('업무를 찾지 못했어요. 보관됐을 수 있어요')
+      else {
+        const known = startFailedMessage(error)
+        const { message, traceId } = toastForError(error)
+        showToast(known ?? message, known ? undefined : { traceId })
+      }
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      className={mine ? `${styles.timerStart} ${styles.timerRunning}` : styles.timerStart}
+      aria-label={mine ? `${task.title} 타이머 실행 중` : `${task.title} 타이머 시작`}
+      title={mine ? '타이머 실행 중' : online ? '타이머 시작' : '연결되면 시작할 수 있어요'}
+      // 누른 버튼이 막히며 포커스를 잃지 않게 시작 중·실행 중은 aria-disabled로만 막는다(끊김은 disabled)
+      disabled={!online}
+      aria-disabled={busy || mine || undefined}
+      onClick={() => void onStart()}
+    >
+      <span aria-hidden="true">{mine ? '●' : '▶'}</span>
+    </button>
   )
 }

@@ -1,15 +1,26 @@
 // 일정 상세·편집 (SCR-CAL-07). 새로 만들 때와 고칠 때 같은 모달을 쓴다. 저장 버튼이 있는 모달이다.
 // 반복 일정은 저장·삭제할 때 범위를 묻는다(SCR-CAL-08). 종일 여부·반복 규칙을 바꾸면 "모든 일정"만 가능하다(계약 OccurrencePatch).
-// ④ 연결 업무는 TaskLinkField(P1-05-06, 반복 일정은 시리즈 전체에 연결 D-71). ⑥ 기록 상태는 P2라 아직 없다.
+// ④ 연결 업무는 TaskLinkField(P1-05-06, 반복 일정은 시리즈 전체에 연결 D-71).
+// ⑥ 기록 상태: 이 회차에서 만든 기록(확인 대기·했어요·안 했어요, 시간 기록 옵션이 켜졌으면 기록 시간)과 [기록 보기](SCR-REC-01).
+// 기록이 없으면 끝난 회차에만 "기록이 없어요"를 적는다(사용자 결정 카드 20261008-0230).
+// 오늘의 시간 일정이 아직 끝나지 않았으면 [이 일정으로 타이머 시작](P2-06, 사용자 결정 2026-10-07; 끝난 회차는 띠 없음, WY-pm 결정):
+// 회차 키를 보내 회차를 타이머가 가져간다(D-101).
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { toastForError } from '../api/errorToast'
 import { ApiError } from '../api/problem'
 import { Skeleton } from '../components/Skeleton'
+import { useOnline } from '../components/useOnline'
 import { useToast } from '../components/useToast'
+import type { WorkRecord } from '../records/api'
+import { useTimeTracking } from '../settings/useWorklogSettings'
 import { TASKS_QUERY_KEY } from '../tasks/api'
+import { useTimerLauncher } from '../timer/useTimerLauncher'
 import { occurrenceFocusId } from './focus'
 import { Modal } from './Modal'
+import { RecordStatusTag } from './RecordStatusTag'
+import { plannedOf, recordOf, recordTimeText, useRecordsOnDate } from './recordStatus'
+import recordStyles from './records.module.css'
 import { TaskLinkField } from './TaskLinkField'
 import {
   OCCURRENCES_QUERY_KEY,
@@ -29,9 +40,11 @@ import {
   WEEKDAY_LABELS,
   addDays,
   diffDays,
+  formatDateLong,
   formatMinutes,
   fromZoned,
   toZoned,
+  todayIn,
   weekdayIndex,
   type Weekday,
 } from './time'
@@ -73,6 +86,8 @@ interface Props {
   occurrence?: Occurrence
   askScope: AskScope
   onDelete: (o: Occurrence) => void
+  /** ⑥ [기록 보기]: 이 창을 닫고 기록 창(SCR-REC-01)을 연다. planned는 확인 대기 수정 창에 채울 계획 시각 */
+  onOpenRecord: (record: WorkRecord, planned: { startAt: string; endAt: string } | undefined) => void
   onClose: () => void
 }
 
@@ -128,6 +143,18 @@ function formFromOccurrence(o: Occurrence, schedule: Schedule | undefined, timeZ
     memo: o.memo ?? '',
     taskId: o.taskId ?? null,
   }
+}
+
+/** 오프라인 요약의 일시: 캘린더 목록의 회차 값만으로 만든다 */
+function occurrenceWhen(o: Occurrence, timeZone: string): string {
+  if (o.allDay) {
+    const end = o.endDate && o.endDate !== o.startDate ? ` ~ ${formatDateLong(o.endDate)}` : ''
+    return `${formatDateLong(o.startDate!)}${end} · 종일`
+  }
+  const s = toZoned(o.startAt!, timeZone)
+  const e = toZoned(o.endAt!, timeZone)
+  const endDay = e.date === s.date ? '' : e.date === addDays(s.date, 1) ? '다음 날 ' : `${formatDateLong(e.date)} `
+  return `${formatDateLong(s.date)} ${formatMinutes(s.minutes)}~${endDay}${formatMinutes(e.minutes)}`
 }
 
 function recurrenceOf(f: Form): Recurrence | null {
@@ -197,7 +224,7 @@ function serverErrors(error: ApiError): Errors | null {
   return result
 }
 
-export function ScheduleDialog({ timeZone, draft, occurrence, askScope, onDelete, onClose }: Props) {
+export function ScheduleDialog({ timeZone, draft, occurrence, askScope, onDelete, onOpenRecord, onClose }: Props) {
   const id = useId()
   const { showToast } = useToast()
   const invalidate = useInvalidateOccurrences()
@@ -214,7 +241,17 @@ export function ScheduleDialog({ timeZone, draft, occurrence, askScope, onDelete
   const [saving, setSaving] = useState(false)
   // 연 회차. [새로 불러오기] 뒤에는 서버의 최신 회차로 바꾼다(제목·시각·메모는 회차 값이라, P1-05-05)
   const [latest, setLatest] = useState(occurrence)
+  // 연 시각. 타이머 띠·⑥은 연 때 끝났는지로 정한다(창이 열린 동안 바뀌지 않게)
+  const [nowMs] = useState(Date.now)
   const formRef = useRef<HTMLFormElement>(null)
+  const closeRef = useRef<HTMLButtonElement>(null)
+  // 오프라인이면 열어 보기만 한다(SCR-SYS-02 ③). 칸이 꺼지며 포커스를 잃으면 닫기 버튼으로 옮겨 Esc가 계속 듣게 한다
+  const online = useOnline()
+  useEffect(() => {
+    const active = document.activeElement
+    if (!online && (active === document.body || (active instanceof HTMLElement && active.matches(':disabled'))))
+      closeRef.current?.focus()
+  }, [online])
   // 저장이 칸 오류로 막히면 첫 오류 칸으로 포커스(2.5, P1-05-03)
   const [errorFocus, setErrorFocus] = useState(0)
   useEffect(() => {
@@ -260,7 +297,7 @@ export function ScheduleDialog({ timeZone, draft, occurrence, askScope, onDelete
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
-    if (!current || saving) return
+    if (!current || saving || !online) return
     const found = validate(current)
     if (Object.keys(found).length) return showErrors(found)
     setSaving(true)
@@ -350,6 +387,28 @@ export function ScheduleDialog({ timeZone, draft, occurrence, askScope, onDelete
   }
 
   const title = occurrence ? '일정 편집' : '새 일정'
+  // 고치던 칸이 있으면(form) 시작해도 모달을 닫지 않는다(고친 내용을 잃지 않게)
+  const timer = useTimerLauncher(() => !form && onClose())
+  const timerStart =
+    timer.available && latest && !latest.allDay && latest.startAt && latest.endAt
+      ? { start: toZoned(latest.startAt, timeZone), end: toZoned(latest.endAt, timeZone) }
+      : null
+  const todayPlan =
+    timerStart?.start.date === todayIn(timeZone) && Date.parse(latest!.endAt!) > nowMs ? timerStart : null
+  // ⑥ 기록 상태. 기록 날짜는 회차가 시작한 날(사용자 시간대)
+  const timed = useTimeTracking()
+  const occurrenceDate = latest ? (latest.allDay ? latest.startDate! : toZoned(latest.startAt!, timeZone).date) : ''
+  const dayRecords = useRecordsOnDate(occurrenceDate, !!latest)
+  const record = latest && dayRecords.data ? recordOf(dayRecords.data, latest) : undefined
+  const ended =
+    !!latest &&
+    (latest.allDay ? Date.parse(fromZoned(addDays(latest.endDate!, 1), 0, timeZone)) : Date.parse(latest.endAt!)) <=
+      nowMs
+  const recordTime = record && timed ? recordTimeText(record, timeZone) : null
+  // 했어요·안 했어요로 이미 기록한 회차는 시작해도 막히므로(이미 기록했어요) 띠를 숨긴다. ⑥ 기록 상태가 대신 보여 준다.
+  // 확인 대기와 이 회차로 돌고 있는 타이머 기록은 아직 확정이 아니라 띠를 둔다. 기록을 받기 전에는 깜박이지 않게 숨긴다
+  const recorded = !!record && record.status !== 'PENDING' && !(record.startAt && !record.endAt)
+  const timerBand = todayPlan && !dayRecords.isPending && !recorded ? todayPlan : null
   /** 오류 문구가 가리키는 칸이면 aria-invalid와 문구 연결 */
   const invalid = (group: 'time' | 'recurrence', at: TimeField | RecurrenceField) =>
     errors[`${group}At`] === at ? { 'aria-invalid': true, 'aria-describedby': `${id}-${group}-error` } : {}
@@ -358,7 +417,7 @@ export function ScheduleDialog({ timeZone, draft, occurrence, askScope, onDelete
     <Modal labelledBy={`${id}-title`} onClose={onClose}>
       <div className={styles.dialogHead}>
         <h2 id={`${id}-title`}>{title}</h2>
-        <button type="button" className={styles.close} aria-label="닫기" onClick={onClose}>
+        <button type="button" ref={closeRef} className={styles.close} aria-label="닫기" onClick={onClose}>
           ×
         </button>
       </div>
@@ -370,251 +429,339 @@ export function ScheduleDialog({ timeZone, draft, occurrence, askScope, onDelete
           </button>
         </div>
       )}
+      {timerBand && (
+        <div className={styles.timerBand}>
+          <span>
+            오늘 {formatMinutes(timerBand.start.minutes)}~
+            {timerBand.end.date === timerBand.start.date ? '' : '다음 날 '}
+            {formatMinutes(timerBand.end.minutes)} 계획
+          </span>
+          {/* 끊기면 버튼을 흐리게 하고 옆에 짧게 알린다(타이머 미니 플레이어 SCR-COM-06과 같게) */}
+          {!online && (
+            <span id={`${id}-timer-offline`} className={styles.timerOffline}>
+              연결 끊김
+            </span>
+          )}
+          <button
+            type="button"
+            className={styles.secondary}
+            disabled={!online || timer.busy}
+            aria-describedby={online ? undefined : `${id}-timer-offline`}
+            title={online ? undefined : '연결되면 타이머를 시작할 수 있어요'}
+            onClick={() =>
+              void timer.launch({
+                body: { scheduleId: latest!.scheduleId, occurrenceStart: latest!.occurrenceStart },
+                name: latest!.title,
+              })
+            }
+          >
+            이 일정으로 타이머 시작
+          </button>
+        </div>
+      )}
+      {timer.dialog}
       {!current ? (
         schedule.isError ? (
           <p className={styles.muted}>일정을 불러오지 못했어요. 이미 삭제됐을 수 있어요</p>
+        ) : schedule.fetchStatus === 'paused' && latest ? (
+          // 끊긴 동안에는 원본 조회가 멈춘다(react-query paused). 캘린더 목록에 이미 있는 회차 값으로 열어 보기만 한다
+          // (SCR-SYS-02 ③, WY-pm 결정 2026-10-08). 반복 규칙·연결 업무는 원본에만 있어 연결되면 채운다
+          <div className={styles.fieldset}>
+            <p className={styles.muted} role="status">
+              연결이 끊겼어요. 연결되면 나머지를 불러와요
+            </p>
+            <dl className={styles.offlineSummary}>
+              <dt>제목</dt>
+              <dd>{latest.title}</dd>
+              <dt>일시</dt>
+              <dd>{occurrenceWhen(latest, timeZone)}</dd>
+              {latest.recurring && (
+                <>
+                  <dt>반복</dt>
+                  <dd>반복 일정</dd>
+                </>
+              )}
+              {latest.memo && (
+                <>
+                  <dt>메모</dt>
+                  <dd className={styles.offlineMemo}>{latest.memo}</dd>
+                </>
+              )}
+            </dl>
+          </div>
         ) : (
           <Skeleton shape="lines" count={4} />
         )
       ) : (
         <form ref={formRef} className={styles.fieldset} onSubmit={(e) => void submit(e)} noValidate>
-          <label className={styles.field}>
-            제목
-            <input
-              className={styles.input}
-              value={current.title}
-              maxLength={200}
-              onChange={(e) => update({ title: e.target.value })}
-              aria-invalid={!!errors.title}
-              aria-describedby={errors.title ? `${id}-title-error` : undefined}
-            />
-          </label>
-          {errors.title && (
-            <p id={`${id}-title-error`} role="alert" className={styles.fieldError}>
-              {errors.title}
+          {!online && (
+            <p className={styles.muted} role="status">
+              연결이 끊겼어요. 다시 연결되면 고칠 수 있어요
             </p>
           )}
-
-          <div className={styles.row}>
+          <fieldset className={styles.fieldset} disabled={!online}>
             <label className={styles.field}>
-              {current.allDay ? '시작일' : '날짜'}
+              제목
               <input
-                type="date"
                 className={styles.input}
-                value={current.date}
-                {...invalid('time', 'date')}
-                onChange={(e) => {
-                  const date = e.target.value
-                  if (!date) return update({ date })
-                  // 종일 일정은 기간을 유지한다. 매주 반복은 새 시작 요일을 넣고, 이전 시작 요일은 직접 고른 게 아니면 뺀다
-                  const weekday = WEEKDAYS[weekdayIndex(date)]
-                  const previous = current.date ? WEEKDAYS[weekdayIndex(current.date)] : null
-                  const kept = current.weekdays.filter((w) => w !== previous || current.pickedWeekdays.includes(w))
-                  update({
-                    date,
-                    endDate:
-                      current.allDay && current.date
-                        ? addDays(date, Math.max(0, diffDays(current.date, current.endDate)))
-                        : date,
-                    weekdays: kept.includes(weekday) ? kept : [...kept, weekday],
-                  })
-                }}
+                value={current.title}
+                maxLength={200}
+                onChange={(e) => update({ title: e.target.value })}
+                aria-invalid={!!errors.title}
+                aria-describedby={errors.title ? `${id}-title-error` : undefined}
               />
             </label>
-            {current.allDay ? (
+            {errors.title && (
+              <p id={`${id}-title-error`} role="alert" className={styles.fieldError}>
+                {errors.title}
+              </p>
+            )}
+
+            <div className={styles.row}>
               <label className={styles.field}>
-                종료일
+                {current.allDay ? '시작일' : '날짜'}
                 <input
                   type="date"
                   className={styles.input}
-                  value={current.endDate}
-                  min={current.date}
-                  {...invalid('time', 'endDate')}
-                  onChange={(e) => update({ endDate: e.target.value })}
+                  value={current.date}
+                  {...invalid('time', 'date')}
+                  onChange={(e) => {
+                    const date = e.target.value
+                    if (!date) return update({ date })
+                    // 종일 일정은 기간을 유지한다. 매주 반복은 새 시작 요일을 넣고, 이전 시작 요일은 직접 고른 게 아니면 뺀다
+                    const weekday = WEEKDAYS[weekdayIndex(date)]
+                    const previous = current.date ? WEEKDAYS[weekdayIndex(current.date)] : null
+                    const kept = current.weekdays.filter((w) => w !== previous || current.pickedWeekdays.includes(w))
+                    update({
+                      date,
+                      endDate:
+                        current.allDay && current.date
+                          ? addDays(date, Math.max(0, diffDays(current.date, current.endDate)))
+                          : date,
+                      weekdays: kept.includes(weekday) ? kept : [...kept, weekday],
+                    })
+                  }}
                 />
               </label>
-            ) : (
-              <>
+              {current.allDay ? (
                 <label className={styles.field}>
-                  시작
+                  종료일
                   <input
-                    type="time"
-                    step={900}
+                    type="date"
                     className={styles.input}
-                    value={current.start}
-                    {...invalid('time', 'start')}
-                    onChange={(e) => update({ start: e.target.value })}
+                    value={current.endDate}
+                    min={current.date}
+                    {...invalid('time', 'endDate')}
+                    onChange={(e) => update({ endDate: e.target.value })}
                   />
                 </label>
-                <label className={styles.field}>
-                  종료
-                  <input
-                    type="time"
-                    step={900}
-                    className={styles.input}
-                    value={current.end}
-                    {...invalid('time', 'end')}
-                    onChange={(e) => update({ end: e.target.value })}
-                  />
-                </label>
-              </>
-            )}
-          </div>
-          {errors.time && (
-            <p id={`${id}-time-error`} role="alert" className={styles.fieldError}>
-              {errors.time}
-            </p>
-          )}
-          <label className={styles.check}>
-            <input
-              type="checkbox"
-              checked={current.allDay}
-              onChange={(e) => update({ allDay: e.target.checked, endDate: current.date })}
-            />
-            종일
-          </label>
-
-          <fieldset className={styles.fieldset}>
-            <legend>반복</legend>
-            <div
-              className={styles.segment}
-              role="group"
-              aria-label="반복 주기"
-              data-invalid={errors.recurrenceAt === 'frequency' || undefined}
-              aria-describedby={errors.recurrenceAt === 'frequency' ? `${id}-recurrence-error` : undefined}
-            >
-              {FREQUENCIES.map((f) => (
-                <button
-                  key={f.value}
-                  type="button"
-                  aria-pressed={current.frequency === f.value}
-                  onClick={() => update({ frequency: f.value })}
-                >
-                  {f.label}
-                </button>
-              ))}
+              ) : (
+                <>
+                  <label className={styles.field}>
+                    시작
+                    <input
+                      type="time"
+                      step={900}
+                      className={styles.input}
+                      value={current.start}
+                      {...invalid('time', 'start')}
+                      onChange={(e) => update({ start: e.target.value })}
+                    />
+                  </label>
+                  <label className={styles.field}>
+                    종료
+                    <input
+                      type="time"
+                      step={900}
+                      className={styles.input}
+                      value={current.end}
+                      {...invalid('time', 'end')}
+                      onChange={(e) => update({ end: e.target.value })}
+                    />
+                  </label>
+                </>
+              )}
             </div>
-            {current.frequency === 'WEEKLY' && (
+            {errors.time && (
+              <p id={`${id}-time-error`} role="alert" className={styles.fieldError}>
+                {errors.time}
+              </p>
+            )}
+            <label className={styles.check}>
+              <input
+                type="checkbox"
+                checked={current.allDay}
+                onChange={(e) => update({ allDay: e.target.checked, endDate: current.date })}
+              />
+              종일
+            </label>
+
+            <fieldset className={styles.fieldset}>
+              <legend>반복</legend>
               <div
                 className={styles.segment}
                 role="group"
-                aria-label="반복 요일"
-                data-invalid={errors.recurrenceAt === 'weekdays' || undefined}
-                aria-describedby={errors.recurrenceAt === 'weekdays' ? `${id}-recurrence-error` : undefined}
+                aria-label="반복 주기"
+                data-invalid={errors.recurrenceAt === 'frequency' || undefined}
+                aria-describedby={errors.recurrenceAt === 'frequency' ? `${id}-recurrence-error` : undefined}
               >
-                {[1, 2, 3, 4, 5, 6, 0].map((i) => {
-                  const w = WEEKDAYS[i]
-                  const on = current.weekdays.includes(w)
-                  return (
-                    <button
-                      key={w}
-                      type="button"
-                      aria-pressed={on}
-                      onClick={() =>
-                        update(
-                          on
-                            ? {
-                                weekdays: current.weekdays.filter((x) => x !== w),
-                                pickedWeekdays: current.pickedWeekdays.filter((x) => x !== w),
-                              }
-                            : { weekdays: [...current.weekdays, w], pickedWeekdays: [...current.pickedWeekdays, w] },
-                        )
-                      }
-                    >
-                      {WEEKDAY_LABELS[i]}
-                    </button>
-                  )
-                })}
+                {FREQUENCIES.map((f) => (
+                  <button
+                    key={f.value}
+                    type="button"
+                    aria-pressed={current.frequency === f.value}
+                    onClick={() => update({ frequency: f.value })}
+                  >
+                    {f.label}
+                  </button>
+                ))}
               </div>
-            )}
-            {current.frequency !== 'NONE' && (
-              <div className={styles.row} role="radiogroup" aria-label="반복 종료">
-                <label className={styles.check}>
+              {current.frequency === 'WEEKLY' && (
+                <div
+                  className={styles.segment}
+                  role="group"
+                  aria-label="반복 요일"
+                  data-invalid={errors.recurrenceAt === 'weekdays' || undefined}
+                  aria-describedby={errors.recurrenceAt === 'weekdays' ? `${id}-recurrence-error` : undefined}
+                >
+                  {[1, 2, 3, 4, 5, 6, 0].map((i) => {
+                    const w = WEEKDAYS[i]
+                    const on = current.weekdays.includes(w)
+                    return (
+                      <button
+                        key={w}
+                        type="button"
+                        aria-pressed={on}
+                        onClick={() =>
+                          update(
+                            on
+                              ? {
+                                  weekdays: current.weekdays.filter((x) => x !== w),
+                                  pickedWeekdays: current.pickedWeekdays.filter((x) => x !== w),
+                                }
+                              : { weekdays: [...current.weekdays, w], pickedWeekdays: [...current.pickedWeekdays, w] },
+                          )
+                        }
+                      >
+                        {WEEKDAY_LABELS[i]}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+              {current.frequency !== 'NONE' && (
+                <div className={styles.row} role="radiogroup" aria-label="반복 종료">
+                  <label className={styles.check}>
+                    <input
+                      type="radio"
+                      name={`${id}-end`}
+                      checked={current.endKind === 'never'}
+                      onChange={() => update({ endKind: 'never' })}
+                    />
+                    종료 없음
+                  </label>
+                  <label className={styles.check}>
+                    <input
+                      type="radio"
+                      name={`${id}-end`}
+                      checked={current.endKind === 'until'}
+                      onChange={() => update({ endKind: 'until' })}
+                    />
+                    날짜까지
+                  </label>
+                  <label className={styles.check}>
+                    <input
+                      type="radio"
+                      name={`${id}-end`}
+                      checked={current.endKind === 'count'}
+                      onChange={() => update({ endKind: 'count' })}
+                    />
+                    횟수
+                  </label>
+                </div>
+              )}
+              {current.frequency !== 'NONE' && current.endKind === 'until' && (
+                <label className={styles.field}>
+                  반복 종료일
                   <input
-                    type="radio"
-                    name={`${id}-end`}
-                    checked={current.endKind === 'never'}
-                    onChange={() => update({ endKind: 'never' })}
+                    type="date"
+                    className={styles.input}
+                    value={current.until}
+                    min={current.date}
+                    {...invalid('recurrence', 'until')}
+                    onChange={(e) => update({ until: e.target.value })}
                   />
-                  종료 없음
                 </label>
-                <label className={styles.check}>
+              )}
+              {current.frequency !== 'NONE' && current.endKind === 'count' && (
+                <label className={styles.field}>
+                  반복 횟수
                   <input
-                    type="radio"
-                    name={`${id}-end`}
-                    checked={current.endKind === 'until'}
-                    onChange={() => update({ endKind: 'until' })}
+                    type="number"
+                    min={1}
+                    max={999}
+                    inputMode="numeric"
+                    className={styles.input}
+                    value={current.count}
+                    {...invalid('recurrence', 'count')}
+                    onChange={(e) => update({ count: e.target.value })}
                   />
-                  날짜까지
                 </label>
-                <label className={styles.check}>
-                  <input
-                    type="radio"
-                    name={`${id}-end`}
-                    checked={current.endKind === 'count'}
-                    onChange={() => update({ endKind: 'count' })}
-                  />
-                  횟수
-                </label>
-              </div>
-            )}
-            {current.frequency !== 'NONE' && current.endKind === 'until' && (
-              <label className={styles.field}>
-                반복 종료일
-                <input
-                  type="date"
-                  className={styles.input}
-                  value={current.until}
-                  min={current.date}
-                  {...invalid('recurrence', 'until')}
-                  onChange={(e) => update({ until: e.target.value })}
-                />
-              </label>
-            )}
-            {current.frequency !== 'NONE' && current.endKind === 'count' && (
-              <label className={styles.field}>
-                반복 횟수
-                <input
-                  type="number"
-                  min={1}
-                  max={999}
-                  inputMode="numeric"
-                  className={styles.input}
-                  value={current.count}
-                  {...invalid('recurrence', 'count')}
-                  onChange={(e) => update({ count: e.target.value })}
-                />
-              </label>
-            )}
-            {errors.recurrence && (
-              <p id={`${id}-recurrence-error`} role="alert" className={styles.fieldError}>
-                {errors.recurrence}
-              </p>
-            )}
-          </fieldset>
+              )}
+              {errors.recurrence && (
+                <p id={`${id}-recurrence-error`} role="alert" className={styles.fieldError}>
+                  {errors.recurrence}
+                </p>
+              )}
+            </fieldset>
 
-          <TaskLinkField
-            taskId={current.taskId}
-            onChange={(taskId) => update({ taskId })}
-            recurring={current.frequency !== 'NONE'}
-          />
-
-          <label className={styles.field}>
-            메모
-            <textarea
-              className={styles.input}
-              rows={3}
-              maxLength={5000}
-              value={current.memo}
-              onChange={(e) => update({ memo: e.target.value })}
+            <TaskLinkField
+              taskId={current.taskId}
+              onChange={(taskId) => update({ taskId })}
+              recurring={current.frequency !== 'NONE'}
             />
-          </label>
 
+            <label className={styles.field}>
+              메모
+              <textarea
+                className={styles.input}
+                rows={3}
+                maxLength={5000}
+                value={current.memo}
+                onChange={(e) => update({ memo: e.target.value })}
+              />
+            </label>
+          </fieldset>
+          {(record || (ended && dayRecords.isSuccess)) && (
+            <div className={recordStyles.status}>
+              <span className={recordStyles.statusLabel}>기록</span>
+              {record ? (
+                <>
+                  <RecordStatusTag record={record} />
+                  {recordTime && <span className={recordStyles.statusTime}>{recordTime}</span>}
+                  <button
+                    type="button"
+                    className={`${styles.link} ${recordStyles.statusAction}`}
+                    aria-haspopup="dialog"
+                    onClick={() => {
+                      onClose()
+                      onOpenRecord(record, plannedOf(latest))
+                    }}
+                  >
+                    기록 보기
+                  </button>
+                </>
+              ) : (
+                <span className={recordStyles.statusTime}>이 일정에서 남긴 기록이 없어요</span>
+              )}
+            </div>
+          )}
           <div className={styles.actions}>
             {latest && (
               <button
                 type="button"
                 className={styles.danger}
+                disabled={!online}
                 onClick={() => {
                   onClose()
                   onDelete(latest)
@@ -627,7 +774,7 @@ export function ScheduleDialog({ timeZone, draft, occurrence, askScope, onDelete
             <button type="button" className={styles.secondary} onClick={onClose}>
               취소
             </button>
-            <button type="submit" className={styles.primary} disabled={saving}>
+            <button type="submit" className={styles.primary} disabled={saving || !online}>
               저장
             </button>
           </div>

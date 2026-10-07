@@ -1,0 +1,369 @@
+package com.erp.worklog.workrecord;
+
+import com.erp.common.autoconfigure.OpenApiAutoConfiguration;
+import com.erp.worklog.schedule.EndedOccurrences.Ended;
+import com.erp.worklog.security.CurrentUser;
+import com.erp.worklog.security.SecurityConfig;
+import com.erp.worklog.user.UserProfileService;
+import com.erp.worklog.workrecord.WorkRecordService.PendingInfo;
+import com.erp.worklog.workrecord.WorkRecordService.RecordInfo;
+import com.fasterxml.jackson.annotation.JsonUnwrapped;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.media.Schema.RequiredMode;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.time.Instant;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Set;
+import java.util.UUID;
+import java.util.function.Supplier;
+
+/** /api/worklog/records (P2-01, contracts/worklog.yaml records). */
+@RestController
+@RequestMapping(path = "/api/worklog/records", produces = MediaType.APPLICATION_JSON_VALUE)
+@Tag(name = "records")
+class WorkRecordController {
+
+	static final String STATUS = "^(PENDING|CONFIRMED|DISMISSED)$";
+	static final String OUTCOME = "^(DONE|REVIEW_REQUESTED|IN_PROGRESS)$";
+	private static final String PROBLEM = OpenApiAutoConfiguration.PROBLEM_REF;
+
+	@Schema(name = "WorkRecord", description = """
+			업무 기록 (REC-01, 요구사항 6장 WorkRecord). "무엇을 했고 결과가 어떤가".
+			계획에서 온 기록은 scheduleId·occurrenceStart를 가진다(SCR-REC-01 ⑥ 출처 표시). 일정을 지우면 scheduleId는 null이 되고
+			occurrenceStart는 남는다(출처 표시는 occurrenceStart로 판단). 시간 칸(startAt·endAt·durationMin)은 모두 null일 수 있다.""")
+	record WorkRecordView(
+			@Schema(requiredMode = RequiredMode.REQUIRED) UUID id,
+			@Schema(requiredMode = RequiredMode.REQUIRED, allowableValues = { "PENDING", "CONFIRMED", "DISMISSED" },
+					description = "확인 대기 / 확정 / 하지 않음 (REC-03). 일지와 자주 하는 업무 집계는 CONFIRMED만 쓴다") String status,
+			@Schema(requiredMode = RequiredMode.REQUIRED, format = "date",
+					description = "귀속 날짜. 저장한 뒤 시간대를 바꿔도 바뀌지 않는다 (D-40)") LocalDate workDate,
+			@Schema(requiredMode = RequiredMode.REQUIRED, minLength = 1, maxLength = 500,
+					description = "한 일. 확인 대기 기록은 만들 때 회차 제목을 복사한다") String content,
+			@Schema(types = { "string", "null" }, format = "uuid",
+					description = "연결 업무 (선택). 확인 대기 기록은 일정의 연결 업무를 복사한다. 업무를 보관해도 남는다") UUID taskId,
+			@Schema(types = { "string", "null" }, format = "uuid") UUID scheduleId,
+			@Schema(types = { "string", "null" }, format = "date-time",
+					description = "회차 키 (Occurrence.occurrenceStart, D-71). (scheduleId, occurrenceStart)는 유일하다") Instant occurrenceStart,
+			@Schema(types = { "string", "null" }, maxLength = 200, description = "결과 한 줄 (REC-02)") String result,
+			@Schema(types = { "string", "null" }, allowableValues = { "DONE", "REVIEW_REQUESTED", "IN_PROGRESS" },
+					description = "결과 칩 (REC-02) — 완료 / 검토 요청 / 진행 중(진행률 n%)") String outcome,
+			@Schema(types = { "integer", "null" }, minimum = "0", maximum = "100", multipleOf = 10,
+					description = "outcome=IN_PROGRESS일 때만 값이 있다") Integer progress,
+			@Schema(types = { "string", "null" }, format = "date-time") Instant startAt,
+			@Schema(types = { "string", "null" }, format = "date-time",
+					description = "startAt보다 늦다. startAt만 있고 endAt이 null이면 진행 중(타이머, P2-06)") Instant endAt,
+			@Schema(types = { "integer", "null" }, minimum = "1", maximum = "1440",
+					description = "소요시간(분). startAt·endAt이 있으면 서버가 계산하고, 둘 다 없을 때만 직접 넣는다") Integer durationMin,
+			@Schema(requiredMode = RequiredMode.REQUIRED,
+					description = "연결 업무의 태그 (읽기 전용, 일지·필터용). 업무가 없으면 빈 배열") List<UUID> tagIds,
+			@Schema(types = { "string", "null" }, format = "uuid",
+					description = "연결 업무의 프로젝트 (읽기 전용, 블록 색·일지 묶음)") UUID projectId,
+			@Schema(types = { "string", "null" }, format = "date-time") Instant deletedAt,
+			@Schema(requiredMode = RequiredMode.REQUIRED) Instant createdAt,
+			@Schema(requiredMode = RequiredMode.REQUIRED) Instant updatedAt,
+			@Schema(requiredMode = RequiredMode.REQUIRED) long version) {
+
+		static WorkRecordView of(RecordInfo r) {
+			return new WorkRecordView(r.id(), r.status(), r.workDate(), r.content(), r.taskId(), r.scheduleId(),
+					r.occurrenceStart(), r.result(), r.outcome(), r.progress(), r.startAt(), r.endAt(), r.durationMin(),
+					r.tagIds(), r.projectId(), r.deletedAt(), r.createdAt(), r.updatedAt(), r.version());
+		}
+	}
+
+	@Schema(name = "WorkRecordList")
+	record WorkRecordList(@Schema(requiredMode = RequiredMode.REQUIRED) List<WorkRecordView> items) {
+	}
+
+	@Schema(name = "PendingRecordPlan", description = "회차의 지금 값. 시간 일정은 startAt·endAt, 종일 일정은 startDate·endDate(포함)만 있다.")
+	record PlanView(
+			@Schema(requiredMode = RequiredMode.REQUIRED) String title,
+			@Schema(requiredMode = RequiredMode.REQUIRED) boolean allDay,
+			@Schema(types = { "string", "null" }, format = "date-time") Instant startAt,
+			@Schema(types = { "string", "null" }, format = "date-time") Instant endAt,
+			@Schema(types = { "string", "null" }, format = "date") LocalDate startDate,
+			@Schema(types = { "string", "null" }, format = "date") LocalDate endDate) {
+
+		static PlanView of(Ended e) {
+			return new PlanView(e.title(), e.allDay(), e.startAt(), e.endAt(), e.startDate(), e.endDate());
+		}
+	}
+
+	@Schema(name = "PendingRecord", description = """
+			확인 대기 목록의 항목 (P2-03). 기록 전체에 지금의 계획(회차)을 붙인다(SCR-HOME-02 ① 계획 시간).
+			회차를 옮기거나 지우면 그 회차의 확인 대기는 지워지므로 plan은 늘 있다.""")
+	record PendingRecordView(@JsonUnwrapped WorkRecordView record,
+			@Schema(requiredMode = RequiredMode.REQUIRED) PlanView plan) {
+
+		static PendingRecordView of(PendingInfo p) {
+			return new PendingRecordView(WorkRecordView.of(p.record()), PlanView.of(p.plan()));
+		}
+	}
+
+	@Schema(name = "PendingRecordList")
+	record PendingRecordList(@Schema(requiredMode = RequiredMode.REQUIRED) List<PendingRecordView> items) {
+	}
+
+	@Schema(name = "ConfirmPendingRequest")
+	record ConfirmPendingRequest(
+			@ArraySchema(arraySchema = @Schema(requiredMode = RequiredMode.REQUIRED,
+					description = "확정할 확인 대기 기록 (화면에 보인 것)"), minItems = 1, maxItems = 200, uniqueItems = true)
+			@NotEmpty(message = "REQUIRED") @Size(min = 1, max = 200, message = "OUT_OF_RANGE") List<@NotNull(message = "REQUIRED") UUID> ids) {
+	}
+
+	@Schema(name = "WorkRecordCreate", description = """
+			startAt이 없으면 workDate 필수(REQUIRED). endAt은 startAt 없이 보낼 수 없고 startAt보다 늦어야 한다(INVALID_ORDER).
+			startAt을 보내면 endAt도 필수(endAt REQUIRED). 진행 중(endAt 없음) 기록은 타이머(/timer/start)만 만든다(동시 1개, P2-06).
+			PATCH도 같다: 끝난 기록의 endAt을 비울 수 없고, 실행 중인 타이머는 endAt 없이 startAt·내용·업무를 고칠 수 있으며 endAt을 넣으면 정지와 같다.
+			durationMin은 startAt과 함께 보낼 수 없다(INVALID_FORMAT). progress는 outcome=IN_PROGRESS일 때만(INVALID_FORMAT).
+			taskId는 보관하지 않은 내 업무여야 한다(NOT_FOUND). 내용·결과는 앞뒤 공백을 빼고 저장한다(빈 결과는 null).
+			다른 기록과 시간이 겹쳐도 저장한다(겹침 경고는 화면이 같은 날 목록으로 계산, TIME-06).""")
+	record WorkRecordCreate(
+			@Schema(requiredMode = RequiredMode.REQUIRED, minLength = 1, maxLength = 500)
+			@NotNull(message = "REQUIRED") @Size(max = 500, message = "TOO_LONG") String content,
+			@Schema(types = { "string", "null" }, format = "date") LocalDate workDate,
+			@Schema(types = { "string", "null" }, format = "uuid") UUID taskId,
+			@Schema(types = { "string", "null" }, maxLength = 200) @Size(max = 200, message = "TOO_LONG") String result,
+			@Schema(types = { "string", "null" }, allowableValues = { "DONE", "REVIEW_REQUESTED", "IN_PROGRESS" })
+			@Pattern(regexp = OUTCOME, message = "INVALID_FORMAT") String outcome,
+			@Schema(types = { "integer", "null" }, minimum = "0", maximum = "100", multipleOf = 10) Integer progress,
+			@Schema(types = { "string", "null" }, format = "date-time") Instant startAt,
+			@Schema(types = { "string", "null" }, format = "date-time") Instant endAt,
+			@Schema(types = { "integer", "null" }, minimum = "1", maximum = "1440") Integer durationMin) {
+	}
+
+	private final WorkRecordService records;
+	private final TimeQueries times;
+	private final UserProfileService profiles;
+
+	WorkRecordController(WorkRecordService records, TimeQueries times, UserProfileService profiles) {
+		this.records = records;
+		this.times = times;
+		this.profiles = profiles;
+	}
+
+	@GetMapping
+	@Operation(operationId = "listRecords", summary = "기간 안의 업무 기록 (일 보기 \"이날의 기록\", 업무 상세 기록 이력, 일지 원본)",
+			description = """
+					workDate가 [from, to](양끝 포함)인 기록을 준다. 보관(소프트 삭제)한 기록은 빼고 준다.
+					정렬: workDate → startAt(없으면 뒤) → occurrenceStart(없으면 뒤) → id. 페이지네이션 없이 한 번에 준다(기간 최대 400일).
+					status를 생략하면 세 상태를 모두 준다(일 보기는 확인 대기·하지 않음도 상태로 그린다, SCR-CAL-01 states).
+					from과 to가 같은 날이면 그날 끝난 회차의 확인 대기 기록을 먼저 만든다(7일 범위와 관계없이, D-39).""",
+			security = @SecurityRequirement(name = SecurityConfig.COOKIE_SCHEME))
+	@ApiResponse(responseCode = "200", description = "조회 성공")
+	@ApiResponse(responseCode = "400", description = "값 형식 오류 (code=VALIDATION_FAILED)",
+			content = @Content(mediaType = "application/problem+json", schema = @Schema(ref = PROBLEM)))
+	WorkRecordList list(@Parameter(hidden = true) CurrentUser user,
+			@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+			@Parameter(required = true) LocalDate from,
+			@Parameter(required = true, description = "from 이후(같아도 됨), from + 400일 이내")
+			@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+			@Parameter(description = "여러 개면 OR",
+					array = @ArraySchema(schema = @Schema(allowableValues = { "PENDING", "CONFIRMED", "DISMISSED" })))
+			@RequestParam(name = "status", required = false) List<String> statuses,
+			@Parameter(description = "이 업무에 연결된 기록만 (업무 상세 기록 이력). 다른 사용자·없는 업무면 빈 목록")
+			@RequestParam(required = false) UUID taskId) {
+		return new WorkRecordList(records.list(user.id(), from, to, statuses == null ? List.of() : statuses, taskId)
+				.stream().map(WorkRecordView::of).toList());
+	}
+
+	@PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
+	@ResponseStatus(HttpStatus.CREATED)
+	@Operation(operationId = "createRecord", summary = "업무 기록 추가 — 직접 쓴 기록은 바로 확정 (REC-01, SCR-REC-01)",
+			description = """
+					사용자가 직접 쓴 기록이라 status=CONFIRMED로 만든다(확인 대기는 서버만 만든다, P2-03).
+					날짜 귀속(D-40, NFR-04): startAt이 있으면 workDate는 저장 시점 사용자 시간대(프로필)로 startAt의 날짜를 계산하고
+					보낸 workDate는 무시한다. startAt이 없으면 workDate가 필수다.
+					시간 칸은 시간 기록 옵션(WorklogSettings.timeTrackingEnabled)과 관계없이 받는다(TIME-09).
+					startAt이 있는데 프로필 사본이 없으면 identity에서 바로 가져온다(실패하면 503).""",
+			security = @SecurityRequirement(name = SecurityConfig.COOKIE_SCHEME))
+	@ApiResponse(responseCode = "201", description = "생성됨")
+	@ApiResponse(responseCode = "400", description = "입력 오류 (code=VALIDATION_FAILED). 참조한 업무가 없으면 errors[].code=NOT_FOUND",
+			content = @Content(mediaType = "application/problem+json", schema = @Schema(ref = PROBLEM)))
+	@ApiResponse(responseCode = "503", description = "identity 조회 실패 (code=PROFILE_UNAVAILABLE)",
+			content = @Content(mediaType = "application/problem+json", schema = @Schema(ref = PROBLEM)))
+	WorkRecordView create(@Parameter(hidden = true) CurrentUser user, @AuthenticationPrincipal Jwt jwt,
+			@Valid @RequestBody WorkRecordCreate body) {
+		return WorkRecordView.of(records.create(user.id(), timezone(user, jwt), new WorkRecordService.NewRecord(
+				body.content(), body.workDate(), body.taskId(), body.result(), body.outcome(), body.progress(),
+				body.startAt(), body.endAt(), body.durationMin())));
+	}
+
+	@GetMapping("/pending")
+	@Operation(operationId = "listPendingRecords",
+			summary = "확인 대기 목록 (P2-03 — SCR-HOME-01 확인 대기 띠·요약 카드, SCR-HOME-02, 하루 마감 1단계)",
+			description = """
+					먼저 끝난 회차의 확인 대기 기록을 만들고(D-31, 보여줄 때 생성) 확인 대기 기록을 준다. 요약 카드의 개수는 items 길이다.
+					범위(D-39): 사용자의 현재 시간대 기준 오늘을 포함한 최근 7일(오늘-6일 ~ 오늘). 기록의 workDate로 판단한다.
+					생성 대상: 업무가 연결된 일정(반복 회차 포함)의 끝난 회차(끝 시각 ≤ 지금, 종일 일정은 마지막 날 다음 날 0시).
+					연결 업무가 보관 상태면 만들지 않는다. workDate는 회차 시작의 일정 시간대 날짜(NFR-04). 취소한 회차는 만들지 않는다.
+					이미 (일정, 회차 시작) 기록이 있으면 상태·보관 여부와 관계없이 다시 만들지 않는다(UNIQUE, 동시 호출에도 하나).
+					만드는 값: status=PENDING, content=회차 제목, taskId=일정의 업무, scheduleId·occurrenceStart=회차 키.
+					시간 칸(startAt·endAt·durationMin)은 비운다(계획 시간은 실제 시간이 아니다).
+					7일이 지난 확인 대기 기록은 상태를 유지한 채 여기서 빠진다(일 보기에서는 보이고 처리할 수 있다).
+					정렬: workDate → occurrenceStart → id. 보관한 기록은 빼고 준다.""",
+			security = @SecurityRequirement(name = SecurityConfig.COOKIE_SCHEME))
+	@ApiResponse(responseCode = "200", description = "확인 대기 기록 (최근 7일)")
+	@ApiResponse(responseCode = "503", description = "identity 조회 실패 (code=PROFILE_UNAVAILABLE)",
+			content = @Content(mediaType = "application/problem+json", schema = @Schema(ref = PROBLEM)))
+	PendingRecordList pending(@Parameter(hidden = true) CurrentUser user, @AuthenticationPrincipal Jwt jwt) {
+		return new PendingRecordList(records.pending(user.id(), timezone(user, jwt)).stream()
+				.map(PendingRecordView::of).toList());
+	}
+
+	@PostMapping(path = "/pending/confirm", consumes = MediaType.APPLICATION_JSON_VALUE)
+	@Operation(operationId = "confirmPendingRecords", summary = "모두 했어요 (P2-03 — SCR-HOME-02 ③)",
+			description = """
+					보낸 id의 확인 대기 기록을 한 번에 CONFIRMED로 바꾼다. 화면에 보인 것만 확정하도록 id를 받는다
+					(목록을 받은 뒤 새로 생긴 확인 대기는 확정하지 않는다 — 확인은 반드시 사람이, REC-03).
+					최근 7일 범위 밖, 이미 처리함(CONFIRMED·DISMISSED), 보관함, 다른 사용자·없는 id는 건너뛴다(오류 아님, 멱등).
+					version을 받지 않는다. 되돌리기는 응답의 version으로 각 기록을 PATCH status=PENDING.""",
+			security = @SecurityRequirement(name = SecurityConfig.COOKIE_SCHEME))
+	@ApiResponse(responseCode = "200", description = "이번 요청으로 확정한 기록 (건너뛴 것은 빠짐)")
+	@ApiResponse(responseCode = "400", description = "입력 오류 (code=VALIDATION_FAILED)",
+			content = @Content(mediaType = "application/problem+json", schema = @Schema(ref = PROBLEM)))
+	@ApiResponse(responseCode = "503", description = "identity 조회 실패 (code=PROFILE_UNAVAILABLE)",
+			content = @Content(mediaType = "application/problem+json", schema = @Schema(ref = PROBLEM)))
+	WorkRecordList confirmPending(@Parameter(hidden = true) CurrentUser user, @AuthenticationPrincipal Jwt jwt,
+			@Valid @RequestBody ConfirmPendingRequest body) {
+		return new WorkRecordList(records.confirmPending(user.id(), timezone(user, jwt), Set.copyOf(body.ids()))
+				.stream().map(WorkRecordView::of).toList());
+	}
+
+	@GetMapping("/time-summary")
+	@Operation(operationId = "getTimeSummary", summary = "소요시간 집계 (P2-07, TIME-07 — SCR-LOG-02, SCR-STAT-01)",
+			description = """
+					workDate가 [from, to](양끝 포함, 최대 400일)인 확정(CONFIRMED)·보관하지 않은 기록의 durationMin을 더한다.
+					일·주·월은 화면이 기간으로 정한다(주는 프로필의 주 시작 요일로 화면이 계산). 실행 중 타이머와 시간 없는 기록은 빼고
+					recordCount에도 넣지 않는다. 겹친 기록은 겹친 만큼 두 번 센다(겹침은 경고일 뿐 저장되므로, TIME-06).
+					프로젝트는 연결 업무의 지금 프로젝트다. 업무 없는 기록은 taskId=null 한 줄로, 프로젝트 없는 업무는 projectId=null 한 줄로 묶는다.""",
+			security = @SecurityRequirement(name = SecurityConfig.COOKIE_SCHEME))
+	@ApiResponse(responseCode = "200", description = "집계 결과")
+	@ApiResponse(responseCode = "400", description = "값 형식 오류 (code=VALIDATION_FAILED)",
+			content = @Content(mediaType = "application/problem+json", schema = @Schema(ref = PROBLEM)))
+	TimeViews.TimeSummaryView timeSummary(@Parameter(hidden = true) CurrentUser user,
+			@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+			@Parameter(required = true) LocalDate from,
+			@Parameter(required = true, description = "from 이후(같아도 됨), from + 400일 이내")
+			@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+		return TimeViews.TimeSummaryView.of(times.summary(user.id(), from, to));
+	}
+
+	@GetMapping("/gaps")
+	@Operation(operationId = "listTimeGaps", summary = "빈 시간과 후보 (P2-07, TIME-11 — SCR-HOME-03, 하루 마감 1단계)",
+			description = """
+					date의 업무 시간대(WorklogSettings.workHoursStart~End, 사용자의 현재 시간대) 중 기록이 없는 15분 이상 구간을 시간순으로 준다.
+					- 덮은 구간: 보관하지 않은 확정 기록의 [startAt, endAt), 실행 중 타이머는 [startAt, 지금). workDate와 관계없이 시각으로 본다.
+					- 오늘이면 지금 이후는 빼고, 미래 날짜면 빈 배열. 업무 요일이 아닌 날도 계산한다(표시 여부는 화면이 정한다).
+					- 먼저 그날 끝난 회차의 확인 대기를 만든다(D-31) — 계획 후보가 그 기록을 가리키게.
+					구간마다 후보 3종(없으면 null): previous(직전 업무 이어서), plan(이 시간 계획, 확인 대기면 pendingRecordId),
+					frequent(구간 시작 시각 기준 자주 하는 업무 1위, GET /tasks/frequent?at=).
+					채우기는 기존 API를 쓴다: 새 기록은 POST /records(startAt·endAt=구간), 확인 대기는 PATCH /records/{id}.
+					시간 기록 옵션과 관계없이 응답한다.""",
+			security = @SecurityRequirement(name = SecurityConfig.COOKIE_SCHEME))
+	@ApiResponse(responseCode = "200", description = "빈 구간 (시간순)")
+	@ApiResponse(responseCode = "400", description = "값 형식 오류 (code=VALIDATION_FAILED)",
+			content = @Content(mediaType = "application/problem+json", schema = @Schema(ref = PROBLEM)))
+	@ApiResponse(responseCode = "503", description = "identity 조회 실패 (code=PROFILE_UNAVAILABLE)",
+			content = @Content(mediaType = "application/problem+json", schema = @Schema(ref = PROBLEM)))
+	TimeViews.TimeGapList gaps(@Parameter(hidden = true) CurrentUser user, @AuthenticationPrincipal Jwt jwt,
+			@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+			@Parameter(required = true) LocalDate date) {
+		return new TimeViews.TimeGapList(times.gaps(user.id(), timezone(user, jwt), date).stream()
+				.map(TimeViews.TimeGapView::of).toList());
+	}
+
+	@GetMapping("/{recordId}")
+	@Operation(operationId = "getRecord", summary = "업무 기록 조회 (보관한 기록 포함)",
+			security = @SecurityRequirement(name = SecurityConfig.COOKIE_SCHEME))
+	@ApiResponse(responseCode = "200", description = "조회 성공")
+	@ApiResponse(responseCode = "404", description = "없거나 다른 사용자의 기록 (code=NOT_FOUND)",
+			content = @Content(mediaType = "application/problem+json", schema = @Schema(ref = PROBLEM)))
+	WorkRecordView get(@Parameter(hidden = true) CurrentUser user, @PathVariable UUID recordId) {
+		return WorkRecordView.of(records.get(user.id(), recordId));
+	}
+
+	@PatchMapping(path = "/{recordId}", consumes = MediaType.APPLICATION_JSON_VALUE)
+	@Operation(operationId = "updateRecord", summary = "업무 기록 수정·확인·하지 않음 (SCR-REC-01, SCR-HOME-02 했어요/수정/안 했어요, 되돌리기)",
+			description = """
+					보낸 칸만 바꾼다. nullable 칸은 null을 보내면 비운다. 상태 전이:
+					- 계획에서 온 기록(occurrenceStart가 있음): PENDING·CONFIRMED·DISMISSED 사이 어느 쪽으로든
+					  (했어요 = CONFIRMED, 안 했어요 = DISMISSED, 되돌리기 토스트 = PENDING). "수정"은 내용과 status=CONFIRMED를 한 요청에 보낸다.
+					- 직접 쓴 기록: CONFIRMED만(다른 값이면 409 INVALID_STATUS). 지우려면 DELETE.
+					startAt을 바꾸면 workDate를 저장 시점 사용자 시간대로 다시 계산한다. startAt을 null로 비우면 workDate는 그대로 두거나 보낸 값으로 바꾼다.
+					같은 값을 다시 보내면 version이 오르지 않는다. 보관한 기록은 수정할 수 없다(409 RECORD_DELETED, 먼저 복원).""",
+			security = @SecurityRequirement(name = SecurityConfig.COOKIE_SCHEME))
+	@ApiResponse(responseCode = "200", description = "수정 후 전체")
+	@ApiResponse(responseCode = "400", description = "입력 오류 (code=VALIDATION_FAILED)",
+			content = @Content(mediaType = "application/problem+json", schema = @Schema(ref = PROBLEM)))
+	@ApiResponse(responseCode = "404", description = "없거나 다른 사용자의 기록 (code=NOT_FOUND)",
+			content = @Content(mediaType = "application/problem+json", schema = @Schema(ref = PROBLEM)))
+	@ApiResponse(responseCode = "409",
+			description = "version 불일치(code=VERSION_CONFLICT), 직접 쓴 기록의 상태 변경(code=INVALID_STATUS), 보관한 기록(code=RECORD_DELETED)",
+			content = @Content(mediaType = "application/problem+json", schema = @Schema(ref = PROBLEM)))
+	@ApiResponse(responseCode = "503", description = "identity 조회 실패 (code=PROFILE_UNAVAILABLE)",
+			content = @Content(mediaType = "application/problem+json", schema = @Schema(ref = PROBLEM)))
+	WorkRecordView update(@Parameter(hidden = true) CurrentUser user, @AuthenticationPrincipal Jwt jwt,
+			@PathVariable UUID recordId, @Valid @RequestBody WorkRecordPatch body) {
+		return WorkRecordView.of(records.update(user.id(), recordId, timezone(user, jwt), body.toChange()));
+	}
+
+	@DeleteMapping("/{recordId}")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	@Operation(operationId = "deleteRecord", summary = "업무 기록 보관 (소프트 삭제, SCR-REC-01 ⑦)",
+			description = """
+					deletedAt을 기록한다. 이미 보관했으면 204. version을 받지 않는다.
+					계획에서 온 기록은 보관해도 (일정, 회차 시작) 행이 남으므로 확인 대기가 다시 생기지 않는다.""",
+			security = @SecurityRequirement(name = SecurityConfig.COOKIE_SCHEME))
+	@ApiResponse(responseCode = "204", description = "보관됨")
+	@ApiResponse(responseCode = "404", description = "없거나 다른 사용자의 기록 (code=NOT_FOUND)",
+			content = @Content(mediaType = "application/problem+json", schema = @Schema(ref = PROBLEM)))
+	void delete(@Parameter(hidden = true) CurrentUser user, @PathVariable UUID recordId) {
+		records.delete(user.id(), recordId);
+	}
+
+	@PostMapping("/{recordId}/restore")
+	@Operation(operationId = "restoreRecord", summary = "보관한 기록 복원 (되돌리기 토스트)",
+			description = "deletedAt을 비운다. 보관하지 않은 기록이면 그대로 200.",
+			security = @SecurityRequirement(name = SecurityConfig.COOKIE_SCHEME))
+	@ApiResponse(responseCode = "200", description = "복원 후 전체")
+	@ApiResponse(responseCode = "404", description = "없거나 다른 사용자의 기록 (code=NOT_FOUND)",
+			content = @Content(mediaType = "application/problem+json", schema = @Schema(ref = PROBLEM)))
+	@ApiResponse(responseCode = "409", description = "보관 중 실행 중이던 타이머인데 지금 다른 타이머가 실행 중 (code=TIMER_RUNNING, 동시 1개)",
+			content = @Content(mediaType = "application/problem+json", schema = @Schema(ref = PROBLEM)))
+	WorkRecordView restore(@Parameter(hidden = true) CurrentUser user, @PathVariable UUID recordId) {
+		return WorkRecordView.of(records.restore(user.id(), recordId));
+	}
+
+	/** 시간대는 startAt으로 날짜를 계산하거나 오늘(확인 대기 범위)을 정할 때만 필요하므로 그때 프로필을 읽는다. */
+	private Supplier<String> timezone(CurrentUser user, Jwt jwt) {
+		return () -> profiles.snapshotOf(user.id(), jwt.getTokenValue()).profile().timezone();
+	}
+}

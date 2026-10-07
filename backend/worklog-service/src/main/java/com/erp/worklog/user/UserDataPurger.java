@@ -25,7 +25,8 @@ public class UserDataPurger {
 	public void purge(UUID userId) {
 		// 업무가 프로젝트를 가리키므로 업무부터 지운다. task_tag는 ON DELETE CASCADE
 		// 일정이 업무를 가리키므로(schedule.task_id → task) 일정을 맨 앞에 지운다. schedule_exception은 ON DELETE CASCADE
-		for (String table : new String[] { "schedule", "task", "tag", "project", "user_setting" }) {
+		// 기록이 업무·일정을 가리키므로(work_record.task_id·schedule_id) 기록을 가장 먼저 지운다
+		for (String table : new String[] { "work_record", "schedule", "task", "tag", "project", "user_setting" }) {
 			jdbc.sql("DELETE FROM " + table + " WHERE owner_id = ?").param(userId).update();
 		}
 		snapshots.delete(userId);

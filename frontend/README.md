@@ -1,6 +1,6 @@
 # frontend
 
-worklog 프론트엔드 (React + Vite + TypeScript). 화면 기준은 `docs/화면정의서`와 erp-design 목업 캔버스.
+worklog 프론트엔드 (React + Vite + TypeScript). 화면 기준은 `docs/화면정의서`와 WY-design 목업 캔버스.
 
 ## 실행
 

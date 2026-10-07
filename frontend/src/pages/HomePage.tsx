@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router'
 import { useAuth } from '../auth/useAuth'
+import { useOnline } from '../components/useOnline'
 import { HomeDashboard } from '../home/HomeDashboard'
 import { EXAMPLES } from '../quickInput/examples'
 import { QuickInput } from '../quickInput/QuickInput'
@@ -47,6 +48,8 @@ export function HomePage() {
   }).format(now)
   const hour = Number(new Intl.DateTimeFormat('en-US', { timeZone, hour: 'numeric', hourCycle: 'h23' }).format(now))
 
+  const online = useOnline()
+
   const fillExample = (example: string) => {
     setText(example)
     document.querySelector<HTMLInputElement>('[data-quick-input]')?.focus()
@@ -62,9 +65,10 @@ export function HomePage() {
             {user?.name ? `, ${user.name}님` : ''}
           </h1>
         </div>
-        <div className={styles.quick}>
+        {/* 끊긴 동안에는 기록을 막는다(SCR-SYS-02 ③) */}
+        <fieldset className={styles.quick} disabled={!online}>
           <QuickInput value={text} onChange={setText} onSubmit={quickSave} label="빠른 기록" />
-        </div>
+        </fieldset>
       </header>
 
       <HomeDashboard
@@ -77,7 +81,13 @@ export function HomePage() {
             <p className={styles.emptyText}>시간·@프로젝트·#태그·!우선순위·~마감을 같이 적으면 알아서 나눠 저장해요.</p>
             <div className={styles.examples}>
               {EXAMPLES.map((e) => (
-                <button key={e} type="button" className={styles.example} onClick={() => fillExample(e)}>
+                <button
+                  key={e}
+                  type="button"
+                  className={styles.example}
+                  disabled={!online}
+                  onClick={() => fillExample(e)}
+                >
                   {e}
                 </button>
               ))}
