@@ -20,7 +20,7 @@
     { "name": "WY-browser", "summary": "외부 서비스 콘솔 작업: Railway·Vercel 등 외부 도구 설정", "agent": true },
     { "name": "WY-qa", "summary": "사용성·기능 테스트: agent-browser로 구현 화면 검증", "agent": true }
   ],
-  "rotation": { "transcriptMB": 5 },
+  "rotation": { "transcriptMB": 2 },
   "memory": { "warnFreeMB": 1024, "blockFreeMB": 500 },
   "approvals": { "namespace": "erp-project", "ttlMinutes": 60 },
   "docs": { "progress": "docs/진행현황.md", "decisions": "docs/결정기록.md" },
