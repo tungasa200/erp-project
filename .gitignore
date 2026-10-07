@@ -13,3 +13,10 @@ docs/trashcan/
 
 # impeccable 캐시
 .impeccable/
+
+# wy-ops PC별 설정(메모리 기준 등, tools/PACKAGING-PLAN.md 2장)
+.claude/wy-ops.local.json
+
+# WY Ops: PC마다 다른 Claude 설정(훅 경로에 개인 홈 경로)과 설치 명령이 남기는 백업(U-12)
+.claude/settings.local.json
+.claude/*.bak-*

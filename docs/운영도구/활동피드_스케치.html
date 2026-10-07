@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>활동 피드 스케치</title>
+<style>
+/* 다크 그레이 테마(VS Code 변수 흉내) — 승인센터_목업.html의 .vsc-dark와 같은 값 */
+.vsc-dark {
+  --vscode-font-family: "Segoe WPC", "Segoe UI", "Malgun Gothic", system-ui, sans-serif;
+  --vscode-editor-font-family: Consolas, monospace;
+  --vscode-editor-background: #25272b;
+  --vscode-sideBar-background: #2d2f34;
+  --vscode-foreground: #d4d6db;
+  --vscode-descriptionForeground: #9aa0a8;
+  --vscode-focusBorder: #0078d4;
+  --vscode-list-hoverBackground: #2f3237;
+  --vscode-charts-red: #f14c4c;
+  --vscode-charts-blue: #3794ff;
+  --vscode-charts-green: #89d185;
+  --vscode-charts-orange: #d18616;
+  --vscode-charts-purple: #b180d7;
+  --vscode-charts-yellow: #cca700;
+  color-scheme: dark;
+}
+.fx {
+  --fg: var(--vscode-foreground);
+  --dim: var(--vscode-descriptionForeground);
+  --bg: var(--vscode-editor-background);
+  --bg-2: var(--vscode-sideBar-background);
+  --card: color-mix(in srgb, var(--fg) 6%, var(--bg));
+  --line: color-mix(in srgb, var(--fg) 13%, transparent);
+  /* 세션 상태 */
+  --s-work: var(--vscode-charts-green);
+  --s-idle: var(--dim);
+  --s-perm: var(--vscode-charts-red);
+  --s-stop: color-mix(in srgb, var(--fg) 30%, transparent);
+  /* 메시지 종류 */
+  --m-order: var(--vscode-charts-blue);    /* 지시 */
+  --m-bug: var(--vscode-charts-orange);    /* 결함 보고 */
+  --m-done: var(--vscode-charts-green);    /* 완료·통과 */
+  --m-ask: var(--vscode-charts-purple);    /* 결정·카드 */
+  background: var(--bg); color: var(--fg);
+  font: 13px/1.45 var(--vscode-font-family);
+  font-variant-numeric: tabular-nums;
+}
+.fx * { box-sizing: border-box; }
+.fx svg text { font-family: var(--vscode-font-family); }
+
+/* 페이지 */
+:root { --page: #e9e7e3; --page-fg: #2a2a2a; --page-dim: #67645e; color-scheme: light; }
+html, body { margin: 0; }
+body { background: var(--page); color: var(--page-fg); font: 14px/1.6 "Segoe UI", "Malgun Gothic", system-ui, sans-serif; }
+.page { max-width: 1240px; margin: 0 auto; padding: 32px 24px 64px; }
+.page > header h1 { margin: 0; font-size: 22px; }
+.page > header p { margin: 6px 0 0; max-width: 82ch; color: var(--page-dim); }
+.opt { margin-top: 34px; display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 20px; align-items: start; }
+.opt h2 { grid-column: 1 / -1; margin: 0; font-size: 16px; }
+.win { border-radius: 8px; overflow: hidden; box-shadow: 0 1px 2px rgba(0,0,0,.12), 0 12px 32px -12px rgba(0,0,0,.35); }
+.pc { font-size: 13px; }
+.pc h3 { margin: 0 0 4px; font-size: 13px; }
+.pc ul { margin: 0 0 12px; padding-left: 18px; }
+.pc .good h3 { color: #2f6b2c; }
+.pc .bad h3 { color: #9a3b12; }
+.pick { margin-top: 40px; padding: 16px 18px; border-radius: 8px; background: rgba(0,0,0,.05); }
+.pick h2 { margin: 0 0 6px; font-size: 15px; }
+.pick p { margin: 0; max-width: 90ch; }
+
+/* 공통: 아바타 */
+.av { position: relative; display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 50%;
+  background: color-mix(in srgb, var(--fg) 10%, var(--bg)); font-size: 11px; font-weight: 700; letter-spacing: .02em; flex: none; }
+.av::after { content: ""; position: absolute; inset: -3px; border-radius: 50%; border: 2px solid var(--st); }
+.av.work::after { border-color: transparent; border-top-color: var(--s-work); border-right-color: var(--s-work); animation: spin 1.4s linear infinite; }
+.av.work::before { content: ""; position: absolute; inset: -3px; border-radius: 50%; border: 2px solid color-mix(in srgb, var(--s-work) 25%, transparent); }
+.av.idle { --st: color-mix(in srgb, var(--fg) 22%, transparent); }
+.av.perm { --st: var(--s-perm); }
+.av.perm::before { content: ""; position: absolute; inset: -3px; border-radius: 50%; border: 2px solid var(--s-perm); animation: ping 1.8s cubic-bezier(.16,1,.3,1) infinite; }
+.av.stop { --st: var(--s-stop); opacity: .55; }
+.av.stop::after { border-style: dashed; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes ping { 0% { transform: scale(1); opacity: .8; } 100% { transform: scale(1.5); opacity: 0; } }
+
+/* A: 관계도 */
+.graph { position: relative; height: 420px; }
+.graph > svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.legend { position: absolute; left: 14px; bottom: 12px; display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 11.5px; color: var(--dim); }
+.legend i { display: inline-block; width: 14px; height: 3px; border-radius: 2px; margin-right: 5px; vertical-align: middle; background: var(--c); }
+.pop { position: absolute; right: 14px; bottom: 14px; width: 210px; padding: 10px 12px; border-radius: 8px; background: var(--bg-2); box-shadow: 0 8px 24px -8px rgba(0,0,0,.5); font-size: 12px; }
+.pop .h { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 13px; }
+.pop .st { margin-top: 6px; display: flex; gap: 6px; align-items: center; color: color-mix(in srgb, var(--s-perm) 70%, var(--fg)); font-weight: 600; }
+.pop .last { margin-top: 6px; color: var(--dim); }
+.node-ring-work { transform-box: fill-box; transform-origin: center; animation: spin 1.4s linear infinite; }
+.node-ping { transform-box: fill-box; transform-origin: center; animation: ping 1.8s cubic-bezier(.16,1,.3,1) infinite; }
+
+/* B: 스윔레인 */
+.lanes { padding: 10px 0 12px; }
+.lanes svg { display: block; width: 100%; height: auto; }
+
+/* C: 스레드 */
+.strip { display: flex; flex-wrap: wrap; gap: 6px; padding: 12px; border-bottom: 1px solid var(--line); background: var(--bg-2); }
+.sc { display: flex; align-items: center; gap: 8px; padding: 6px 10px 6px 7px; border-radius: 999px; background: var(--bg); flex: none; }
+.sc .nm { font-size: 12px; font-weight: 600; line-height: 1.2; }
+.sc .ac { font-size: 11px; color: var(--dim); line-height: 1.2; white-space: nowrap; }
+.sc.perm { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--s-perm) 60%, transparent); }
+.sc.perm .ac { color: color-mix(in srgb, var(--s-perm) 70%, var(--fg)); }
+.threads { padding: 10px 12px 14px; display: grid; gap: 8px; }
+.th { padding: 12px; border-radius: 8px; background: var(--card); }
+.th-h { display: flex; align-items: center; gap: 8px; }
+.th-h .t { flex: 1; min-width: 0; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pill { display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 8px; border-radius: 999px; font-size: 11.5px; font-weight: 600;
+  background: color-mix(in srgb, var(--c) 16%, transparent); color: color-mix(in srgb, var(--c) 65%, var(--fg)); white-space: nowrap; }
+.tm { color: var(--dim); font-size: 11.5px; }
+.chain { display: flex; align-items: center; margin-top: 12px; }
+.st-node { display: grid; justify-items: center; gap: 4px; flex: none; width: 48px; }
+.st-node .ic { position: relative; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%;
+  background: color-mix(in srgb, var(--c) 18%, var(--bg)); color: var(--c); }
+.st-node .ic svg { width: 15px; height: 15px; }
+.st-node .who { font-size: 11px; font-weight: 700; color: var(--dim); }
+.st-node.now .ic { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--c); }
+.st-node.todo .ic { background: none; border: 1.5px dashed var(--line); color: var(--dim); }
+.link { flex: 1; min-width: 8px; height: 2px; margin: 0 -6px 18px; background: color-mix(in srgb, var(--fg) 25%, transparent); }
+.link.done { background: color-mix(in srgb, var(--m-done) 60%, transparent); }
+.link.flow { background: linear-gradient(90deg, color-mix(in srgb, var(--m-done) 60%, transparent) 0 50%, color-mix(in srgb, var(--fg) 18%, transparent) 50%); background-size: 200% 100%; animation: flow 1.6s linear infinite; }
+@keyframes flow { from { background-position: 100% 0; } to { background-position: 0 0; } }
+.more { margin-top: 10px; display: flex; align-items: center; gap: 6px; color: var(--dim); font-size: 11.5px; }
+.msgs { margin: 10px 0 0; padding: 0; list-style: none; display: grid; gap: 6px; border-top: 1px solid var(--line); padding-top: 10px; }
+.msgs li { display: grid; grid-template-columns: auto auto minmax(0,1fr); gap: 6px; align-items: center; font-size: 12px; }
+.msgs .ar { color: var(--dim); }
+.msgs .tx { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--dim); }
+.mini { width: 22px; height: 22px; font-size: 11px; }
+.mini::after { inset: -2px; border-width: 1.5px; }
+
+@media (prefers-reduced-motion: reduce) { .fx *, .fx *::before, .fx *::after { animation: none !important; } }
+@media (max-width: 900px) { .opt { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="bug" viewBox="0 0 16 16"><ellipse cx="8" cy="9.5" rx="3.5" ry="4.25" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 5.25V13.5M4.5 9.5H2M14 9.5h-2.5M5 6 3 4.5M11 6l2-1.5M5.5 12.5 3.5 14M10.5 12.5l2 1.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></symbol>
+  <symbol id="send" viewBox="0 0 16 16"><path d="M2 8h10.5M8.5 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="wrench" viewBox="0 0 16 16"><path d="M10.5 2.25a3.25 3.25 0 0 0-3.1 4.3L2.6 11.35a1.4 1.4 0 0 0 2 2l4.8-4.8a3.25 3.25 0 0 0 4.3-3.1l-1.9 1.9-1.75-.4-.4-1.75Z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></symbol>
+  <symbol id="commit" viewBox="0 0 16 16"><circle cx="8" cy="8" r="2.75" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M1.5 8h3.75M10.75 8h3.75" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+  <symbol id="check" viewBox="0 0 16 16"><path d="m3.5 8.25 3 3 6-6.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="lock" viewBox="0 0 16 16"><rect x="3" y="7" width="10" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" fill="none" stroke="currentColor" stroke-width="1.5"/></symbol>
+  <symbol id="play" viewBox="0 0 16 16"><path d="M5 3.5v9l7-4.5Z" fill="currentColor"/></symbol>
+  <symbol id="inbox" viewBox="0 0 16 16"><path d="M2 9 3.6 3.6c.15-.5.6-.85 1.1-.85h6.6c.5 0 .95.35 1.1.85L14 9v3.25c0 .55-.45 1-1 1H3c-.55 0-1-.45-1-1Z M2 9h3l1 1.5h4L11 9h3" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></symbol>
+  <symbol id="chev" viewBox="0 0 16 16"><path d="m4 6 4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="loop" viewBox="0 0 16 16"><path d="M13 8a5 5 0 1 1-1.5-3.55M13 2.5v2.5h-2.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+</svg>
+
+<div class="page">
+  <header>
+    <h1>R8 세션 활동 — 시각화 스케치 3안</h1>
+    <p>같은 데이터(최근 40분)를 세 가지로 그렸습니다. 이야기: WY-qa가 결함을 보고 → WY-pm이 WY-frontend2에 배정 → 수정 → WY-commit 커밋 → WY-qa 재검증 통과. 동시에 WY-backend1은 권한 확인을 기다리고, WY-pm은 사용자 결정 카드를 기다립니다. 상태 표시는 세 안 모두 같습니다: 초록 회전 고리 = 일하는 중, 회색 고리 = 대기, 빨강 맥박 = 권한 확인 대기, 점선·흐림 = 멈춤.</p>
+  </header>
+
+  <!-- A -->
+  <section class="opt">
+    <h2>A. 관계도 — 세션은 노드, 메시지는 화살표</h2>
+    <div class="win fx vsc-dark">
+      <div class="graph">
+        <svg viewBox="0 0 860 420" preserveAspectRatio="xMidYMid meet" aria-label="세션 관계도">
+          <defs>
+            <marker id="ah-o" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10Z" fill="var(--m-order)"/></marker>
+            <marker id="ah-b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10Z" fill="var(--m-bug)"/></marker>
+            <marker id="ah-d" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10Z" fill="var(--m-done)"/></marker>
+            <marker id="ah-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10Z" fill="var(--m-ask)"/></marker>
+          </defs>
+          <!-- 간선 -->
+          <path id="e1" d="M222 112 Q300 150 372 186" fill="none" stroke="var(--m-bug)" stroke-width="2" marker-end="url(#ah-b)"/>
+          <path id="e2" d="M460 200 Q560 150 612 120" fill="none" stroke="var(--m-order)" stroke-width="2" marker-end="url(#ah-o)"/>
+          <path id="e3" d="M640 140 Q660 230 618 300" fill="none" stroke="var(--m-order)" stroke-width="2" marker-end="url(#ah-o)"/>
+          <path id="e4" d="M578 318 Q420 380 248 318" fill="none" stroke="var(--m-done)" stroke-width="2.5" marker-end="url(#ah-d)"/>
+          <path id="e5" d="M404 234 Q330 300 250 300" fill="none" stroke="var(--m-order)" stroke-width="1.5" stroke-dasharray="4 4" opacity=".6"/>
+          <path id="e6" d="M378 214 Q250 230 160 236" fill="none" stroke="var(--m-order)" stroke-width="1.5" opacity=".5" marker-end="url(#ah-o)"/>
+          <path id="e7" d="M444 176 Q470 90 430 60" fill="none" stroke="var(--m-ask)" stroke-width="2" marker-end="url(#ah-a)"/>
+          <!-- 움직이는 점: 방금 오간 메시지 -->
+          <circle r="4" fill="var(--m-done)"><animateMotion dur="2.2s" repeatCount="indefinite"><mpath href="#e4"/></animateMotion></circle>
+          <circle r="3.5" fill="var(--m-order)"><animateMotion dur="2.6s" repeatCount="indefinite"><mpath href="#e3"/></animateMotion></circle>
+          <!-- 간선 배지 -->
+          <g font-size="11" font-weight="700" text-anchor="middle">
+            <rect x="286" y="134" width="22" height="16" rx="8" fill="var(--bg)" stroke="var(--m-bug)"/><text x="297" y="146" fill="var(--fg)">1</text>
+            <rect x="540" y="141" width="22" height="16" rx="8" fill="var(--bg)" stroke="var(--m-order)"/><text x="551" y="153" fill="var(--fg)">2</text>
+            <rect x="404" y="350" width="22" height="16" rx="8" fill="var(--bg)" stroke="var(--m-done)"/><text x="415" y="362" fill="var(--fg)">3</text>
+          </g>
+          <!-- 사용자(승인 센터) -->
+          <g transform="translate(420 44)"><rect x="-44" y="-16" width="88" height="32" rx="16" fill="color-mix(in srgb, var(--m-ask) 18%, var(--bg))" stroke="var(--m-ask)"/><text y="5" text-anchor="middle" font-size="12" font-weight="700" fill="var(--fg)">사용자 카드</text></g>
+          <!-- 노드 -->
+          <g font-size="12" font-weight="700" text-anchor="middle">
+            <g transform="translate(416 206)"><circle r="34" fill="color-mix(in srgb, var(--fg) 12%, var(--bg))"/><circle r="38" fill="none" stroke="color-mix(in srgb, var(--fg) 22%, transparent)" stroke-width="2.5"/><text y="5" fill="var(--fg)" font-size="14">PM</text><text y="58" fill="var(--dim)" font-weight="500">WY-pm · 대기</text></g>
+            <g transform="translate(196 96)"><circle r="26" fill="color-mix(in srgb, var(--fg) 12%, var(--bg))"/><circle r="30" fill="none" stroke="color-mix(in srgb, var(--fg) 22%, transparent)" stroke-width="2.5"/><text y="4" fill="var(--fg)">QA</text><text y="48" fill="var(--dim)" font-weight="500">WY-qa</text></g>
+            <g transform="translate(638 108)"><circle r="26" fill="color-mix(in srgb, var(--fg) 12%, var(--bg))"/><circle r="30" fill="none" stroke="color-mix(in srgb, var(--fg) 22%, transparent)" stroke-width="2.5"/><text y="4" fill="var(--fg)">F2</text><text y="48" fill="var(--dim)" font-weight="500">WY-frontend2</text></g>
+            <g transform="translate(604 322)"><circle r="26" fill="color-mix(in srgb, var(--fg) 12%, var(--bg))"/><circle r="30" fill="none" stroke="color-mix(in srgb, var(--s-work) 25%, transparent)" stroke-width="2.5"/><circle class="node-ring-work" r="30" fill="none" stroke="var(--s-work)" stroke-width="2.5" stroke-dasharray="47 141"/><text y="4" fill="var(--fg)">CM</text><text y="48" fill="var(--dim)" font-weight="500">WY-commit</text></g>
+            <g transform="translate(224 312)"><circle r="26" fill="color-mix(in srgb, var(--fg) 12%, var(--bg))"/><circle r="30" fill="none" stroke="color-mix(in srgb, var(--s-work) 25%, transparent)" stroke-width="2.5"/><circle class="node-ring-work" r="30" fill="none" stroke="var(--s-work)" stroke-width="2.5" stroke-dasharray="47 141"/><text y="4" fill="var(--fg)">QA</text><text y="48" fill="var(--dim)" font-weight="500">재검증 중</text></g>
+            <g transform="translate(130 236)"><circle r="26" fill="color-mix(in srgb, var(--fg) 12%, var(--bg))"/><circle class="node-ping" r="30" fill="none" stroke="var(--s-perm)" stroke-width="2"/><circle r="30" fill="none" stroke="var(--s-perm)" stroke-width="2.5"/><text y="4" fill="var(--fg)">B1</text><text y="48" fill="color-mix(in srgb, var(--s-perm) 70%, var(--fg))" font-weight="600">권한 대기</text></g>
+            <g transform="translate(770 250)" opacity=".5"><circle r="22" fill="color-mix(in srgb, var(--fg) 10%, var(--bg))"/><circle r="26" fill="none" stroke="var(--s-stop)" stroke-width="2" stroke-dasharray="4 4"/><text y="4" fill="var(--fg)">DS</text><text y="44" fill="var(--dim)" font-weight="500">멈춤</text></g>
+          </g>
+        </svg>
+        <div class="legend"><span><i style="--c:var(--m-bug)"></i>결함 보고</span><span><i style="--c:var(--m-order)"></i>지시·요청</span><span><i style="--c:var(--m-done)"></i>완료·통과</span><span><i style="--c:var(--m-ask)"></i>사용자 카드</span></div>
+        <div class="pop"><div class="h"><span class="av perm">B1</span>WY-backend1</div><div class="st"><svg width="14" height="14"><use href="#lock"/></svg>권한 확인 6분째</div><div class="last">노드를 누르면 이 세션의 최근 메시지가 펼쳐집니다</div></div>
+      </div>
+    </div>
+    <div class="pc">
+      <div class="good"><h3>좋은 점</h3><ul><li>누가 누구와 주고받는지, 어디가 막혔는지가 한눈에 보입니다.</li><li>움직이는 점으로 ‘지금 오가는 중’이 바로 느껴집니다(패널 시절 감각에 가장 가까움).</li></ul></div>
+      <div class="bad"><h3>아쉬운 점</h3><ul><li>순서가 약합니다. 보고 → 수정 → 재검증의 차례는 숫자 배지로만 보입니다.</li><li>세션이 10개를 넘으면 선이 엉킵니다. 좁은 사이드바에는 맞지 않습니다.</li><li>노드 자리 잡기(배치 계산)를 따로 구현해야 합니다.</li></ul></div>
+    </div>
+  </section>
+
+  <!-- B -->
+  <section class="opt">
+    <h2>B. 스윔레인 — 세션마다 한 줄, 가로가 시간</h2>
+    <div class="win fx vsc-dark">
+      <div class="lanes">
+        <svg viewBox="0 0 860 400" aria-label="세션별 시간 레인">
+          <defs>
+            <pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" fill="transparent"/><line x1="0" y1="0" x2="0" y2="6" stroke="var(--s-stop)" stroke-width="2"/></pattern>
+            <marker id="b-o" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0 10 5 0 10Z" fill="var(--m-order)"/></marker>
+            <marker id="b-b" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0 10 5 0 10Z" fill="var(--m-bug)"/></marker>
+            <marker id="b-d" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0 10 5 0 10Z" fill="var(--m-done)"/></marker>
+            <marker id="b-a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0 10 5 0 10Z" fill="var(--m-ask)"/></marker>
+          </defs>
+          <!-- 시간축 -->
+          <g font-size="11" fill="var(--dim)">
+            <text x="130" y="18">10:00</text><text x="300" y="18">10:10</text><text x="470" y="18">10:20</text><text x="640" y="18">10:30</text>
+            <line x1="130" y1="26" x2="130" y2="380" stroke="var(--line)"/><line x1="300" y1="26" x2="300" y2="380" stroke="var(--line)"/><line x1="470" y1="26" x2="470" y2="380" stroke="var(--line)"/><line x1="640" y1="26" x2="640" y2="380" stroke="var(--line)"/>
+          </g>
+          <!-- 지금 -->
+          <line x1="800" y1="22" x2="800" y2="382" stroke="var(--vscode-focusBorder)" stroke-width="1.5"/>
+          <rect x="781" y="8" width="38" height="16" rx="8" fill="var(--vscode-focusBorder)"/><text x="800" y="20" text-anchor="middle" font-size="10.5" font-weight="700" fill="#fff">지금</text>
+          <!-- 레인 라벨 + 상태 띠 -->
+          <g font-size="12" font-weight="700">
+            <!-- y 중심: 56 106 156 206 256 306 -->
+            <text x="16" y="60" fill="var(--fg)">WY-qa</text>
+            <text x="16" y="110" fill="var(--fg)">WY-pm</text>
+            <text x="16" y="160" fill="var(--fg)">WY-frontend2</text>
+            <text x="16" y="210" fill="var(--fg)">WY-commit</text>
+            <text x="16" y="276" fill="var(--fg)">WY-backend1</text>
+            <text x="16" y="326" fill="var(--fg)" opacity=".55">WY-design</text>
+          </g>
+          <g>
+            <!-- qa: 일함 → 대기 → 일함(재검증, 진행 중) -->
+            <rect x="130" y="50" width="120" height="12" rx="6" fill="color-mix(in srgb, var(--s-work) 45%, transparent)"/>
+            <rect x="250" y="54" width="430" height="4" rx="2" fill="color-mix(in srgb, var(--fg) 15%, transparent)"/>
+            <rect x="680" y="50" width="120" height="12" rx="6" fill="color-mix(in srgb, var(--s-work) 45%, transparent)"/>
+            <rect x="680" y="50" width="120" height="12" rx="6" fill="none" stroke="var(--s-work)"><animate attributeName="opacity" values="1;.3;1" dur="1.6s" repeatCount="indefinite"/></rect>
+            <!-- pm -->
+            <rect x="130" y="104" width="130" height="4" rx="2" fill="color-mix(in srgb, var(--fg) 15%, transparent)"/>
+            <rect x="260" y="100" width="40" height="12" rx="6" fill="color-mix(in srgb, var(--s-work) 45%, transparent)"/>
+            <rect x="300" y="104" width="250" height="4" rx="2" fill="color-mix(in srgb, var(--fg) 15%, transparent)"/>
+            <rect x="550" y="100" width="250" height="12" rx="6" fill="color-mix(in srgb, var(--m-ask) 40%, transparent)"/>
+            <!-- frontend2 -->
+            <rect x="130" y="154" width="180" height="4" rx="2" fill="color-mix(in srgb, var(--fg) 15%, transparent)"/>
+            <rect x="310" y="150" width="220" height="12" rx="6" fill="color-mix(in srgb, var(--s-work) 45%, transparent)"/>
+            <rect x="530" y="154" width="270" height="4" rx="2" fill="color-mix(in srgb, var(--fg) 15%, transparent)"/>
+            <!-- commit -->
+            <rect x="130" y="204" width="410" height="4" rx="2" fill="color-mix(in srgb, var(--fg) 15%, transparent)"/>
+            <rect x="540" y="200" width="130" height="12" rx="6" fill="color-mix(in srgb, var(--s-work) 45%, transparent)"/>
+            <rect x="670" y="204" width="130" height="4" rx="2" fill="color-mix(in srgb, var(--fg) 15%, transparent)"/>
+            <!-- backend1: 일함 → 권한 대기(빨강, 진행 중) -->
+            <rect x="130" y="266" width="560" height="12" rx="6" fill="color-mix(in srgb, var(--s-work) 45%, transparent)"/>
+            <rect x="690" y="266" width="110" height="12" rx="6" fill="color-mix(in srgb, var(--s-perm) 55%, transparent)"><animate attributeName="opacity" values="1;.45;1" dur="1.6s" repeatCount="indefinite"/></rect>
+            <!-- design: 멈춤 -->
+            <rect x="130" y="316" width="670" height="12" rx="6" fill="url(#hatch)" opacity=".6"/>
+          </g>
+          <!-- 묶음(스레드) 테두리: 결함 → 수정 → 통과 -->
+          <rect x="236" y="36" width="560" height="190" rx="12" fill="color-mix(in srgb, var(--m-bug) 5%, transparent)" stroke="color-mix(in srgb, var(--m-bug) 50%, transparent)" stroke-dasharray="5 4"/>
+          <g transform="translate(250 230)"><rect width="246" height="22" rx="11" fill="var(--bg)" stroke="color-mix(in srgb, var(--m-bug) 60%, transparent)"/><text x="12" y="15" font-size="11.5" font-weight="700" fill="var(--fg)">P1-09-09 · 결함 → 수정 → 재검증 중</text></g>
+          <!-- 메시지 화살표 -->
+          <path d="M250 62 C 256 80, 256 86, 260 98" fill="none" stroke="var(--m-bug)" stroke-width="2" marker-end="url(#b-b)"/>
+          <path d="M300 112 C 306 130, 306 136, 310 148" fill="none" stroke="var(--m-order)" stroke-width="2" marker-end="url(#b-o)"/>
+          <path d="M530 162 C 536 180, 536 186, 540 198" fill="none" stroke="var(--m-order)" stroke-width="2" marker-end="url(#b-o)"/>
+          <path d="M670 200 C 674 120, 676 90, 680 64" fill="none" stroke="var(--m-done)" stroke-width="2" marker-end="url(#b-d)"/>
+          <path d="M550 100 C 552 80, 552 44, 556 30" fill="none" stroke="var(--m-ask)" stroke-width="2" marker-end="url(#b-a)"/>
+          <!-- 아이콘 점 -->
+          <g>
+            <circle cx="250" cy="56" r="9" fill="var(--bg)" stroke="var(--m-bug)" stroke-width="1.5"/><use href="#bug" x="244" y="50" width="12" height="12" style="color:var(--m-bug)"/>
+            <circle cx="530" cy="156" r="9" fill="var(--bg)" stroke="var(--m-done)" stroke-width="1.5"/><use href="#wrench" x="524" y="150" width="12" height="12" style="color:var(--m-done)"/>
+            <circle cx="670" cy="206" r="9" fill="var(--bg)" stroke="var(--m-done)" stroke-width="1.5"/><use href="#commit" x="664" y="200" width="12" height="12" style="color:var(--m-done)"/>
+            <circle cx="690" cy="272" r="9" fill="var(--bg)" stroke="var(--s-perm)" stroke-width="1.5"/><use href="#lock" x="684" y="266" width="12" height="12" style="color:var(--s-perm)"/>
+          </g>
+          <text x="560" y="40" font-size="11" font-weight="600" fill="color-mix(in srgb, var(--m-ask) 70%, var(--fg))">→ 사용자 카드</text>
+          <!-- 범례 -->
+          <g font-size="11" fill="var(--dim)" transform="translate(130 372)">
+            <rect y="-8" width="18" height="8" rx="4" fill="color-mix(in srgb, var(--s-work) 45%, transparent)"/><text x="24" y="0">일하는 중</text>
+            <rect x="96" y="-6" width="18" height="4" rx="2" fill="color-mix(in srgb, var(--fg) 15%, transparent)"/><text x="120" y="0">대기</text>
+            <rect x="170" y="-8" width="18" height="8" rx="4" fill="color-mix(in srgb, var(--s-perm) 55%, transparent)"/><text x="194" y="0">권한 대기</text>
+            <rect x="266" y="-8" width="18" height="8" rx="4" fill="color-mix(in srgb, var(--m-ask) 40%, transparent)"/><text x="290" y="0">사용자 기다림</text>
+            <rect x="380" y="-8" width="18" height="8" rx="4" fill="url(#hatch)"/><text x="404" y="0">멈춤</text>
+          </g>
+        </svg>
+      </div>
+    </div>
+    <div class="pc">
+      <div class="good"><h3>좋은 점</h3><ul><li>시간, 순서, 동시 진행, 상태 이력이 모두 보입니다. ‘언제부터 막혔나’가 띠 길이로 읽힙니다.</li><li>결함 → 수정 → 재검증 묶음을 점선 테두리 하나로 감쌀 수 있습니다.</li></ul></div>
+      <div class="bad"><h3>아쉬운 점</h3><ul><li>가로 폭이 필요합니다. 사이드바에서는 세로로 돌리거나 다른 보기가 필요합니다.</li><li>메시지가 몰리면 화살표가 촘촘해집니다(확대·축소 필요).</li><li>구현이 가장 무겁습니다(시간축 스케일, 겹침 처리).</li></ul></div>
+    </div>
+  </section>
+
+  <!-- C -->
+  <section class="opt">
+    <h2>C. 세션 칩 줄 + 이야기 묶음 — 묶음마다 단계 사슬</h2>
+    <div class="win fx vsc-dark" style="max-width:560px">
+      <div class="strip" aria-label="세션 상태">
+        <span class="sc perm"><span class="av perm">B1</span><span><span class="nm">backend1</span><br><span class="ac">권한 대기 6분</span></span></span>
+        <span class="sc"><span class="av work">QA</span><span><span class="nm">qa</span><br><span class="ac">재검증 중</span></span></span>
+        <span class="sc"><span class="av work">CM</span><span><span class="nm">commit</span><br><span class="ac">커밋 중</span></span></span>
+        <span class="sc"><span class="av idle">PM</span><span><span class="nm">pm</span><br><span class="ac">카드 기다림</span></span></span>
+        <span class="sc"><span class="av idle">F2</span><span><span class="nm">frontend2</span><br><span class="ac">대기</span></span></span>
+        <span class="sc"><span class="av stop">DS</span><span><span class="nm">design</span><br><span class="ac">멈춤</span></span></span>
+      </div>
+      <div class="threads">
+        <article class="th">
+          <div class="th-h"><svg width="16" height="16" style="color:var(--m-bug)"><use href="#bug"/></svg><span class="t">P1-09-09 팝오버 입력 손실</span><span class="pill" style="--c:var(--s-work)"><svg width="12" height="12"><use href="#loop"/></svg>재검증 중</span><span class="tm">38분</span></div>
+          <div class="chain">
+            <div class="st-node" style="--c:var(--m-bug)"><span class="ic"><svg><use href="#bug"/></svg></span><span class="who">QA</span></div>
+            <span class="link done"></span>
+            <div class="st-node" style="--c:var(--m-order)"><span class="ic"><svg><use href="#send"/></svg></span><span class="who">PM</span></div>
+            <span class="link done"></span>
+            <div class="st-node" style="--c:var(--m-done)"><span class="ic"><svg><use href="#wrench"/></svg></span><span class="who">F2</span></div>
+            <span class="link done"></span>
+            <div class="st-node" style="--c:var(--m-done)"><span class="ic"><svg><use href="#commit"/></svg></span><span class="who">CM</span></div>
+            <span class="link flow"></span>
+            <div class="st-node now" style="--c:var(--s-work)"><span class="ic"><svg><use href="#loop"/></svg></span><span class="who">QA</span></div>
+            <span class="link"></span>
+            <div class="st-node todo"><span class="ic"><svg><use href="#check"/></svg></span><span class="who">통과</span></div>
+          </div>
+          <ul class="msgs">
+            <li><span class="av mini idle">QA</span><span class="ar">→ PM</span><span class="tx">@·# 입력이 제목에서 사라짐, 재현 3단계</span></li>
+            <li><span class="av mini idle">PM</span><span class="ar">→ F2</span><span class="tx">결함 배정, 회귀 테스트 포함</span></li>
+            <li><span class="av mini idle">F2</span><span class="ar">→ CM</span><span class="tx">커밋 요청 · vitest 412 통과</span></li>
+          </ul>
+          <div class="more"><svg width="12" height="12" style="transform:rotate(180deg)"><use href="#chev"/></svg>접기 · 메시지 6개</div>
+        </article>
+        <article class="th">
+          <div class="th-h"><svg width="16" height="16" style="color:var(--s-perm)"><use href="#lock"/></svg><span class="t">P1-12 인증 통합 테스트</span><span class="pill" style="--c:var(--s-perm)">권한 대기</span><span class="tm">6분</span></div>
+          <div class="chain">
+            <div class="st-node" style="--c:var(--m-order)"><span class="ic"><svg><use href="#send"/></svg></span><span class="who">PM</span></div>
+            <span class="link done"></span>
+            <div class="st-node" style="--c:var(--m-done)"><span class="ic"><svg><use href="#wrench"/></svg></span><span class="who">B1</span></div>
+            <span class="link"></span>
+            <div class="st-node now" style="--c:var(--s-perm)"><span class="ic"><svg><use href="#lock"/></svg></span><span class="who">나</span></div>
+            <span class="link"></span>
+            <div class="st-node todo"><span class="ic"><svg><use href="#play"/></svg></span><span class="who">실행</span></div>
+            <span class="link"></span>
+            <div class="st-node todo"><span class="ic"><svg><use href="#commit"/></svg></span><span class="who">커밋</span></div>
+          </div>
+          <div class="more"><svg width="12" height="12"><use href="#chev"/></svg>펼치기 · 메시지 3개 · <b style="color:var(--fg)">카드 열기</b></div>
+        </article>
+        <article class="th">
+          <div class="th-h"><svg width="16" height="16" style="color:var(--m-ask)"><use href="#inbox"/></svg><span class="t">P2 시작 범위</span><span class="pill" style="--c:var(--m-ask)">내 차례</span><span class="tm">38분</span></div>
+          <div class="chain">
+            <div class="st-node" style="--c:var(--m-order)"><span class="ic"><svg><use href="#send"/></svg></span><span class="who">PM</span></div>
+            <span class="link"></span>
+            <div class="st-node now" style="--c:var(--m-ask)"><span class="ic"><svg><use href="#inbox"/></svg></span><span class="who">나</span></div>
+            <span class="link"></span>
+            <div class="st-node todo"><span class="ic"><svg><use href="#check"/></svg></span><span class="who">기록</span></div>
+          </div>
+        </article>
+      </div>
+    </div>
+    <div class="pc">
+      <div class="good"><h3>좋은 점</h3><ul><li>보고 → 수정 → 재검증이 아이콘 사슬로 가장 분명하게 읽힙니다. 글은 접혀 있습니다.</li><li>340px 사이드바에서도 그대로 됩니다. 받은 편지함 카드와 같은 부품(아바타, 상태 칩, 단계 사슬)을 씁니다.</li><li>구현이 가장 가볍습니다.</li></ul></div>
+      <div class="bad"><h3>아쉬운 점</h3><ul><li>세션 사이 관계 전체(누가 누구와 많이 주고받나)는 A보다 덜 보입니다.</li><li>메시지를 묶음으로 나누는 규칙(작업 ID, 결함 ID 기준)이 필요합니다.</li></ul></div>
+    </div>
+  </section>
+
+  <div class="pick">
+    <h2>추천: C를 기본으로, 넓은 편집기 탭에서는 B를 ‘시간 보기’로 추가</h2>
+    <p>C는 두 폭 모두에서 되고, 사용자 요구(오류 → 수정 → 재검증이 이어져 보임, 글은 접힘)에 가장 직접 답합니다. 맨 위 세션 칩 줄이 ‘지금 누가 무엇을 하나’를 맡습니다. B는 ‘언제부터 막혔나’, ‘동시에 무엇이 돌았나’를 볼 때 쓰는 두 번째 보기로 두고, A는 세션 수가 늘면 엉키므로 뺍니다. 묶음 기준은 메시지 속 작업 ID(P1-09-09 같은)와 SendMessage 응답 관계로 잡는 안을 제안합니다.</p>
+  </div>
+</div>
+</body>
+</html>
