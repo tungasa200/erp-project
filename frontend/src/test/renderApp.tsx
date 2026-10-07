@@ -51,6 +51,7 @@ const EMPTY_LISTS = [
   'GET /api/worklog/tasks/frequent',
   'GET /api/worklog/schedules',
   'GET /api/worklog/records/pending',
+  'GET /api/worklog/records',
 ]
 
 export function stubFetch(handlers: Record<string, Handler>) {
@@ -63,6 +64,8 @@ export function stubFetch(handlers: Record<string, Handler>) {
     // 업무를 완료하면 결과 팝오버(SCR-TASK-03)가 닫힐 때 기록을 만든다. 등록하지 않았으면 만든 것으로 답한다
     if (key === 'POST /api/worklog/records') return json(201, { id: 'r-auto', status: 'CONFIRMED' })
     if (key === 'POST /api/auth/refresh') return problem(401, 'REFRESH_INVALID')
+    // 시간 기록 옵션(useTimeTracking)을 읽는 화면(홈 ③ 등). 등록하지 않았으면 꺼짐으로 답한다
+    if (key === 'GET /api/worklog/me') return json(200, { userId: 'u-1', settings: { timeTrackingEnabled: false } })
     return problem(401, 'UNAUTHENTICATED')
   })
   vi.stubGlobal('fetch', fetchMock)

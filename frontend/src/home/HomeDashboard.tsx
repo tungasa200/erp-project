@@ -1,5 +1,5 @@
 // SCR-HOME-01 홈 대시보드 (P1-11): ② 요약 카드 · ④ 남은 업무 · ⑥ 다가오는 일정.
-// 확인 대기(P2-03): 요약 카드와 2건 이상일 때 띠, 누르면 SCR-HOME-02 패널. ③ 오늘 일정(P2)과 ⑤⑦ 일지(P3)는 아직 없다.
+// 확인 대기(P2-03): 요약 카드와 2건 이상일 때 띠, 누르면 SCR-HOME-02 패널. ③ 오늘 일정(P2-08)은 TodayTimeline, ⑤⑦ 일지(P3)는 아직 없다.
 // 다가오는 일정은 오늘 남은 일정부터 7일 뒤까지 보여 준다(pm 승인 가정).
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link } from 'react-router'
@@ -21,6 +21,7 @@ import { isCompletionResultFocused } from '../tasks/completionResultContext'
 import { useCompleteTask } from '../tasks/useCompleteTask'
 import { DEFAULT_STATUSES, dueLabel, dueState, groupTasks } from '../tasks/view'
 import styles from './home.module.css'
+import { TodayTimeline } from './TodayTimeline'
 
 const UPCOMING_DAYS = 7
 const UPCOMING_LIMIT = 8
@@ -126,6 +127,17 @@ export function HomeDashboard({ empty }: { empty: ReactNode }) {
         </button>
       )}
       {pendingOpen && <PendingPanel today={today} timeZone={timeZone} onClose={closePending} />}
+
+      <TodayTimeline
+        occurrences={todayList}
+        loading={occurrences.isPending}
+        failed={occurrences.isError}
+        onRetry={() => void occurrences.refetch()}
+        today={today}
+        timeZone={timeZone}
+        now={now}
+        onOpenPending={openPending}
+      />
 
       <div className={styles.columns}>
         {noTasks ? (

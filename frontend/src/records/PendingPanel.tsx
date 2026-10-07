@@ -1,10 +1,8 @@
 // SCR-HOME-02 확인 대기 목록 (REC-03, P2-03). 홈의 요약 카드·띠에서 연다(하루 마감 1단계도 재사용 예정).
-// ① 날짜별 목록(일정명·계획 시간·연결 업무) ② 항목별 했어요/안 했어요 ③ 모두 했어요.
-// "수정"은 SCR-REC-01을 만들 때 붙인다(pm 결정 2026-10-07). 확인은 반드시 사람이 한다: 모두 했어요는 화면에 보인 id만 보낸다.
+// ① 날짜별 목록(일정명·계획 시간·연결 업무) ② 항목별 했어요/수정/안 했어요 ③ 모두 했어요.
+// 수정은 SCR-REC-01(RecordDialog)을 연다: 저장하면 고친 칸과 했어요가 한 요청으로 간다. 확인은 반드시 사람이 한다: 모두 했어요는 화면에 보인 id만 보낸다.
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
-import { toastForError } from '../api/errorToast'
-import { ApiError } from '../api/problem'
 import { formatMinutes, toZoned } from '../calendar/time'
 import { Skeleton } from '../components/Skeleton'
 import { useOnline } from '../components/useOnline'
@@ -13,6 +11,8 @@ import { addDays, shortDate } from '../quickInput/dates'
 import { useTask } from '../tasks/api'
 import { PENDING_QUERY_KEY, pendingApi, usePendingRecords, type PendingRecord } from './pending'
 import styles from './PendingPanel.module.css'
+import { RecordDialog } from './RecordDialog'
+import { usePendingDecision, type Decision } from './usePendingDecision'
 
 interface Props {
   today: string
@@ -21,14 +21,14 @@ interface Props {
   onClose: (emptied: boolean) => void
 }
 
-type Done = { id: string; version: number }
 const NONE: PendingRecord[] = []
 const CONFIRM_LIMIT = 200
 
 export function PendingPanel({ today, timeZone, onClose }: Props) {
   const pending = usePendingRecords()
   const queryClient = useQueryClient()
-  const { showToast, showUndo } = useToast()
+  const { showUndo } = useToast()
+  const { decide: decideStatus, undoAll, fail, refresh } = usePendingDecision()
   const online = useOnline()
   const [busy, setBusy] = useState<Set<string>>(() => new Set())
   const items = pending.data ?? NONE
@@ -54,26 +54,6 @@ export function PendingPanel({ today, timeZone, onClose }: Props) {
     queryClient.setQueryData<{ items: PendingRecord[] }>(PENDING_QUERY_KEY, (old) =>
       old ? { items: old.items.filter((x) => !ids.includes(x.id)) } : old,
     )
-  const refresh = () => void queryClient.invalidateQueries({ queryKey: ['records'] })
-
-  const fail = (error: unknown) => {
-    if (error instanceof ApiError && (error.code === 'VERSION_CONFLICT' || error.status === 404)) {
-      refresh()
-      showToast('다른 곳에서 먼저 바뀌어서 새로 불러왔어요')
-      return
-    }
-    const { message, traceId } = toastForError(error)
-    showToast(message, { traceId })
-  }
-
-  const undoAll = (done: Done[]) => async () => {
-    try {
-      await Promise.all(done.map((d) => pendingApi.setStatus(d.id, 'PENDING', d.version)))
-    } catch (error) {
-      fail(error)
-    }
-    refresh()
-  }
 
   const nextAfter = (ids: string[]) => {
     const index = items.findIndex((x) => ids.includes(x.id))
@@ -81,21 +61,14 @@ export function PendingPanel({ today, timeZone, onClose }: Props) {
     return (rest[index] ?? rest[index - 1])?.id ?? null
   }
 
-  const decide = async (record: PendingRecord, status: 'CONFIRMED' | 'DISMISSED') => {
+  const decide = async (record: PendingRecord, status: Decision) => {
     if (busy.has(record.id)) return
     setBusy((s) => new Set(s).add(record.id))
     try {
-      const saved = await pendingApi.setStatus(record.id, status, record.version)
-      focusAfter.current = { gone: [record.id], next: nextAfter([record.id]) }
-      removeFromList([record.id])
-      showUndo({
-        group: `pending-${status}`,
-        message: (n) => (status === 'CONFIRMED' ? `${n}건을 했어요로 기록했어요` : `${n}건을 안 했어요로 표시했어요`),
-        undo: undoAll([{ id: saved.id, version: saved.version }]),
+      await decideStatus(record, status, () => {
+        focusAfter.current = { gone: [record.id], next: nextAfter([record.id]) }
+        removeFromList([record.id])
       })
-      refresh()
-    } catch (error) {
-      fail(error)
     } finally {
       setBusy((s) => {
         const copy = new Set(s)
@@ -132,6 +105,17 @@ export function PendingPanel({ today, timeZone, onClose }: Props) {
     } finally {
       setConfirmingAll(false)
     }
+  }
+
+  // 수정(SCR-REC-01). 저장하면 그 행이 빠지므로 했어요와 같게 다음 행으로 포커스를 예약한다
+  const [editing, setEditing] = useState<string | null>(null)
+  const closeEditor = (changed: boolean) => {
+    const id = editing
+    setEditing(null)
+    if (!changed || !id) return
+    focusAfter.current = { gone: [id], next: nextAfter([id]) }
+    removeFromList([id])
+    refresh()
   }
 
   const groups = groupByDate(items)
@@ -192,6 +176,7 @@ export function PendingPanel({ today, timeZone, onClose }: Props) {
                     timeZone={timeZone}
                     disabled={!online || busy.has(record.id) || confirmingAll}
                     onDecide={(status) => void decide(record, status)}
+                    onEdit={() => setEditing(record.id)}
                   />
                 ))}
               </ul>
@@ -213,6 +198,8 @@ export function PendingPanel({ today, timeZone, onClose }: Props) {
           </div>
         )}
       </div>
+      {/* 시트 밖(겹침 판 안)에 둔다: 시트의 여는 움직임(transform)이 고정 위치 모달을 가두지 않게 */}
+      {editing && <RecordDialog recordId={editing} onClose={closeEditor} />}
     </div>
   )
 }
@@ -221,9 +208,10 @@ function PendingRow(props: {
   record: PendingRecord
   timeZone: string
   disabled: boolean
-  onDecide: (status: 'CONFIRMED' | 'DISMISSED') => void
+  onDecide: (status: Decision) => void
+  onEdit: () => void
 }) {
-  const { record, timeZone, disabled, onDecide } = props
+  const { record, timeZone, disabled, onDecide, onEdit } = props
   const task = useTask(record.taskId ?? undefined)
   const name = record.plan.title
   return (
@@ -252,6 +240,16 @@ function PendingRow(props: {
           onClick={() => onDecide('CONFIRMED')}
         >
           했어요
+        </button>
+        <button
+          type="button"
+          className={styles.no}
+          aria-label={`${name} 수정`}
+          aria-haspopup="dialog"
+          disabled={disabled}
+          onClick={onEdit}
+        >
+          수정
         </button>
         <button
           type="button"

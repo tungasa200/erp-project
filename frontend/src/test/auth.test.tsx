@@ -323,6 +323,8 @@ describe('세션', () => {
     stubFetch({
       // 첫 조회는 로그인 상태, 이후 access 만료 + refresh 실패
       'GET /api/users/me': () => (meCalls++ === 0 ? json(200, ME) : problem(401, 'UNAUTHENTICATED')),
+      // renderApp 기본 /me(200)가 끼면 만료가 아니게 되므로 이 시나리오에서는 함께 만료
+      'GET /api/worklog/me': () => problem(401, 'UNAUTHENTICATED'),
     })
     const { router } = renderApp('/', probeRoutes)
     const user = userEvent.setup()

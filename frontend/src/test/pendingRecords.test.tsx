@@ -61,6 +61,12 @@ function server(options: { pending?: PendingRecord[]; hold?: boolean; patchFails
       if (options.hold) return new Promise<Response>(() => {})
       return json(200, { items: pending })
     }
+    const one = /^\/api\/worklog\/records\/([a-z])$/.exec(url)
+    if (method === 'GET' && one)
+      return json(
+        200,
+        PENDING.find((x) => x.id === one[1]),
+      )
     if (method === 'POST' && url === '/api/worklog/records/pending/confirm') {
       const ids = (body as { ids: string[] }).ids
       const done = pending.filter((x) => ids.includes(x.id)).map((x) => ({ ...x, status: 'CONFIRMED', version: 1 }))
@@ -134,6 +140,26 @@ describe('SCR-HOME-02 확인 대기 목록', () => {
         body: { status: 'PENDING', version: 1 },
       }),
     )
+  })
+
+  it('수정은 기록 모달을 열고, 저장하면 고친 칸과 했어요를 한 요청으로 보내 행이 빠지고 포커스는 다음 행으로 간다', async () => {
+    const { calls } = server()
+    renderApp('/')
+    const panel = await openPanel()
+    await userEvent.click(within(panel).getByRole('button', { name: '데일리 스탠드업 수정' }))
+    const dialog = await screen.findByRole('dialog', { name: '확인 대기 수정' })
+    const result = await within(dialog).findByLabelText('결과 한 줄')
+    await userEvent.type(result, '공유 완료')
+    await userEvent.click(within(dialog).getByRole('button', { name: '저장' }))
+
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: '확인 대기 수정' })).not.toBeInTheDocument())
+    expect(calls).toContainEqual({
+      method: 'PATCH',
+      url: '/api/worklog/records/a',
+      body: expect.objectContaining({ status: 'CONFIRMED', result: '공유 완료', version: 0 }),
+    })
+    await waitFor(() => expect(within(panel).queryByText('데일리 스탠드업')).not.toBeInTheDocument())
+    await waitFor(() => expect(within(panel).getByRole('button', { name: '워크숍 했어요' })).toHaveFocus())
   })
 
   it('안 했어요는 PATCH DISMISSED', async () => {

@@ -1,0 +1,367 @@
+/* SCR-HOME-01 ③ 오늘 일정 (P2-08). 기록 상태 색은 화면정의서 2.3: 계획·확정은 프로젝트 색, 확인 대기 노랑, 하지 않음 회색 */
+.panel {
+  margin-bottom: 18px;
+}
+
+.dayLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--size-touch);
+  padding: 0 10px;
+  border-radius: 12px;
+  color: var(--color-accent-ink);
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.dayLink:hover {
+  background: var(--color-accent-faint);
+}
+
+/* ── 옵션 꺼짐: 목록 ── */
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  --plan-base: var(--color-accent);
+  --plan-tint: var(--color-accent-softer);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  min-height: var(--size-touch);
+  box-sizing: border-box;
+  padding: 8px 12px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: var(--plan-tint);
+  color: var(--color-text);
+}
+
+.rowNow {
+  box-shadow: inset 0 0 0 2px var(--plan-base);
+}
+
+.rowDone {
+  background: var(--plan-tint);
+}
+
+.rowPending {
+  border-color: var(--status-pending-border);
+  background: var(--status-pending-card-bg);
+  color: var(--status-pending-text);
+}
+
+.rowSkipped {
+  border-color: var(--color-divider);
+  background: var(--status-skipped-bg);
+  color: var(--status-skipped-text);
+}
+
+.rowSkipped .title {
+  text-decoration: line-through;
+}
+
+.time {
+  flex: none;
+  min-width: 104px;
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: inherit;
+  opacity: 0.85;
+}
+
+.title {
+  flex: 1 1 140px;
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.state {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.tagNow,
+.tagDone,
+.tagSkipped,
+.tagPending,
+.tagMuted {
+  padding: 3px 9px;
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.tagNow {
+  background: var(--plan-base);
+  color: var(--color-on-accent);
+}
+
+.tagDone {
+  background: var(--color-surface);
+  color: var(--color-success-text);
+}
+
+.tagSkipped {
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+}
+
+.tagPending {
+  background: var(--status-pending-tag-bg);
+  color: var(--status-pending-tag-text);
+}
+
+.tagMuted {
+  color: var(--color-text-muted);
+}
+
+.yes,
+.no {
+  min-height: var(--size-touch);
+  padding: 0 12px;
+  border-radius: 12px;
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.yes {
+  border: 0;
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+.yes:not(:disabled):hover {
+  background: var(--color-accent-ink);
+}
+
+.no {
+  border: 1px solid var(--status-pending-card-border);
+  background: var(--color-surface);
+  color: var(--status-pending-text);
+}
+
+.yes:disabled,
+.no:disabled {
+  border-color: var(--color-disabled);
+  background: var(--color-disabled);
+  color: var(--color-surface);
+  cursor: not-allowed;
+}
+
+.nowLine {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 18px;
+}
+
+.nowLine::before {
+  content: '';
+  position: absolute;
+  inset: 50% 0 auto;
+  border-top: 2px solid var(--color-danger);
+}
+
+.nowLabel {
+  position: relative;
+  padding: 1px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--color-danger);
+  color: var(--color-surface);
+  font-size: 11.5px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── 옵션 켜짐: 계획/실제 두 열 ── */
+.grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.allDay {
+  margin: 0;
+  overflow: hidden;
+  font-size: 13.5px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.allDayLabel {
+  margin-right: 8px;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--color-ground);
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.gridHead,
+.gridBody {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) minmax(0, 1fr);
+  column-gap: 8px;
+}
+
+.gridHead {
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--color-text-muted);
+}
+
+.gridBody {
+  position: relative;
+}
+
+.hours {
+  position: relative;
+}
+
+.hour {
+  position: absolute;
+  right: 0;
+  transform: translateY(-50%);
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.track {
+  position: relative;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-radius: 10px;
+  background: repeating-linear-gradient(to bottom, var(--color-divider) 0 1px, transparent 1px 48px);
+}
+
+.block {
+  --plan-base: var(--color-accent);
+  --plan-tint: var(--color-accent-softer);
+  position: absolute;
+  box-sizing: border-box;
+  overflow: hidden;
+  border: 1px solid var(--plan-base);
+  border-radius: 8px;
+  background: var(--plan-tint);
+  color: var(--color-text);
+}
+
+/* .block이 뒤에 있어 상태 색을 다시 얹는다 */
+.block.rowPending {
+  border-color: var(--status-pending-border);
+  background: var(--status-pending-card-bg);
+  color: var(--status-pending-text);
+}
+
+.block.rowSkipped {
+  border-color: var(--color-divider);
+  background: var(--status-skipped-bg);
+  color: var(--status-skipped-text);
+}
+
+.actual {
+  background: var(--plan-base);
+  color: var(--color-on-accent);
+}
+
+.blockInner,
+.blockButton {
+  /* 한 줄에 제목·상태. 좁으면 상태가 아랫줄로 가고, 30분 블록에서는 잘린다(제목이 먼저 보이게) */
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  align-items: baseline;
+  gap: 0 6px;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 3px 6px;
+  font-size: 12.5px;
+  text-align: left;
+}
+
+.blockButton {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.blockButton:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+}
+
+.blockTitle {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.blockTag {
+  font-size: 11px;
+  font-weight: 800;
+  opacity: 0.85;
+}
+
+.noActual {
+  position: absolute;
+  top: 6px;
+  right: 0;
+  width: calc((100% - 64px) / 2);
+  margin: 0;
+  padding: 0 6px;
+  box-sizing: border-box;
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+}
+
+.gridNow {
+  position: absolute;
+  left: 48px;
+  right: 0;
+  display: flex;
+  align-items: center;
+  border-top: 2px solid var(--color-danger);
+  pointer-events: none;
+}
+
+.gridNow .nowLabel {
+  transform: translateY(-50%);
+}

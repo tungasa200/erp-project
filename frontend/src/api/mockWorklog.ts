@@ -1,7 +1,8 @@
 // 개발용 가짜 worklog 서버 (contracts/worklog.yaml의 프로젝트·태그·업무). mockServer가 로그인 확인 뒤 여기로 넘긴다.
 // 목업 SET-08·TASK-01과 같은 예시 데이터로 시작하고, 고친 내용은 localStorage에 남는다.
 // 예전 저장본에 tasks가 없으면 예시 업무를 채워 넣는다.
-import { scheduledTaskIds } from '../calendar/mockSchedules'
+import type { Occurrence } from '../calendar/api'
+import { handleScheduleMock, scheduledTaskIds } from '../calendar/mockSchedules'
 import type { Project, Tag } from '../projects/api'
 import type { WorkRecord } from '../records/api'
 import type { PendingRecord } from '../records/pending'
@@ -80,6 +81,66 @@ function seedPending(state: WorklogState, records: MockRecord[]) {
       },
     })
   })
+}
+
+/** 끝난 회차(최근 7일)마다 확인 대기 기록을 만든다 — 서버가 조회 때 하는 일(D-100). 회차는 mock 캘린더에서 읽고, plan은 회차의 지금 값 */
+function syncPlanRecords(state: WorklogState, records: MockRecord[]) {
+  const nowMs = Date.now()
+  const from = new Date(`${shiftDate(seoulToday(), -6)}T00:00:00+09:00`).toISOString()
+  let occurrences: Occurrence[] = []
+  handleScheduleMock(
+    'GET',
+    `/api/worklog/schedules?from=${from}&to=${new Date(nowMs).toISOString()}`,
+    {},
+    {
+      json: (_status, body) => {
+        occurrences = (body as { items: Occurrence[] }).items
+        return new Response(null)
+      },
+      problem: () => new Response(null),
+    },
+  )
+  for (const o of occurrences) {
+    const end = o.allDay ? Date.parse(`${shiftDate(o.endDate!, 1)}T00:00:00+09:00`) : Date.parse(o.endAt!)
+    if (end > nowMs) continue
+    const plan = {
+      title: o.title,
+      allDay: o.allDay,
+      startAt: o.startAt ?? undefined,
+      endAt: o.endAt ?? undefined,
+      startDate: o.startDate ?? undefined,
+      endDate: o.endDate ?? undefined,
+    }
+    const key = Date.parse(o.occurrenceStart)
+    const existing = records.find((r) => r.scheduleId === o.scheduleId && Date.parse(r.occurrenceStart ?? '') === key)
+    if (existing) {
+      existing.plan = plan
+      continue
+    }
+    const task = state.tasks.find((t) => t.id === o.taskId)
+    records.push({
+      id: id(),
+      status: 'PENDING',
+      workDate: o.allDay ? o.startDate! : seoulDate(o.startAt!),
+      content: o.title,
+      taskId: o.taskId ?? null,
+      projectId: task?.projectId ?? null,
+      tagIds: task?.tagIds ?? [],
+      scheduleId: o.scheduleId,
+      occurrenceStart: o.occurrenceStart,
+      result: null,
+      outcome: null,
+      progress: null,
+      startAt: null,
+      endAt: null,
+      durationMin: null,
+      deletedAt: null,
+      createdAt: now(),
+      updatedAt: now(),
+      version: 0,
+      plan,
+    })
+  }
 }
 
 const now = () => new Date().toISOString()
@@ -530,6 +591,7 @@ function handleRecords(
     x.status === 'PENDING' && !x.deletedAt && x.plan && x.workDate >= shiftDate(seoulToday(), -6)
   if (method === 'GET' && path === '/api/worklog/records/pending') {
     seedPending(state, records)
+    syncPlanRecords(state, records)
     save(state)
     const items = records
       .filter(recent)
@@ -548,12 +610,16 @@ function handleRecords(
     return r.json(200, { items: done })
   }
   if (method === 'GET' && path === '/api/worklog/records') {
+    syncPlanRecords(state, records)
+    save(state)
     const q = new URLSearchParams(url.split('?')[1] ?? '')
     const from = q.get('from') ?? ''
     const to = q.get('to') ?? ''
     const taskId = q.get('taskId')
+    const statuses = q.getAll('status').flatMap((v) => v.split(','))
     const items = records
       .filter((x) => !x.deletedAt && x.workDate >= from && x.workDate <= to && (!taskId || x.taskId === taskId))
+      .filter((x) => statuses.length === 0 || statuses.includes(x.status))
       .sort((a, b) => a.workDate.localeCompare(b.workDate) || a.id.localeCompare(b.id))
     return r.json(200, { items })
   }
