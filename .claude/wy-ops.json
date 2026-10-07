@@ -1,5 +1,6 @@
 {
   "schema": 1,
+  "secretsDir": "../worklog-secret",
   "project": "erp-project",
   "product": "WY",
   "rolePrefix": "WY-",
