@@ -99,7 +99,9 @@ try {
     const pc = makePc('ok');
     const before = snapshot(pc.root);
     const results = doctor.checkAll(pc.opts);
-    const bad = results.filter((r) => r.level !== 'ok');
+    // 임시 폴더(TEMP) 자체에 공백·한글이 있으면 doctor가 의도대로 '경로 주의'를 띄운다 — 그때만 그 한 줄은 허용
+    const oddTemp = /\s|[^\x00-\x7f]/.test(base);
+    const bad = results.filter((r) => r.level !== 'ok' && !(oddTemp && r.id === 'paths-warn' && r.level === 'warn'));
     assert.deepStrictEqual(bad, [], '모두 통과');
     assert.strictEqual(snapshot(pc.root), before, '어떤 파일도 쓰지 않음');
     assert.ok(results.every((r) => r.id && r.title && r.detail !== undefined && 'fix' in r), '결과 형식');
