@@ -2,6 +2,7 @@
 // 탭은 만든 화면만 둔다. 기록 옵션·테마·알림·계정은 해당 단계에서 더한다.
 import { useState } from 'react'
 import { Link, Navigate, NavLink, Outlet, useMatch } from 'react-router'
+import { useOnline } from '../components/useOnline'
 import styles from './settings.module.css'
 
 const TABS = [
@@ -18,6 +19,7 @@ function isMobile(): boolean {
 
 export function SettingsLayout() {
   const atIndex = useMatch('/settings') !== null
+  const online = useOnline()
 
   return (
     <div className={atIndex ? `${styles.layout} ${styles.atIndex}` : styles.layout}>
@@ -41,7 +43,10 @@ export function SettingsLayout() {
           <Link to="/settings" className={styles.back}>
             ‹ 설정
           </Link>
-          <Outlet />
+          {/* 설정 화면은 모두 편집이라 끊긴 동안 통째로 막는다(SCR-SYS-02 ③). 탭 이동은 그대로 */}
+          <fieldset className={styles.guard} disabled={!online}>
+            <Outlet />
+          </fieldset>
         </div>
       </div>
     </div>

@@ -230,3 +230,14 @@ describe('SCR-SET-02 일반', () => {
     expect(screen.queryByRole('textbox', { name: '빠른 기록' })).not.toBeInTheDocument()
   })
 })
+
+describe('오프라인 (SCR-SYS-02 ③, P1-X-04)', () => {
+  it('끊긴 동안 설정 입력은 막고, 탭 이동은 된다', async () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    fakeServer()
+    const { router } = renderApp('/settings/profile')
+    expect(await screen.findByRole('textbox', { name: '이름' })).toBeDisabled()
+    await userEvent.click(screen.getByRole('link', { name: /일반/ }))
+    expect(router.state.location.pathname).toBe('/settings/general')
+  })
+})

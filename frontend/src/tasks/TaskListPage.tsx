@@ -7,6 +7,7 @@ import { toastForError } from '../api/errorToast'
 import { ApiError } from '../api/problem'
 import { useAuth } from '../auth/useAuth'
 import { Skeleton } from '../components/Skeleton'
+import { useOnline } from '../components/useOnline'
 import { useToast } from '../components/useToast'
 import { useProjects, useTags, type Project } from '../projects/api'
 import { projectColor } from '../projects/palette'
@@ -48,6 +49,7 @@ export function TaskListPage() {
   const weekStart = weekStartNumber(user?.weekStart)
   const [quickText, setQuickText] = useState('')
   const quickSave = useQuickSave()
+  const online = useOnline()
 
   const projects = useProjects()
   const tags = useTags()
@@ -130,7 +132,10 @@ export function TaskListPage() {
           </h1>
         </div>
 
-        <QuickInput value={quickText} onChange={setQuickText} onSubmit={quickSave} label="업무 추가" />
+        {/* 끊긴 동안에는 추가를 막는다(SCR-SYS-02 ③). 검색·필터·열어 보기는 그대로 */}
+        <fieldset className={styles.quickGuard} disabled={!online}>
+          <QuickInput value={quickText} onChange={setQuickText} onSubmit={quickSave} label="업무 추가" />
+        </fieldset>
 
         <div className={styles.toolbar}>
           <SearchBox value={params.q} onChange={(q) => update({ q })} />
@@ -531,6 +536,7 @@ function TaskRow({ task, today, weekStart, projects, tagNames, selected, onLeave
   const done = task.status === 'DONE'
   const state = dueState(task.dueDate, today, weekStart)
   const refresh = () => refreshTasks(queryClient)
+  const online = useOnline()
 
   const failed = (error: unknown) => {
     onStay()
@@ -591,10 +597,10 @@ function TaskRow({ task, today, weekStart, projects, tagNames, selected, onLeave
 
   return (
     <li
-      className={selected ? `${styles.row} ${styles.rowSelected}` : styles.row}
+      className={[styles.row, selected && styles.rowSelected, !online && styles.rowOffline].filter(Boolean).join(' ')}
       onKeyDown={(e) => {
-        // 행 안에 포커스가 있을 때 Delete로 보관 (입력칸 안의 Delete는 글자 지우기)
-        if (e.key === 'Delete' && !(e.target instanceof HTMLInputElement)) {
+        // 행 안에 포커스가 있을 때 Delete로 보관 (입력칸 안의 Delete는 글자 지우기). 끊긴 동안에는 막는다
+        if (online && e.key === 'Delete' && !(e.target instanceof HTMLInputElement)) {
           e.preventDefault()
           void archive()
         }
@@ -606,6 +612,7 @@ function TaskRow({ task, today, weekStart, projects, tagNames, selected, onLeave
         aria-checked={done}
         aria-label={`${task.title} 완료`}
         data-complete={task.id}
+        disabled={!online}
         className={done ? `${styles.checkbox} ${styles.checkboxDone}` : styles.checkbox}
         style={color ? ({ '--check-color': color.base } as CSSProperties) : undefined}
         onClick={() => void toggleDone()}

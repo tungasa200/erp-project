@@ -389,3 +389,9 @@
     padding: 18px;
   }
 }
+
+/* 끊긴 동안에는 완료 처리를 막는다(SCR-SYS-02 ③) */
+.check:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}

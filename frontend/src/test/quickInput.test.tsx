@@ -254,6 +254,16 @@ describe('UX-09 키보드 단축키', () => {
     expect(router.state.location.pathname).toBe('/')
   })
 
+  it('오프라인이면 N으로 기록하러 가지 않는다 (SCR-SYS-02 ③)', async () => {
+    const onLine = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    stubFetch({ 'GET /api/users/me': () => json(200, ME) })
+    const { router } = renderApp('/logs')
+    await screen.findByRole('heading', { name: '업무일지' })
+    await userEvent.keyboard('n')
+    expect(router.state.location.pathname).toBe('/logs')
+    onLine.mockRestore()
+  })
+
   it('설정에서 끄면 한 글자 단축키는 동작하지 않지만 Ctrl+K는 동작한다', async () => {
     const { input } = await openHome({ ...ME, keyboardShortcutsEnabled: false })
     await userEvent.keyboard('n')

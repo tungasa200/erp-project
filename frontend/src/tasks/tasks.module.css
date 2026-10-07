@@ -707,3 +707,23 @@
     display: none;
   }
 }
+
+/* 끊긴 동안 막은 편집 영역을 흐리게(SCR-SYS-02 ③). 보관 상태는 띠로 알리므로 흐리지 않는다 */
+.offline .titleInput,
+.offline fieldset:disabled,
+.offline button:disabled,
+.rowOffline .checkbox:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.quickGuard {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.quickGuard:disabled {
+  opacity: 0.55;
+}

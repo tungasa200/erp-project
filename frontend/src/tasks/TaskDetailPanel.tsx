@@ -8,6 +8,7 @@ import { toastForError } from '../api/errorToast'
 import { ApiError } from '../api/problem'
 import { isValidDate } from '../calendar/time'
 import { Skeleton } from '../components/Skeleton'
+import { useOnline } from '../components/useOnline'
 import { useToast } from '../components/useToast'
 import { TAGS_QUERY_KEY, tagApi, useProjects, useTags } from '../projects/api'
 import { projectColor } from '../projects/palette'
@@ -99,7 +100,13 @@ export function TaskDetailPanel() {
         }
       }}
     >
-      {task.isPending && <Skeleton count={6} />}
+      {/* 끊긴 동안에는 조회가 멈춰(react-query paused) 스켈레톤이 끝없이 돌므로 이유를 알린다 */}
+      {task.isPending &&
+        (task.fetchStatus === 'paused' ? (
+          <p className={`${styles.panelBody} ${styles.muted}`}>연결되면 업무를 불러올게요</p>
+        ) : (
+          <Skeleton count={6} />
+        ))}
       {task.isError && (
         <div className={styles.panelBody}>
           <p role="alert" className={styles.error}>
@@ -154,6 +161,9 @@ function TaskForm({
   const projects = useProjects()
   const tags = useTags()
   const archived = Boolean(task.deletedAt)
+  // 끊긴 동안에는 고치지 못하게 막는다(SCR-SYS-02 ③). 닫기·새로 불러오기·캘린더로 이동은 그대로 둔다
+  const online = useOnline()
+  const locked = archived || !online
 
   const [title, setTitle] = useState(task.title)
   const [savedTitle, setSavedTitle] = useState(task.title)
@@ -298,7 +308,7 @@ function TaskForm({
   const tagName = new Map((tags.data ?? []).map((t) => [t.id, t.name]))
 
   return (
-    <div className={styles.panelBody}>
+    <div className={online ? styles.panelBody : `${styles.panelBody} ${styles.offline}`}>
       <div className={styles.panelHead}>
         <label htmlFor={`${id}-title`} className={styles.srOnly}>
           제목
@@ -311,7 +321,7 @@ function TaskForm({
           className={styles.titleInput}
           value={title}
           maxLength={200}
-          readOnly={archived}
+          readOnly={locked}
           onChange={(e) => setTitle(e.target.value)}
           onBlur={saveTitle}
           onKeyDown={(e) => {
@@ -326,7 +336,7 @@ function TaskForm({
       {archived && (
         <div className={styles.archivedBand}>
           <span>보관한 업무예요. 복원하면 다시 고칠 수 있어요</span>
-          <button type="button" className={styles.smallButton} onClick={() => void restore()}>
+          <button type="button" className={styles.smallButton} disabled={!online} onClick={() => void restore()}>
             복원
           </button>
         </div>
@@ -337,7 +347,7 @@ function TaskForm({
         </p>
       )}
 
-      <fieldset className={styles.fields} disabled={archived}>
+      <fieldset className={styles.fields} disabled={locked}>
         <legend className={styles.srOnly}>업무 속성</legend>
         <label htmlFor={`${id}-status`} className={styles.fieldLabel}>
           상태
@@ -388,7 +398,7 @@ function TaskForm({
           className={styles.select}
           value={due}
           // fieldset이 막아도 칸 자체도 막는다(값을 직접 넣는 경로까지, P1-03-09)
-          disabled={archived}
+          disabled={locked}
           onKeyDown={(e) => {
             if (e.key === 'Enter') saveDue(e.currentTarget.value)
             else if (e.key !== 'Tab' && e.key !== 'Shift') dueTyping.current = true
@@ -460,7 +470,7 @@ function TaskForm({
         </div>
       </fieldset>
 
-      <fieldset className={styles.block} disabled={archived}>
+      <fieldset className={styles.block} disabled={locked}>
         <legend className={styles.srOnly}>진행률</legend>
         <label htmlFor={`${id}-progress`} className={styles.progressLabel}>
           진행률 <span style={{ color: accent }}>{progress}%</span>
@@ -482,7 +492,7 @@ function TaskForm({
         />
       </fieldset>
 
-      <fieldset className={styles.block} disabled={archived}>
+      <fieldset className={styles.block} disabled={locked}>
         <legend className={styles.srOnly}>메모</legend>
         <label htmlFor={`${id}-memo`} className={styles.fieldLabel}>
           메모
@@ -508,7 +518,7 @@ function TaskForm({
       <div className={styles.panelFoot}>
         <span className={styles.muted}>변경 사항은 자동 저장돼요</span>
         {!archived && (
-          <button type="button" className={styles.dangerButton} onClick={() => void archive()}>
+          <button type="button" className={styles.dangerButton} disabled={!online} onClick={() => void archive()}>
             보관
           </button>
         )}

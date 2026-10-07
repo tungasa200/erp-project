@@ -182,13 +182,7 @@
 
 .main {
   min-width: 0;
-  margin: 0;
   padding: 28px 32px 32px 8px;
-  border: 0;
-}
-
-.main:disabled {
-  opacity: 0.55;
 }
 
 .tabs {

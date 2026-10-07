@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import { useAuth } from '../auth/useAuth'
+import { useOnline } from '../components/useOnline'
 import { occurrenceKey, useOccurrences, type Occurrence } from '../calendar/api'
 import { holidayName } from '../calendar/holidays'
 import { occurrencesByDate } from '../calendar/layout'
@@ -270,6 +271,7 @@ function TaskRow(props: {
   onComplete: () => void
 }) {
   const { task, project, today, weekStart } = props
+  const online = useOnline()
   const color = project ? projectColor(project.color) : null
   const state = dueState(task.dueDate, today, weekStart)
   const dueClass =
@@ -288,6 +290,7 @@ function TaskRow(props: {
         data-complete={task.id}
         className={styles.check}
         style={color ? { borderColor: color.base } : undefined}
+        disabled={!online}
         onClick={props.onComplete}
       />
       <Link to={`/tasks/${task.id}`} className={styles.rowBody}>

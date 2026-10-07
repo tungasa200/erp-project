@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Occurrence } from '../calendar/api'
@@ -446,5 +446,44 @@ describe('SCR-TASK-02 업무 상세', () => {
     await userEvent.click(await screen.findByRole('button', { name: '보관' }))
     await waitFor(() => expect(router.state.location.pathname).toBe('/tasks'))
     expect(await screen.findByText('업무 1개를 보관했어요')).toBeInTheDocument()
+  })
+})
+
+describe('오프라인 (SCR-SYS-02 ③, P1-X-04)', () => {
+  it('끊긴 동안 추가·완료·Delete 보관·상세 편집을 막고, 검색·열어 보기·닫기는 된다', async () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    const { calls } = server(SAMPLE)
+    renderApp('/tasks')
+    expect(await screen.findByRole('textbox', { name: '업무 추가' })).toBeDisabled()
+    expect(await screen.findByRole('checkbox', { name: '견적서 작성 완료' })).toBeDisabled()
+    expect(screen.getByRole('searchbox', { name: '제목 검색' })).toBeEnabled()
+
+    const link = screen.getByRole('link', { name: '견적서 작성' })
+    fireEvent.keyDown(link, { key: 'Delete' })
+    expect(calls.some((c) => c.method === 'DELETE')).toBe(false)
+
+    link.focus()
+    await userEvent.keyboard('{Enter}')
+    expect(await screen.findByRole('combobox', { name: '상태' })).toBeDisabled()
+    expect(screen.getByRole('textbox', { name: '제목' })).toHaveAttribute('readonly')
+    expect(screen.getByRole('button', { name: '보관' })).toBeDisabled()
+    await userEvent.click(screen.getByRole('button', { name: '닫기' }))
+    await waitFor(() => expect(screen.getByRole('link', { name: '견적서 작성' })).toHaveFocus())
+  })
+
+  it('끊긴 채로 처음 연 업무는 스켈레톤 대신 연결되면 불러온다고 알린다', async () => {
+    server(SAMPLE)
+    renderApp('/tasks')
+    const link = await screen.findByRole('link', { name: '견적서 작성' })
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    act(() => {
+      window.dispatchEvent(new Event('offline'))
+    })
+    await userEvent.click(link)
+    expect(await screen.findByText('연결되면 업무를 불러올게요')).toBeInTheDocument()
+    // React Query onlineManager는 이벤트로만 상태를 바꾸므로 되돌려야 뒤 테스트의 요청이 멈추지 않는다
+    act(() => {
+      window.dispatchEvent(new Event('online'))
+    })
   })
 })

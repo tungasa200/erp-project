@@ -83,7 +83,8 @@ export function AppShell() {
     lastFocus.current = null
   }, [])
 
-  useSingleKeyShortcuts({ KeyN: () => quickAdd() })
+  // 끊긴 동안에는 기록할 수 없으니 N도 막는다(SCR-SYS-02 ③)
+  useSingleKeyShortcuts({ KeyN: () => online && quickAdd() })
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -137,10 +138,10 @@ export function AppShell() {
 
       <div ref={contentRef} className={styles.content}>
         <UnverifiedBanner />
-        {/* 끊긴 동안에는 입력을 막는다 (SCR-SYS-02 ③, 오프라인 기록은 범위 밖) */}
-        <fieldset className={styles.main} disabled={!online}>
+        {/* 끊긴 동안에는 화면마다 저장·편집 영역만 막는다(SCR-SYS-02 ③, 오프라인 기록은 범위 밖). 이동·열람은 된다 */}
+        <div className={styles.main}>
           <Outlet />
-        </fieldset>
+        </div>
       </div>
 
       {/* 모바일 하단 탭. 빠른 기록 바텀시트(SCR-MOB-01)는 P4라 P1에서는 + 가 홈 빠른 입력칸으로 보낸다(P1-X-01) */}

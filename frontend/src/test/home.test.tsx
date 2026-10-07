@@ -222,3 +222,16 @@ describe('SCR-HOME-01 홈 대시보드 1차', () => {
     expect(await screen.findByText('7일 안에 잡힌 일정이 없어요')).toBeInTheDocument()
   })
 })
+
+describe('오프라인 (SCR-SYS-02 ③, P1-X-04)', () => {
+  it('끊긴 동안 빠른 기록·완료 체크를 막고, 묶기 전환·요약 링크는 된다', async () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    server()
+    renderApp('/')
+    expect(await screen.findByRole('checkbox', { name: '견적서 작성 완료' })).toBeDisabled()
+    expect(screen.getByRole('textbox', { name: '빠른 기록' })).toBeDisabled()
+    const section = screen.getByRole('region', { name: '남은 업무' })
+    await userEvent.click(within(section).getByRole('button', { name: '프로젝트' }))
+    expect(within(section).getByRole('heading', { name: '영업 1' })).toBeInTheDocument()
+  })
+})
