@@ -1,5 +1,5 @@
 // 권한 카드 훅(B2-4) 검사: 카드 쓰기·결정 대기·허용/거부/시간 초과·같은 명령 재요청·분류기 거부 할 일 카드
-//   node tools/vscode-dashboard/test/permission.test.js
+//   node tools/wy-ops/vscode/test/permission.test.js
 const assert = require('assert');
 const fs = require('fs');
 const os = require('os');

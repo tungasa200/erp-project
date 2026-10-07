@@ -27,7 +27,7 @@
 - `extension.js`의 세션 현황 뷰 코드를 `sessionsView.js`로 옮긴다(동작 그대로). 이후 `sessionsView.js`는 WY-backend1 소유. `extension.js`는 `require('./sessionsView').register(context)` 한 줄만 둔다.
 - `activityView.js` 자리(빈 탭을 여는 최소 코드)와 `media/activity.html` 빈 틀을 만든다. 이후 WY-backend3 소유.
 - `package.json`에 미리 넣는다: 명령 `erpSessions.revealSession`(세션 현황의 줄로 이동), `wyActivity.open`(활동 탭), 활성화 이벤트 `onWebviewPanel:wyActivity`. 갈래 작업 중 더 필요하면 WY-backend2에 요청한다.
-- `deploy.js`를 **커밋본(HEAD) 배포**로 바꾼다(`git archive HEAD tools/vscode-dashboard`). 다른 갈래의 미커밋 변경이 있어도 커밋된 것만 배포한다.
+- `deploy.js`를 **커밋본(HEAD) 배포**로 바꾼다(`git archive HEAD tools/wy-ops/vscode`). 다른 갈래의 미커밋 변경이 있어도 커밋된 것만 배포한다.
 - `test/fakeVscode.js`(가짜 vscode 모듈)를 공용 테스트 도우미로 둔다. 갈래별 테스트는 `test/<갈래>*.test.js`.
 
 ### 2.2 데이터 계약
@@ -109,7 +109,7 @@
 - 대화 기록(*.jsonl)과 `claude agents` 출력은 공개 계약이 아니다. Claude Code 업데이트로 바뀔 수 있다 → 읽기 모듈은 모르는 형식을 건너뛰고 화면에 "읽을 수 없음"을 표시, 업데이트 뒤 검사 표본으로 다시 확인.
 - 셸 쓰기 차단은 휴리스틱이다. `node -e "require('./다른스크립트')"`처럼 다른 파일을 불러 간접 실행하면 막지 못한다(WY-commit 지적). Edit·Write는 deny 규칙이 막고, 남는 간접 실행은 B2-1의 출처 불명 결정 감지로 잡는다.
 - 권한 카드는 ask 규칙·보호 경로가 걸린 명령에만 뜬다(auto 모드). 지금 settings에는 ask 규칙이 없으므로, 실제로 권한 대기가 생기는 경우는 드물다. 분류기 거부가 더 흔할 수 있어 PermissionDenied → 할 일 카드가 중요하다.
-- 세 갈래가 같은 폴더(`tools/vscode-dashboard`)에서 일하므로, 배포는 커밋본 기준(B2-0)으로만 한다.
+- 세 갈래가 같은 폴더(`tools/wy-ops/vscode`)에서 일하므로, 배포는 커밋본 기준(B2-0)으로만 한다.
 
 ## 8. 결정 (2026-10-07 확정)
 

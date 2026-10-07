@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// 설치본 갱신: 커밋된(HEAD) tools/vscode-dashboard를 저장소 밖 설치 폴더로 꺼낸다.
-//   node tools/vscode-dashboard/deploy.js
+// 설치본 갱신: 커밋된(HEAD) tools/wy-ops/vscode를 저장소 밖 설치 폴더로 꺼낸다.
+//   node tools/wy-ops/vscode/deploy.js
 // VS Code 확장과 승인 가드 훅은 설치 폴더를 쓰므로, 개발 중인 파일이 쓰는 확장에 실리지 않는다.
 // 여러 세션이 이 폴더에서 동시에 일하므로(운영 도구 구현 계획 2.1) 워킹트리가 아니라 HEAD를 배포한다.
 // 커밋 안 된 변경은 배포되지 않는다는 안내만 한다. 새 폴더를 다 만든 뒤 이름을 바꿔 한 번에 교체한다.

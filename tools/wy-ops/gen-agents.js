@@ -10,7 +10,7 @@
 //   {{경로|size}}는 MB 값을 1024의 배수면 'nGB', 아니면 'nMB'로 쓴다. 모르는 자리표시자는 오류로 멈춘다.
 const fs = require('fs');
 const path = require('path');
-const { loadOpsConfig, findProjectRoot } = require('../vscode-dashboard/opsConfig');
+const { loadOpsConfig, findProjectRoot } = require('./vscode/opsConfig');
 
 const DEFAULT_TEMPLATE = path.join(__dirname, 'templates', 'agent.md');
 

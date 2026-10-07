@@ -9,7 +9,7 @@
 // 실행할 때 부록을 따로 읽게 하면 빠뜨릴 수 있어, 한 파일로 합친다.
 const fs = require('fs');
 const path = require('path');
-const { loadOpsConfig, findProjectRoot } = require('../vscode-dashboard/opsConfig');
+const { loadOpsConfig, findProjectRoot } = require('./vscode/opsConfig');
 const { fill } = require('./gen-agents');
 
 const CORE = path.join(__dirname, 'templates', 'pm-ops', 'SKILL.md');

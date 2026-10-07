@@ -6,7 +6,16 @@
 const Module = require('module');
 const path = require('path');
 
+const fs = require('fs');
+
 const EXT = path.resolve(__dirname, '..');
+// 저장소 루트(.git이 있는 곳). 확장 폴더 깊이가 바뀌어도(tools/wy-ops/vscode) 테스트가 같은 곳을 본다
+const REPO = (() => {
+  for (let d = EXT; ; d = path.dirname(d)) {
+    if (fs.existsSync(path.join(d, '.git'))) return d;
+    if (path.dirname(d) === d) return path.resolve(EXT, '..', '..', '..');
+  }
+})();
 
 function install({ workspace = null } = {}) {
   const fake = {
@@ -99,4 +108,4 @@ function install({ workspace = null } = {}) {
   return fake;
 }
 
-module.exports = { install, EXT };
+module.exports = { install, EXT, REPO };

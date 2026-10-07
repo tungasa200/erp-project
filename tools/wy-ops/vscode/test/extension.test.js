@@ -1,5 +1,5 @@
 // 확장 진입점 기본 검사(B2-0): 세 화면 모듈이 모두 등록되고, 명령·직렬화기·뷰가 package.json과 맞는다.
-//   node tools/vscode-dashboard/test/extension.test.js
+//   node tools/wy-ops/vscode/test/extension.test.js
 const assert = require('assert');
 const fs = require('fs');
 const os = require('os');

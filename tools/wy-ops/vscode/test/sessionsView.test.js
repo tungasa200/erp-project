@@ -1,13 +1,13 @@
 // 세션 현황 뷰(B1-1~3): 메모리 경고 선 전달, 열기(attach) 터미널, 커밋 세션 경고, "세션 현황에서 보기" 재전달.
-//   node tools/vscode-dashboard/test/sessionsView.test.js
+//   node tools/wy-ops/vscode/test/sessionsView.test.js
 const assert = require('assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
 process.env.WY_APPROVALS_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'wy-sess-'));
-const { install, EXT } = require('./fakeVscode');
+const { install, EXT, REPO } = require('./fakeVscode');
 
-const fake = install({ workspace: path.resolve(EXT, '..', '..') });
+const fake = install({ workspace: REPO });
 const flush = () => new Promise((r) => setImmediate(r));
 
 (async () => {
@@ -27,7 +27,7 @@ const flush = () => new Promise((r) => setImmediate(r));
 
     // 메모리 경고 선: 저장소 wy-ops.json의 memory 값(D-86)
     const limits = view.posts.find((m) => m.type === 'limits');
-    const ops = JSON.parse(fs.readFileSync(path.resolve(EXT, '..', '..', '.claude', 'wy-ops.json'), 'utf8'));
+    const ops = JSON.parse(fs.readFileSync(path.join(REPO, '.claude', 'wy-ops.json'), 'utf8'));
     assert.deepStrictEqual(limits.data, { warnFreeMB: ops.memory.warnFreeMB, blockFreeMB: ops.memory.blockFreeMB }, '메모리 경고 선');
 
     // 열기: 새 터미널에서 claude.cmd attach

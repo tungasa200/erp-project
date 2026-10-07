@@ -1,12 +1,12 @@
 // 활동 탭(activityView) 검사: 가짜 vscode로 탭을 열고, 합성 대화 기록·세션 상태·승인 카드로 만든 상태를 확인한다.
-//   node tools/vscode-dashboard/test/activityView.test.js
+//   node tools/wy-ops/vscode/test/activityView.test.js
 const test = require('node:test');
 const assert = require('node:assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
 process.env.WY_APPROVALS_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'wy-act-ap-'));
-const { install, EXT } = require('./fakeVscode');
+const { install, EXT, REPO } = require('./fakeVscode');
 const made = []; // setup()이 만든 임시 대화 기록 폴더
 
 const now = Date.now();
@@ -15,7 +15,7 @@ const line = (o) => JSON.stringify(o);
 const recv = (minAgo, from, id, body) => line({ type: 'user', isMeta: true, timestamp: at(minAgo), origin: { kind: 'peer', name: from, msg_id: id, body }, message: { role: 'user', content: '…' } });
 
 function setup() {
-  const fake = install({ workspace: path.resolve(EXT, '..', '..') });
+  const fake = install({ workspace: REPO });
   const activity = require(path.join(EXT, 'activityView.js'));
   const { ActivityReader } = require(path.join(EXT, 'sessionActivity.js'));
   const view = activity.register(fake.context);
@@ -66,7 +66,7 @@ test('탭을 열면 메시지·묶음·세션 상태·카드 연결을 보낸다
 
     // 이 세션들에 걸린 승인 카드(읽기만 한다)
     const store = require(path.join(EXT, 'approvalStore.js'));
-    const root = store.rootFor(path.resolve(EXT, '..', '..'));
+    const root = store.rootFor(REPO);
     store.ensureDirs(root);
     fs.writeFileSync(path.join(root, 'requests', 'card-1.json'), JSON.stringify({ kind: 'commit', session: 'WY-frontend2', createdAt: at(10), title: 'P1-09-09 커밋', command: 'git commit', what: '커밋', why: '시험', onClick: '실행' }));
 
@@ -148,7 +148,7 @@ test('2시간 넘게 조용한 진행 중 묶음은 휴면, 새 메시지가 오
       recv(10, 'WY-design', 'd1', '[완료] P2-04 목업 끝')].join('\n') + '\n'); // 완료는 휴면이 아니라 완료
     view.status = { list: [{ name: 'WY-backend1', view: 'permission', startedAt: 1 }], error: null, at: now };
     const store = require(path.join(EXT, 'approvalStore.js'));
-    const root = store.rootFor(path.resolve(EXT, '..', '..'));
+    const root = store.rootFor(REPO);
     store.ensureDirs(root);
     fs.writeFileSync(path.join(root, 'requests', 'card-browser.json'), JSON.stringify({ kind: 'commit', session: 'WY-browser', createdAt: at(5), title: '콘솔 작업', command: 'x', what: 'x', why: 'x', onClick: 'x' }));
 

@@ -1,5 +1,5 @@
 // 메시지 대상 확인 훅(B2-6) 검사
-//   node tools/vscode-dashboard/test/hooks-message.test.js
+//   node tools/wy-ops/vscode/test/hooks-message.test.js
 const assert = require('assert');
 const { check, nameOf } = require('../hooks/wy-message-guard.js');
 

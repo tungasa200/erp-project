@@ -7,17 +7,8 @@ const path = require('path');
 const settings = require('../lib/settings');
 const lock = require('../lib/lock');
 const { writeTodo } = require('../lib/todo');
-// 승인 센터 저장소(R1 이동 전후 모두): 할 일 카드가 형식 오류로 보이지 않는지 확인용
-const store = (() => {
-  for (const p of ['../vscode/approvalStore', '../../vscode-dashboard/approvalStore']) {
-    try {
-      return require(p);
-    } catch {
-      // 다음 경로
-    }
-  }
-  throw new Error('approvalStore를 찾지 못함');
-})();
+// 승인 센터 저장소: 할 일 카드가 형식 오류로 보이지 않는지 확인용
+const store = require('../vscode/approvalStore');
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'wy-lib-'));
 const NEW = 'C:/Users/pc2/.wy-tools/wy-ops/current/vscode/hooks';

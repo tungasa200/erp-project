@@ -1,12 +1,12 @@
 // 승인 센터 화면(B2-5): 확장 연결(html 자리표시, 활동 탭 열기, 세션 현황에서 보기)과 화면 동작(카드 종류·처리·단축키).
-//   node tools/vscode-dashboard/test/approvalsView.test.js
+//   node tools/wy-ops/vscode/test/approvalsView.test.js
 // 화면 동작 검사는 jsdom이 필요하다. 저장소의 frontend/node_modules에 있으면 쓰고, 없으면 그 부분만 건너뛴다.
 const assert = require('assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
 process.env.WY_APPROVALS_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'wy-apv-'));
-const { install, EXT } = require('./fakeVscode');
+const { install, EXT, REPO } = require('./fakeVscode');
 
 const MEDIA = path.join(EXT, 'media');
 const now = Date.now();
@@ -28,7 +28,7 @@ const STATE = {
 };
 
 function extensionWiring() {
-  const fake = install({ workspace: path.resolve(EXT, '..', '..') });
+  const fake = install({ workspace: REPO });
   try {
     require(path.join(EXT, 'extension.js')).activate(fake.context);
     fake.commands['wyApprovals.open']();
@@ -47,7 +47,7 @@ function extensionWiring() {
 
 function findJsdom() {
   try {
-    return require(require.resolve('jsdom', { paths: [path.resolve(EXT, '..', '..', 'frontend')] }));
+    return require(require.resolve('jsdom', { paths: [path.join(REPO, 'frontend')] }));
   } catch {
     return null;
   }

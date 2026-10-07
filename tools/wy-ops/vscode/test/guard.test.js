@@ -1,5 +1,5 @@
 // 승인 가드 훅 쓰기 판단 검사: 보호 경로에 쓰는 명령은 거부, 읽기·다른 파일에 쓰기는 통과
-//   node tools/vscode-dashboard/test/guard.test.js
+//   node tools/wy-ops/vscode/test/guard.test.js
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -149,7 +149,7 @@ const allow = [
   // 우리 스크립트 실행
   'powershell -NoProfile -ExecutionPolicy Bypass -File .claude/skills/pm-ops/scripts/session.ps1 list',
   'node tools/wy-ops/gen-agents.js --check',
-  'node tools/vscode-dashboard/deploy.js',
+  'node tools/wy-ops/vscode/deploy.js',
   // 요청 파일 쓰기(보호 대상 아님)
   'echo {} > ~/.claude/wy-approvals/erp-project/requests/x.json',
   // 보호 파일을 읽어 다른 곳에 쓰기(B2-1 오탐 수정)

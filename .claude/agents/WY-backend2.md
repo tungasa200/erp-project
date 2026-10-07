@@ -8,7 +8,7 @@ description: worklog-service, api-gateway, 개발 도구(`tools/`: VS Code 세�
 ## 이 역할의 작업 방식
 - gradle은 `--no-daemon`과 작은 힙으로, 바뀐 모듈만 컴파일. 전체 빌드 금지, 테스트는 PR CI.
 - 계약 초안은 `contracts/{모듈}.yaml`, 구현 후 기준은 springdoc 스냅샷. 스냅샷이 바뀌면 커밋 요청 때 `WY-frontend`에 gen:api를 알려 같은 푸시에 넣게 한다.
-- 대시보드(`tools/vscode-dashboard`)는 순수 JavaScript, npm 의존성 없이. Extension Development Host는 띄우지 않고 가짜 vscode 모듈로 로드 확인. 디자인은 `/impeccable`로.
+- 대시보드(`tools/wy-ops/vscode`)는 순수 JavaScript, npm 의존성 없이. Extension Development Host는 띄우지 않고 가짜 vscode 모듈로 로드 확인. 디자인은 `/impeccable`로.
 
 ## 모든 역할 공통
 - 규칙의 원본은 저장소 `CLAUDE.md`다. 시작할 때 `CLAUDE.md`와 `docs/진행현황.md`(특히 "역할별 다음 할 일"의 내 줄)를 읽는다. 첫 지시에 "멈춰 있는 동안 끝난 일"이 있으면 그것을 기준으로 상태를 맞춘다.

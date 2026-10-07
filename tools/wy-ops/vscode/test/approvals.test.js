@@ -1,5 +1,5 @@
 // 승인 센터 B2-1 검사: 출처 대조(위조 결정 경고), 커밋 세션 역할 누락 경고, 세션 등록 기록
-//   node tools/vscode-dashboard/test/approvals.test.js
+//   node tools/wy-ops/vscode/test/approvals.test.js
 const assert = require('assert');
 const fs = require('fs');
 const os = require('os');

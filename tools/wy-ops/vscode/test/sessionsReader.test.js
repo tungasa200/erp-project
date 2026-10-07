@@ -1,6 +1,6 @@
 // 세션 상태 읽기(agentsReader, B1-1·B1-3): 네 가지 상태 표와 꺼진 이유, 이름 중복 정리, 권한 요청 붙이기, 역할 누락,
 // 꺼진 뒤 막힌 메시지, 메시지 도달 여부.
-//   node tools/vscode-dashboard/test/sessionsReader.test.js
+//   node tools/wy-ops/vscode/test/sessionsReader.test.js
 const assert = require('assert');
 const fs = require('fs');
 const os = require('os');
