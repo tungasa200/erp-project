@@ -37,6 +37,7 @@ const ROUTINE_KINDS = ['commit', 'push'];
 // permission: 권한 카드(PermissionRequest 훅), todo: 사람이 직접 할 일(PermissionDenied 훅 등, '했음'으로 닫는다)
 const KINDS = { ...GIT_KINDS, choice: '결정', permission: '권한', todo: '할 일' };
 const LIMITS = { questions: 4, optionsMin: 2, optionsMax: 4, text: 2000 };
+const REQUIRED = ['what', 'why', 'onClick'];
 
 function paths(root = ROOT) {
   return {
@@ -88,12 +89,20 @@ function readQuestions(list) {
     const labels = options.map((o) => text(o && o.label, 120).trim());
     if (labels.some((l) => !l)) throw new Error(`${i + 1}번 질문에 제목 없는 선택지가 있음`);
     if (new Set(labels).size !== labels.length) throw new Error(`${i + 1}번 질문의 선택지 제목이 겹침`);
+    const noCost = labels.filter((l, j) => !text(options[j].cost, 500).trim());
+    if (noCost.length) throw new Error(`필수 칸 없음: ${i + 1}번 질문 선택지 cost(${noCost.join(', ')})`);
     return {
       question: text(q.question, 500),
       header: text(q.header, 24),
       multiSelect: !!q.multiSelect,
       allowOther: q.allowOther !== false,
-      options: options.map((o, j) => ({ label: labels[j], description: text(o.description, 500), recommended: !!o.recommended })),
+      options: options.map((o, j) => ({
+        label: labels[j],
+        description: text(o.description, 500),
+        cost: text(o.cost, 500),
+        onClick: text(o.onClick, 500),
+        recommended: !!o.recommended,
+      })),
     };
   });
 }
@@ -104,6 +113,9 @@ function readRequest(file, id) {
     const r = readJson(file);
     if (!r || typeof r !== 'object') throw new Error('객체가 아님');
     if (!KINDS[r.kind]) throw new Error(`알 수 없는 종류: ${r.kind}`);
+    // OPS-03: 카드만 보고 판단할 수 있게 무엇을·왜·누르면 무슨 일이 비면 올리지 않는다
+    const missing = REQUIRED.filter((k) => !text(r[k]).trim());
+    if (missing.length) throw new Error(`필수 칸 없음: ${missing.join(', ')}`);
     const base = {
       id,
       kind: r.kind,
@@ -115,6 +127,7 @@ function readRequest(file, id) {
       what: text(r.what),
       why: text(r.why),
       onClick: text(r.onClick, 500),
+      cost: text(r.cost, 500),
     };
     if (r.kind === 'choice') return { ...base, background: text(r.background), questions: readQuestions(r.questions) };
     if (r.kind === 'permission') {
@@ -127,7 +140,12 @@ function readRequest(file, id) {
       };
     }
     if (r.kind === 'todo') {
-      return { ...base, sessionId: text(r.sessionId, 80) || null, steps: Array.isArray(r.steps) ? r.steps.slice(0, 20).map((x) => text(x, 1000)) : [] };
+      return {
+        ...base,
+        sessionId: text(r.sessionId, 80) || null,
+        steps: Array.isArray(r.steps) ? r.steps.slice(0, 20).map((x) => text(x, 1000)) : [],
+        check: text(r.check, 1000),
+      };
     }
     return {
       ...base,

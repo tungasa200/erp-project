@@ -10,7 +10,12 @@ const base = fs.mkdtempSync(path.join(os.tmpdir(), 'wy-perm-'));
 process.env.WY_PERMISSION_WAIT_MS = '1500';
 // claude agents 대신 가짜 목록(세션 이름 찾기)
 const realSpawnSync = cp.spawnSync;
-cp.spawnSync = () => ({ stdout: JSON.stringify([{ sessionId: 'sess-aaaa1111', name: 'WY-qa' }]) });
+let agentsOut = JSON.stringify([
+  { sessionId: 'sess-aaaa1111', name: 'WY-qa', kind: 'background' },
+  { sessionId: 'sess-bbbb2222', name: 'WY-qa2', kind: 'background' },
+  { sessionId: 'sess-pm', name: 'WY-pm', kind: 'interactive' },
+]);
+cp.spawnSync = () => ({ stdout: agentsOut });
 const hook = require('../hooks/wy-permission.js');
 cp.spawnSync = realSpawnSync;
 const store = require('../approvalStore');
@@ -29,6 +34,20 @@ const waitFor = async (f) => { for (let i = 0; i < 100 && !f(); i++) await new P
   assert.strictEqual(hook.keyOf(input('ls')), k);
   assert.notStrictEqual(hook.keyOf(input('ls -a')), k);
   assert.notStrictEqual(hook.keyOf(input('ls', 'sess-bbbb2222')), k);
+
+  // 대화형 세션·목록에 없는 세션·claude agents 실패: 카드 없이 바로 결정 없음(null) → 평소 확인 창
+  const noCard = async (inp, why) => {
+    const t = Date.now();
+    assert.strictEqual(await hook.onPermissionRequest(inp, root), null, why);
+    assert.ok(Date.now() - t < 500, `${why}: 기다리지 않음`);
+    assert.ok(!fs.existsSync(path.join(p.requests, `perm-${hook.keyOf(inp)}.json`)), `${why}: 카드 없음`);
+  };
+  await noCard(input('npm ci', 'sess-pm'), '대화형 세션');
+  await noCard(input('npm ci', 'sess-unknown'), '목록에 없는 세션');
+  const saved = agentsOut;
+  agentsOut = 'claude: not found';
+  await noCard(input('npm ci'), 'claude agents 실패');
+  agentsOut = saved;
 
   // 허용: 카드가 올라가고, 결정을 기다려 allow, used에 표시
   const id1 = `perm-${hook.keyOf(input('npm run build'))}`;
@@ -110,7 +129,7 @@ const waitFor = async (f) => { for (let i = 0; i < 100 && !f(); i++) await new P
   assert.deepStrictEqual(store.readState(root).pending, [], '모두 닫힘');
 
   // 기한이 지난 권한 카드는 승인할 수 없다(훅이 이미 거부했을 수 있음)
-  store.writeJsonAtomic(path.join(p.requests, 'perm-0000000000000000.json'), { kind: 'permission', session: 'x', command: 'ls', expiresAt: new Date(Date.now() - 1000).toISOString() });
+  store.writeJsonAtomic(path.join(p.requests, 'perm-0000000000000000.json'), { kind: 'permission', session: 'x', command: 'ls', what: 'ls', why: '시험', onClick: '허용', expiresAt: new Date(Date.now() - 1000).toISOString() });
   assert.throws(() => store.decide('perm-0000000000000000', 'approved', { root }), /기한이 지나/);
   assert.ok(!store.readState(root).pending.length, '기한 지난 카드는 대기 목록에 없음');
 

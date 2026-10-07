@@ -2,6 +2,7 @@
 // 권한 카드 훅(OPS-02 ①, 운영 도구 구현 계획 B2-4)
 //   PermissionRequest: 확인 창이 뜰 상황이면 승인 센터에 권한 카드를 올리고, 결정을 기다려 허용·거부를 돌려준다.
 //   PermissionDenied: 분류기가 막은 명령을 할 일 카드(직접 실행)로 올린다. 이미 막힌 결정은 뒤집지 않는다.
+// 카드는 백그라운드 세션(claude agents kind=background)만. 대화형·종류를 모르는 세션은 결정 없이 끝내 평소 확인 창으로.
 // 2026-10-07 실험: 훅 입력에 tool_use_id가 없다 → 결정 키는 sha1(session_id·tool_name·tool_input) 앞 16자.
 // 같은 명령을 다시 요청하면 앞 카드가 이미 결정·사용됐을 때 -2, -3…을 붙여 새 카드로 만든다.
 // 허용은 그 한 번만(updatedPermissions 안 씀). 15분 안에 결정이 없으면 사유와 함께 거부한다(Q1, 2026-10-07 사용자 결정).
@@ -27,16 +28,16 @@ function commandOf(input) {
   return `${input.tool_name} ${JSON.stringify(t).slice(0, 300)}`;
 }
 
-// 세션 이름(claude agents). 못 찾으면 null
-function sessionNameOf(sessionId) {
+// claude agents의 이 세션 줄({ kind, name, … }). 못 읽거나 못 찾으면 null
+function sessionOf(sessionId) {
   try {
     const r = spawnSync(process.env.ComSpec || 'cmd.exe', ['/d', '/s', '/c', 'claude agents --json --all'], { encoding: 'utf8', timeout: 8000, windowsHide: true });
-    const hit = JSON.parse(r.stdout).find((a) => a.sessionId === sessionId);
-    return (hit && hit.name) || null;
+    return JSON.parse(r.stdout).find((a) => a.sessionId === sessionId) || null;
   } catch {
     return null;
   }
 }
+const sessionNameOf = (sessionId) => (sessionOf(sessionId) || {}).name || null;
 
 // 아직 결정·사용·만료되지 않은 같은 키의 카드가 있으면 그것을 이어서 기다리고, 없으면 새 id를 정한다
 function pickId(p, key) {
@@ -50,9 +51,8 @@ function pickId(p, key) {
   throw new Error('같은 명령의 권한 카드가 너무 많음');
 }
 
-function writeRequest(p, id, input, now) {
+function writeRequest(p, id, input, now, sessionName) {
   const command = commandOf(input);
-  const sessionName = sessionNameOf(input.session_id);
   const who = sessionName || `세션 ${String(input.session_id || '').slice(0, 8)}`;
   store.writeJsonAtomic(path.join(p.requests, `${id}.json`), {
     kind: 'permission',
@@ -80,12 +80,17 @@ function markUsed(p, id, body) {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// 백그라운드 세션만 카드로 받는다. 대화형 세션은 사용자가 터미널 확인 창에 바로 답하므로,
+// 15분 기다리면 오히려 확인 창이 늦어진다(WY-pm 결정 2026-10-07). 세션 종류를 모르면 마찬가지로 평소 흐름.
+// null을 돌려주면 결정 없이 끝난다 → 확인 창.
 async function onPermissionRequest(input, root) {
+  const session = sessionOf(input.session_id);
+  if (!session || session.kind !== 'background') return null;
   const p = store.ensureDirs(root);
   const key = keyOf(input);
   const { id, reuse } = pickId(p, key);
   const now = new Date();
-  if (!reuse) writeRequest(p, id, input, now);
+  if (!reuse) writeRequest(p, id, input, now, session.name || null);
   const deadline = now.getTime() + WAIT_MS;
   const decisionFile = path.join(p.decisions, `${id}.json`);
   while (Date.now() < deadline) {

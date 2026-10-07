@@ -37,10 +37,13 @@ VS Code 사이드바에서 메모리, 프로세스 그룹별 사용량, Claude �
 
 ## WY 승인 센터(작업창 탭)
 
-상태 표시줄의 '승인 대기 N'을 누르거나 명령 팔레트에서 `WY: 승인 센터 열기`를 실행한다. VS Code를 다시 열면 탭이 되살아난다. N은 git 명령 요청과 결정 요청을 합친 수이고, 마우스를 올리면 나눠서 보인다.
+상태 표시줄의 '승인 대기 N'을 누르거나 명령 팔레트에서 `WY: 승인 센터 열기`를 실행한다. VS Code를 다시 열면 탭이 되살아난다. N은 대기 중인 카드(git·결정·권한·할 일)를 합친 수이고, 마우스를 올리면 종류별로 나눠서 보인다.
 
 - **git 명령 카드**: 커밋·푸시(파랑)와 PM 결정(노랑: 병합·`gh pr merge`, 브랜치 생성·삭제, reset, 강제 푸시, rebase, 태그 삭제). 매번 [승인] 또는 [거부]를 누른다. 자동 승인은 없다. 거부할 때는 사유를 적어야 한다.
 - **결정 카드**(보라): 질문 1~4개, 질문마다 선택지 2~4개(추천 표시), 하나만 또는 여러 개 고르기, '기타' 직접 입력, 메모. 모든 질문에 답해야 [보내기]가 된다.
+- **권한 카드**: 백그라운드 세션(`claude agents`의 kind=background)이 도구 실행 확인을 기다릴 때 훅이 올린다. 대화형 세션이나 종류를 알 수 없는 세션은 카드 없이 평소 터미널 확인 창으로 간다. [허용]은 그 한 번만, [거부]는 사유가 세션에 전달된다. 15분 안에 결정이 없으면 거부로 닫힌다.
+- **할 일 카드**: 사람이 직접 할 일(콘솔 작업, 설정 수정, 직접 실행). 방법 단계와 확인 방법을 보고 처리한 뒤 [했음]을 누르면 요청 세션이 이어 간다.
+- **형식 오류 카드**: 요청 파일을 읽지 못했거나 필수 칸(아래 '요청 형식')이 빠진 요청. 처리 버튼이 없다.
 
 ### 파일(저장소 밖 `~/.claude/wy-approvals/<namespace>/`)
 
@@ -61,6 +64,15 @@ VS Code 사이드바에서 메모리, 프로세스 그룹별 사용량, Claude �
 
 공통 필드: `kind`, `session`(요청 세션 이름, 결정을 전해 받을 곳), `createdAt`, `title`, `relatedSessions`(선택, 결정을 함께 알아야 할 세션), `detail`(선택).
 
+카드만 보고 판단할 수 있게(OPS-03) 모든 종류에 아래 세 칸이 **필수**다. 하나라도 비어 있으면(공백만 있어도) 처리 버튼이 없는 형식 오류 카드("필수 칸 없음: what, why")로 올라간다. 요청 세션이 다시 써야 한다.
+
+| 칸 | 필수 | 내용 |
+|---|---|---|
+| `what` | 예 | 무엇을: 실행할 일·고를 일을 한두 문장으로 |
+| `why` | 예 | 왜: 이 요청이 지금 필요한 이유 |
+| `onClick` | 예 | 누르면 무슨 일: 승인·거부(또는 고른 뒤·했음 뒤)에 세션이 하는 일 |
+| `cost` | 아니오 | 대가(시간·위험·되돌리기 어려움). choice는 카드가 아니라 선택지마다 쓴다(아래) |
+
 git 명령 요청(`kind`: `commit` `push` `force-push` `branch` `delete-branch` `merge` `reset` `rebase` `tag-delete`):
 
 ```json
@@ -69,6 +81,10 @@ git 명령 요청(`kind`: `commit` `push` `force-push` `branch` `delete-branch` 
   "session": "WY-commit",
   "createdAt": "2026-10-06T15:30:00+09:00",
   "title": "feat(tools): 승인 센터 2단계",
+  "what": "승인 센터 2단계 파일 1개를 feature/P1에 커밋한다",
+  "why": "WY-backend2 작업이 끝나 검증을 통과했다",
+  "onClick": "승인: WY-commit이 아래 명령을 한 번 실행한다. 거부: 실행하지 않고 사유를 요청 세션에 전한다",
+  "cost": "되돌리려면 새 커밋이 필요하다(푸시 전)",
   "branch": "feature/P1",
   "command": "git commit -F .git/WY_COMMIT_MSG",
   "files": ["tools/vscode-dashboard/approvalStore.js"],
@@ -90,6 +106,9 @@ git 명령 요청(`kind`: `commit` `push` `force-push` `branch` `delete-branch` 
   "session": "WY-pm",
   "createdAt": "2026-10-06T16:00:00+09:00",
   "title": "P2 시작 범위",
+  "what": "P2를 시작할 시점과 먼저 할 영역을 정한다",
+  "why": "P1 QA가 끝나 다음 지시를 내려야 한다",
+  "onClick": "보내기: WY-pm이 답대로 역할 세션에 P2 작업을 지시한다",
   "background": "P1 QA가 끝났고 남은 결함 2건은 P2 첫 주에 고칠 수 있다.",
   "relatedSessions": ["WY-planner", "WY-backend1"],
   "questions": [
@@ -98,8 +117,8 @@ git 명령 요청(`kind`: `commit` `push` `force-push` `branch` `delete-branch` 
       "question": "P2를 언제 시작할까요?",
       "multiSelect": false,
       "options": [
-        { "label": "바로 시작", "description": "결함은 P2와 함께 고친다", "recommended": true },
-        { "label": "결함 먼저", "description": "남은 2건을 고친 뒤 시작한다" }
+        { "label": "바로 시작", "description": "결함은 P2와 함께 고친다", "cost": "P2 첫 주 일정이 이틀 늘어난다", "recommended": true },
+        { "label": "결함 먼저", "description": "남은 2건을 고친 뒤 시작한다", "cost": "P2 시작이 이틀 늦어진다", "onClick": "WY-pm이 결함 2건부터 배정한다" }
       ]
     },
     {
@@ -108,9 +127,9 @@ git 명령 요청(`kind`: `commit` `push` `force-push` `branch` `delete-branch` 
       "multiSelect": true,
       "allowOther": true,
       "options": [
-        { "label": "알림" },
-        { "label": "통계" },
-        { "label": "모바일 화면" }
+        { "label": "알림", "cost": "백엔드 2명 1주" },
+        { "label": "통계", "cost": "백엔드 1명·프론트 1명 1주" },
+        { "label": "모바일 화면", "cost": "프론트 2명 1주" }
       ]
     }
   ]
@@ -119,6 +138,28 @@ git 명령 요청(`kind`: `commit` `push` `force-push` `branch` `delete-branch` 
 
 - `questions` 1~4개, 질문마다 `options` 2~4개(`label`은 질문 안에서 겹치지 않게). `header`는 짧은 라벨(24자 이내).
 - `multiSelect`(기본 false), `allowOther`(기본 true: '기타' 직접 입력 칸을 보여 준다), `recommended`(선택지에 '추천' 표시).
+- 선택지마다 `cost`(그 선택의 대가, 문자열)가 **필수**다. 빠지면 형식 오류 카드("필수 칸 없음: 1번 질문 선택지 cost(통계)")가 된다. 선택지별 `onClick`(그것을 고르면 하는 일)은 선택이고, 없으면 카드의 `onClick`을 보여 준다.
+
+할 일 요청(`kind`: `todo`, 사람이 직접 할 일. OPS-02 ③):
+
+```json
+{
+  "kind": "todo",
+  "session": "WY-browser",
+  "createdAt": "2026-10-07T10:00:00+09:00",
+  "title": "Vercel 2FA 직접 처리",
+  "what": "Vercel 콘솔의 2FA 확인을 사람이 직접 통과한다",
+  "why": "자동화 브라우저로는 2FA 코드를 받을 수 없다",
+  "onClick": "했음: WY-browser가 도메인 설정을 이어 간다",
+  "steps": ["전용 Chrome에서 Vercel 로그인 창을 연다", "휴대폰 인증 앱의 코드를 넣는다"],
+  "check": "Vercel 대시보드의 프로젝트 목록이 보이면 된다"
+}
+```
+
+- `steps`: 방법 단계(최대 20개). `check`(선택): 끝났는지 확인하는 방법.
+- 카드의 [했음](메모 선택)을 누르면 결정 `decision: "done"`이 생긴다(`note`에 메모). 요청 세션은 아래 '결정을 받는 방법'대로 `decisions/<id>.json`을 기다렸다가 이어 간다. 대화창으로 따로 알릴 필요가 없다.
+- 요청 세션이 이미 끝났으면 카드에 '세션 끝남'이 붙는다. [했음]은 눌러도 되지만, 이어 갈 세션이 없으니 WY-pm이 다시 배정한다.
+- 권한 카드(`permission`)와 분류기 거부 할 일 카드(`denied-<키>`)는 `hooks/wy-permission.js`가 쓴다. 세션이 직접 쓰지 않는다.
 
 ### 결정 형식
 
@@ -142,6 +183,7 @@ git 명령 요청(`kind`: `commit` `push` `force-push` `branch` `delete-branch` 
 }
 ```
 
+- 할 일 결정은 `decision: "done"`과 `note`가 들어 있다.
 - git 명령 결정은 `decision`이 `approved` 또는 `rejected`이고, `reason`(거부 사유)과 `command`(정리한 명령)가 들어 있다.
 - `decisions.log`에는 같은 결정이 한 줄로 붙는다: `{"id":"…","kind":"choice","session":"WY-pm","relatedSessions":[…],"decision":"answered","decidedAt":"…"}`
 

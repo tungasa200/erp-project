@@ -17,7 +17,7 @@ const { install, EXT } = require('./fakeVscode');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const writeReq = (id, o) => {
   fs.mkdirSync(dir('requests'), { recursive: true });
-  fs.writeFileSync(path.join(dir('requests'), `${id}.json`), JSON.stringify({ kind: 'commit', session: 'WY-commit', createdAt: new Date().toISOString(), title: id, command: `git commit -F ${id}`, ...o }));
+  fs.writeFileSync(path.join(dir('requests'), `${id}.json`), JSON.stringify({ kind: 'commit', session: 'WY-commit', createdAt: new Date().toISOString(), title: id, command: `git commit -F ${id}`, what: '커밋', why: '시험', onClick: '실행', ...o }));
 };
 const forge = (id, extra = {}) => {
   fs.mkdirSync(dir('decisions'), { recursive: true });

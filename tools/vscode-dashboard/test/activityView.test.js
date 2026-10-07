@@ -66,7 +66,7 @@ test('탭을 열면 메시지·묶음·세션 상태·카드 연결을 보낸다
     const store = require(path.join(EXT, 'approvalStore.js'));
     const root = store.rootFor(path.resolve(EXT, '..', '..'));
     store.ensureDirs(root);
-    fs.writeFileSync(path.join(root, 'requests', 'card-1.json'), JSON.stringify({ kind: 'commit', session: 'WY-frontend2', createdAt: at(10), title: 'P1-09-09 커밋', command: 'git commit' }));
+    fs.writeFileSync(path.join(root, 'requests', 'card-1.json'), JSON.stringify({ kind: 'commit', session: 'WY-frontend2', createdAt: at(10), title: 'P1-09-09 커밋', command: 'git commit', what: '커밋', why: '시험', onClick: '실행' }));
 
     fake.commands['wyActivity.open']();
     const panel = fake.panels.find((p) => p.type === 'wyActivity');
