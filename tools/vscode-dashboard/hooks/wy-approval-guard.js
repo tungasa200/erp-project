@@ -138,8 +138,15 @@ function leadingTokens(seg) {
   return t;
 }
 
-// 보호 파일을 담은 폴더(.claude, 승인 폴더, 설치 폴더). 이 안으로 이동하면 상대 경로로 보호 파일에 닿는다
-const PROTECTED_DIR = /(?:^|\/)\.claude(?:\/|$)|wy-approvals|\.wy-tools/;
+// 보호 파일을 담은 폴더(.claude 자체, 승인 폴더, 설치 폴더). 이 안으로 이동하면 상대 경로로 보호 파일에 닿는다
+const PROTECTED_DIR = /(?:^|\/)\.claude\/?$|wy-approvals|\.wy-tools/;
+// .claude의 다른 하위 폴더(jobs·session-data·scratchpad 등). 거기서는 ..로 거슬러 올라갈 때만 보호 파일에 닿는다
+const CLAUDE_SUBDIR = /(?:^|\/)\.claude\//;
+const PARENT_REF = /(?:^|[\s/\\'"=])\.\.(?=[/\\\s'";&|)]|$)/;
+// cd 대상 정규화: \ → /, ./·//·끝의 / 정리, ..는 접기(.claude/./ → .claude, .claude/jobs/.. → .claude)
+const normDir = (a) => path.posix.normalize(a.replace(/\\/g, '/')).replace(/(.)\/+$/, '$1').toLowerCase();
+// 보호 폴더·파일의 이름(경로 없이). 이것만 나와도 알 수 없는 대상으로의 쓰기는 막는다
+const SOFT_NAMES = /wy-approvals|\.wy-tools|wy-ops(?:\.local)?\.json|settings\.local\.json/;
 
 // 와일드카드(* ? [)가 든 경로는 실제로 펼쳐서 판단한다(cd ~/.cl*/wy-a*/… 같은 우회, WY-commit 검증에서 찾음)
 const GLOB = /[*?[]/;
@@ -207,6 +214,8 @@ function expandGlob(pattern, cwd) {
 // 쓰기 대상이 보호 경로로 갈 수 있는지(직접 언급, 알 수 없는 값, 와일드카드를 펼친 결과)
 function riskyTarget(arg, cwd) {
   if (mentionsProtected(arg) || UNKNOWN_TARGET.test(arg)) return true;
+  // 상대 경로는 cwd 기준으로 풀어 본다(cwd가 .claude 안이면 wy-ops.json만 써도 보호 파일)
+  if (!GLOB.test(arg) && !arg.startsWith('~') && mentionsProtected(path.resolve(cwd || process.cwd(), arg))) return true;
   if (!GLOB.test(arg)) return false;
   // 끝부분이 아무것도 펼치지 못하면(빈 폴더의 *) 상위 폴더로 올라가며 닿는 곳을 본다
   for (let p = arg.replace(/\\/g, '/'), i = 0; p && p !== '.' && p !== '/' && i < 20; p = path.posix.dirname(p), i++) {
@@ -239,13 +248,39 @@ function movesIntoProtected(command, cwd) {
     const t = leadingTokens(seg);
     if (!t.length || !CHDIR.has(path.basename(t[0]).toLowerCase())) return false;
     const args = t.slice(1).filter((a) => !/^-/.test(a));
+    const up = PARENT_REF.test(command);
+    const into = (p) => PROTECTED_DIR.test(p) || (up && CLAUDE_SUBDIR.test(p));
     return args.some((a) => {
-      if (PROTECTED_DIR.test(a.replace(/\\/g, '/').toLowerCase()) || UNKNOWN_TARGET.test(a)) return true;
+      if (into(a.replace(/\\/g, '/').toLowerCase()) || into(normDir(a)) || UNKNOWN_TARGET.test(a)) return true;
+      if (!GLOB.test(a) && !a.startsWith('~') && into(normDir(path.resolve(cwd || process.cwd(), a)))) return true; // cwd 기준(.claude/jobs에서 cd ..)
       if (!GLOB.test(a)) return false;
       const hits = expandGlob(a, cwd);
-      return !hits.length || hits.some((x) => PROTECTED_DIR.test(x)); // 펼칠 수 없으면 알 수 없는 곳으로 본다
+      return !hits.length || hits.some(into); // 펼칠 수 없으면 알 수 없는 곳으로 본다
     });
   });
+}
+
+// 같은 명령 안에서 글자 그대로 정한 변수(S=/tmp/x, export S="…", $S = '…')와 홈 변수($HOME·${HOME}·$USERPROFILE·$env:USERPROFILE)를
+// 값으로 바꾼다. 알 수 없는 대상으로 보던 오탐(S=/tmp/x; rm -rf $S)을 줄이고, 보호 경로를 변수에 담은 우회는 값이 드러나 잡힌다
+function resolveVars(command) {
+  const home = os.homedir().replace(/\\/g, '/');
+  const vars = new Map([['HOME', home], ['USERPROFILE', home], ['env:USERPROFILE', home]]);
+  const unq = (v) => v.replace(/^(["'])(.*)\1$/, '$2');
+  // 값을 다시 정할 수 있는 변수(read·for·mapfile·getopts, 명령 치환 대입, 서로 다른 값 두 번)는 바꾸지 않는다 → 알 수 없는 대상으로 남는다
+  const unsafe = new Set();
+  for (const m of command.matchAll(/\b(?:read|mapfile|readarray)\b((?:\s+-\S+(?:\s+\S+)?)*)((?:\s+[A-Za-z_]\w*)+)/g)) for (const n of m[2].trim().split(/\s+/)) unsafe.add(n);
+  for (const m of command.matchAll(/\b(?:for|select)\s+([A-Za-z_]\w*)\s+in\b|\bgetopts\s+\S+\s+([A-Za-z_]\w*)|\bforeach\s*\(\s*\$([A-Za-z_]\w*)/gi)) unsafe.add(m[1] || m[2] || m[3]);
+  for (const m of command.matchAll(/(?:^|[;&|\n(\s])(?:export\s+|local\s+|declare\s+)?\$?([A-Za-z_]\w*)\s*\+?=\s*(?=[$`(])/g)) unsafe.add(m[1]);
+  const set = (n, v) => (vars.has(n) && !['HOME', 'USERPROFILE', 'env:USERPROFILE'].includes(n) && vars.get(n) !== v ? unsafe.add(n) : vars.set(n, v));
+  for (const m of command.matchAll(/(?:^|[;&|\n(]\s*)(?:export\s+|local\s+|declare\s+)?([A-Za-z_]\w*)=("[^"$`]*"|'[^']*'|[^\s;&|$`'"()]+)/g)) set(m[1], unq(m[2]));
+  for (const m of command.matchAll(/(?:^|[;&|\n]\s*)\$([A-Za-z_]\w*)\s*=\s*("[^"$`]*"|'[^']*')/g)) set(m[1], unq(m[2]));
+  for (const n of unsafe) vars.delete(n);
+  let out = command;
+  for (const [name, value] of vars) {
+    const n = name.replace(/[.*+?^${}()|[\]\\:]/g, '\\$&');
+    out = out.replace(new RegExp(`\\$\\{${n}\\}|\\$${n}(?![\\w:])`, 'g'), () => value);
+  }
+  return out;
 }
 
 // 보호 경로에 쓸 수 있는 명령인지 본다. 보호 경로가 나오는 명령에서
@@ -253,13 +288,20 @@ function movesIntoProtected(command, cwd) {
 //    다른 파일에 쓰는 것은 통과(커밋 메시지 본문에 보호 파일 이름이 들어 있는 경우 등)
 //  - 인터프리터는 코드가 읽기 API만 쓸 때만 통과시키고, 판단할 수 없으면 막는다
 function writesApprovalFiles(command, cwd) {
+  command = resolveVars(command);
   // 보호 폴더로 cd 등을 했으면 그 뒤의 모든 쓰기(상대 경로)를 보호 경로 쓰기로 본다
   const moved = movesIntoProtected(command, cwd);
   // 와일드카드 인자를 펼쳐 보호 경로에 닿으면 보호 경로가 언급된 것으로 본다(인터프리터에 인자로 넘기는 우회 포함)
   // 셸 특수 변수($? $# $$ $! $@ $* $0~9)는 경로가 아니다. ?·*를 와일드카드로, $를 알 수 없는 대상으로 보던 오탐(echo "exit=$?", WY-pm 보고)
   const scan = command.replace(/\$[?#$!@*0-9]/g, '');
-  const mentioned = mentionsProtected(command) || (GLOB.test(scan) && tokens(scan).some((a) => GLOB.test(a) && riskyTarget(a, cwd)));
-  if (!moved && !mentioned && !GLOB.test(scan)) return false;
+  // 값을 알 수 없는 토큰(${PIPESTATUS[0]}, 따옴표 안 CSS의 /* */·% 등)은 '보호 경로 언급'으로 치지 않는다(WY-backend1 보고 5·4번).
+  // 그런 토큰이 쓰기 프로그램·리다이렉트의 대상이면 아래에서 그대로 막고, 인터프리터 인자이면 그 조각만 민감하게 본다
+  const unknownGlob = (a) => GLOB.test(a) && UNKNOWN_TARGET.test(a);
+  const mentioned = mentionsProtected(command) || (GLOB.test(scan) && tokens(scan).some((a) => GLOB.test(a) && !UNKNOWN_TARGET.test(a) && riskyTarget(a, cwd)));
+  // 보호 폴더·파일 이름만 나와도(경로가 변수·명령 치환으로 쪼개진 경우: D=$(echo …/wy-approvals/ns); rm $D/decisions/a)
+  // 아래 리다이렉트·쓰기 프로그램 검사는 한다. 그 검사는 대상이 보호 경로이거나 알 수 없는 값일 때만 막는다
+  const named = SOFT_NAMES.test(command.replace(/\\/g, '/').toLowerCase());
+  if (!moved && !mentioned && !named && !GLOB.test(scan)) return false;
   // 리다이렉트(> >> 2> *>). =>(화살표 함수)·->·>=는 리다이렉트가 아니다
   for (const m of command.matchAll(/(?<![=\-<])(?:\d|\*)?>{1,2}(?!=)\s*("[^"]*"|'[^']*'|[^\s|;&<>)]+)/g)) {
     const target = m[1].replace(/^["']|["']$/g, '');
@@ -283,7 +325,7 @@ function writesApprovalFiles(command, cwd) {
     if (WRITERS.has(prog) && risky) return true;
     if (prog === 'sed' && rest.some((a) => a.startsWith('-i') || a.startsWith('--in-place')) && (moved || mentionsProtected(seg) || sedFiles(rest).some((a) => riskyTarget(a, cwd)))) return true;
     if (prog === 'find' && risky && rest.some((a) => ['-delete', '-exec', '-execdir', '-ok'].includes(a))) return true;
-    if (INTERPRETERS.has(prog) && sensitive) {
+    if (INTERPRETERS.has(prog) && (sensitive || rest.some(unknownGlob))) {
       const code = rest.join(' ');
       if (WRITE_API.test(code) || OBFUSCATION.test(code) || !READ_API.test(code)) return true;
     }

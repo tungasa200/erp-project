@@ -34,6 +34,28 @@ const deny = [
   'echo {} > ~/.claude/wy-approvals/erp-project/sessions/s.json',
   // 메시지 거부 기록(메시지 가드 훅이 씀) — 세션 현황 경고의 근거
   'echo {} >> ~/.claude/wy-approvals/erp-project/message-blocks.log',
+  // .claude 하위 폴더에서 ..로 거슬러 올라가기, .claude 자체로 이동
+  'cd ~/.claude/jobs/x && echo {} > ../../wy-approvals/erp-project/decisions/a.json',
+  'cd ~/.claude/jobs/x && cp a ../../settings.local.json',
+  'cd ~/.claude && echo {} > wy-approvals/erp-project/decisions/a.json',
+  // PowerShell 이동의 ..(WY-commit 검증), 정규화하면 .claude 자체인 경로
+  'cd ~/.claude/jobs; Set-Location ..; Set-Content wy-ops.json 1',
+  'cd ~/.claude/jobs; sl ..; Set-Content wy-ops.json 1',
+  'cd ~/.claude/jobs; Push-Location ..; echo {} > wy-ops.json',
+  'cd ~/.claude/./ && echo {} > wy-ops.json',
+  'cd ~/.claude// && echo {} > settings.local.json',
+  W`cd ~\.claude\ && echo {} > wy-ops.json`,
+  // 같은 명령에서 정한 값이 read·for·명령 치환으로 다시 정해지면 값으로 보지 않는다
+  'S=/tmp/x; read S; echo {} > $S/wy-ops.json',
+  'S=/tmp/x; for S in a b; do echo {} > $S/wy-ops.json; done',
+  'S=/tmp/x; S=$(pwd); echo {} > $S/settings.local.json',
+  // 경로를 변수·명령 치환으로 쪼갠 우회
+  'D=~/.claude/wy-approvals/erp-project; rm -rf $D/decisions',
+  'D=$(echo ~/.claude/wy-approvals/erp-project); rm $D/decisions/a.json',
+  'S=a; T=$S/../.claude; echo > $T/wy-ops.json',
+  'echo {} > $HOME/.claude/wy-approvals/erp-project/decisions/a.json',
+  // 값을 알 수 없는 와일드카드를 인터프리터 인자로
+  `node -e "require('fs').writeFileSync(process.argv[1],'{}')" \${X}*`,
   'cp a ~/.wy-tools/vscode-dashboard/x',
   W`[IO.File]::WriteAllText(".claude/wy-ops.json", "{}")`,
   // 인터프리터 쓰기 API·난독화
@@ -101,6 +123,13 @@ const allow = [
   'ls -la ~/.claude/wy-approvals/erp-project/decisions/',
   'cat ~/.claude/wy-approvals/erp-project/sessions/s.json',
   'tail -5 ~/.claude/wy-approvals/erp-project/message-blocks.log',
+  // 오탐 6건(WY-backend1·WY-backend2 보고, 2026-10-07): .claude의 다른 하위 폴더, ${PIPESTATUS[0]}, 같은 명령에서 정한 변수, 따옴표 안 CSS
+  'cd "C:/Users/me/.claude/jobs/ed/tmp/b25" && node dom.js 2>&1 | grep -v NO_COLOR',
+  'cd C:/Users/me/.claude/jobs/ed/tmp/b25 && sed -i "s#{ select } = {}#{ select, side } = {}#" build.js && node build.js',
+  'mkdir -p ~/.claude/session-data && cat > ~/.claude/session-data/a.tmp <<\'EOF\'' + NL + 'x' + NL + 'EOF',
+  'node --check a.js && for t in a b; do node test/$t.test.js 2>&1 | tail -2; echo "== $t ${PIPESTATUS[0]}"; done',
+  'S=/tmp/wyb2chk; rm -rf $S; mkdir -p $S && git archive HEAD tools | tar -x -C $S && cd $S/tools && node test/a.test.js 2>&1 | tail -2',
+  "python - <<'EOF'" + NL + "p='media/panel.css'" + NL + "s=io.open(p).read().replace('x', \"\"\"/* 꺼짐 */ .a { width: 50%; color: var(--dim); }\"\"\")" + NL + "io.open(p,'w').write(s)" + NL + 'EOF',
   'cat ~/.claude/wy-approvals/erp-project/decisions/a.json 2>/dev/null',
   'type .claude\\wy-ops.json',
   `node -e 'const d=require("C:/Users/k/.claude/wy-approvals/erp-project/decisions/20261007-x.json");console.log(d.decision, d.reason)'`,
@@ -148,6 +177,16 @@ const allow = [
 ];
 for (const c of deny) { const e = ev(c); ok(e && e.decision === 'deny', 'should deny: ' + c); }
 for (const c of allow) { const e = ev(c); ok(e === null || (c.startsWith('git commit') && e.reason.includes('WY-commit')), 'should allow: ' + c + ' → ' + JSON.stringify(e)); }
+
+// cwd가 .claude 안일 때: 상대 경로·cd ..로 보호 파일에 닿으면 막고, 그 폴더 안 다른 파일은 통과
+const jobs = path.join(proj, '.claude', 'jobs');
+fs.mkdirSync(jobs, { recursive: true });
+const inJobs = (cmd) => writesApprovalFiles(cmd, jobs);
+ok(inJobs('cd .. && echo {} > wy-ops.json'), 'cwd .claude/jobs: cd .. 뒤 wy-ops.json');
+ok(inJobs('Set-Location ..; Set-Content settings.local.json 1'), 'cwd .claude/jobs: Set-Location ..');
+ok(inJobs('echo {} > ../wy-ops.json'), 'cwd .claude/jobs: ../wy-ops.json');
+ok(writesApprovalFiles('echo {} > wy-ops.json', path.join(proj, '.claude')), 'cwd .claude: wy-ops.json');
+ok(!inJobs('echo {} > a.json && sed -i s/a/b/ a.json'), 'cwd .claude/jobs: 그 안 파일은 통과');
 ok(classify('git push -f origin x') === 'force-push' && classify('git status') === null && classify('git rebase --abort') === null, 'classify regression');
 ok(ev('git push').decision === 'deny', 'non-commit session git push denied');
 ok(writesApprovalFiles('ls') === false, 'unrelated passes');
