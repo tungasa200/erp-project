@@ -47,6 +47,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const nextId = useRef(1)
   const undoRef = useRef<UndoItem | null>(null)
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
+  // 오류 토스트의 자동 닫기 타이머
+  const dismissTimers = useRef(new Set<ReturnType<typeof setTimeout>>())
   const deadline = useRef(0)
   const remaining = useRef(DURATION_MS)
   const pauseReasons = useRef(new Set<string>())
@@ -68,7 +70,13 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       const id = nextId.current++
       setItems((list) => [...list, { id, message, traceId: options?.traceId }])
       // 문의 코드가 있으면 복사할 시간을 주기 위해 자동으로 닫지 않는다.
-      if (!options?.traceId) setTimeout(() => dismiss(id), DURATION_MS)
+      if (!options?.traceId) {
+        const t = setTimeout(() => {
+          dismissTimers.current.delete(t)
+          dismiss(id)
+        }, DURATION_MS)
+        dismissTimers.current.add(t)
+      }
     },
     [dismiss, rememberOrigin],
   )
@@ -184,7 +192,14 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [runUndo])
 
-  useEffect(() => () => clearTimeout(timer.current), [])
+  useEffect(() => {
+    const dismissing = dismissTimers.current
+    return () => {
+      clearTimeout(timer.current)
+      // 내려간 뒤 닫기 타이머가 돌지 않게(테스트 환경 정리 뒤 'window is not defined' 경합)
+      dismissing.forEach(clearTimeout)
+    }
+  }, [])
 
   const value = useMemo(() => ({ showToast, showUndo }), [showToast, showUndo])
 

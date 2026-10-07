@@ -181,7 +181,10 @@ describe('SCR-HOME-01 홈 대시보드 1차', () => {
     const check = await screen.findByRole('checkbox', { name: '견적서 작성 완료' })
     check.focus()
     await userEvent.keyboard('{Enter}')
-    await waitFor(() => expect(screen.queryByText('견적서 작성')).not.toBeInTheDocument())
+    await waitFor(() => expect(screen.queryByRole('checkbox', { name: '견적서 작성 완료' })).not.toBeInTheDocument())
+    // 결과 팝오버(SCR-TASK-03)가 포커스를 가져가고, Esc(건너뛰기)로 닫으면 다음 행으로 간다
+    expect(screen.getByRole('textbox', { name: '결과 한 줄' })).toHaveFocus()
+    await userEvent.keyboard('{Escape}')
     await waitFor(() => expect(screen.getByRole('checkbox', { name: '결제 API 문서화 완료' })).toHaveFocus())
   })
 

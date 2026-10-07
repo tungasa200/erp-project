@@ -7,6 +7,7 @@ import { CommandPalette } from '../palette/CommandPalette'
 import { useProjects } from '../projects/api'
 import { projectColor } from '../projects/palette'
 import { useSingleKeyShortcuts } from '../shortcuts/useShortcuts'
+import { CompletionResultHost } from '../tasks/CompletionResult'
 import { UnverifiedBanner } from '../verification/UnverifiedBanner'
 import styles from './AppShell.module.css'
 import { useFocusRescue } from './focusRescue'
@@ -140,7 +141,10 @@ export function AppShell() {
         <UnverifiedBanner />
         {/* 끊긴 동안에는 화면마다 저장·편집 영역만 막는다(SCR-SYS-02 ③, 오프라인 기록은 범위 밖). 이동·열람은 된다 */}
         <div className={styles.main}>
-          <Outlet />
+          {/* 업무 완료 결과 입력(SCR-TASK-03)은 목록·홈·상세 어디서 완료해도 같은 팝오버를 띄운다 */}
+          <CompletionResultHost>
+            <Outlet />
+          </CompletionResultHost>
         </div>
       </div>
 

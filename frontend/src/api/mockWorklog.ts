@@ -3,6 +3,7 @@
 // 예전 저장본에 tasks가 없으면 예시 업무를 채워 넣는다.
 import { scheduledTaskIds } from '../calendar/mockSchedules'
 import type { Project, Tag } from '../projects/api'
+import type { WorkRecord } from '../records/api'
 import type { Task } from '../tasks/api'
 
 const STORE_KEY = 'worklog.mock.worklog'
@@ -11,6 +12,8 @@ interface WorklogState {
   projects: Project[]
   tags: Tag[]
   tasks: Task[]
+  /** 업무 기록(P2-02). 예전 저장본에는 없다 */
+  records?: WorkRecord[]
 }
 
 const now = () => new Date().toISOString()
@@ -212,6 +215,9 @@ export function handleWorklog(method: string, url: string, body: Record<string, 
   const tasks = handleTasks(method, url, body, state, r)
   if (tasks) return tasks
 
+  const records = handleRecords(method, url, body, state, r)
+  if (records) return records
+
   const tagMatch = /^\/api\/worklog\/tags\/([^/]+)$/.exec(path)
   if (tagMatch) {
     const tag = state.tags.find((t) => t.id === tagMatch[1])
@@ -381,6 +387,79 @@ function handleTasks(
     }
     save(state)
     return r.json(200, task)
+  }
+  return null
+}
+
+// 업무 기록(P2-02). 결과 입력 팝오버(SCR-TASK-03)가 만들고 되돌리기가 보관한다. 시간 칸·확인 대기는 다루지 않는다
+function handleRecords(
+  method: string,
+  url: string,
+  body: Record<string, unknown>,
+  state: WorklogState,
+  r: Respond,
+): Response | null {
+  const path = url.split('?')[0]
+  if (!path.startsWith('/api/worklog/records')) return null
+  const records = (state.records ??= [])
+  if (method === 'GET' && path === '/api/worklog/records') {
+    const q = new URLSearchParams(url.split('?')[1] ?? '')
+    const from = q.get('from') ?? ''
+    const to = q.get('to') ?? ''
+    const taskId = q.get('taskId')
+    const items = records
+      .filter((x) => !x.deletedAt && x.workDate >= from && x.workDate <= to && (!taskId || x.taskId === taskId))
+      .sort((a, b) => a.workDate.localeCompare(b.workDate) || a.id.localeCompare(b.id))
+    return r.json(200, { items })
+  }
+  if (method === 'POST' && path === '/api/worklog/records') {
+    const content = String(body.content ?? '').trim()
+    const outcome = (body.outcome as WorkRecord['outcome']) ?? null
+    const progress = (body.progress as number | null | undefined) ?? null
+    if (!content || content.length > 500)
+      return r.problem(400, 'VALIDATION_FAILED', { errors: [{ field: 'content', code: 'INVALID' }] })
+    if (!body.workDate)
+      return r.problem(400, 'VALIDATION_FAILED', { errors: [{ field: 'workDate', code: 'REQUIRED' }] })
+    if (progress !== null && outcome !== 'IN_PROGRESS')
+      return r.problem(400, 'VALIDATION_FAILED', { errors: [{ field: 'progress', code: 'INVALID_FORMAT' }] })
+    const task = state.tasks.find((t) => t.id === body.taskId && !t.deletedAt)
+    if (body.taskId && !task) return r.problem(404, 'NOT_FOUND')
+    const result = String(body.result ?? '').trim()
+    const record: WorkRecord = {
+      id: id(),
+      status: 'CONFIRMED',
+      workDate: String(body.workDate),
+      content,
+      taskId: task?.id ?? null,
+      projectId: task?.projectId ?? null,
+      tagIds: task?.tagIds ?? [],
+      scheduleId: null,
+      occurrenceStart: null,
+      result: result || null,
+      outcome,
+      progress,
+      startAt: null,
+      endAt: null,
+      durationMin: null,
+      deletedAt: null,
+      createdAt: now(),
+      updatedAt: now(),
+      version: 0,
+    }
+    records.push(record)
+    save(state)
+    return r.json(201, record)
+  }
+  const m = /^\/api\/worklog\/records\/([^/]+)$/.exec(path)
+  if (m && method === 'DELETE') {
+    const record = records.find((x) => x.id === m[1])
+    if (!record) return r.problem(404, 'NOT_FOUND')
+    if (!record.deletedAt) {
+      record.deletedAt = now()
+      record.version += 1
+      save(state)
+    }
+    return new Response(null, { status: 204 })
   }
   return null
 }

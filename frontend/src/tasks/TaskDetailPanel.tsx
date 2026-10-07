@@ -13,6 +13,7 @@ import { useToast } from '../components/useToast'
 import { TAGS_QUERY_KEY, tagApi, useProjects, useTags } from '../projects/api'
 import { projectColor } from '../projects/palette'
 import { refreshTasks, taskApi, taskKey, useTask, type Task, type TaskPatch } from './api'
+import { useCompletionResult } from './completionResultContext'
 import { LinkedSchedules } from './LinkedSchedules'
 import type { TaskListOutletContext } from './TaskListPage'
 import styles from './tasks.module.css'
@@ -158,6 +159,7 @@ function TaskForm({
   const queryClient = useQueryClient()
   const listContext = useOutletContext<TaskListOutletContext | undefined>()
   const { showToast, showUndo } = useToast()
+  const openResult = useCompletionResult()
   const projects = useProjects()
   const tags = useTags()
   const archived = Boolean(task.deletedAt)
@@ -359,7 +361,11 @@ function TaskForm({
           onChange={(e) => {
             const next = e.target.value as Task['status']
             setStatus(next)
-            void commit({ status: next })
+            // 완료로 바꾸면 결과 입력 팝오버(SCR-TASK-03). 닫으면 상태 칸으로 돌아온다
+            void commit({ status: next }, () => {
+              if (next === 'DONE' && task.status !== 'DONE')
+                openResult?.(task, () => document.getElementById(`${id}-status`)?.focus())
+            })
           }}
         >
           {STATUSES.map((s) => (

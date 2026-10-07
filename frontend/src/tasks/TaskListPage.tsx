@@ -1,5 +1,5 @@
 // SCR-TASK-01 업무 목록 (P1-03·04). 필터는 URL에 둔다. 행을 누르면 오른쪽 상세 패널(/tasks/:id)이 열린다.
-// 완료 체크·Delete 보관은 확인창 없이 바로 하고 되돌리기 토스트를 띄운다(UX-03). 완료 결과 입력(SCR-TASK-03)은 P2.
+// 완료 체크·Delete 보관은 확인창 없이 바로 하고 되돌리기 토스트를 띄운다(UX-03). 완료하면 결과 입력 팝오버(SCR-TASK-03)도 띄운다.
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { Link, Outlet, useNavigate, useParams, useSearchParams } from 'react-router'
@@ -14,7 +14,9 @@ import { projectColor } from '../projects/palette'
 import { todayIn, weekStartNumber } from '../quickInput/dates'
 import { QuickInput } from '../quickInput/QuickInput'
 import { refreshTasks, taskApi, useTasks, type Task } from './api'
+import { isCompletionResultFocused } from './completionResultContext'
 import styles from './tasks.module.css'
+import { useCompleteTask } from './useCompleteTask'
 import { useQuickSave } from './useQuickSave'
 import {
   DEFAULT_STATUSES,
@@ -81,6 +83,8 @@ export function TaskListPage() {
     const pending = focusAfter.current
     if (!pending) return
     if ((pending.list === 'main' ? main.items : done.items).some((t) => t.id === pending.gone)) return
+    // 결과 팝오버가 포커스를 가졌으면 뺏지 않는다. 팝오버를 닫을 때 restoreFocus로 옮긴다
+    if (isCompletionResultFocused()) return
     focusAfter.current = null
     const next = pending.next && document.querySelector<HTMLElement>(`[data-complete="${pending.next}"]`)
     ;(next || headingRef.current)?.focus()
@@ -93,6 +97,15 @@ export function TaskListPage() {
     },
     onStay: () => {
       focusAfter.current = null
+    },
+    // 결과 팝오버를 닫을 때: 행이 남아 있으면 그 완료 체크로(빠지면 위 effect가 이웃으로 옮긴다), 없으면 이웃 행·목록 제목으로
+    restoreFocus: () => {
+      const own = document.querySelector<HTMLElement>(`[data-complete="${task.id}"]`)
+      if (own) return own.focus()
+      const pending = focusAfter.current
+      focusAfter.current = null
+      const next = pending?.next && document.querySelector<HTMLElement>(`[data-complete="${pending.next}"]`)
+      ;(next || headingRef.current)?.focus()
     },
   })
   const mainVisible = groups.flatMap((g) => g.items)
@@ -524,9 +537,11 @@ interface RowProps {
   onLeave: () => void
   /** 동작이 실패하면 부른다 */
   onStay: () => void
+  /** 완료 결과 팝오버를 닫을 때 부른다 */
+  restoreFocus: () => void
 }
 
-function TaskRow({ task, today, weekStart, projects, tagNames, selected, onLeave, onStay }: RowProps) {
+function TaskRow({ task, today, weekStart, projects, tagNames, selected, onLeave, onStay, restoreFocus }: RowProps) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const [search] = useSearchParams()
@@ -537,6 +552,7 @@ function TaskRow({ task, today, weekStart, projects, tagNames, selected, onLeave
   const state = dueState(task.dueDate, today, weekStart)
   const refresh = () => refreshTasks(queryClient)
   const online = useOnline()
+  const complete = useCompleteTask()
 
   const failed = (error: unknown) => {
     onStay()
@@ -552,12 +568,16 @@ function TaskRow({ task, today, weekStart, projects, tagNames, selected, onLeave
   const toggleDone = async () => {
     const before = task.status
     onLeave()
+    if (!done) {
+      if (!(await complete(task, { returnFocus: restoreFocus }))) onStay()
+      return
+    }
     try {
-      const updated = await taskApi.update(task.id, { version: task.version, status: done ? 'TODO' : 'DONE' })
+      const updated = await taskApi.update(task.id, { version: task.version, status: 'TODO' })
       refresh()
       showUndo({
-        group: done ? 'reopen-task' : 'complete-task',
-        message: (n) => (done ? `업무 ${n}개를 다시 열었어요` : `업무 ${n}개를 완료했어요`),
+        group: 'reopen-task',
+        message: (n) => `업무 ${n}개를 다시 열었어요`,
         undo: async () => {
           const latest = await taskApi.get(task.id)
           await taskApi.update(task.id, { version: latest.version, status: before })

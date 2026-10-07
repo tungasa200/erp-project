@@ -15,6 +15,7 @@ import { useProjects, type Project } from '../projects/api'
 import { projectColor } from '../projects/palette'
 import { addDays, isoWeekday, shortDate, todayIn, WEEKDAY_NAMES, weekStartNumber } from '../quickInput/dates'
 import { useTasks, type Task } from '../tasks/api'
+import { isCompletionResultFocused } from '../tasks/completionResultContext'
 import { useCompleteTask } from '../tasks/useCompleteTask'
 import { DEFAULT_STATUSES, dueLabel, dueState, groupTasks } from '../tasks/view'
 import styles from './home.module.css'
@@ -170,6 +171,8 @@ function RemainingTasks({ tasks, loading, failed, onRetry, today, weekStart, pro
   useEffect(() => {
     const pending = focusAfter.current
     if (!pending || tasks.some((t) => t.id === pending.gone)) return
+    // 결과 팝오버(SCR-TASK-03)가 포커스를 가졌으면 뺏지 않는다. 팝오버를 닫을 때 restoreFocus로 옮긴다
+    if (isCompletionResultFocused()) return
     focusAfter.current = null
     const next = pending.next && document.querySelector<HTMLElement>(`[data-complete="${pending.next}"]`)
     ;(next || headingRef.current)?.focus()
@@ -180,7 +183,15 @@ function RemainingTasks({ tasks, loading, failed, onRetry, today, weekStart, pro
     const index = visible.findIndex((t) => t.id === task.id)
     const next = visible[index + 1] ?? visible[index - 1]
     focusAfter.current = { gone: task.id, next: next?.id ?? null }
-    if (!(await complete(task))) focusAfter.current = null
+    const restoreFocus = () => {
+      const own = document.querySelector<HTMLElement>(`[data-complete="${task.id}"]`)
+      if (own) return own.focus()
+      const pending = focusAfter.current
+      focusAfter.current = null
+      const target = pending?.next && document.querySelector<HTMLElement>(`[data-complete="${pending.next}"]`)
+      ;(target || headingRef.current)?.focus()
+    }
+    if (!(await complete(task, { returnFocus: restoreFocus }))) focusAfter.current = null
   }
 
   return (

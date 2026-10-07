@@ -59,6 +59,8 @@ export function stubFetch(handlers: Record<string, Handler>) {
     if (handler) return handler(init)
     // 앱 셸(사이드바 프로젝트 목록)·캘린더처럼 여러 화면이 함께 받는 목록은 등록하지 않았으면 빈 목록으로 답한다
     if (EMPTY_LISTS.includes(key.split('?')[0])) return json(200, { items: [], nextCursor: null })
+    // 업무를 완료하면 결과 팝오버(SCR-TASK-03)가 닫힐 때 기록을 만든다. 등록하지 않았으면 만든 것으로 답한다
+    if (key === 'POST /api/worklog/records') return json(201, { id: 'r-auto', status: 'CONFIRMED' })
     if (key === 'POST /api/auth/refresh') return problem(401, 'REFRESH_INVALID')
     return problem(401, 'UNAUTHENTICATED')
   })
