@@ -104,26 +104,185 @@
   padding: 0 6px;
 }
 
+/* 칩은 누르는 버튼이라 줄 간격을 14px로 둔다: 보이는 30px + 위아래 7px = 44px 누르는 영역이 윗줄·아랫줄과 겹치지 않는다 */
 .chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 14px 6px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
+.chipItem {
+  position: relative;
+}
+
 .chip {
+  position: relative;
   box-sizing: border-box;
   display: flex;
   align-items: center;
   height: 30px;
   padding: 0 12px;
+  border: 0;
   border-radius: 15px;
+  font: inherit;
   font-size: 12.5px;
   font-weight: 700;
   background: #eef0f6;
   color: var(--color-text-body);
+  cursor: pointer;
+}
+
+/* 누르는 영역 44px(--size-touch): 위아래 7px, 옆은 칩 간격 6px의 절반만 넓힌다 */
+.chip::after {
+  content: '';
+  position: absolute;
+  inset: -7px -3px;
+}
+
+.chip:hover {
+  filter: brightness(0.96);
+}
+
+/* 칩 수정 드롭다운 (P1-09-12) */
+.chipMenu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  min-width: 200px;
+  max-width: min(320px, calc(100vw - 32px));
+  max-height: 320px;
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding: 6px;
+  border-radius: 16px;
+  background: var(--color-surface);
+  box-shadow: 0 18px 44px rgba(40, 44, 90, 0.18);
+}
+
+.chipMenuRight {
+  left: auto;
+  right: 0;
+}
+
+.chipOption {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--size-touch);
+  padding: 0 12px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.chipOption:hover,
+.chipOption:focus-visible {
+  background: var(--color-ground);
+}
+
+.chipOption[aria-checked='true'] {
+  color: var(--color-accent-ink);
+}
+
+/* 긴 프로젝트·태그 이름은 한 줄로 줄인다(최대 50자) */
+.chipOption > span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chipOptionDetail {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+.chipOptionCheck {
+  margin-left: auto;
+  padding-left: 12px;
+}
+
+.chipRemove {
+  border-top: 1px solid var(--color-divider);
+  border-radius: 0 0 10px 10px;
+  color: var(--color-text-muted);
+}
+
+.timeFields {
+  display: flex;
+  gap: 8px;
+  padding: 6px;
+}
+
+.timeField {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+}
+
+.timeField input {
+  min-height: var(--size-touch);
+  box-sizing: border-box;
+  padding: 0 10px;
+  border: 1px solid #d5d8e5;
+  border-radius: 10px;
+  font: inherit;
+  font-size: 15px;
+  color: var(--color-text);
+  background: var(--color-surface);
+}
+
+.timeError {
+  margin: 0;
+  padding: 0 6px 4px;
+  font-size: 12.5px;
+  color: var(--color-danger);
+}
+
+.timeActions {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 6px 0;
+}
+
+.timeActions .chipRemove {
+  border-top: 0;
+  border-radius: 10px;
+}
+
+.timeApply {
+  min-height: var(--size-touch);
+  padding: 0 18px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.timeApply:disabled {
+  background: var(--color-disabled);
+  cursor: not-allowed;
 }
 
 .time {
@@ -215,7 +374,7 @@
   align-items: center;
   gap: 14px;
   padding: 10px 0;
-  border-top: 1px solid #f0f1f6;
+  border-top: 1px solid var(--color-divider);
 }
 
 .rule dt {

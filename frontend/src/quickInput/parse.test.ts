@@ -1,10 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import { todayIn } from './dates'
-import { parseQuickInput, toDraft } from './parse'
+import { parseQuickInput, replaceSpan, toDraft } from './parse'
 
 // 2026-10-07은 수요일
 const TODAY = '2026-10-07'
-const parse = (text: string, weekStart?: number) => parseQuickInput(text, { today: TODAY, weekStart })
+// 해석 결과 비교에서는 낱말 위치(spans)를 빼고 본다. 위치는 아래 'spans' 묶음에서 따로 확인한다
+const parse = (text: string, weekStart?: number) => {
+  const result: Partial<ReturnType<typeof parseQuickInput>> = parseQuickInput(text, { today: TODAY, weekStart })
+  delete result.spans
+  return result
+}
 
 describe('parseQuickInput', () => {
   it('요구사항 예시 한 줄을 모두 해석한다', () => {
@@ -144,7 +149,7 @@ describe('parseQuickInput', () => {
 })
 
 describe('toDraft', () => {
-  const draft = (text: string) => toDraft(parse(text), TODAY)
+  const draft = (text: string) => toDraft(parseQuickInput(text, { today: TODAY }), TODAY)
 
   it('시간만 있으면 오늘 일정', () => {
     expect(draft('14-16 견적서')).toEqual({ title: '견적서', schedule: { date: TODAY, start: '14:00', end: '16:00' } })
@@ -173,5 +178,27 @@ describe('todayIn', () => {
     const now = new Date('2026-10-04T15:30:00Z') // 서울 10/5 00:30
     expect(todayIn('Asia/Seoul', now)).toBe('2026-10-05')
     expect(todayIn('UTC', now)).toBe('2026-10-04')
+  })
+})
+
+describe('spans·replaceSpan (P1-09-12 칩 수정)', () => {
+  const text = '  14-16 견적서 @영업 #견적 #API  !높음 ~다음주 금 내일'
+  const { spans } = parseQuickInput(text, { today: TODAY })
+  const at = (s?: [number, number]) => (s ? text.slice(...s) : undefined)
+
+  it('해석한 낱말의 원문 위치를 준다(여러 낱말 마감 포함)', () => {
+    expect(at(spans.time)).toBe('14-16')
+    expect(at(spans.project)).toBe('@영업')
+    expect(at(spans.tags?.['api'])).toBe('#API')
+    expect(at(spans.priority)).toBe('!높음')
+    expect(at(spans.due)).toBe('~다음주 금')
+    expect(at(spans.date)).toBe('내일')
+  })
+
+  it('그 낱말만 바꾸거나, 빼면서 공백을 하나로 줄인다', () => {
+    expect(replaceSpan(text, spans.priority!, '!낮음')).toBe('  14-16 견적서 @영업 #견적 #API  !낮음 ~다음주 금 내일')
+    expect(replaceSpan(text, spans.priority!, '')).toBe('  14-16 견적서 @영업 #견적 #API ~다음주 금 내일')
+    expect(replaceSpan(text, spans.date!, '')).toBe('  14-16 견적서 @영업 #견적 #API  !높음 ~다음주 금')
+    expect(replaceSpan('14-16 회의', [0, 5], '')).toBe('회의')
   })
 })

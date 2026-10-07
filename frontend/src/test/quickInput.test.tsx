@@ -105,7 +105,7 @@ describe('SCR-COM-02 빠른 입력창', () => {
     const project = await within(await screen.findByRole('list', { name: '해석 결과' })).findByText('영업')
     expect(project).toHaveStyle({ background: 'var(--project-p2-tint)', color: 'var(--project-p2-ink)' })
     expect(screen.getByText('#결제')).toHaveClass('chip', 'tag')
-    expect(await screen.findByRole('listitem', { name: '새 태그 정산' })).toHaveClass('tag', 'tagNew')
+    expect(await screen.findByRole('button', { name: '새 태그 정산' })).toHaveClass('tag', 'tagNew')
   })
 
   it('없는 프로젝트는 "새 프로젝트 만들기" 칩을 눌러 만든다', async () => {

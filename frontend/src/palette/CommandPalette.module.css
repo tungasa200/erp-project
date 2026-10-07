@@ -146,3 +146,22 @@
     display: none;
   }
 }
+
+/* 업무 검색 결과 (P1-10-08) */
+.detail {
+  flex: none;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.loading {
+  padding: 6px 12px;
+}
+
+.notice {
+  margin: 0;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}

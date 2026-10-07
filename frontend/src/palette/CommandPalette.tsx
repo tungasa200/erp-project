@@ -1,12 +1,16 @@
-// SCR-COM-03 명령 팔레트 (UX-01). 지금은 동작(업무 추가)·화면 이동·날짜 이동만 있다.
-// 업무·일지 검색, 하루 마감·타이머 같은 동작은 해당 기능 단계에서 COMMANDS에 더한다.
+// SCR-COM-03 명령 팔레트 (UX-01). 동작(업무 추가)·화면 이동·날짜 이동·업무 검색(P1-10-08)이 있다.
+// 일지 검색, 하루 마감·타이머 같은 동작은 해당 기능 단계에서 COMMANDS에 더한다.
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { Command } from 'cmdk'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { useAuth } from '../auth/useAuth'
 import { shortDate, todayIn, weekStartNumber } from '../quickInput/dates'
 import { parseQuickInput } from '../quickInput/parse'
 import { modKey, useShortcutsEnabled } from '../shortcuts/useShortcuts'
+import { Skeleton } from '../components/Skeleton'
+import { taskApi, type Task } from '../tasks/api'
+import { STATUS_LABEL } from '../tasks/view'
 import styles from './CommandPalette.module.css'
 import { objectParticle } from './particle'
 
@@ -41,6 +45,38 @@ function saveRecent(id: string) {
 
 const normalize = (s: string) => s.toLowerCase().replace(/\s+/g, '')
 
+const TASK_SEARCH_LIMIT = 5
+const TASK_SEARCH_DELAY_MS = 200
+const Q_MAX = 100 // 계약 q maxLength
+
+/** 글자를 칠 때마다 요청하지 않게 멈춘 뒤 delay가 지나면 바뀌는 값 */
+function useDebounced(value: string, delay: number) {
+  const [debounced, setDebounced] = useState(value)
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(value), delay)
+    return () => clearTimeout(timer)
+  }, [value, delay])
+  return debounced
+}
+
+/** 제목 부분 일치 업무 검색(GET /tasks?q=, 보관한 업무 제외). 키가 ['tasks', …]라 업무를 바꾸면 함께 다시 받는다 */
+function useTaskSearch(q: string) {
+  const term = useDebounced(q.slice(0, Q_MAX), TASK_SEARCH_DELAY_MS)
+  const result = useQuery({
+    queryKey: ['tasks', 'search', term],
+    queryFn: async () => (await taskApi.list({ q: term, sort: 'created', limit: TASK_SEARCH_LIMIT })).items,
+    enabled: term !== '',
+    // 다음 글자의 결과가 올 때까지 앞 결과를 둔다. 맞지 않게 된 것은 아래에서 거른다
+    placeholderData: keepPreviousData,
+    staleTime: 10_000,
+  })
+  const needle = q.toLowerCase()
+  const items = q === '' ? [] : (result.data ?? []).filter((t) => t.title.toLowerCase().includes(needle))
+  // 첫 결과를 기다리는 동안(멈추기 전 포함)에만 스켈레톤
+  const loading = q !== '' && result.data === undefined && !result.isError
+  return { items, loading, error: q !== '' && result.isError }
+}
+
 interface Props {
   onClose: () => void
   /** 빠른 입력창으로 이동(N과 같은 동작). 글자를 주면 미리 채운다 */
@@ -52,6 +88,7 @@ export function CommandPalette({ onClose, onQuickAdd }: Props) {
   const { user } = useAuth()
   const shortcutsEnabled = useShortcutsEnabled()
   const [query, setQuery] = useState('')
+  const taskSearch = useTaskSearch(query.trim())
 
   const commands = useMemo<PaletteCommand[]>(() => {
     const go = (to: string) => () => navigate(to)
@@ -103,7 +140,12 @@ export function CommandPalette({ onClose, onQuickAdd }: Props) {
   const groups = (['동작', '이동'] as const)
     .map((g) => ({ heading: g, items: visible.matched.filter((c) => c.group === g) }))
     .filter((g) => g.items.length > 0)
+  // 업무 검색 결과는 명령이 아니므로, 맞는 명령이 없으면 결과가 있어도 '업무로 추가'를 맨 앞에 둔다
   const nothing = visible.matched.length === 0 && !jumpDate
+  const openTask = (task: Task) => {
+    onClose()
+    navigate(`/tasks/${task.id}`)
+  }
 
   return (
     <div className={styles.overlay} onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
@@ -139,7 +181,7 @@ export function CommandPalette({ onClose, onQuickAdd }: Props) {
               autoFocus
               value={query}
               onValueChange={setQuery}
-              placeholder="명령이나 화면 이름을 입력하세요"
+              placeholder="명령, 화면 이름, 업무를 찾아보세요"
               className={styles.input}
             />
             <kbd className={styles.kbd}>Esc</kbd>
@@ -195,6 +237,26 @@ export function CommandPalette({ onClose, onQuickAdd }: Props) {
                 ))}
               </Command.Group>
             ))}
+            {/* 제목 없이 스켈레톤만: 0.3초 안에 오면 아무것도 보이지 않는다 */}
+            {taskSearch.loading && (
+              <div className={styles.loading}>
+                <Skeleton count={2} />
+              </div>
+            )}
+            {(taskSearch.items.length > 0 || taskSearch.error) && (
+              <Command.Group heading="업무" className={styles.group}>
+                {taskSearch.items.map((t) => (
+                  <Command.Item key={t.id} value={`task-${t.id}`} className={styles.item} onSelect={() => openTask(t)}>
+                    <span className={styles.icon} aria-hidden="true">
+                      {t.status === 'DONE' ? '✓' : '○'}
+                    </span>
+                    <span className={styles.label}>{t.title}</span>
+                    {t.status !== 'TODO' && <span className={styles.detail}>{STATUS_LABEL[t.status]}</span>}
+                  </Command.Item>
+                ))}
+                {taskSearch.error && <p className={styles.notice}>업무를 불러오지 못했어요</p>}
+              </Command.Group>
+            )}
           </Command.List>
           <div className={styles.footer} aria-hidden="true">
             <span>↑↓ 이동</span>
