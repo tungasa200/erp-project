@@ -84,7 +84,9 @@ function validate(f: Form, timed: boolean, running: boolean): Errors {
   if (!f.content.trim()) errors.content = '한 일을 적어 주세요'
   if (!f.workDate) errors.workDate = '날짜를 골라 주세요'
   if (!timed) return errors
-  if (!f.start && f.end) time('시작 시각도 골라 주세요', 'start')
+  // 실행 중인 타이머는 시작을 비울 수 없다(계약 PATCH: 시작·내용·업무만 고친다)
+  if (running && !f.start) time('타이머의 시작 시각을 골라 주세요', 'start')
+  else if (!f.start && f.end) time('시작 시각도 골라 주세요', 'start')
   // 실행 중인 타이머는 종료 없이 둘 수 있다(종료를 넣으면 정지와 같다)
   else if (f.start && !f.end && !running) time('종료 시각도 골라 주세요', 'end')
   else if (f.start && f.end && !span(f)) time('종료를 시작보다 뒤로 골라 주세요', 'end')

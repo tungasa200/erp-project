@@ -202,6 +202,35 @@ describe('기록 추가·수정 (SCR-REC-01)', () => {
     })
   })
 
+  it('실행 중인 타이머는 종료 없이 고칠 수 있고, 시작은 비울 수 없다(D-101)', async () => {
+    const { sent } = server({
+      timed: true,
+      handlers: {
+        'GET /api/worklog/records/r-1': () => json(200, record({ startAt: '2026-10-07T01:00:00Z' })),
+        'PATCH /api/worklog/records/r-1': () => json(200, record()),
+      },
+    })
+    const { user, dialog } = await open({ recordId: 'r-1' })
+    const start = await within(dialog).findByLabelText('시작')
+    expect(start).toHaveValue('10:00')
+    expect(within(dialog).getByText('타이머가 돌고 있어요. 종료를 넣으면 멈춰요')).toBeInTheDocument()
+
+    await user.clear(start)
+    await user.click(within(dialog).getByRole('button', { name: '저장' }))
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('타이머의 시작 시각을 골라 주세요')
+    expect(start).toHaveFocus()
+
+    await user.type(start, '09:30')
+    await user.click(within(dialog).getByRole('button', { name: '저장' }))
+    await waitFor(() => expect(screen.getByText('바뀜')).toBeInTheDocument())
+    expect(sent.find((x) => x.key.startsWith('PATCH'))?.body).toEqual({
+      version: 3,
+      startAt: '2026-10-07T00:30:00.000Z',
+      endAt: null,
+      durationMin: null,
+    })
+  })
+
   it('동시 수정 충돌(409)이면 충돌 띠를 보이고, 새로 불러오면 서버 값으로 채운다', async () => {
     let latest = record()
     server({
