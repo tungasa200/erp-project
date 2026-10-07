@@ -228,6 +228,9 @@ class ApprovalCenter {
       } else if (msg.type === 'reveal' && typeof msg.sessionId === 'string') {
         // 카드의 '세션 현황에서 보기'(B2-5)
         vscode.commands.executeCommand('erpSessions.revealSession', msg.sessionId);
+      } else if (msg.type === 'openActivity') {
+        // 머리의 활동 버튼·g a·빈 상태의 '세션 활동 보기'(활동은 별도 탭, Q2)
+        vscode.commands.executeCommand('wyActivity.open');
       } else if (msg.type === 'openFolder') {
         vscode.env.openExternal(vscode.Uri.file(this.root));
       }
