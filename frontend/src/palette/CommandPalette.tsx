@@ -20,6 +20,8 @@ interface PaletteCommand {
   group: '동작' | '이동'
   keywords?: string
   shortcut?: string
+  /** 라벨 옆 보조 표시(예: 끊긴 동안 '연결 끊김') */
+  detail?: string
   run: () => void
 }
 
@@ -79,16 +81,26 @@ function useTaskSearch(q: string) {
 
 function timerCommands(timer: Props['timer']): PaletteCommand[] {
   if (!timer) return []
+  // 끊긴 동안에도 숨기지 않고(찾는 사람이 이유를 알게) 옆에 표시한다. 실행하면 이유를 알린다
+  const detail = timer.offline ? '연결 끊김' : undefined
   const start: PaletteCommand = {
     id: 'timer-start',
     label: timer.running ? '타이머 — 다른 업무로 전환' : '타이머 시작',
     group: '동작',
     keywords: '타이머 시작 시간 재기 전환 바꾸기',
+    detail,
     run: timer.start,
   }
   if (!timer.running) return [start]
   return [
-    { id: 'timer-stop', label: '타이머 정지', group: '동작', keywords: '타이머 멈추기 끝내기', run: timer.stop },
+    {
+      id: 'timer-stop',
+      label: '타이머 정지',
+      group: '동작',
+      keywords: '타이머 멈추기 끝내기',
+      detail,
+      run: timer.stop,
+    },
     start,
   ]
 }
@@ -98,7 +110,7 @@ interface Props {
   /** 빠른 입력창으로 이동(N과 같은 동작). 글자를 주면 미리 채운다 */
   onQuickAdd: (text?: string) => void
   /** 타이머 명령. 시간 기록 옵션이 꺼져 있으면 null(명령을 숨긴다) */
-  timer?: { running: boolean; start: () => void; stop: () => void } | null
+  timer?: { running: boolean; offline?: boolean; start: () => void; stop: () => void } | null
 }
 
 export function CommandPalette({ onClose, onQuickAdd, timer }: Props) {
@@ -311,6 +323,7 @@ function Item({
         {command.group === '동작' ? '+' : '→'}
       </span>
       <span className={styles.label}>{command.label}</span>
+      {command.detail && <span className={styles.detail}>{command.detail}</span>}
       {command.shortcut && <kbd className={styles.kbd}>{command.shortcut}</kbd>}
     </Command.Item>
   )

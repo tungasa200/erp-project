@@ -21,21 +21,43 @@ export type GapChoice =
   | { kind: 'previous' | 'frequent' | 'direct'; content: string; taskId: string | null }
   | { kind: 'plan'; plan: NonNullable<TimeGap['plan']> }
 
-/** 구간을 채운다. 성공하면 만든·확정한 기록을 돌려준다 */
-export async function fillGap(gap: TimeGap, choice: GapChoice): Promise<WorkRecord> {
+/** 구간을 채운다. 성공하면 만든·확정한 기록과 그것을 되돌리는 함수를 돌려준다 */
+export async function fillGap(
+  gap: TimeGap,
+  choice: GapChoice,
+): Promise<{ saved: WorkRecord; undo: () => Promise<unknown> }> {
   const span = { startAt: gap.startAt, endAt: gap.endAt }
+  const created = async (record: Promise<WorkRecord>) => {
+    const saved = await record
+    return { saved, undo: () => recordApi.remove(saved.id) }
+  }
   if (choice.kind !== 'plan') {
-    return recordApi.create({ content: choice.content, taskId: choice.taskId, ...span })
+    return created(recordApi.create({ content: choice.content, taskId: choice.taskId, ...span }))
   }
   const { plan } = choice
   if (!plan.pendingRecordId) {
-    return recordApi.create({ content: plan.title, taskId: plan.taskId, ...span })
+    return created(recordApi.create({ content: plan.title, taskId: plan.taskId, ...span }))
   }
-  const pending = await api.request<WorkRecord>(`/api/worklog/records/${plan.pendingRecordId}`)
-  return api.request<WorkRecord>(`/api/worklog/records/${plan.pendingRecordId}`, {
+  const url = `/api/worklog/records/${plan.pendingRecordId}`
+  const pending = await api.request<WorkRecord>(url)
+  const saved = await api.request<WorkRecord>(url, {
     method: 'PATCH',
     body: { ...span, status: 'CONFIRMED', version: pending.version },
   })
+  // 확인 대기로 되돌리면 채운 시간 칸도 확정 전 값으로 돌린다. workDate는 시작이 없을 때의 날짜라 함께 보낸다
+  const undo = () =>
+    api.request<WorkRecord>(url, {
+      method: 'PATCH',
+      body: {
+        status: 'PENDING',
+        startAt: pending.startAt ?? null,
+        endAt: pending.endAt ?? null,
+        durationMin: pending.durationMin ?? null,
+        workDate: pending.workDate,
+        version: saved.version,
+      },
+    })
+  return { saved, undo }
 }
 
 /** 기간 시간 집계(GET /records/time-summary). 홈은 오늘 합계만 쓴다 */

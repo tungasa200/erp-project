@@ -8,8 +8,6 @@ import { Modal } from '../calendar/Modal'
 import { formatMinutes, toZoned } from '../calendar/time'
 import { useOnline } from '../components/useOnline'
 import { useToast } from '../components/useToast'
-import { recordApi } from '../records/api'
-import { pendingApi } from '../records/pending'
 import { durationText, fillGap, type GapChoice, type TimeGap } from './gaps'
 import styles from './GapFill.module.css'
 
@@ -40,15 +38,13 @@ export function GapFill({ gap, timeZone, onClose }: Props) {
     if (busy) return
     setBusy(true)
     try {
-      const saved = await fillGap(gap, choice)
-      const wasPending = choice.kind === 'plan' && choice.plan.pendingRecordId !== null
+      const { undo } = await fillGap(gap, choice)
       showUndo({
         group: 'gap-fill',
         message: (n) => (n > 1 ? `빈 시간 ${n}곳을 채웠어요` : `${span}을 채웠어요`),
         undo: async () => {
           try {
-            if (wasPending) await pendingApi.setStatus(saved.id, 'PENDING', saved.version)
-            else await recordApi.remove(saved.id)
+            await undo()
           } catch (error) {
             const { message, traceId } = toastForError(error)
             showToast(message, { traceId })

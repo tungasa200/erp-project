@@ -106,4 +106,26 @@ describe('SCR-COM-03 ② 타이머 명령 (P2-06)', () => {
     await userEvent.click(within(palette).getByText('타이머 — 다른 업무로 전환'))
     expect(await screen.findByRole('dialog', { name: '다른 업무로 전환' })).toBeInTheDocument()
   })
+
+  it('끊겼으면 정지·전환 옆에 연결 끊김을 보이고, 실행해도 요청 없이 이유를 알린다 (SCR-SYS-02 ③)', async () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    const fetchMock = stubFetch({
+      'GET /api/users/me': () => json(200, ME),
+      'GET /api/worklog/me': () => json(200, { userId: 'u-1', settings: { timeTrackingEnabled: true } }),
+      'GET /api/worklog/timer': () => json(200, { running }),
+    })
+    renderApp('/')
+    await screen.findAllByRole('region', { name: '타이머: 보고서 작성' })
+    let palette = await openPalette()
+    const stop = within(palette).getByRole('option', { name: /타이머 정지/ })
+    expect(stop).toHaveTextContent('연결 끊김')
+    await userEvent.click(stop)
+    expect(await screen.findByText('연결되면 타이머를 멈출 수 있어요')).toBeInTheDocument()
+    expect(fetchMock).not.toHaveBeenCalledWith('/api/worklog/timer/stop', expect.anything())
+
+    palette = await openPalette()
+    await userEvent.click(within(palette).getByRole('option', { name: /다른 업무로 전환/ }))
+    expect(await screen.findByText('연결되면 타이머를 바꿀 수 있어요')).toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { name: '다른 업무로 전환' })).not.toBeInTheDocument()
+  })
 })

@@ -306,6 +306,23 @@ describe('SCR-HOME-01 ③ 오늘 일정 (P2-08)', () => {
       }),
     )
     expect(calls.some((c) => c.method === 'POST')).toBe(false)
+
+    // 되돌리기: 다시 확인 대기로, 채운 시간 칸은 비우고 원래 날짜를 함께 보낸다
+    await userEvent.click(await screen.findByRole('button', { name: '되돌리기' }))
+    await waitFor(() =>
+      expect(calls).toContainEqual({
+        method: 'PATCH',
+        url: '/api/worklog/records/r2',
+        body: {
+          status: 'PENDING',
+          startAt: null,
+          endAt: null,
+          durationMin: null,
+          workDate: '2026-10-07',
+          version: 1,
+        },
+      }),
+    )
   })
 
   it('확인 대기 패널에서 수정을 열면 시작·종료 칸이 그 계획 시각으로 채워져 있다', async () => {

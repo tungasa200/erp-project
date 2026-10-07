@@ -200,9 +200,11 @@ export function AppShell() {
 }
 
 // SCR-COM-03 ② 타이머 시작·정지 명령(P2-06). 시간 기록 옵션이 꺼져 있으면 commands=null(팔레트에서 숨김).
-// 시작은 업무 고르기 창(실행 중이면 '다른 업무로 전환'), 정지는 결과를 토스트로 알린다
+// 시작은 업무 고르기 창(실행 중이면 '다른 업무로 전환'), 정지는 결과를 토스트로 알린다.
+// 끊긴 동안에는 미니 플레이어처럼 막고 이유를 토스트로 알린다(SCR-SYS-02 ③)
 function usePaletteTimer() {
   const timed = useTimeTracking()
+  const online = useOnline()
   const running = useRunningTimer(timed).data ?? null
   const { stop } = useTimerCommands()
   const { showToast } = useToast()
@@ -211,8 +213,13 @@ function usePaletteTimer() {
   const commands = timed
     ? {
         running: running !== null,
-        start: () => setStarting(true),
+        offline: !online,
+        start: () => {
+          if (online) setStarting(true)
+          else showToast(running ? '연결되면 타이머를 바꿀 수 있어요' : '연결되면 타이머를 시작할 수 있어요')
+        },
         stop: async () => {
+          if (!online) return showToast('연결되면 타이머를 멈출 수 있어요')
           try {
             showToast(stoppedMessage((await stop()).stopped))
           } catch (error) {
