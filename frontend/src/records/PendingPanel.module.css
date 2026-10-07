@@ -1,0 +1,238 @@
+/* SCR-HOME-02 확인 대기 목록 — 오른쪽 시트, 좁은 화면은 전체 화면. 확인 대기 색은 화면정의서 2.3 목록 카드형 */
+.overlay {
+  position: fixed;
+  inset: 0;
+  /* 되돌리기 토스트(100)가 시트 위에 보여야 처리 직후 되돌릴 수 있다 */
+  z-index: 90;
+  display: flex;
+  justify-content: flex-end;
+  background: rgba(26, 28, 43, 0.35);
+}
+
+.sheet {
+  display: flex;
+  flex-direction: column;
+  width: min(440px, 100%);
+  height: 100dvh;
+  box-sizing: border-box;
+  padding: 24px 24px 0;
+  background: var(--color-surface);
+  box-shadow: -12px 0 40px rgba(26, 28, 43, 0.2);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.4px;
+}
+
+.title:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
+.close {
+  flex: none;
+  width: var(--size-touch);
+  height: var(--size-touch);
+  border: 0;
+  border-radius: 22px;
+  background: var(--color-ground);
+  color: var(--color-text-body);
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.lead {
+  margin: 8px 0 16px;
+  font-size: 14px;
+  color: var(--color-text-muted);
+}
+
+.body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  /* 포커스 테두리가 스크롤 영역에 잘리지 않게 */
+  margin: 0 -4px;
+  padding: 0 4px 16px;
+}
+
+.group + .group {
+  margin-top: 18px;
+}
+
+.day {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+}
+
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--status-pending-card-border);
+  border-radius: 16px;
+  background: var(--status-pending-card-bg);
+  color: var(--status-pending-text);
+}
+
+.text {
+  display: flex;
+  flex: 1 1 180px;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.name {
+  overflow: hidden;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.meta {
+  display: flex;
+  flex-direction: column;
+  margin-top: 2px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.task {
+  overflow: hidden;
+  max-width: 100%;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.actions {
+  display: flex;
+  flex: none;
+  gap: 6px;
+}
+
+.yes,
+.no,
+.primary,
+.retry {
+  min-height: var(--size-touch);
+  padding: 0 14px;
+  border-radius: 12px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.yes {
+  border: 0;
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+.no {
+  border: 1px solid var(--status-pending-card-border);
+  background: var(--color-surface);
+  color: var(--status-pending-text);
+}
+
+.yes:disabled,
+.no:disabled,
+.primary:disabled {
+  background: var(--color-disabled);
+  border-color: var(--color-disabled);
+  color: var(--color-surface);
+  cursor: not-allowed;
+}
+
+.foot {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 0 max(18px, env(safe-area-inset-bottom));
+  border-top: 1px solid var(--color-divider);
+}
+
+.primary {
+  width: 100%;
+  border: 0;
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+.primary:not(:disabled):hover,
+.yes:not(:disabled):hover {
+  background: var(--color-accent-ink);
+}
+
+.error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-danger-text);
+}
+
+.retry {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.muted {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .sheet {
+    width: 100%;
+    padding: 18px 16px 0;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .sheet {
+    animation: slide-in 180ms ease-out;
+  }
+
+  @keyframes slide-in {
+    from {
+      transform: translateX(24px);
+      opacity: 0;
+    }
+  }
+}

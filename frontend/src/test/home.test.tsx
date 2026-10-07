@@ -113,7 +113,7 @@ function server(options: { remaining?: Task[]; occurrences?: Occurrence[]; holdT
 }
 
 describe('SCR-HOME-01 홈 대시보드 1차', () => {
-  it('요약 카드: 남은 업무(마감 초과)·오늘 일정(남은 수)·이번 주 완료, 누르면 해당 목록으로 간다', async () => {
+  it('요약 카드: 남은 업무(마감 초과)·오늘 일정(남은 수)·확인 대기·이번 주 완료, 누르면 해당 목록으로 간다', async () => {
     server()
     renderApp('/')
     const cards = await screen.findByRole('list', { name: '요약' })
@@ -128,8 +128,8 @@ describe('SCR-HOME-01 홈 대시보드 1차', () => {
       'href',
       '/tasks?status=DONE&completed=week',
     )
-    // 확인 대기 카드는 P2
-    expect(within(cards).queryByText('확인 대기')).not.toBeInTheDocument()
+    // 확인 대기 카드(P2-03)는 0건이면 열리지 않는다. 자세한 동작은 pendingRecords.test.tsx
+    expect(within(cards).getByRole('button', { name: /확인 대기/ })).toHaveTextContent('확인 대기0처리할 것 없어요')
   })
 
   it('P1-11-07 불러오는 동안 카드에 "없음"을 먼저 보이지 않고 숫자·보조 문구를 스켈레톤으로 둔다', async () => {

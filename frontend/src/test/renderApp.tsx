@@ -50,6 +50,7 @@ const EMPTY_LISTS = [
   'GET /api/worklog/tasks',
   'GET /api/worklog/tasks/frequent',
   'GET /api/worklog/schedules',
+  'GET /api/worklog/records/pending',
 ]
 
 export function stubFetch(handlers: Record<string, Handler>) {

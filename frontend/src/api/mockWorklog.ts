@@ -4,6 +4,7 @@
 import { scheduledTaskIds } from '../calendar/mockSchedules'
 import type { Project, Tag } from '../projects/api'
 import type { WorkRecord } from '../records/api'
+import type { PendingRecord } from '../records/pending'
 import type { Task } from '../tasks/api'
 
 const STORE_KEY = 'worklog.mock.worklog'
@@ -14,6 +15,71 @@ interface WorklogState {
   tasks: Task[]
   /** 업무 기록(P2-02). 예전 저장본에는 없다 */
   records?: WorkRecord[]
+  /** 확인 대기 예시를 한 번 만들었는지(P2-03). 처리한 뒤 다시 생기지 않게 */
+  pendingSeeded?: boolean
+}
+
+/** 확인 대기 기록은 계획(회차) 값을 붙여 둔다. 진짜 서버는 일정에서 읽지만 mock은 일정과 따로 논다 */
+type MockRecord = WorkRecord & { plan?: PendingRecord['plan'] }
+
+const seoulToday = () =>
+  new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Seoul',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date())
+const shiftDate = (date: string, days: number) => {
+  const d = new Date(`${date}T00:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + days)
+  return d.toISOString().slice(0, 10)
+}
+
+/** 처음 확인 대기를 볼 때 어제·그제의 끝난 계획 3건을 만든다(서울 시각, 열린 업무에 연결) */
+function seedPending(state: WorklogState, records: MockRecord[]) {
+  if (state.pendingSeeded) return
+  state.pendingSeeded = true
+  const today = seoulToday()
+  const open = state.tasks.filter((t) => !t.deletedAt && t.status !== 'DONE')
+  const plans: [string, number, string, string][] = [
+    ['데일리 스탠드업', -1, '09:00', '09:30'],
+    ['고객사 요구사항 미팅', -1, '14:00', '15:00'],
+    ['주간 회고', -2, '17:00', '18:00'],
+  ]
+  plans.forEach(([title, offset, start, end], i) => {
+    const date = shiftDate(today, offset)
+    const startAt = new Date(`${date}T${start}:00+09:00`).toISOString()
+    const task = open[i]
+    records.push({
+      id: id(),
+      status: 'PENDING',
+      workDate: date,
+      content: title,
+      taskId: task?.id ?? null,
+      projectId: task?.projectId ?? null,
+      tagIds: task?.tagIds ?? [],
+      scheduleId: `mock-schedule-pending-${i}`,
+      occurrenceStart: startAt,
+      result: null,
+      outcome: null,
+      progress: null,
+      startAt: null,
+      endAt: null,
+      durationMin: null,
+      deletedAt: null,
+      createdAt: now(),
+      updatedAt: now(),
+      version: 0,
+      plan: {
+        title,
+        allDay: false,
+        startAt,
+        endAt: new Date(`${date}T${end}:00+09:00`).toISOString(),
+        startDate: null,
+        endDate: null,
+      },
+    })
+  })
 }
 
 const now = () => new Date().toISOString()
@@ -401,7 +467,29 @@ function handleRecords(
 ): Response | null {
   const path = url.split('?')[0]
   if (!path.startsWith('/api/worklog/records')) return null
-  const records = (state.records ??= [])
+  const records: MockRecord[] = (state.records ??= [])
+  // 확인 대기(P2-03): 최근 7일(서울 기준 오늘 포함)의 PENDING만, 계획 값을 붙여서
+  const recent = (x: MockRecord) =>
+    x.status === 'PENDING' && !x.deletedAt && x.plan && x.workDate >= shiftDate(seoulToday(), -6)
+  if (method === 'GET' && path === '/api/worklog/records/pending') {
+    seedPending(state, records)
+    save(state)
+    const items = records
+      .filter(recent)
+      .sort(
+        (a, b) =>
+          a.workDate.localeCompare(b.workDate) || (a.occurrenceStart ?? '').localeCompare(b.occurrenceStart ?? ''),
+      )
+    return r.json(200, { items })
+  }
+  if (method === 'POST' && path === '/api/worklog/records/pending/confirm') {
+    const ids = Array.isArray(body.ids) ? (body.ids as string[]) : []
+    if (ids.length === 0) return r.problem(400, 'VALIDATION_FAILED', { errors: [{ field: 'ids', code: 'REQUIRED' }] })
+    const done = records.filter((x) => ids.includes(x.id) && recent(x))
+    for (const x of done) Object.assign(x, { status: 'CONFIRMED', version: x.version + 1, updatedAt: now() })
+    save(state)
+    return r.json(200, { items: done })
+  }
   if (method === 'GET' && path === '/api/worklog/records') {
     const q = new URLSearchParams(url.split('?')[1] ?? '')
     const from = q.get('from') ?? ''
@@ -451,6 +539,20 @@ function handleRecords(
     return r.json(201, record)
   }
   const m = /^\/api\/worklog\/records\/([^/]+)$/.exec(path)
+  // 했어요·안 했어요·되돌리기(상태만). 내용 수정은 SCR-REC-01 때
+  if (m && method === 'PATCH') {
+    const record = records.find((x) => x.id === m[1])
+    if (!record) return r.problem(404, 'NOT_FOUND')
+    if (record.deletedAt) return r.problem(409, 'RECORD_DELETED')
+    if (body.version !== record.version) return r.problem(409, 'VERSION_CONFLICT')
+    const status = body.status as WorkRecord['status'] | undefined
+    if (status && status !== record.status) {
+      if (!record.occurrenceStart && status !== 'CONFIRMED') return r.problem(409, 'INVALID_STATUS')
+      Object.assign(record, { status, version: record.version + 1, updatedAt: now() })
+      save(state)
+    }
+    return r.json(200, record)
+  }
   if (m && method === 'DELETE') {
     const record = records.find((x) => x.id === m[1])
     if (!record) return r.problem(404, 'NOT_FOUND')
