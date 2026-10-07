@@ -7,6 +7,7 @@
     mode: ['feed', 'time'].includes(saved.mode) ? saved.mode : 'threads',
     range: [1, 3, 12].includes(saved.range) ? saved.range : 1,
     open: new Set(saved.open || []),
+    doneOpen: saved.doneOpen === true, // '완료 n' 묶음: 기본 접힘
     openMsg: new Set(),
     timeSel: null, // 시간 보기에서 고른 메시지
   };
@@ -143,9 +144,20 @@
     return `<div class="chain" role="img" aria-label="${esc(`단계 ${b.steps.length}개: ${b.steps.map((s) => STAGE[s.stage][1]).join(' → ')}`)}">${nodes.join('')}</div>`;
   }
 
+  // 진행 중 묶음은 위(최근에 움직인 순), 완료 묶음은 아래 '완료 n'에 접어 둔다(기본 접힘, 상태는 webview에 기억)
   function renderThreads() {
     if (!state.bundles.length) return empty('아직 세션 간 메시지가 없습니다', `최근 ${state.windowHours}시간 안에 세션이 SendMessage로 주고받은 메시지가 여기에 묶여 보입니다.`);
-    return `<div class="threads">${state.bundles
+    const running = state.bundles.filter((b) => !b.done);
+    const done = state.bundles.filter((b) => b.done);
+    const top = running.length ? `<div class="threads">${cards(running)}</div>` : '<p class="none">진행 중인 묶음이 없습니다.</p>';
+    if (!done.length) return top;
+    return `${top}<section class="done-group" aria-label="완료된 묶음">
+      <button type="button" class="done-toggle" data-done-toggle aria-expanded="${ui.doneOpen}"${ui.doneOpen ? ' aria-controls="done-list"' : ''}>${ico('i-down', 'i-s')}${ico('i-check', 'i-s')}완료 <b>${done.length}</b>${ui.doneOpen ? '' : `<span class="dt-last">마지막 ${esc(ago(done[0].lastAt))}</span>`}</button>
+      ${ui.doneOpen ? `<div class="threads done-list" id="done-list">${cards(done)}</div>` : ''}</section>`;
+  }
+
+  function cards(list) {
+    return list
       .map((b) => {
         const isOpen = ui.open.has(b.key);
         const [label, icon] = BSTATE[b.state] || BSTATE.run;
@@ -156,7 +168,7 @@
         <div class="th-f"><button type="button" class="more" data-thread="${esc(b.key)}" aria-expanded="${isOpen}">${ico('i-down', 'i-s')}메시지 ${b.steps.length}</button>
         ${b.card ? `<button type="button" class="to-card c-${b.state}" data-card="${esc(b.card.id)}" title="${esc(b.card.title || '')}">카드 열기 ${ico('i-arrow', 'i-s')}</button>` : ''}</div></article>`;
       })
-      .join('')}</div>`;
+      .join('');
   }
 
   function dayLabel(iso) {
@@ -195,6 +207,7 @@
     const el = document.activeElement;
     if (el && el.dataset && el.dataset.tmsg) return `[data-tmsg="${CSS.escape(el.dataset.tmsg)}"]`;
     if (!el || el.tagName !== 'BUTTON') return null;
+    if (el.dataset.doneToggle !== undefined) return 'button[data-done-toggle]';
     for (const k of ['mode', 'range', 'thread', 'card', 'session']) if (el.dataset[k] !== undefined) return `button[data-${k}="${CSS.escape(el.dataset[k])}"]`;
     const li = el.closest('.msg');
     return li ? `.msg[data-msg="${CSS.escape(li.dataset.msg)}"] > button` : null;
@@ -325,7 +338,7 @@
       <div class="legend">${legend}</div>${selRow}`;
   }
 
-  const save = () => vscode.setState({ mode: ui.mode, range: ui.range, open: [...ui.open] });
+  const save = () => vscode.setState({ mode: ui.mode, range: ui.range, open: [...ui.open], doneOpen: ui.doneOpen });
 
   function pickTimeMsg(id) {
     ui.timeSel = ui.timeSel === id ? null : id;
@@ -352,6 +365,10 @@
       render();
     } else if (t.dataset.range) {
       ui.range = Number(t.dataset.range);
+      save();
+      render();
+    } else if (t.dataset.doneToggle !== undefined) {
+      ui.doneOpen = !ui.doneOpen;
       save();
       render();
     } else if (t.dataset.thread) {

@@ -176,16 +176,18 @@ class ActivityView {
     } catch {
       // 승인 폴더가 없으면 카드 연결 없이 보여 준다
     }
-    const bundles = bundle(feed)
-      .slice(0, MAX_BUNDLES)
-      .map((b) => {
+    const all = bundle(feed).map((b) => {
         const card = cards.filter((c) => b.sessions.includes(c.session) && String(c.createdAt || '') >= b.startedAt).pop();
         const blockedBy = b.state !== 'done' ? b.sessions.find((n) => views.get(n) === 'permission') : null;
+        const state = blockedBy ? 'perm' : card && b.state !== 'done' ? 'me' : b.state;
         return {
           key: b.key,
           taskId: b.taskId,
           title: b.title,
-          state: blockedBy ? 'perm' : card && b.state !== 'done' ? 'me' : b.state,
+          state,
+          // 완료 판정: 단계 사슬의 마지막이 완료([완료]·재검증 통과)이고, 권한 대기·대기 카드가 걸려 있지 않다.
+          // 다시 메시지가 붙으면 마지막 단계가 바뀌어 진행 중으로 돌아간다(묶음은 lastAt 최신순)
+          done: state === 'done',
           startedAt: b.startedAt,
           lastAt: b.lastAt,
           sessions: b.sessions,
@@ -193,6 +195,8 @@ class ActivityView {
           card: card ? { id: card.id, title: card.title } : null,
         };
       });
+    // 진행 중과 완료를 따로 자른다(완료가 많아도 진행 중 묶음이 밀려나지 않게)
+    const bundles = [...all.filter((b) => !b.done).slice(0, MAX_BUNDLES), ...all.filter((b) => b.done).slice(0, MAX_BUNDLES)];
 
     return {
       sessions,

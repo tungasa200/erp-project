@@ -111,6 +111,30 @@ test('탭을 열면 메시지·묶음·세션 상태·카드 연결을 보낸다
   }
 });
 
+test('완료 묶음은 진행 중 뒤로 가고, 다시 움직이면 진행 중으로 돌아온다', () => {
+  const { fake, view, dir } = setup();
+  try {
+    view.status = { list: [], error: null, at: now };
+    const file = path.join(dir, 'qa.jsonl');
+    fs.writeFileSync(file, [line({ type: 'agent-name', agentName: 'WY-qa' }),
+      recv(50, 'WY-pm', 'a1', 'WY-pm 지시: P1-11 재검증'), recv(40, 'WY-pm', 'a2', '[완료] P1-11 재검증 통과'),
+      recv(30, 'WY-design', 'b1', 'P1-12 목업 확인 부탁')].join('\n') + '\n');
+    fake.commands['wyActivity.open']();
+    const panel = fake.panels.find((p) => p.type === 'wyActivity');
+    panel.send({ type: 'ready' });
+    let st = panel.posts.filter((m) => m.type === 'state').pop().state;
+    assert.deepStrictEqual(st.bundles.map((b) => [b.taskId, b.done]), [['P1-12', false], ['P1-11', true]], '진행 중이 먼저, 완료는 뒤');
+
+    // 완료된 P1-11에 새 결함이 붙으면 진행 중으로, 최근에 움직였으니 맨 위로
+    fs.appendFileSync(file, recv(0, 'WY-pm', 'a3', '[결함] P1-11 재발') + '\n');
+    view.refresh();
+    st = panel.posts.filter((m) => m.type === 'state').pop().state;
+    assert.deepStrictEqual(st.bundles.map((b) => [b.taskId, b.done]), [['P1-11', false], ['P1-12', false]]);
+  } finally {
+    fake.uninstall();
+  }
+});
+
 test('대화 기록 폴더가 없으면 그 경로를 알린다', () => {
   const { fake, view, dir } = setup();
   try {
