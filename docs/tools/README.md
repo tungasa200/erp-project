@@ -26,4 +26,4 @@ node gen-srs.js --force
 node gen-plan.js --force
 ```
 
-화면정의서는 하위 폴더 screendoc/에서 따로 만듭니다(담당 erp-design, 사용법은 screendoc/README.md).
+화면정의서는 하위 폴더 screendoc/에서 따로 만듭니다(담당 WY-design, 사용법은 screendoc/README.md).
