@@ -6,6 +6,10 @@
 //   doctor   [--json]               점검(lib/doctor.js, 읽기만)
 //   rollback [<버전>]               current를 이전 버전으로
 //   cleanup-legacy                  옛 승인 위치·옛 설치본 목록 → 확인 → 지움(lib/legacy.js)
+//   init --name <이름> --prefix <XX-> [--roles a,b] [--project <폴더, 기본 현재 폴더>]
+//                                   새 프로젝트(OPS-10-2): 설정·역할 원본·생성 파일·.gitignore(lib/init.js) + settings 병합 + 승인 폴더 + doctor,
+//                                   CLAUDE.md에 넣을 절을 출력만 한다. 그 PC에 global(또는 setup)을 먼저 해 둔다
+//   update [--project <폴더>]       deploy + 생성 파일 다시 만들기(사람이 고친 것은 덮지 않고 차이만, lib/update.js)
 // 공통: --yes(확인 없이 진행), --extensions-dir <폴더>(code에 넘김, 시험용). 결정 파일(decisions/·used/)은 쓰지 않는다(OPS-10-3).
 const fs = require('fs');
 const os = require('os');
@@ -188,6 +192,38 @@ function main() {
     for (const r of legacy.remove(items.filter((i) => !i.inUse), os.homedir(), { settingsFiles })) say(`  ${r.removed ? '지움' : '건너뜀'} ${r.path}${r.reason ? ` (${r.reason})` : ''}`);
     return undefined;
   }
+  if (cmd === 'init') {
+    const name = opt('--name');
+    const prefix = opt('--prefix');
+    if (!name || !prefix) throw new Error('init에는 --name <프로젝트 이름>과 --prefix <역할 접두사, 예: AB->가 필요합니다');
+    const project = path.resolve(opt('--project') || process.cwd());
+    const { toolsDir } = require('./deploy');
+    const current = path.join(toolsDir(), 'current');
+    if (!fs.existsSync(path.join(current, 'deployed.json'))) throw new Error(`이 PC에 패키지가 없습니다(${current}). 먼저 이 저장소에서 install.ps1 global을 실행하세요`);
+    const r = require('./init').init({ project, name, prefix, roles: opt('--roles') ? opt('--roles').split(',').map((s) => s.trim()).filter(Boolean) : null });
+    for (const f of r.files) say(`  ${f.action.padEnd(9)} ${f.file}${f.action === 'modified' || f.action === 'unmanaged' ? ' (그대로 둠)' : ''}`);
+    if (r.gitignoreAdded.length) say(`  .gitignore에 더함: ${r.gitignoreAdded.join(', ')}`);
+    settingsStep(project, { dir: toolsDir() });
+    store().ensureDirs(store().rootFor(project));
+    doctorStep(project, { todos: true });
+    say('\nCLAUDE.md에 아래 절을 넣으세요(자동으로 고치지 않습니다):\n');
+    say(r.claudeMd.trim());
+    say('\n다음: VS Code에서 "Developer: Reload Window"를 실행하세요.');
+    return undefined;
+  }
+  if (cmd === 'update') {
+    const project = projectRoot();
+    deployStep();
+    let update;
+    try {
+      update = require('./update').update;
+    } catch {
+      return say('update: lib/update.js가 없어 생성 파일은 다시 만들지 않았습니다');
+    }
+    for (const f of update({ project })) say(`  ${f.action.padEnd(9)} ${f.file}${f.diff ? `\n${f.diff}` : ''}`);
+    say('다음: VS Code에서 "Developer: Reload Window"를 실행하세요.');
+    return undefined;
+  }
   if (cmd === 'global' || cmd === 'setup') {
     prereqs();
     const project = cmd === 'setup' ? projectRoot() : null;
@@ -216,7 +252,7 @@ function main() {
     say('다음: VS Code에서 "Developer: Reload Window"를 실행하세요.');
     return undefined;
   }
-  say('사용법: install.ps1 deploy | global | setup | doctor | rollback [버전] | cleanup-legacy  [--yes] [--project <폴더>] [--skip-plugins] [--skip-extension]');
+  say('사용법: install.ps1 deploy | global | setup | init --name <이름> --prefix <XX-> | update | doctor | rollback [버전] | cleanup-legacy  [--yes] [--project <폴더>] [--skip-plugins] [--skip-extension]');
   process.exitCode = 64;
   return undefined;
 }

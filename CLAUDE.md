@@ -69,7 +69,7 @@ MSA ERP 프로젝트. 이 파일은 git으로 공유되는 작업 규칙이다. 
 
 대화가 길어지면 앞 내용을 흐리게 기억하고 판단이 무뎌진다(컨텍스트 로트). 역할 세션은 `/clear`로 비우지 않고 새 세션으로 교대한다. 기억은 대화가 아니라 파일에 둔다.
 
-- **역할**은 `.claude/agents/<역할>.md`에 있다(담당 범위·작업 방식·함정). 새 세션은 `--agent <역할>`로 띄워 이 파일을 싣고 시작한다. 이 파일은 생성물이다: 역할 문구는 `.claude/ops/roles/<역할>.md`(역할별)나 `.claude/ops/agent.md`(공통)를 고치고 `node tools/wy-ops/gen-agents.js`로 만든다. pm-ops 스킬도 같다: `.claude/ops/pm-ops.project.md`(이 프로젝트 부록)나 `tools/wy-ops/templates/pm-ops/SKILL.md`(공통)를 고치고 `node tools/wy-ops/gen-skill.js`로 만든다. 생성물을 직접 고치지 않는다.
+- **역할**은 `.claude/agents/<역할>.md`에 있다(담당 범위·작업 방식·함정). 새 세션은 `--agent <역할>`로 띄워 이 파일을 싣고 시작한다. 이 파일은 생성물이다: 역할 문구는 `.claude/ops/roles/<역할>.md`(역할별)나 `.claude/ops/agent.md`(공통)를 고치고 `node tools/wy-ops/gen-agents.js`로 만든다. pm-ops 스킬도 같다: `.claude/ops/pm-ops.project.md`(이 프로젝트 부록)나 `tools/wy-ops/templates/pm-ops/SKILL.md`(공통)를 고치고 `node tools/wy-ops/gen-skill.js`로 만든다. 세션 스크립트 `.claude/skills/pm-ops/scripts/session.ps1`도 생성물이다: `tools/wy-ops/templates/pm-ops/scripts/session.ps1`을 고치고 같은 명령으로 만든다. 생성물을 직접 고치지 않는다.
 - **진행 상황**은 `docs/진행현황.md`("역할별 다음 할 일"과 WBS 표), **결정**은 `docs/결정기록.md`에 둔다. 다른 PC로 이어갈 내용은 이 문서와 커밋으로 넘긴다.
 - **하던 일의 중간 상태**(미커밋 파일, 반쯤 한 작업, 막힌 이유)만 `/ecc:save-session`으로 짧게 남긴다. short-id는 역할 이름(같은 날 두 번째면 `-2`). 작업 하나를 끝낸 시점에 교대하면 인수인계 파일 없이 역할 파일과 진행현황만으로 시작한다. 인수인계 파일은 이 PC에만 남는다.
 
