@@ -251,6 +251,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/worklog/tasks/frequent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 자주 하는 업무 제안 (같은 요일·시간대 상위 3개)
+         * @description 빠른 입력에 포커스가 가면(SCR-COM-02 ④) 부른다. 빈도 집계이며 AI를 쓰지 않는다 (REC-05).
+         *     사건은 업무를 만든 시각(P2-01 뒤 확정 기록을 더함), 기간은 at 이전 8주.
+         *     시간대 구간은 사용자의 현재 시간대 기준 하루 4구간 — 새벽 00–06, 오전 06–12, 오후 12–18, 저녁 18–24(시작 포함, 끝 제외).
+         *     at과 같은 요일·같은 구간에서 정규화한 제목(앞뒤·연속 공백, 대소문자 무시)별로 센다. 보관한 업무는 빼고 완료한 업무는 센다.
+         *     순위는 사건 수 내림차순 → 마지막 사건이 최근인 순, 2번 이상인 것만. 같은 요일로 3개가 안 되면 요일 무관 같은 구간에서 채운다.
+         *     대표 값은 묶음에서 가장 최근에 만든 업무이고, 그 프로젝트가 보관 상태면 projectId는 null. 결과가 없으면 items는 빈 배열.
+         */
+        get: operations["listFrequentTasks"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/worklog/tasks/{taskId}": {
         parameters: {
             query?: never;
@@ -302,6 +327,30 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        FrequentTask: {
+            /**
+             * Format: int32
+             * @description 집계 창 안의 사건 수
+             */
+            count: number;
+            /**
+             * Format: uuid
+             * @description 대표 업무 ID (모바일 빠른 기록 SCR-MOB-01에서 기록을 붙일 업무)
+             */
+            latestTaskId: string;
+            /**
+             * Format: uuid
+             * @description 대표 업무의 프로젝트. 없거나 보관한 프로젝트면 null
+             */
+            projectId: string | null;
+            /** @description 대표 업무의 태그 */
+            tagIds: string[];
+            /** @description 묶음에서 가장 최근에 만든 업무의 제목 (원래 표기 그대로) */
+            title: string;
+        };
+        FrequentTaskList: {
+            items: components["schemas"]["FrequentTask"][];
+        };
         /**
          * @description 캘린더에 그리는 일정 회차 하나. 반복이 없는 일정도 회차 하나로 준다.
          *     occurrenceStart는 회차 키(원래 시작 시각, 종일은 원래 날짜의 일정 시간대 0시)이며 회차를 옮겨도 바뀌지 않는다.
@@ -1480,6 +1529,48 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+        };
+    };
+    listFrequentTasks: {
+        parameters: {
+            query?: {
+                /** @description 기준 시각(UTC ISO-8601). 생략하면 지금. 빈 시간 메우기(SCR-HOME-03)처럼 지난 구간의 후보를 볼 때 쓴다. */
+                at?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 제안 목록 (0~3개, 순위 순) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FrequentTaskList"];
+                };
+            };
+            /** @description at 형식 오류 (code=VALIDATION_FAILED) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description identity 조회 실패 (code=PROFILE_UNAVAILABLE) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     getTask: {
