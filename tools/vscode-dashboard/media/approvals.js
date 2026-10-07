@@ -327,6 +327,7 @@
   function rows() {
     const list = visible();
     const wrap = el('div', 'scroll');
+    wrap.dataset.scroll = 'list:' + ui.filter;
     const anchor = ui.sel && list.some((r) => r.id === ui.sel) ? ui.sel : list[0] && list[0].id;
     GROUPS.forEach(([label, cls], g) => {
       const items = list.filter((r) => KIND[kindOf(r)].g === g);
@@ -510,8 +511,7 @@
             a.otherOn = false;
           }
           clear();
-          focusAfter = input.id;
-          render();
+          syncChoice(r);
         });
         const num = el('span', 'num');
         if (q.multiSelect && on) num.append(ico('i-check', 'i-s'));
@@ -544,8 +544,8 @@
           a.otherOn = input.checked;
           if (!q.multiSelect && input.checked) a.selected = [];
           clear();
-          focusAfter = input.checked ? text.id : input.id;
-          render();
+          syncChoice(r);
+          if (input.checked) text.focus({ preventScroll: true });
         });
         text.addEventListener('input', () => {
           a.other = text.value;
@@ -569,6 +569,59 @@
       fs.append(opts);
       body.append(fs);
     });
+  }
+
+  // 결정 카드의 선택 상태만 화면에 맞춘다. 상세를 다시 그리면 스크롤이 맨 위로 가므로 선택에는 render()를 쓰지 않는다
+  function syncChoice(r) {
+    const d = draftOf(r);
+    const bad = invalid.get(r.id);
+    r.questions.forEach((q, qi) => {
+      const base = `q-${r.id}-${qi}`;
+      const a = d.answers[qi];
+      q.options.forEach((o, oi) => {
+        const input = $(`${base}-o${oi}`);
+        if (!input) return;
+        const on = a.selected.includes(o.label);
+        input.checked = on;
+        const row = input.closest('.opt');
+        row.classList.toggle('is-on', on);
+        const num = row.querySelector('.num');
+        if (q.multiSelect && on) num.replaceChildren(ico('i-check', 'i-s'));
+        else num.textContent = String(oi + 1);
+      });
+      const other = $(`${base}-oth`);
+      if (other) {
+        other.checked = a.otherOn;
+        other.closest('.opt').classList.toggle('is-on', a.otherOn);
+      }
+      const set = $(base);
+      if (set && !(bad && bad.has(qi))) {
+        set.classList.remove('is-invalid');
+        set.removeAttribute('aria-describedby');
+        const msg = $(base + '-err');
+        if (msg) msg.remove();
+      }
+    });
+    if (bad && !bad.size) {
+      invalid.delete(r.id);
+      if (errors.has(r.id)) {
+        errors.delete(r.id);
+        const line = document.querySelector('.act .err-line');
+        if (line) line.remove();
+      }
+    }
+    const then = $('then-' + r.id);
+    if (then) then.textContent = thenTextOf(r);
+  }
+
+  // 누르면 일어나는 일: 결정 카드는 고른 선택지의 onClick이 있으면 그것(B2-2), 없으면 카드의 onClick
+  function thenTextOf(r) {
+    const k = kindOf(r);
+    const d = draftOf(r);
+    const picked = k === 'choice' ? r.questions.flatMap((q, i) => q.options.filter((o) => o.onClick && d.answers[i].selected.includes(o.label))) : [];
+    const expired = k === 'permission' && timeLeft(r) && timeLeft(r).left === 0;
+    if (expired) return '시간이 지나 거부로 닫혔습니다. 세션은 거부 사유를 받고 다음 행동을 합니다.';
+    return picked.length ? picked.map((o) => o.onClick).join(' / ') : r.onClick || THEN[k] || '';
   }
 
   function gitBody(r, body) {
@@ -774,11 +827,10 @@
 
     const bar = el('div', 'act');
     const then = el('span', 'then');
-    // 누르면 일어나는 일: 결정 카드는 고른 선택지의 onClick이 있으면 그것(B2-2), 없으면 카드의 onClick
-    const picked = k === 'choice' ? r.questions.flatMap((q, i) => q.options.filter((o) => o.onClick && d.answers[i].selected.includes(o.label))) : [];
     const expired = k === 'permission' && timeLeft(r) && timeLeft(r).left === 0;
-    const thenText = expired ? '시간이 지나 거부로 닫혔습니다. 세션은 거부 사유를 받고 다음 행동을 합니다.' : picked.length ? picked.map((o) => o.onClick).join(' / ') : r.onClick || THEN[k] || '';
-    then.append(ico('i-arrow', 'i-s'), el('span', null, thenText));
+    const thenLine = el('span', null, thenTextOf(r));
+    thenLine.id = 'then-' + r.id;
+    then.append(ico('i-arrow', 'i-s'), thenLine);
     const btns = el('span', 'btns');
     if (k === 'permission' || k === 'git') {
       const rej = button('btn danger', '거부', () => startReject(r), { icon: 'i-x', kbd: 'x', id: 'reject-' + r.id });
@@ -835,6 +887,7 @@
     bar.append(back, kc, pl, el('span', 'sp'), el('span', null, `${idx + 1}/${list.length}`), prev, next);
 
     const dt = el('div', 'dt');
+    dt.dataset.scroll = 'dt:' + r.id;
     const body = el('div', 'dt-in');
     const h = el('h2', null, titleOf(r));
     h.id = 'dt-title';
@@ -896,6 +949,7 @@
   };
   function hist() {
     const wrap = el('div', 'scroll');
+    wrap.dataset.scroll = 'hist';
     const recent = state.recent || [];
     if (!recent.length) {
       wrap.append(el('p', 'hist-empty', '아직 처리한 요청이 없습니다.'));
@@ -962,6 +1016,9 @@
     const textual = focused && (focused.tagName === 'TEXTAREA' || (focused.tagName === 'INPUT' && focused.type === 'text'));
     const range = !focusAfter && textual ? [focused.selectionStart, focused.selectionEnd] : null;
     const whyOpen = new Set([...document.querySelectorAll('details.why[open]')].map((d) => d.id));
+    // 확장의 상태 메시지·30초 갱신으로 다시 그려도 읽던 자리에 머물게 한다(같은 카드·같은 거르기일 때만)
+    const scrolls = new Map([...document.querySelectorAll('[data-scroll]')].map((e) => [e.dataset.scroll, e.scrollTop]));
+    const explicit = !!focusAfter; // 일부러 옮긴 포커스(답 안 한 질문 등)만 화면에 보이게 스크롤한다
     focusAfter = null;
 
     const parts = [head()];
@@ -989,12 +1046,15 @@
       const d = $(id);
       if (d) d.open = true;
     });
+    document.querySelectorAll('[data-scroll]').forEach((e) => {
+      if (scrolls.has(e.dataset.scroll)) e.scrollTop = scrolls.get(e.dataset.scroll);
+    });
 
     const target = keep && $(keep);
     if (target) {
-      target.focus({ preventScroll: false });
+      target.focus({ preventScroll: true });
       if (range && target.setSelectionRange) target.setSelectionRange(range[0], range[1]);
-      if (target.classList.contains('row')) target.scrollIntoView({ block: 'nearest' });
+      if (explicit || target.classList.contains('row')) target.scrollIntoView({ block: 'nearest' });
     } else if (keep && focused && focused !== document.body) {
       // 처리한 카드가 사라지면 다음 카드로 포커스를 옮긴다
       const next = ui.sel ? $(wide() ? 'row-' + ui.sel : 'dt-title') : $('tab-' + ui.view);

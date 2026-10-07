@@ -156,7 +156,34 @@ function screenBehavior(jsdom) {
   s2.key('Escape');
   assert.ok(!s2.id('app').classList.contains('has-sel') && s2.d.activeElement.id === 'row-g1', 'Esc로 목록, 그 줄로 포커스');
 
-  assert.deepStrictEqual([...s.errors, ...s2.errors], [], '화면 오류 없음');
+  // 결정 카드를 스크롤해 내려간 뒤 선택지를 골라도 스크롤이 맨 위로 튀지 않는다(사용자 보고 결함)
+  const s3 = screen(jsdom, 1000);
+  s3.send({ type: 'state', state: STATE });
+  s3.send({ type: 'select', id: 'c1' });
+  const dt = s3.d.querySelector('.dt');
+  dt.scrollTop = 300;
+  s3.id('q-c1-0-o1').click();
+  assert.strictEqual(s3.d.querySelector('.dt'), dt, '선택은 상세를 다시 그리지 않음');
+  assert.strictEqual(dt.scrollTop, 300, '마우스로 고른 뒤 scrollTop 그대로');
+  assert.ok(s3.id('q-c1-0-o1').closest('.opt').classList.contains('is-on') && !s3.id('q-c1-0-o0').closest('.opt').classList.contains('is-on'), '고른 선택지만 켜짐');
+  assert.ok(s3.txt('.act .then')[0].includes('누르면'), 'onClick 없는 선택지는 카드 onClick');
+  s3.key('1');
+  assert.strictEqual(dt.scrollTop, 300, '키보드 1로 고른 뒤 scrollTop 그대로');
+  assert.ok(s3.txt('.act .then')[0].includes('A를 고르면'), '키보드 선택도 onClick 갱신');
+  s3.id('q-c1-0-oth').click();
+  assert.strictEqual(dt.scrollTop, 300, '기타를 골라도 그대로');
+  assert.strictEqual(s3.d.activeElement.id, 'q-c1-0-other', '기타는 입력칸으로 포커스');
+  // 확장에서 상태가 와서 다시 그려도 읽던 자리 그대로(같은 카드일 때)
+  s3.send({ type: 'state', state: { ...STATE, recent: [] } });
+  const dt2 = s3.d.querySelector('.dt');
+  assert.notStrictEqual(dt2, dt, '상태 메시지는 다시 그림');
+  assert.strictEqual(dt2.scrollTop, 300, '다시 그려도 scrollTop 복원');
+  assert.ok(s3.id('q-c1-0-oth').checked, '다시 그려도 고른 것 유지');
+  // 다른 카드로 옮기면 그 카드는 맨 위부터
+  s3.send({ type: 'select', id: 'g1' });
+  assert.strictEqual(s3.d.querySelector('.dt').scrollTop, 0, '다른 카드는 맨 위');
+
+  assert.deepStrictEqual([...s.errors, ...s2.errors, ...s3.errors], [], '화면 오류 없음');
 }
 
 try {
