@@ -4,7 +4,9 @@ import com.erp.common.autoconfigure.OpenApiAutoConfiguration;
 import com.erp.worklog.error.Errors;
 import com.erp.worklog.security.CurrentUser;
 import com.erp.worklog.security.SecurityConfig;
+import com.erp.worklog.task.FrequentTaskQueries.FrequentTask;
 import com.erp.worklog.task.TaskService.TaskInfo;
+import com.erp.worklog.user.UserProfileService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
@@ -21,6 +23,8 @@ import jakarta.validation.constraints.Size;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -32,6 +36,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
@@ -101,12 +106,41 @@ class TaskController {
 			@Schema(types = { "string", "null" }, maxLength = 5000) @Size(max = 5000, message = "TOO_LONG") String memo) {
 	}
 
+	@Schema(name = "FrequentTaskList")
+	record FrequentTaskList(
+			@ArraySchema(maxItems = 3, schema = @Schema(implementation = FrequentTaskView.class))
+			@Schema(requiredMode = RequiredMode.REQUIRED) List<FrequentTaskView> items) {
+	}
+
+	@Schema(name = "FrequentTask")
+	record FrequentTaskView(
+			@Schema(requiredMode = RequiredMode.REQUIRED, description = "묶음에서 가장 최근에 만든 업무의 제목 (원래 표기 그대로)")
+			String title,
+			@Schema(requiredMode = RequiredMode.REQUIRED, types = { "string", "null" }, format = "uuid",
+					description = "대표 업무의 프로젝트. 없거나 보관한 프로젝트면 null") UUID projectId,
+			@Schema(requiredMode = RequiredMode.REQUIRED, description = "대표 업무의 태그") List<UUID> tagIds,
+			@Schema(requiredMode = RequiredMode.REQUIRED, description = "대표 업무 ID (모바일 빠른 기록 SCR-MOB-01에서 기록을 붙일 업무)")
+			UUID latestTaskId,
+			@Schema(requiredMode = RequiredMode.REQUIRED, minimum = "2", description = "집계 창 안의 사건 수") int count) {
+
+		static FrequentTaskView of(FrequentTask f) {
+			return new FrequentTaskView(f.title(), f.projectId(), f.tagIds(), f.latestTaskId(), f.count());
+		}
+	}
+
 	private final TaskService tasks;
 	private final TaskQueries queries;
+	private final FrequentTaskQueries frequent;
+	private final UserProfileService profiles;
+	private final Clock clock;
 
-	TaskController(TaskService tasks, TaskQueries queries) {
+	TaskController(TaskService tasks, TaskQueries queries, FrequentTaskQueries frequent, UserProfileService profiles,
+			Clock clock) {
 		this.tasks = tasks;
 		this.queries = queries;
+		this.frequent = frequent;
+		this.profiles = profiles;
+		this.clock = clock;
 	}
 
 	@GetMapping
@@ -163,6 +197,29 @@ class TaskController {
 				tagIds == null ? List.of() : tagIds, dueFrom, dueTo, completedSince, q, scheduled, order);
 		TaskQueries.Page page = queries.list(user.id(), filter, cursor, limit);
 		return new TaskList(page.items().stream().map(TaskView::of).toList(), page.nextCursor());
+	}
+
+	@GetMapping("/frequent")
+	@Operation(operationId = "listFrequentTasks", summary = "자주 하는 업무 제안 (같은 요일·시간대 상위 3개)",
+			description = """
+					빠른 입력에 포커스가 가면(SCR-COM-02 ④) 부른다. 빈도 집계이며 AI를 쓰지 않는다 (REC-05).
+					사건은 업무를 만든 시각(P2-01 뒤 확정 기록을 더함), 기간은 at 이전 8주.
+					시간대 구간은 사용자의 현재 시간대 기준 하루 4구간 — 새벽 00–06, 오전 06–12, 오후 12–18, 저녁 18–24(시작 포함, 끝 제외).
+					at과 같은 요일·같은 구간에서 정규화한 제목(앞뒤·연속 공백, 대소문자 무시)별로 센다. 보관한 업무는 빼고 완료한 업무는 센다.
+					순위는 사건 수 내림차순 → 마지막 사건이 최근인 순, 2번 이상인 것만. 같은 요일로 3개가 안 되면 요일 무관 같은 구간에서 채운다.
+					대표 값은 묶음에서 가장 최근에 만든 업무이고, 그 프로젝트가 보관 상태면 projectId는 null. 결과가 없으면 items는 빈 배열.""",
+			security = @SecurityRequirement(name = SecurityConfig.COOKIE_SCHEME))
+	@ApiResponse(responseCode = "200", description = "제안 목록 (0~3개, 순위 순)")
+	@ApiResponse(responseCode = "400", description = "at 형식 오류 (code=VALIDATION_FAILED)", content = @Content(
+			mediaType = "application/problem+json", schema = @Schema(ref = OpenApiAutoConfiguration.PROBLEM_REF)))
+	@ApiResponse(responseCode = "503", description = "identity 조회 실패 (code=PROFILE_UNAVAILABLE)", content = @Content(
+			mediaType = "application/problem+json", schema = @Schema(ref = OpenApiAutoConfiguration.PROBLEM_REF)))
+	FrequentTaskList frequent(@Parameter(hidden = true) CurrentUser user, @AuthenticationPrincipal Jwt jwt,
+			@Parameter(description = "기준 시각(UTC ISO-8601). 생략하면 지금. 빈 시간 메우기(SCR-HOME-03)처럼 지난 구간의 후보를 볼 때 쓴다.")
+			@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant at) {
+		String timezone = profiles.snapshotOf(user.id(), jwt.getTokenValue()).profile().timezone();
+		Instant when = at == null ? Instant.now(clock) : at;
+		return new FrequentTaskList(frequent.list(user.id(), timezone, when).stream().map(FrequentTaskView::of).toList());
 	}
 
 	@PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)

@@ -13,6 +13,53 @@
       }
     },
     "schemas" : {
+      "FrequentTask" : {
+        "properties" : {
+          "count" : {
+            "description" : "집계 창 안의 사건 수",
+            "format" : "int32",
+            "minimum" : 2,
+            "type" : "integer"
+          },
+          "latestTaskId" : {
+            "description" : "대표 업무 ID (모바일 빠른 기록 SCR-MOB-01에서 기록을 붙일 업무)",
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "projectId" : {
+            "description" : "대표 업무의 프로젝트. 없거나 보관한 프로젝트면 null",
+            "format" : "uuid",
+            "type" : [ "string", "null" ]
+          },
+          "tagIds" : {
+            "description" : "대표 업무의 태그",
+            "items" : {
+              "format" : "uuid",
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "title" : {
+            "description" : "묶음에서 가장 최근에 만든 업무의 제목 (원래 표기 그대로)",
+            "type" : "string"
+          }
+        },
+        "required" : [ "count", "latestTaskId", "projectId", "tagIds", "title" ],
+        "type" : "object"
+      },
+      "FrequentTaskList" : {
+        "properties" : {
+          "items" : {
+            "items" : {
+              "$ref" : "#/components/schemas/FrequentTask"
+            },
+            "maxItems" : 3,
+            "type" : "array"
+          }
+        },
+        "required" : [ "items" ],
+        "type" : "object"
+      },
       "Occurrence" : {
         "description" : "캘린더에 그리는 일정 회차 하나. 반복이 없는 일정도 회차 하나로 준다.\noccurrenceStart는 회차 키(원래 시작 시각, 종일은 원래 날짜의 일정 시간대 0시)이며 회차를 옮겨도 바뀌지 않는다.",
         "properties" : {
@@ -1983,6 +2030,62 @@
           "accessTokenCookie" : [ ]
         } ],
         "summary" : "업무 추가",
+        "tags" : [ "tasks" ]
+      }
+    },
+    "/api/worklog/tasks/frequent" : {
+      "get" : {
+        "description" : "빠른 입력에 포커스가 가면(SCR-COM-02 ④) 부른다. 빈도 집계이며 AI를 쓰지 않는다 (REC-05).\n사건은 업무를 만든 시각(P2-01 뒤 확정 기록을 더함), 기간은 at 이전 8주.\n시간대 구간은 사용자의 현재 시간대 기준 하루 4구간 — 새벽 00–06, 오전 06–12, 오후 12–18, 저녁 18–24(시작 포함, 끝 제외).\nat과 같은 요일·같은 구간에서 정규화한 제목(앞뒤·연속 공백, 대소문자 무시)별로 센다. 보관한 업무는 빼고 완료한 업무는 센다.\n순위는 사건 수 내림차순 → 마지막 사건이 최근인 순, 2번 이상인 것만. 같은 요일로 3개가 안 되면 요일 무관 같은 구간에서 채운다.\n대표 값은 묶음에서 가장 최근에 만든 업무이고, 그 프로젝트가 보관 상태면 projectId는 null. 결과가 없으면 items는 빈 배열.",
+        "operationId" : "listFrequentTasks",
+        "parameters" : [ {
+          "description" : "기준 시각(UTC ISO-8601). 생략하면 지금. 빈 시간 메우기(SCR-HOME-03)처럼 지난 구간의 후보를 볼 때 쓴다.",
+          "in" : "query",
+          "name" : "at",
+          "required" : false,
+          "schema" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/FrequentTaskList"
+                }
+              }
+            },
+            "description" : "제안 목록 (0~3개, 순위 순)"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "at 형식 오류 (code=VALIDATION_FAILED)"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/Unauthorized"
+          },
+          "503" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "identity 조회 실패 (code=PROFILE_UNAVAILABLE)"
+          }
+        },
+        "security" : [ {
+          "accessTokenCookie" : [ ]
+        } ],
+        "summary" : "자주 하는 업무 제안 (같은 요일·시간대 상위 3개)",
         "tags" : [ "tasks" ]
       }
     },

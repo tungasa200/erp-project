@@ -1,10 +1,11 @@
 openapi: 3.1.0
 info:
   title: worklog-service API
-  version: 0.3.0
+  version: 0.4.0
   description: |
     구현 전 합의용 계약. P0 범위(GET /api/worklog/me)는 구현 완료, P1-01~03 범위는 2026-10-05 확정(구현 전).
     P1-05·06 일정 범위(schedules)는 2026-10-06 확정.
+    P2-04 자주 하는 업무 제안(GET /api/worklog/tasks/frequent)은 2026-10-07 확정.
     구현 후에는 springdoc 출력(contracts/generated/worklog.json)이 기준이다 (D-47).
     규약은 요구사항정의서 5.5를 따른다: /api/worklog/ 접두사, 버전 없음,
     시각은 UTC ISO-8601, 날짜는 YYYY-MM-DD, 시간대는 IANA 이름, camelCase,
@@ -447,6 +448,45 @@ paths:
           $ref: '#/components/responses/ValidationFailed'
         '401':
           $ref: '#/components/responses/Unauthorized'
+  /api/worklog/tasks/frequent:
+    get:
+      tags: [tasks]
+      operationId: listFrequentTasks
+      summary: 자주 하는 업무 제안 (같은 요일·시간대 상위 3개)
+      description: |
+        빠른 입력에 포커스가 가면(SCR-COM-02 ④) 부른다. 빈도 집계이며 AI를 쓰지 않는다 (REC-05).
+        집계:
+        - 사건: 업무를 만든 시각(createdAt). P2-01 업무 기록이 생기면 확정(CONFIRMED) 기록도 사건에 더한다
+          (기록 시각은 startAt, 없으면 회차 시작 시각, 없으면 기록을 만든 시각). 응답 모양은 그대로다.
+        - 기간: at 이전 8주(56일).
+        - 시간대 구간: 사용자의 현재 시간대(프로필) 기준 하루 4구간 — 새벽 00:00–06:00, 오전 06:00–12:00,
+          오후 12:00–18:00, 저녁 18:00–24:00(시작 포함, 끝 제외). at과 같은 요일·같은 구간의 사건을 센다.
+        - 같은 업무: 제목의 앞뒤 공백을 빼고 연속 공백을 하나로 줄인 뒤 대소문자를 무시해 같으면 같은 업무다
+          (매주 새로 만드는 "주간 회의 준비"를 하나로 센다). 보관(소프트 삭제)한 업무는 세지 않는다. 완료한 업무는 센다.
+        - 순위: 사건 수 내림차순 → 마지막 사건이 최근인 순. 사건이 2번 이상인 것만 제안한다.
+        - 채우기: 같은 요일에서 3개가 안 되면 요일과 관계없이 같은 구간에서 모자란 만큼 채운다(앞 것과 겹치지 않게).
+        - 대표 값: 묶음에서 가장 최근에 만든 업무의 제목·프로젝트·태그를 준다. 그 프로젝트가 보관 상태면 projectId는 null.
+        결과가 없으면 items는 빈 배열이다(200). 프론트는 같은 15분 칸 안에서는 응답을 다시 쓴다.
+      parameters:
+        - name: at
+          in: query
+          description: 기준 시각(UTC ISO-8601). 생략하면 지금. 빈 시간 메우기(SCR-HOME-03)처럼 지난 구간의 후보를 볼 때 쓴다.
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: 제안 목록 (0~3개, 순위 순)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FrequentTaskList'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          $ref: '#/components/responses/ProfileUnavailable'
   /api/worklog/tasks/{taskId}:
     parameters:
       - $ref: '#/components/parameters/TaskId'
@@ -1145,6 +1185,41 @@ components:
         memo:
           type: [string, 'null']
           maxLength: 5000
+
+    FrequentTaskList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          maxItems: 3
+          items:
+            $ref: '#/components/schemas/FrequentTask'
+    FrequentTask:
+      type: object
+      required: [title, projectId, tagIds, latestTaskId, count]
+      properties:
+        title:
+          type: string
+          description: 묶음에서 가장 최근에 만든 업무의 제목 (원래 표기 그대로)
+        projectId:
+          type: [string, 'null']
+          format: uuid
+          description: 대표 업무의 프로젝트. 없거나 보관한 프로젝트면 null
+        tagIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: 대표 업무의 태그
+        latestTaskId:
+          type: string
+          format: uuid
+          description: 대표 업무 ID (모바일 빠른 기록 SCR-MOB-01에서 기록을 붙일 업무)
+        count:
+          type: integer
+          minimum: 2
+          description: 집계 창 안의 사건 수
 
     Recurrence:
       type: object
