@@ -1,6 +1,6 @@
 {
   "name": "erp-session-dashboard",
-  "displayName": "ERP 세션 현황",
+  "displayName": "WY Ops — 세션 현황·승인 센터",
   "description": "메모리·프로세스·Claude 역할 세션 상태를 사이드바에서 보고, WY 승인 센터에서 git 명령 요청을 승인하고 결정 요청에 답한다",
   "version": "0.5.0",
   "publisher": "erp-project",
@@ -18,24 +18,24 @@
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "erpSessions",
+          "id": "wyOps",
           "title": "세션 현황",
           "icon": "media/icon.svg"
         }
       ]
     },
     "views": {
-      "erpSessions": [
+      "wyOps": [
         {
           "type": "webview",
-          "id": "erpSessions.panel",
+          "id": "wyOps.sessions",
           "name": "세션 현황"
         }
       ]
     },
     "commands": [
       {
-        "command": "erpSessions.refresh",
+        "command": "wyOps.refresh",
         "title": "새로고침",
         "category": "세션 현황",
         "icon": "$(refresh)"
@@ -47,7 +47,7 @@
         "icon": "$(shield)"
       },
       {
-        "command": "erpSessions.revealSession",
+        "command": "wyOps.revealSession",
         "title": "세션 현황에서 보기",
         "category": "세션 현황"
       },
@@ -61,8 +61,8 @@
     "menus": {
       "view/title": [
         {
-          "command": "erpSessions.refresh",
-          "when": "view == erpSessions.panel",
+          "command": "wyOps.refresh",
+          "when": "view == wyOps.sessions",
           "group": "navigation"
         }
       ]

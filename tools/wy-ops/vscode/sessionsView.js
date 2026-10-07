@@ -10,7 +10,7 @@ const { loadOpsConfig } = require('./opsConfig');
 const { rootFor } = require('./approvalStore');
 const { readSessionStatus } = require('./agentsReader');
 
-const VIEW_ID = 'erpSessions.panel';
+const VIEW_ID = 'wyOps.sessions';
 const INTERVAL = { memory: 5000, processes: 15000, sessions: 10000 };
 const COMMAND_TIMEOUT = 8000;
 const REVEAL_REPLAY_MS = 10000;
@@ -97,7 +97,7 @@ function readRoles() {
 
 const READERS = { memory: async () => readMemory(), processes: readProcesses, sessions: readSessions };
 
-const OFF_ACK_KEY = 'erpSessions.offMessageAck'; // { sessionId: 확인한 마지막 막힌 메시지 시각 }
+const OFF_ACK_KEY = 'wyOps.offMessageAck'; // { sessionId: 확인한 마지막 막힌 메시지 시각 }
 
 class Provider {
   constructor(extensionUri, globalState) {
@@ -233,7 +233,7 @@ class Provider {
   }
 }
 
-const REVEAL_COMMAND = 'erpSessions.revealSession';
+const REVEAL_COMMAND = 'wyOps.revealSession';
 const SESSION_ID_RE = /^[0-9a-f][0-9a-f-]{3,63}$/i;
 
 // "열기"(OPS-04, D-89): VS Code 새 터미널에서 claude attach. PowerShell 실행 정책 때문에 claude.cmd로 부른다
@@ -257,7 +257,7 @@ function register(context) {
   const provider = new Provider(context.extensionUri, context.globalState);
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider(VIEW_ID, provider),
-    vscode.commands.registerCommand('erpSessions.refresh', () => provider.refreshAll()),
+    vscode.commands.registerCommand('wyOps.refresh', () => provider.refreshAll()),
     // 승인 센터의 "세션 현황에서 보기"(D-89): 뷰를 열고 그 세션 줄을 강조한다(인자는 전체 sessionId 또는 짧은 id)
     vscode.commands.registerCommand(REVEAL_COMMAND, async (sessionId) => {
       await vscode.commands.executeCommand(`${VIEW_ID}.focus`);

@@ -39,7 +39,7 @@ function extensionWiring() {
     panel.send({ type: 'openActivity' });
     assert.ok(fake.executed.some((e) => e[0] === 'wyActivity.open'), '활동 탭 열기');
     panel.send({ type: 'reveal', sessionId: 'sid-1' });
-    assert.ok(fake.executed.some((e) => e[0] === 'erpSessions.revealSession' && e[1] === 'sid-1'), '세션 현황에서 보기');
+    assert.ok(fake.executed.some((e) => e[0] === 'wyOps.revealSession' && e[1] === 'sid-1'), '세션 현황에서 보기');
   } finally {
     fake.uninstall();
   }

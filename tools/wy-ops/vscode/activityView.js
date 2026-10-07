@@ -112,7 +112,7 @@ class ActivityView {
     } else if (msg.type === 'openCard' && typeof msg.id === 'string') {
       vscode.commands.executeCommand('wyApprovals.open', { id: msg.id });
     } else if (msg.type === 'revealSession' && typeof msg.sessionId === 'string') {
-      vscode.commands.executeCommand('erpSessions.revealSession', msg.sessionId);
+      vscode.commands.executeCommand('wyOps.revealSession', msg.sessionId);
     }
   }
 

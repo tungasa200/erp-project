@@ -107,7 +107,7 @@ test('탭을 열면 메시지·묶음·세션 상태·카드 연결을 보낸다
     // 카드 열기·세션 현황에서 보기는 명령으로 넘긴다
     panel.send({ type: 'openCard', id: 'card-1' });
     panel.send({ type: 'revealSession', sessionId: 'f2-sid' });
-    assert.deepStrictEqual(fake.executed.slice(-2), [['wyApprovals.open', { id: 'card-1' }], ['erpSessions.revealSession', 'f2-sid']]);
+    assert.deepStrictEqual(fake.executed.slice(-2), [['wyApprovals.open', { id: 'card-1' }], ['wyOps.revealSession', 'f2-sid']]);
   } finally {
     fake.uninstall();
   }

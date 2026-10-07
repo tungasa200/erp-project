@@ -19,7 +19,7 @@ try {
   for (const v of Object.values(pkg.contributes.views).flat()) assert.ok(fake.viewProviders[v.id], `뷰: ${v.id}`);
 
   // 세션 현황 뷰가 뜨고 역할 목록을 보낸다
-  const view = fake.resolveView('erpSessions.panel');
+  const view = fake.resolveView('wyOps.sessions');
   view.visible = false; // 폴링(claude agents 실행)은 하지 않는다
   view.send({ type: 'ready' });
   const roles = view.posts.find((m) => m.type === 'roles');
@@ -27,8 +27,8 @@ try {
 
   // 세션 현황에서 보기: 뷰에 reveal 메시지
   return (async () => {
-    await fake.commands['erpSessions.revealSession']('abc-123');
-    assert.ok(fake.executed.some((e) => e[0] === 'erpSessions.panel.focus'), '뷰 열기');
+    await fake.commands['wyOps.revealSession']('abc-123');
+    assert.ok(fake.executed.some((e) => e[0] === 'wyOps.sessions.focus'), '뷰 열기');
     assert.ok(view.posts.some((m) => m.type === 'reveal' && m.sessionId === 'abc-123'), 'reveal 전달');
 
     // 승인 센터: { id }로 열면 ready 뒤 select

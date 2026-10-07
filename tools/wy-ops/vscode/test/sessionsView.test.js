@@ -15,12 +15,12 @@ const flush = () => new Promise((r) => setImmediate(r));
     const memento = new Map();
     fake.context.globalState = { get: (k) => memento.get(k), update: async (k, v) => memento.set(k, v) };
     const provider = require(path.join(EXT, 'sessionsView.js')).register(fake.context);
-    const view = fake.resolveView('erpSessions.panel');
+    const view = fake.resolveView('wyOps.sessions');
     view.visible = false; // 폴링(claude agents 실행)은 하지 않는다
 
     // "세션 현황에서 보기"가 webview 준비 전에 와도 ready 뒤 다시 보낸다
-    await fake.commands['erpSessions.revealSession']('abcd1234-0000-7000-8000-000000000000');
-    assert.ok(fake.executed.some((e) => e[0] === 'erpSessions.panel.focus'), '뷰 열기');
+    await fake.commands['wyOps.revealSession']('abcd1234-0000-7000-8000-000000000000');
+    assert.ok(fake.executed.some((e) => e[0] === 'wyOps.sessions.focus'), '뷰 열기');
     view.posts.length = 0;
     view.send({ type: 'ready' });
     assert.ok(view.posts.some((m) => m.type === 'reveal' && m.sessionId.startsWith('abcd1234')), 'ready 뒤 reveal 재전달');
@@ -65,7 +65,7 @@ const flush = () => new Promise((r) => setImmediate(r));
     provider.cache.sessions = { type: 'sessions', data: rows, at: Date.now() };
     view.posts.length = 0;
     view.send({ type: 'ackOff', sessionId: 'sid-s' });
-    assert.deepStrictEqual(memento.get('erpSessions.offMessageAck'), { 'sid-s': m1.at }, 'globalState에 기억');
+    assert.deepStrictEqual(memento.get('wyOps.offMessageAck'), { 'sid-s': m1.at }, 'globalState에 기억');
     const sent = view.posts.find((m) => m.type === 'sessions');
     assert.strictEqual(sent && sent.data[0].offWarning, null, '확인함 뒤 바로 숨김');
     assert.strictEqual(provider.applyAcks([off([m1])])[0].offWarning, null, '다시 읽어도 숨김');

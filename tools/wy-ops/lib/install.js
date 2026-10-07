@@ -9,7 +9,7 @@
 //   init --name <이름> --prefix <XX-> [--roles a,b] [--project <폴더, 기본 현재 폴더>]
 //                                   새 프로젝트(OPS-10-2): 설정·역할 원본·생성 파일·.gitignore(lib/init.js) + settings 병합 + 승인 폴더 + doctor,
 //                                   CLAUDE.md에 넣을 절을 출력만 한다. 그 PC에 global(또는 setup)을 먼저 해 둔다
-//   update [--project <폴더>]       deploy + 생성 파일 다시 만들기(사람이 고친 것은 덮지 않고 차이만, lib/update.js)
+//   update [--project <폴더>] [--dry-run]  deploy + 생성 파일 다시 만들기(사람이 고친 것은 덮지 않고 차이만, lib/update.js)
 // 공통: --yes(확인 없이 진행), --extensions-dir <폴더>(code에 넘김, 시험용). 결정 파일(decisions/·used/)은 쓰지 않는다(OPS-10-3).
 const fs = require('fs');
 const os = require('os');
@@ -214,13 +214,9 @@ function main() {
   if (cmd === 'update') {
     const project = projectRoot();
     deployStep();
-    let update;
-    try {
-      update = require('./update').update;
-    } catch {
-      return say('update: lib/update.js가 없어 생성 파일은 다시 만들지 않았습니다');
-    }
-    for (const f of update({ project })) say(`  ${f.action.padEnd(9)} ${f.file}${f.diff ? `\n${f.diff}` : ''}`);
+    const { update, format } = require('./update');
+    const version = JSON.parse(fs.readFileSync(path.join(PKG, 'package.json'), 'utf8')).version;
+    say(format(update({ project, version, dryRun: flag('--dry-run') })));
     say('다음: VS Code에서 "Developer: Reload Window"를 실행하세요.');
     return undefined;
   }

@@ -98,7 +98,7 @@ function stubAgents() {
   assert.ok(!last().pending.some((r) => r.id === 't1'), '했음 → 닫힘');
   assert.ok(!last().untrusted.includes('t1'), '확장이 쓴 했음 결정은 신뢰');
   panel.send({ type: 'reveal', sessionId: 's-dead' });
-  assert.deepStrictEqual(fake.executed.pop(), ['erpSessions.revealSession', 's-dead'], '세션 현황에서 보기');
+  assert.deepStrictEqual(fake.executed.pop(), ['wyOps.revealSession', 's-dead'], '세션 현황에서 보기');
 
   // VS Code를 다시 켜도 원장은 남는다(globalState)
   const memento = fake.globalState;
