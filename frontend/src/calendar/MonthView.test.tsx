@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type { Occurrence } from './api'
 import { MonthView } from './MonthView'
@@ -25,9 +25,10 @@ window.PointerEvent ??= class extends MouseEvent {
 } as unknown as typeof PointerEvent
 Element.prototype.setPointerCapture ??= function () {}
 
-const renderMonth = (overview: boolean) => {
+const renderMonth = (overview: boolean, editable = true) => {
   const onOpenDay = vi.fn()
   const onCreateAllDay = vi.fn()
+  const onOpen = vi.fn()
   render(
     <MonthView
       days={days}
@@ -36,14 +37,15 @@ const renderMonth = (overview: boolean) => {
       timeZone="Asia/Seoul"
       today="2026-10-07"
       colorOf={() => null}
-      onOpen={vi.fn()}
+      onOpen={onOpen}
       onOpenDay={onOpenDay}
       onCreateAllDay={onCreateAllDay}
       onMoveDays={vi.fn()}
       overview={overview}
+      editable={editable}
     />,
   )
-  return { onOpenDay, onCreateAllDay }
+  return { onOpenDay, onCreateAllDay, onOpen }
 }
 
 describe('월 보기 (P1-07-11)', () => {
@@ -62,6 +64,16 @@ describe('월 보기 (P1-07-11)', () => {
     fireEvent.pointerDown(chip, { button: 0 })
     fireEvent.pointerUp(chip, { button: 0 })
     expect(chip).toHaveFocus()
+  })
+
+  it('오프라인이면 끌기 처리가 꺼져도 칩을 마우스로 누르면 연다(SCR-SYS-02 ③), 온라인 click은 pointer 처리가 연다', () => {
+    const { onOpen } = renderMonth(false, false)
+    fireEvent.click(screen.getByRole('button', { name: '기획 회의' }), { detail: 1 })
+    expect(onOpen).toHaveBeenCalledWith(occurrences[0])
+    cleanup()
+    const online = renderMonth(false)
+    fireEvent.click(screen.getByRole('button', { name: '기획 회의' }), { detail: 1 })
+    expect(online.onOpen).not.toHaveBeenCalled()
   })
 
   it('시각 일정 칩: 좁은 칸에서 숨길 수 있게 시각을 따로 감싸고, 접근 이름에는 시각을 둔다 (SCR-CAL-03 v1.7)', () => {

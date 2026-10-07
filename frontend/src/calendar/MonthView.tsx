@@ -177,7 +177,8 @@ export function MonthView({
                     data-focus-group={focusGroup(o, date)}
                     className={styles.chip}
                     style={colorVars(colorOf(o))}
-                    onClick={(e) => e.detail === 0 && props.onOpen(o)}
+                    // 오프라인이면 pointer 처리가 꺼지므로 마우스 click도 여기서 연다(SCR-SYS-02 ③ 열어 보기)
+                    onClick={(e) => (e.detail === 0 || readOnly) && props.onOpen(o)}
                     // 칸이 좁으면 시각을 숨기므로(제목 우선, SCR-CAL-03) 접근 이름에는 시각을 그대로 둔다
                     aria-label={`${chipLabel(o, timeZone)}${o.recurring ? ', 반복' : ''}`}
                   >
