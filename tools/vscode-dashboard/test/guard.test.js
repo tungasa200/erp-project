@@ -32,6 +32,8 @@ const deny = [
   'echo {} > ~/.claude/wy-approvals/decisions/x.json',
   // 세션 등록 기록(SessionStart 훅이 씀) — 역할 확인의 근거라 셸로 위조하지 못하게
   'echo {} > ~/.claude/wy-approvals/erp-project/sessions/s.json',
+  // 메시지 거부 기록(메시지 가드 훅이 씀) — 세션 현황 경고의 근거
+  'echo {} >> ~/.claude/wy-approvals/erp-project/message-blocks.log',
   'cp a ~/.wy-tools/vscode-dashboard/x',
   W`[IO.File]::WriteAllText(".claude/wy-ops.json", "{}")`,
   // 인터프리터 쓰기 API·난독화
@@ -98,6 +100,7 @@ const allow = [
   'cat ~/.claude/wy-approvals/erp-project/decisions.log | tail -5',
   'ls -la ~/.claude/wy-approvals/erp-project/decisions/',
   'cat ~/.claude/wy-approvals/erp-project/sessions/s.json',
+  'tail -5 ~/.claude/wy-approvals/erp-project/message-blocks.log',
   'cat ~/.claude/wy-approvals/erp-project/decisions/a.json 2>/dev/null',
   'type .claude\\wy-ops.json',
   `node -e 'const d=require("C:/Users/k/.claude/wy-approvals/erp-project/decisions/20261007-x.json");console.log(d.decision, d.reason)'`,

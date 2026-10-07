@@ -28,4 +28,23 @@ assert.strictEqual(check(list, 'main'), null, 'main은 통과');
 assert.strictEqual(check([], 'WY-qa'), null, '빈 목록은 통과');
 assert.strictEqual(check(null, ''), null, '대상 없음은 통과');
 
+// 거부 기록(message-blocks.log): 본문 없이 시각·보낸 세션·대상, 크기를 넘으면 앞 절반을 버린다
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+const { recordBlock, blockEntry, LOG_NAME } = require('../hooks/wy-message-guard.js');
+const root = fs.mkdtempSync(path.join(os.tmpdir(), 'wy-msg-'));
+const withIds = [{ ...bg('WY-qa', 'done', false, 1), sessionId: 'qa-sid' }, { name: 'WY-pm', kind: 'interactive', sessionId: 'pm-sid' }];
+const input = { session_id: 'pm-sid', tool_input: { to: 'WY-qa [abc]', message: '비밀 본문', summary: '요약' } };
+const entry = blockEntry(withIds, input, check(withIds, input.tool_input.to), new Date('2026-10-07T00:00:00Z'));
+assert.deepStrictEqual(entry, { at: '2026-10-07T00:00:00.000Z', from: 'WY-pm', fromSessionId: 'pm-sid', to: 'WY-qa', toSessionId: 'qa-sid', toState: 'done' });
+assert.strictEqual(blockEntry([], { tool_input: {} }, check(withIds, 'WY-qa')).from, null, '보낸 세션을 모르면 null');
+for (let i = 0; i < 10; i++) recordBlock(root, { ...entry, n: i }, 600);
+const kept = fs.readFileSync(path.join(root, LOG_NAME), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+assert.ok(fs.statSync(path.join(root, LOG_NAME)).size <= 600, '크기 제한');
+assert.strictEqual(kept[kept.length - 1].n, 9, '최근 기록은 남음');
+assert.ok(kept[0].n > 0, '앞 기록은 버림');
+assert.ok(!fs.readFileSync(path.join(root, LOG_NAME), 'utf8').includes('비밀 본문'), '본문 없음');
+fs.rmSync(root, { recursive: true, force: true });
+
 console.log('message 훅 검사 통과');

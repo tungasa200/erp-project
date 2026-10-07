@@ -4,7 +4,7 @@
 // - 잠금 대상은 WY-commit(agent_type)만 실행한다. agent_type이 없는 세션도 거부한다.
 // - 승인 한 건은 한 번만 쓴다(used/<id>.json).
 // - 승인 폴더는 훅 입력의 cwd가 속한 프로젝트의 것(~/.claude/wy-approvals/<namespace>, 설정이 없으면 바탕 폴더).
-// - 승인 파일(decisions/·decisions.log·used/·sessions/), 설치본(~/.wy-tools), 프로젝트 설정(.claude/wy-ops.json·wy-ops.local.json·settings.local.json)에
+// - 승인 파일(decisions/·decisions.log·used/·sessions/·message-blocks.log), 설치본(~/.wy-tools), 프로젝트 설정(.claude/wy-ops.json·wy-ops.local.json·settings.local.json)에
 //   쓰는 셸 명령은 막는다. 읽기(cat·ls·tail·test, 감시 루프)와 읽기 API만 쓰는 node·python·PowerShell 코드는 통과한다.
 //   판단할 수 없으면(쓰기 API·난독화·알 수 없는 코드) 막는다.
 // 훅은 오류·시간 초과 때 통과시키므로(fail open), 여기서는 어떤 오류든 종료 코드 2로 막는다.
@@ -20,7 +20,7 @@ const DEFAULT_COMMIT_SESSION = 'WY-commit';
 const GIT_OPTS_WITH_VALUE = new Set(['-C', '-c', '--git-dir', '--work-tree', '--namespace', '--exec-path']);
 // 보호 경로(소문자, / 구분자로 바꾼 명령에 대고 찾는다). 승인 파일은 바탕 폴더 바로 아래와 <namespace> 하위 모두
 const PROTECTED = [
-  /wy-approvals\/(?:[^/\s"'`]+\/)?(?:decisions|used\b|sessions\b|config\.json)/,
+  /wy-approvals\/(?:[^/\s"'`]+\/)?(?:decisions|used\b|sessions\b|config\.json|message-blocks\.log)/,
   /\.wy-tools\//,
   /\.claude\/(?:wy-ops(?:\.local)?\.json|settings\.local\.json)/,
 ];
@@ -331,7 +331,7 @@ function evaluate(input, rootOverride) {
   if (writesApprovalFiles(command, input.cwd || process.cwd())) {
     return {
       decision: 'deny',
-      reason: '승인 파일(~/.claude/wy-approvals 아래 decisions·decisions.log·used·sessions), 설치본(~/.wy-tools), 프로젝트 설정(.claude/wy-ops.json·wy-ops.local.json·settings.local.json)에는 셸 명령으로 쓸 수 없습니다. 읽기(cat·ls·tail·test)는 됩니다. 설정 변경은 내용을 WY-pm에 보내 사용자가 고치게 하세요.',
+      reason: '승인 파일(~/.claude/wy-approvals 아래 decisions·decisions.log·used·sessions·message-blocks.log), 설치본(~/.wy-tools), 프로젝트 설정(.claude/wy-ops.json·wy-ops.local.json·settings.local.json)에는 셸 명령으로 쓸 수 없습니다. 읽기(cat·ls·tail·test)는 됩니다. 설정 변경은 내용을 WY-pm에 보내 사용자가 고치게 하세요.',
     };
   }
   const root = rootOverride || store.rootFor(input.cwd || process.cwd());
