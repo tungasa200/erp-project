@@ -87,12 +87,14 @@
     if (s.view === 'failed') return '실패';
     if (s.view === 'ended') return '대기 중 종료됨 · 다시 띄워야 함';
     if (s.view === 'working') return s.doing || '일하는 중';
+    if (!VIEW[s.view]) return `상태: ${s.view || '알 수 없음'}`;
     return s.lastAt ? `대기 · ${ago(s.lastAt)} 마지막 동작` : '대기';
   }
 
   function renderStrip() {
     const strip = $('strip');
-    const live = state.sessions.filter((s) => s.view !== 'stopped').sort((a, b) => VIEW[a.view][1] - VIEW[b.view][1]);
+    const rank = (v) => (VIEW[v] ? VIEW[v][1] : 9); // 모르는 상태 값(세션 현황 쪽에서 새로 생긴 것)은 뒤로
+    const live = state.sessions.filter((s) => s.view !== 'stopped').sort((a, b) => rank(a.view) - rank(b.view));
     const stopped = state.sessions.filter((s) => s.view === 'stopped');
     const chips = live.map((s) => {
       const text = doingText(s);
@@ -220,7 +222,9 @@
     }
     renderSum();
     renderStrip();
-    $('main').innerHTML = mode === 'feed' ? renderFeed() : mode === 'time' ? renderTime() : renderThreads();
+    $('main').innerHTML = state.transcriptsMissing
+      ? empty('대화 기록 폴더를 찾지 못했습니다', `${state.transcriptsMissing} 에 세션 대화 기록이 없습니다. 이 창에 연 폴더가 세션을 띄운 저장소와 같은지 확인해 주세요. 세션 상태는 위 칩에 그대로 보입니다.`, true)
+      : mode === 'feed' ? renderFeed() : mode === 'time' ? renderTime() : renderThreads();
   }
 
   // ── 시간 보기: 세션마다 한 줄, 가로가 시간. 띠 = 일한 구간, 화살표 = 메시지, 점선 상자 = 진행 중인 묶음 ──
@@ -229,6 +233,21 @@
   const X0 = 150;
   const X1 = 930;
   const TICK = { 1: 10, 3: 30, 12: 120 }; // 범위(시간)별 눈금 간격(분)
+
+  // SVG 글자는 말줄임이 안 되므로 폭으로 자른다: 한글 등 넓은 글자는 2칸, 영숫자는 1칸(12px 굵은 글씨 기준 1칸 ≈ 7px)
+  function fitLabel(text, units) {
+    const w = (ch) => (/[^\u0000-ɏ]/.test(ch) ? 2 : 1);
+    const chars = [...text];
+    if (chars.reduce((s, c) => s + w(c), 0) <= units) return text;
+    let out = '';
+    let used = 1; // 말줄임표 자리
+    for (const c of chars) {
+      if (used + w(c) > units) break;
+      out += c;
+      used += w(c);
+    }
+    return `${out}…`;
+  }
 
   function renderTime() {
     const now = state.now;
@@ -259,7 +278,8 @@
       const unread = l.from && l.from > t0 ? `<rect class="unread" x="${X0}" y="${yy - 7}" width="${x(l.from) - X0}" height="14" rx="3"><title>이 앞은 읽지 않음(처음 열 때 기록 끝부분만 읽습니다)</title></rect>` : '';
       const bands = l.bands.map(([a, b]) => `<rect class="band" x="${x(a)}" y="${yy - 6}" width="${Math.max(3, x(b) - x(a))}" height="12" rx="6"/>`).join('');
       const tail = ['permission', 'input', 'ended'].includes(view) ? `<rect class="tail tail-${view}" x="${X1 - 28}" y="${yy - 6}" width="28" height="12" rx="6"><title>${esc(VIEW[view][0])}</title></rect>` : '';
-      return `<g class="lane ${view}"><circle class="lav" cx="${16}" cy="${yy}" r="11"/><text class="lav-t" x="16" y="${yy + 4}" text-anchor="middle">${esc(initials(n))}</text><text class="lane-n" x="34" y="${yy + 4}">${esc(short(n))}</text>
+      const label = fitLabel(short(n), 15); // 이름 칸(약 110px)을 넘지 않게
+      return `<g class="lane ${view}"><title>${esc(n)}</title><circle class="lav" cx="${16}" cy="${yy}" r="11"/><text class="lav-t" x="16" y="${yy + 4}" text-anchor="middle">${esc(initials(n))}</text><text class="lane-n" x="34" y="${yy + 4}">${esc(label)}</text>
         <rect class="track" x="${X0}" y="${yy - 2}" width="${X1 - X0}" height="4" rx="2"/>${unread}${bands}${tail}</g>`;
     }).join('');
 
@@ -355,6 +375,8 @@
   window.addEventListener('message', (e) => {
     if (e.data && e.data.type === 'state') {
       state = e.data.state;
+      // 모르는 단계 값(읽기 모듈이 새 머리표를 배운 경우)은 '지시·전달'로 그린다
+      for (const b of state.bundles || []) for (const s of b.steps) if (!STAGE[s.stage]) s.stage = 'order';
       render();
     }
   });

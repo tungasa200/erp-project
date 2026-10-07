@@ -90,7 +90,7 @@ svg.i-s { width: 14px; height: 14px; flex: none; }
 .sc { display: flex; align-items: center; gap: 8px; min-width: 0; max-width: 100%; padding: 5px 10px 5px 6px; border: 0; border-radius: 999px; background: var(--card); text-align: left; cursor: pointer; transition: background-color 160ms var(--ease); }
 .sc:hover { background: var(--hover); }
 .sc > span:last-child { min-width: 0; }
-.sc .nm { display: block; font-size: 12px; font-weight: 600; line-height: 1.2; }
+.sc .nm { display: block; max-width: 22ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 600; line-height: 1.2; }
 .sc .ac { display: block; max-width: 22ch; overflow: hidden; text-overflow: ellipsis; font-size: 11px; color: var(--dim); line-height: 1.25; white-space: nowrap; }
 .sc.permission { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--s-perm) 60%, transparent); }
 .sc.permission .ac { color: color-mix(in srgb, var(--s-perm) 70%, var(--fg)); font-weight: 600; }
@@ -207,6 +207,20 @@ svg.i-s { width: 14px; height: 14px; flex: none; }
 .empty { max-width: 46ch; margin: 40px auto; padding: 0 16px; color: var(--dim); text-align: center; }
 .empty b { display: block; margin-bottom: 4px; color: var(--fg); font-size: 13px; }
 .empty.err b { color: color-mix(in srgb, var(--err) 75%, var(--fg)); }
+
+/* 고대비 테마: 배경 차이만으로는 카드·칩 경계가 안 보이므로 테마 대비 테두리를 그린다 */
+body.vscode-high-contrast .th,
+body.vscode-high-contrast .sc,
+body.vscode-high-contrast .pill,
+body.vscode-high-contrast .seg-ctl,
+body.vscode-high-contrast .body,
+body.vscode-high-contrast-light .th,
+body.vscode-high-contrast-light .sc,
+body.vscode-high-contrast-light .pill,
+body.vscode-high-contrast-light .seg-ctl,
+body.vscode-high-contrast-light .body { outline: 1px solid var(--vscode-contrastBorder); outline-offset: -1px; }
+body.vscode-high-contrast .seg-ctl button[aria-pressed="true"],
+body.vscode-high-contrast-light .seg-ctl button[aria-pressed="true"] { outline: 1px solid var(--vscode-contrastActiveBorder, var(--focus)); }
 
 @media (prefers-reduced-motion: reduce) {
   .wy *, .wy *::before, .wy *::after { animation: none !important; transition: none !important; }

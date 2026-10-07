@@ -209,6 +209,7 @@ class ActivityView {
         from: Math.floor(l.from / LANE_STEP) * LANE_STEP, // 이 앞은 읽지 않은 구간
       })),
       unreadable: this.reader.unreadable,
+      transcriptsMissing: fs.existsSync(this.reader.dir) ? null : this.reader.dir, // 메시지가 없는 것과 폴더를 못 찾은 것을 구분한다
       windowHours: 24,
     };
   }

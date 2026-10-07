@@ -76,6 +76,7 @@ test('탭을 열면 메시지·묶음·세션 상태·카드 연결을 보낸다
     const st = panel.posts.filter((m) => m.type === 'state').pop().state;
 
     assert.deepStrictEqual(st.feed, ['m2', 'm1'], '피드는 최신순');
+    assert.strictEqual(st.transcriptsMissing, null, '대화 기록 폴더 있음');
     assert.strictEqual(st.messages.m1.title, '[결함] P1-09-09 입력 손실');
     assert.strictEqual(st.messages.m1.body, '[결함] P1-09-09 입력 손실\n재현 3단계', '원문 전체');
     const b = st.bundles.find((x) => x.taskId === 'P1-09-09');
@@ -105,6 +106,22 @@ test('탭을 열면 메시지·묶음·세션 상태·카드 연결을 보낸다
     panel.send({ type: 'openCard', id: 'card-1' });
     panel.send({ type: 'revealSession', sessionId: 'f2-sid' });
     assert.deepStrictEqual(fake.executed.slice(-2), [['wyApprovals.open', { id: 'card-1' }], ['erpSessions.revealSession', 'f2-sid']]);
+  } finally {
+    fake.uninstall();
+  }
+});
+
+test('대화 기록 폴더가 없으면 그 경로를 알린다', () => {
+  const { fake, view, dir } = setup();
+  try {
+    const { ActivityReader } = require(path.join(EXT, 'sessionActivity.js'));
+    view.reader = new ActivityReader({ dir: path.join(dir, '없는-폴더') });
+    fake.commands['wyActivity.open']();
+    const panel = fake.panels.find((p) => p.type === 'wyActivity');
+    panel.send({ type: 'ready' });
+    const st = panel.posts.filter((m) => m.type === 'state').pop().state;
+    assert.strictEqual(st.transcriptsMissing, path.join(dir, '없는-폴더'));
+    assert.ok(Array.isArray(st.sessions) && st.sessions.length, '세션 칩은 그대로');
   } finally {
     fake.uninstall();
   }
