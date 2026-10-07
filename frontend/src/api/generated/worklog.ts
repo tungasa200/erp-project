@@ -103,6 +103,87 @@ export interface paths {
         patch: operations["updateProject"];
         trace?: never;
     };
+    "/api/worklog/records": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 기간 안의 업무 기록 (일 보기 "이날의 기록", 업무 상세 기록 이력, 일지 원본)
+         * @description workDate가 [from, to](양끝 포함)인 기록을 준다. 보관(소프트 삭제)한 기록은 빼고 준다.
+         *     정렬: workDate → startAt(없으면 뒤) → occurrenceStart(없으면 뒤) → id. 페이지네이션 없이 한 번에 준다(기간 최대 400일).
+         *     status를 생략하면 세 상태를 모두 준다(일 보기는 확인 대기·하지 않음도 상태로 그린다, SCR-CAL-01 states).
+         */
+        get: operations["listRecords"];
+        put?: never;
+        /**
+         * 업무 기록 추가 — 직접 쓴 기록은 바로 확정 (REC-01, SCR-REC-01)
+         * @description 사용자가 직접 쓴 기록이라 status=CONFIRMED로 만든다(확인 대기는 서버만 만든다, P2-03).
+         *     날짜 귀속(D-40, NFR-04): startAt이 있으면 workDate는 저장 시점 사용자 시간대(프로필)로 startAt의 날짜를 계산하고
+         *     보낸 workDate는 무시한다. startAt이 없으면 workDate가 필수다.
+         *     시간 칸은 시간 기록 옵션(WorklogSettings.timeTrackingEnabled)과 관계없이 받는다(TIME-09).
+         *     startAt이 있는데 프로필 사본이 없으면 identity에서 바로 가져온다(실패하면 503).
+         */
+        post: operations["createRecord"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/worklog/records/{recordId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 업무 기록 조회 (보관한 기록 포함) */
+        get: operations["getRecord"];
+        put?: never;
+        post?: never;
+        /**
+         * 업무 기록 보관 (소프트 삭제, SCR-REC-01 ⑦)
+         * @description deletedAt을 기록한다. 이미 보관했으면 204. version을 받지 않는다.
+         *     계획에서 온 기록은 보관해도 (일정, 회차 시작) 행이 남으므로 확인 대기가 다시 생기지 않는다.
+         */
+        delete: operations["deleteRecord"];
+        options?: never;
+        head?: never;
+        /**
+         * 업무 기록 수정·확인·하지 않음 (SCR-REC-01, SCR-HOME-02 했어요/수정/안 했어요, 되돌리기)
+         * @description 보낸 칸만 바꾼다. nullable 칸은 null을 보내면 비운다. 상태 전이:
+         *     - 계획에서 온 기록(occurrenceStart가 있음): PENDING·CONFIRMED·DISMISSED 사이 어느 쪽으로든
+         *       (했어요 = CONFIRMED, 안 했어요 = DISMISSED, 되돌리기 토스트 = PENDING). "수정"은 내용과 status=CONFIRMED를 한 요청에 보낸다.
+         *     - 직접 쓴 기록: CONFIRMED만(다른 값이면 409 INVALID_STATUS). 지우려면 DELETE.
+         *     startAt을 바꾸면 workDate를 저장 시점 사용자 시간대로 다시 계산한다. startAt을 null로 비우면 workDate는 그대로 두거나 보낸 값으로 바꾼다.
+         *     같은 값을 다시 보내면 version이 오르지 않는다. 보관한 기록은 수정할 수 없다(409 RECORD_DELETED, 먼저 복원).
+         */
+        patch: operations["updateRecord"];
+        trace?: never;
+    };
+    "/api/worklog/records/{recordId}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 보관한 기록 복원 (되돌리기 토스트)
+         * @description deletedAt을 비운다. 보관하지 않은 기록이면 그대로 200.
+         */
+        post: operations["restoreRecord"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/worklog/schedules": {
         parameters: {
             query?: never;
@@ -687,6 +768,131 @@ export interface components {
             /** Format: int64 */
             version: number;
         };
+        /**
+         * @description 업무 기록 (REC-01, 요구사항 6장 WorkRecord). "무엇을 했고 결과가 어떤가".
+         *     계획에서 온 기록은 scheduleId·occurrenceStart를 가진다(SCR-REC-01 ⑥ 출처 표시). 일정을 지우면 scheduleId는 null이 되고
+         *     occurrenceStart는 남는다(출처 표시는 occurrenceStart로 판단). 시간 칸(startAt·endAt·durationMin)은 모두 null일 수 있다.
+         */
+        WorkRecord: {
+            /** @description 한 일. 확인 대기 기록은 만들 때 회차 제목을 복사한다 */
+            content: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            deletedAt?: string | null;
+            /**
+             * Format: int32
+             * @description 소요시간(분). startAt·endAt이 있으면 서버가 계산하고, 둘 다 없을 때만 직접 넣는다
+             */
+            durationMin?: number | null;
+            /**
+             * Format: date-time
+             * @description startAt보다 늦다. startAt만 있고 endAt이 null이면 진행 중(타이머, P2-06)
+             */
+            endAt?: string | null;
+            /** Format: uuid */
+            id: string;
+            /**
+             * Format: date-time
+             * @description 회차 키 (Occurrence.occurrenceStart, D-71). (scheduleId, occurrenceStart)는 유일하다
+             */
+            occurrenceStart?: string | null;
+            /**
+             * @description 결과 칩 (REC-02) — 완료 / 검토 요청 / 진행 중(진행률 n%)
+             * @enum {string|null}
+             */
+            outcome?: "DONE" | "REVIEW_REQUESTED" | "IN_PROGRESS" | null;
+            /**
+             * Format: int32
+             * @description outcome=IN_PROGRESS일 때만 값이 있다
+             */
+            progress?: number | null;
+            /**
+             * Format: uuid
+             * @description 연결 업무의 프로젝트 (읽기 전용, 블록 색·일지 묶음)
+             */
+            projectId?: string | null;
+            /** @description 결과 한 줄 (REC-02) */
+            result?: string | null;
+            /** Format: uuid */
+            scheduleId?: string | null;
+            /** Format: date-time */
+            startAt?: string | null;
+            /**
+             * @description 확인 대기 / 확정 / 하지 않음 (REC-03). 일지와 자주 하는 업무 집계는 CONFIRMED만 쓴다
+             * @enum {string}
+             */
+            status: "PENDING" | "CONFIRMED" | "DISMISSED";
+            /** @description 연결 업무의 태그 (읽기 전용, 일지·필터용). 업무가 없으면 빈 배열 */
+            tagIds: string[];
+            /**
+             * Format: uuid
+             * @description 연결 업무 (선택). 확인 대기 기록은 일정의 연결 업무를 복사한다. 업무를 보관해도 남는다
+             */
+            taskId?: string | null;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: int64 */
+            version: number;
+            /**
+             * Format: date
+             * @description 귀속 날짜. 저장한 뒤 시간대를 바꿔도 바뀌지 않는다 (D-40)
+             */
+            workDate: string;
+        };
+        /**
+         * @description startAt이 없으면 workDate 필수(REQUIRED). endAt은 startAt 없이 보낼 수 없고 startAt보다 늦어야 한다(INVALID_ORDER).
+         *     durationMin은 startAt과 함께 보낼 수 없다(INVALID_FORMAT). progress는 outcome=IN_PROGRESS일 때만(INVALID_FORMAT).
+         *     taskId는 보관하지 않은 내 업무여야 한다(NOT_FOUND). 내용·결과는 앞뒤 공백을 빼고 저장한다(빈 결과는 null).
+         *     다른 기록과 시간이 겹쳐도 저장한다(겹침 경고는 화면이 같은 날 목록으로 계산, TIME-06).
+         */
+        WorkRecordCreate: {
+            content: string;
+            /** Format: int32 */
+            durationMin?: number | null;
+            /** Format: date-time */
+            endAt?: string | null;
+            /** @enum {string|null} */
+            outcome?: "DONE" | "REVIEW_REQUESTED" | "IN_PROGRESS" | null;
+            /** Format: int32 */
+            progress?: number | null;
+            result?: string | null;
+            /** Format: date-time */
+            startAt?: string | null;
+            /** Format: uuid */
+            taskId?: string | null;
+            /** Format: date */
+            workDate?: string | null;
+        };
+        WorkRecordList: {
+            items: components["schemas"]["WorkRecord"][];
+        };
+        /** @description 보낸 칸만 바꾼다. 검증 규칙은 WorkRecordCreate와 같다(바꾼 뒤의 전체 값으로 검사). scheduleId·occurrenceStart는 바꿀 수 없다. */
+        WorkRecordPatch: {
+            content?: string;
+            /** Format: int32 */
+            durationMin?: number | null;
+            /** Format: date-time */
+            endAt?: string | null;
+            /** @enum {string|null} */
+            outcome?: "DONE" | "REVIEW_REQUESTED" | "IN_PROGRESS" | null;
+            /** Format: int32 */
+            progress?: number | null;
+            result?: string | null;
+            /** Format: date-time */
+            startAt?: string | null;
+            /** @enum {string} */
+            status?: "PENDING" | "CONFIRMED" | "DISMISSED";
+            /** Format: uuid */
+            taskId?: string | null;
+            /** Format: int64 */
+            version: number;
+            /**
+             * Format: date
+             * @description startAt이 있으면 무시한다(startAt으로 계산)
+             */
+            workDate?: string;
+        };
         WorklogMe: {
             profile: components["schemas"]["ProfileSnapshot"];
             settings: components["schemas"]["WorklogSettings"];
@@ -996,6 +1202,244 @@ export interface operations {
             };
             /** @description version 불일치(code=VERSION_CONFLICT) 또는 같은 이름(code=DUPLICATE_NAME) */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listRecords: {
+        parameters: {
+            query: {
+                from: string;
+                /** @description from 이후(같아도 됨), from + 400일 이내 */
+                to: string;
+                /** @description 여러 개면 OR */
+                status?: ("PENDING" | "CONFIRMED" | "DISMISSED")[];
+                /** @description 이 업무에 연결된 기록만 (업무 상세 기록 이력). 다른 사용자·없는 업무면 빈 목록 */
+                taskId?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 조회 성공 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkRecordList"];
+                };
+            };
+            /** @description 값 형식 오류 (code=VALIDATION_FAILED) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    createRecord: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkRecordCreate"];
+            };
+        };
+        responses: {
+            /** @description 생성됨 */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkRecord"];
+                };
+            };
+            /** @description 입력 오류 (code=VALIDATION_FAILED). 참조한 업무가 없으면 errors[].code=NOT_FOUND */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description identity 조회 실패 (code=PROFILE_UNAVAILABLE) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getRecord: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                recordId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 조회 성공 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkRecord"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description 없거나 다른 사용자의 기록 (code=NOT_FOUND) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    deleteRecord: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                recordId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 보관됨 */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description 없거나 다른 사용자의 기록 (code=NOT_FOUND) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    updateRecord: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                recordId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkRecordPatch"];
+            };
+        };
+        responses: {
+            /** @description 수정 후 전체 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkRecord"];
+                };
+            };
+            /** @description 입력 오류 (code=VALIDATION_FAILED) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description 없거나 다른 사용자의 기록 (code=NOT_FOUND) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description version 불일치(code=VERSION_CONFLICT), 직접 쓴 기록의 상태 변경(code=INVALID_STATUS), 보관한 기록(code=RECORD_DELETED) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description identity 조회 실패 (code=PROFILE_UNAVAILABLE) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    restoreRecord: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                recordId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 복원 후 전체 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkRecord"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description 없거나 다른 사용자의 기록 (code=NOT_FOUND) */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
