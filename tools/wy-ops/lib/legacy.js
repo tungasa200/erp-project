@@ -8,7 +8,7 @@
 const fs = require('fs');
 const { rmTree } = require('./fsx');
 const path = require('path');
-const { readSettings, scriptOf } = require('./settings');
+const { readSettings, hookScriptInfo } = require('./settings');
 
 const OLD_APPROVAL_DIRS = ['requests', 'decisions', 'used'];
 const OLD_APPROVAL_FILES = ['decisions.log'];
@@ -39,29 +39,33 @@ function countFiles(p) {
   return n;
 }
 
-// 훅이 가리키는 스크립트 경로들(settings 파일 여럿)
+// 훅이 가리키는 스크립트 경로들(settings 파일 여럿). unknown: 읽지 못한 settings나 경로를 확실히 읽지 못한 훅이 있음
+// → 옛 설치본을 쓰는지 판단할 수 없으므로 부르는 쪽은 '사용 중'으로 본다(잘못 지우는 것보다 남기는 쪽이 안전)
 function hookTargets(settingsFiles = []) {
-  const out = [];
+  const targets = [];
+  let unknown = false;
   for (const f of settingsFiles) {
     let s;
     try {
       s = readSettings(f);
     } catch {
+      unknown = true;
       continue;
     }
     for (const groups of Object.values(s.hooks || {})) {
       for (const g of groups || []) for (const h of g.hooks || []) {
-        const p = scriptOf(h);
-        if (p) out.push(lower(p));
+        const info = hookScriptInfo(h);
+        if (info.unknown) unknown = true;
+        else if (info.script) targets.push(lower(info.script));
       }
     }
   }
-  return out;
+  return { targets, unknown };
 }
 
 function list(home, opts = {}) {
   const b = bases(home, opts);
-  const targets = hookTargets(opts.settingsFiles);
+  const { targets, unknown } = hookTargets(opts.settingsFiles);
   const items = [];
   for (const name of OLD_APPROVAL_DIRS) {
     const p = path.join(b.approvals, name);
@@ -75,8 +79,12 @@ function list(home, opts = {}) {
     }
   }
   if (fs.existsSync(b.oldInstall)) {
-    const inUse = targets.some((t) => t.startsWith(lower(b.oldInstall) + '/'));
-    items.push({ path: b.oldInstall, what: inUse ? '옛 설치본(훅이 아직 가리킴 — 먼저 setup으로 훅을 옮기세요)' : '옛 설치본(R4 전 확장·훅)', count: countFiles(b.oldInstall), inUse });
+    const pointed = targets.some((t) => t.startsWith(lower(b.oldInstall) + '/'));
+    const inUse = pointed || unknown;
+    const what = pointed ? '옛 설치본(훅이 아직 가리킴 — 먼저 setup으로 훅을 옮기세요)'
+      : unknown ? '옛 설치본(훅 경로를 확실히 읽지 못해 사용 중으로 봄 — settings를 확인하거나 setup으로 훅을 다시 쓰세요)'
+        : '옛 설치본(R4 전 확장·훅)';
+    items.push({ path: b.oldInstall, what, count: countFiles(b.oldInstall), inUse });
   }
   return items;
 }
@@ -91,7 +99,7 @@ function remove(items, home, opts = {}) {
     // 프로젝트별 승인 폴더 안으로 들어가는 경로는 목록 규칙상 나올 수 없지만, 한 번 더 막는다
     const rel = path.relative(b.approvals, known.path);
     if (!rel.startsWith('..') && rel.includes(path.sep)) return { path: known.path, removed: false, reason: '프로젝트별 승인 폴더 안' };
-    if (known.inUse) return { path: known.path, removed: false, reason: '훅이 아직 가리킴(setup으로 훅을 옮긴 뒤 다시)' };
+    if (known.inUse) return { path: known.path, removed: false, reason: '사용 중으로 봄 — 훅이 아직 가리키거나 훅 경로를 확실히 읽지 못함(setup으로 훅을 옮긴 뒤 다시)' };
     rmTree(known.path);
     return { path: known.path, removed: true };
   });

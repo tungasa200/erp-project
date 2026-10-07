@@ -72,6 +72,25 @@ try {
   assert.ok(!fs.existsSync(oldInstall) && fs.existsSync(path.join(home, '.wy-tools', 'wy-ops', 'current', 'deployed.json')), '옛 설치본만 지움');
   assert.deepStrictEqual(legacy.list(home, opts()), [], '정리 끝');
 
+  // 6. 한글·공백 홈: 따옴표로 감싼 훅 명령도 옛 설치본을 가리키는 것으로 읽고, 확실히 읽지 못하거나 settings가 깨졌으면 사용 중으로 남긴다
+  {
+    const home2 = path.join(home, '사용자 홈 2');
+    const old2 = path.join(home2, '.wy-tools', 'vscode-dashboard');
+    write(path.join(old2, 'hooks', 'wy-approval-guard.js'));
+    const s2 = path.join(home2, 'settings.local.json');
+    const guard = path.join(old2, 'hooks', 'wy-approval-guard.js').replace(/\\/g, '/');
+    const item = (command, raw) => {
+      fs.writeFileSync(s2, raw !== undefined ? raw : JSON.stringify({ hooks: { PreToolUse: [{ matcher: 'Bash|PowerShell', hooks: [{ type: 'command', command }] }] } }));
+      return legacy.list(home2, opts({ settingsFiles: [s2] })).find((i) => i.path === old2);
+    };
+    assert.strictEqual(item(`node "${guard}"`).inUse, true, '따옴표 경로를 읽어 사용 중');
+    const unquoted = item(`node ${guard}`);
+    assert.ok(unquoted.inUse && unquoted.what.includes('확실히 읽지 못해'), '판단 불가는 사용 중');
+    assert.strictEqual(item(null, '{ 깨진 settings').inUse, true, '읽지 못한 settings도 사용 중');
+    assert.ok(legacy.remove([item(`node ${guard}`)], home2, opts({ settingsFiles: [s2] }))[0].removed === false && fs.existsSync(old2), '판단 불가면 지우지 않음');
+    assert.strictEqual(item(`node "C:/elsewhere/hooks/wy-approval-guard.js"`).inUse, false, '다른 곳을 확실히 가리키면 사용 안 함');
+  }
+
   console.log('legacy 검사 통과');
 } finally {
   rmTree(home);

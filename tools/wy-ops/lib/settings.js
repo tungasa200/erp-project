@@ -18,12 +18,51 @@ function readSettings(file) {
   return s;
 }
 
-// 훅 명령이 가리키는 스크립트 경로(args 형식과 "node 경로" 문자열 형식 모두)
+// 따옴표를 지키며 명령 문자열을 조각낸다. 짝이 안 맞는 따옴표면 null
+function splitCommand(cmd) {
+  const out = [];
+  let cur = '';
+  let quote = null;
+  let started = false;
+  for (const ch of String(cmd)) {
+    if (quote) {
+      if (ch === quote) quote = null;
+      else cur += ch;
+    } else if (ch === '"' || ch === "'") {
+      quote = ch;
+      started = true;
+    } else if (/\s/.test(ch)) {
+      if (started || cur) out.push(cur);
+      cur = '';
+      started = false;
+    } else {
+      cur += ch;
+      started = true;
+    }
+  }
+  if (quote) return null;
+  if (started || cur) out.push(cur);
+  return out;
+}
+
+const isAbsolute = (p) => /^(?:[A-Za-z]:[\\/]|[\\/]|~[\\/])/.test(p);
+
+// 훅 명령이 가리키는 스크립트 경로(args 형식과 "node 경로" 문자열 형식 모두).
+//   { script, unknown }: args가 있으면 마지막 인자. command만 있으면 따옴표를 지켜 자른 뒤 .js로 끝나는 마지막 조각.
+//   그 조각이 절대 경로가 아니거나(따옴표 없이 공백 든 경로가 끊긴 경우) 따옴표 짝이 안 맞으면 unknown — 부르는 쪽이 안전한 쪽으로 판단한다
+function hookScriptInfo(h) {
+  if (!h || typeof h !== 'object') return { script: null, unknown: false };
+  if (Array.isArray(h.args) && h.args.length) return { script: slash(h.args[h.args.length - 1]), unknown: false };
+  const command = String(h.command || '');
+  if (!/\.js\b/i.test(command)) return { script: null, unknown: false };
+  const parts = splitCommand(command);
+  const js = parts && parts.filter((p) => /\.js$/i.test(p)).pop();
+  if (!js || !isAbsolute(js)) return { script: null, unknown: true };
+  return { script: slash(js), unknown: false };
+}
+
 function scriptOf(h) {
-  if (!h || typeof h !== 'object') return null;
-  if (Array.isArray(h.args) && h.args.length) return slash(h.args[h.args.length - 1]);
-  const m = String(h.command || '').match(/([^\s"']+\.js)["']?\s*$/);
-  return m ? slash(m[1]) : null;
+  return hookScriptInfo(h).script;
 }
 
 function plan(current, hooksDir, template = JSON.parse(fs.readFileSync(TEMPLATE, 'utf8'))) {
@@ -102,4 +141,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { plan, apply, describe, readSettings, scriptOf };
+module.exports = { plan, apply, describe, readSettings, scriptOf, hookScriptInfo, splitCommand };

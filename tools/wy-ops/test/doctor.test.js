@@ -270,6 +270,17 @@ try {
     }
   }
 
+  // 8-4. 한글·공백 홈: 따옴표로 감싼 훅 명령의 경로를 통째로 읽어 통과, 따옴표 없이 공백이 든 경로는 '판단 불가'로 실패(WY-commit 보고 결함)
+  {
+    const pc = makePc('kospace', { home: '사용자 홈 2' });
+    assert.strictEqual(byId(doctor.checkAll(pc.opts)).hooks.level, 'ok', `한글·공백 홈의 따옴표 경로: ${byId(doctor.checkAll(pc.opts)).hooks.detail}`);
+    const s = JSON.parse(fs.readFileSync(pc.settingsFile, 'utf8'));
+    s.hooks.SessionStart[0].hooks[0].command = `node ${path.join(pc.hooksDir, 'wy-session-start.js').replace(/\\/g, '/')}`;
+    json(pc.settingsFile, s);
+    const h = byId(doctor.checkAll(pc.opts)).hooks;
+    assert.ok(h.level === 'fail' && h.detail.includes('SessionStart wy-session-start.js: 판단 불가'), `따옴표 없는 공백 경로는 판단 불가: ${h.detail}`);
+  }
+
   // 9. 한글·공백 홈은 주의하고 훅을 문법 검사만 한다(실행하지 않음)
   {
     const pc = makePc('korean', { home: '사용자 홈' });

@@ -10,7 +10,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
-const { readSettings, scriptOf } = require('./settings');
+const { readSettings, hookScriptInfo } = require('./settings');
 
 const PKG = path.join(__dirname, '..');
 const TEMPLATE = path.join(PKG, 'templates', 'settings.hooks.json');
@@ -120,14 +120,15 @@ function checkHooks(o, template) {
   const problems = [];
   for (const t of template.hooks) {
     const groups = (s.hooks && s.hooks[t.event]) || [];
-    const found = groups
+    const infos = groups
       .filter((g) => (g.matcher || null) === (t.matcher || null))
       .flatMap((g) => g.hooks || [])
-      .map(scriptOf)
-      .find((p) => p && path.posix.basename(p) === t.script);
+      .map(hookScriptInfo);
+    const found = infos.map((i) => i.script).find((p) => p && path.posix.basename(p) === t.script);
     const label = `${t.event}${t.matcher ? `(${t.matcher})` : ''} ${t.script}`;
     // 경로가 틀리면 Claude Code가 훅을 조용히 건너뛰어 보호가 꺼진다 — 가장 중요한 점검
-    if (!found) problems.push(`${label}: 없음`);
+    if (!found && infos.some((i) => i.unknown)) problems.push(`${label}: 판단 불가(훅 명령에서 스크립트 경로를 확실히 읽지 못함 — 공백 든 경로는 따옴표로 감싸거나 args 배열로)`);
+    else if (!found) problems.push(`${label}: 없음`);
     else if (!exists(found)) problems.push(`${label}: 파일 없음 ${found}`);
     else if (!under(found, hooksDir)) problems.push(`${label}: current 밖을 가리킴 ${found}`);
   }
