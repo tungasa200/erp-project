@@ -115,7 +115,7 @@ function readSettingsSafe(o) {
 
 function checkHooks(o, template) {
   const { s, error } = readSettingsSafe(o);
-  if (error) return result('hooks', '훅 5종', 'fail', `${slash(o.settingsFile)}을 읽지 못함: ${error}`, `${INSTALL} setup`);
+  if (error) return result('hooks', `훅 ${template.hooks.length}종`, 'fail', `${slash(o.settingsFile)}을 읽지 못함: ${error}`, `${INSTALL} setup`);
   const hooksDir = path.join(o.toolsDir, 'current', 'vscode', 'hooks');
   const problems = [];
   for (const t of template.hooks) {
@@ -132,8 +132,8 @@ function checkHooks(o, template) {
     else if (!exists(found)) problems.push(`${label}: 파일 없음 ${found}`);
     else if (!under(found, hooksDir)) problems.push(`${label}: current 밖을 가리킴 ${found}`);
   }
-  if (problems.length) return result('hooks', '훅 5종', 'fail', problems.join(' / '), `${INSTALL} setup`);
-  return result('hooks', '훅 5종', 'ok', `모두 ${slash(hooksDir)} 아래에 있음`);
+  if (problems.length) return result('hooks', `훅 ${template.hooks.length}종`, 'fail', problems.join(' / '), `${INSTALL} setup`);
+  return result('hooks', `훅 ${template.hooks.length}종`, 'ok', `모두 ${slash(hooksDir)} 아래에 있음`);
 }
 
 function checkDeny(o, template) {

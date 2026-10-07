@@ -176,8 +176,8 @@
 | 명령 | 언제 | 예시 |
 |---|---|---|
 | `list` | 역할 세션 목록과 상태 | `.claude\skills\pm-ops\scripts\session.ps1 list` |
-| `health` | 대화 크기 확인(5MB 넘으면 교대 권장) | `… session.ps1 health` |
-| `start` | 역할 세션 띄우기(멈춘 세션은 이어 띄움) | `… session.ps1 start WY-qa "P1 화면 검증"` |
+| `health` | 대화 크기 확인(대화 15만 토큰 이상이면 교대 권장, `rotation.contextTokens`) | `… session.ps1 health` |
+| `start` | 역할 세션 띄우기(멈춘 세션은 이어 띄움. 대화가 교대 기준 이상이면 이어 띄우지 않고 `rotate`를 권함, `-Force`로 강행) | `… session.ps1 start WY-qa "P1 화면 검증"` |
 | `stop` | 쉬는 세션 멈추기(메모리 반납, 대화는 남음) | `… session.ps1 stop WY-qa` |
 | `rotate` | 대화가 길어진 세션을 새 세션으로 교대 | `… session.ps1 rotate WY-backend2 none` |
 
@@ -188,7 +188,7 @@
 | 증상 | 원인 | 할 일 |
 |---|---|---|
 | 'Workspace not trusted'로 세션이 안 뜸 | 그 폴더를 Claude Code가 신뢰하지 않음 | 그 폴더 터미널에서 `claude` → Yes → `/exit`. VS Code 작성자 신뢰로는 안 됨 |
-| 카드가 안 뜸 | 다른 프로젝트 창을 보고 있음 / 확장이 아직 안 실림 / 훅 경로가 틀림 | 그 프로젝트 창인지 확인 → `Developer: Reload Window` → `doctor`에서 '훅 5종'·'확장' 확인 |
+| 카드가 안 뜸 | 다른 프로젝트 창을 보고 있음 / 확장이 아직 안 실림 / 훅 경로가 틀림 | 그 프로젝트 창인지 확인 → `Developer: Reload Window` → `doctor`에서 '훅 6종'·'확장' 확인 |
 | 권한 카드가 사라지고 세션이 '거부됨'을 받음 | 15분 안에 처리하지 않아 자동 거부 | 정상 동작. 필요하면 세션에 다시 하라고 지시(pm) |
 | '형식 오류' 카드 | 요청 파일에 필수 칸(무엇을·왜·누르면)이 빠짐 | 처리할 수 없음. 요청한 세션(카드에 이름이 있음)에 다시 올리라고 pm에 알림 |
 | WY Ops 아이콘·승인 센터가 안 뜸 | 확장이 설치본을 못 찾음 | `doctor` → '설치본'이 FAIL이면 `install.ps1 setup` → Reload. 그래도 안 되면 `install.ps1 rollback` → Reload |

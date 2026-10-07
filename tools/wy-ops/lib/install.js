@@ -174,7 +174,7 @@ const extInstalled = (id) => run('code', codeArgs(['--list-extensions'])).stdout
 function settingsStep(project, dep) {
   const settings = require('./settings');
   const hooksDir = path.join(dep.dir, 'current', 'vscode', 'hooks').replace(/\\/g, '/');
-  for (const f of ['wy-approval-guard.js', 'wy-message-guard.js', 'wy-permission.js', 'wy-session-start.js']) {
+  for (const f of ['wy-approval-guard.js', 'wy-message-guard.js', 'wy-permission.js', 'wy-session-start.js', 'wy-context-size.js']) {
     if (!fs.existsSync(path.join(hooksDir, f))) throw new Error(`훅 파일이 없습니다: ${hooksDir}/${f} (훅이 조용히 통과하지 않게 settings를 바꾸지 않습니다)`);
   }
   const file = path.join(project, '.claude', 'settings.local.json');

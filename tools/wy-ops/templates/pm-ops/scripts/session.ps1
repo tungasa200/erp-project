@@ -1,13 +1,14 @@
 ﻿# 역할 세션을 백그라운드 Claude 세션으로 띄우고 멈추고 교대한다. WY-pm이 실행한다.
 #   session.ps1 list                    역할 세션 목록(VS Code 세션 포함)
-#   session.ps1 health                  역할별 대화 크기·마지막 활동, 교대 권장 표시
+#   session.ps1 health                  역할별 대화 크기(토큰·MB)·마지막 활동, 교대 권장 표시
 #   session.ps1 start <역할> [지시]     멈춘 세션이 있으면 대화를 이어서, 없으면 역할 파일로 새로 띄운다
+#                                       멈춘 세션의 대화가 교대 기준(토큰) 이상이면 이어 띄우지 않고 rotate를 권한다(-Force로 강행)
 #   session.ps1 stop <역할>             멈춘다. 대화는 남아 start로 이어진다
 #   session.ps1 prep <역할>             교대 준비: 진행 중인 것만 save-session으로 저장하라고 지시한다
 #   session.ps1 rotate <역할> [경로]    교대: 이전 세션을 멈추고 역할 파일(+인수인계 경로)로 새 세션을 띄운다
 #   session.ps1 adopt <역할> <세션ID>   닫은 VS Code 세션의 대화를 백그라운드로 옮긴다
 #   session.ps1 pm-cmd [경로]           pm 교대용: 사용자가 새 터미널에 붙여 넣을 명령을 출력한다
-param([Parameter(Mandatory)][ValidateSet('list','health','start','stop','prep','rotate','adopt','pm-cmd')][string]$Cmd, [string]$Role, [string]$Prompt)
+param([Parameter(Mandatory)][ValidateSet('list','health','start','stop','prep','rotate','adopt','pm-cmd')][string]$Cmd, [string]$Role, [string]$Prompt, [switch]$Force)
 
 # claude.exe가 stderr로 진행 문구를 내면 PowerShell 5.1이 'Stop'에서 오류로 끊어 버려 백그라운드 시작이 실패한다
 $ErrorActionPreference = 'Continue'
@@ -20,7 +21,8 @@ $PmRole = 'WY-pm'
 # 2026-10-06 이름 변경 전 이름. 옛 인수인계 파일을 찾을 때만 쓴다
 $OldNames = @{ 'WY-commit'='erp-commit'; 'WY-search'='erp-search'; 'WY-planner'='erp-planner'; 'WY-design'='erp-design'
   'WY-backend1'='backend1'; 'WY-backend2'='backend2'; 'WY-frontend'='frontend'; 'WY-frontend2'='frontend2'; 'WY-browser'='browser-controller'; 'WY-qa'='qa'; 'WY-pm'='project-pm' }
-# 교대 권장 기준: 대화 기록 크기(MB)
+# 교대 권장 기준: 현재 대화 토큰(마지막 응답의 input+cache_read+cache_creation). MB는 토큰을 못 읽을 때만 쓰는 호환 기준
+$RotateTokens = 150000
 $RotateMB = 5
 $ProgressDoc = 'docs/진행현황.md'
 
@@ -47,6 +49,7 @@ if ($Ops) {
   if ($Ops.pmRole) { $PmRole = $Ops.pmRole }
   if ($Ops.handoff.oldNames) { $OldNames = @{}; foreach ($p in $Ops.handoff.oldNames.PSObject.Properties) { $OldNames[$p.Name] = $p.Value } }
   if ($Ops.rotation.transcriptMB) { $RotateMB = $Ops.rotation.transcriptMB }
+  if ($Ops.rotation.contextTokens) { $RotateTokens = $Ops.rotation.contextTokens }
   if ($Ops.docs.progress) { $ProgressDoc = $Ops.docs.progress }
 }
 # Claude Code는 대화 기록 폴더 이름을 저장소 경로의 영문·숫자 외 문자를 '-'로 바꿔 만든다(Windows는 대소문자 무시)
@@ -61,6 +64,27 @@ function Get-Bg($name) {
 # 멈춘 세션은 state가 stopped·done·failed로 나온다
 function Test-Running($s) { $s.state -notin 'stopped','done','failed' }
 function Get-Transcript($s) { if ($s) { Get-Item "$Transcripts\$($s.sessionId).jsonl" -ErrorAction SilentlyContinue } }
+# 현재 대화 토큰: 기록 끝 1MB에서 마지막 assistant 응답의 usage를 더한다(대시보드·대화 크기 훅과 같은 기준). 못 읽으면 $null
+function Get-ContextTokens($t) {
+  if (-not $t) { return $null }
+  try {
+    $fs = [IO.File]::Open($t.FullName, 'Open', 'Read', 'ReadWrite')
+    try {
+      $len = [math]::Min($fs.Length, 1MB); $buf = New-Object byte[] $len
+      $null = $fs.Seek(-$len, 'End'); $null = $fs.Read($buf, 0, $len)
+    } finally { $fs.Close() }
+    $lines = [Text.Encoding]::UTF8.GetString($buf) -split "`n"
+    for ($i = $lines.Count - 1; $i -ge 0; $i--) {
+      $l = $lines[$i]
+      if ($l -notmatch '"type":"assistant"' -or $l -match '"isSidechain":true') { continue }
+      $n = 0
+      foreach ($k in 'input_tokens','cache_read_input_tokens','cache_creation_input_tokens') { if ($l -match ('"' + $k + '":(\d+)')) { $n += [int64]$Matches[1] } }
+      if ($n -gt 0) { return $n }
+    }
+  } catch { }
+  $null
+}
+function Test-Rotate($tok, $mb) { if ($tok) { $tok -ge $RotateTokens } else { $mb -ge $RotateMB } }
 function Get-Handoff($name) {
   foreach ($n in @($name, $OldNames[$name]) | Where-Object { $_ }) {
     $f = Get-ChildItem "$env:USERPROFILE\.claude\session-data" -Filter "*-$n*-session.tmp" -ErrorAction SilentlyContinue |
@@ -85,10 +109,13 @@ switch ($Cmd) {
       $s = $all | Where-Object { $_.kind -eq 'background' -and $_.name -eq $r } | Sort-Object startedAt -Descending | Select-Object -First 1
       $t = Get-Transcript $s
       $mb = if ($t) { [math]::Round($t.Length / 1MB, 1) } else { 0 }
-      [pscustomobject]@{ 역할 = $r; 상태 = if ($s) { $s.state } else { '없음' }; '대화(MB)' = $mb
+      $tok = Get-ContextTokens $t
+      [pscustomobject]@{ 역할 = $r; 상태 = if ($s) { $s.state } else { '없음' }
+        '대화(k토큰)' = if ($tok) { [math]::Round($tok / 1000) } else { '-' }; '대화(MB)' = $mb
         '마지막 활동' = if ($t) { $t.LastWriteTime.ToString('MM-dd HH:mm') } else { '-' }
-        권장 = if ($mb -ge $RotateMB) { '교대' } else { '' } }
+        권장 = if (Test-Rotate $tok $mb) { '교대' } else { '' } }
     }) | Format-Table -AutoSize
+    "교대 기준: 대화 $([math]::Round($RotateTokens / 1000))k 토큰(토큰을 못 읽으면 $($RotateMB)MB). 기준 미만 대기 세션은 다음 작업에 이어 쓰고, 이상이면 rotate."
   }
   'start' {
     $s = Get-Bg $Role
@@ -98,6 +125,14 @@ switch ($Cmd) {
       if ($s) { claude rm $s.id | Out-Null }
       Start-New $Role (Get-Handoff $Role).FullName
       if ($Prompt) { "새 세션으로 띄웠습니다. 지시는 '시작' 회신을 받은 뒤 SendMessage로 보내세요." }
+      break
+    }
+    # 멈춘 큰 세션을 이어 띄우면 캐시가 만료돼 대화 전체를 다시 쓴다(새로 띄우는 것보다 비쌈). 기준 이상이면 rotate를 권한다
+    $t = Get-Transcript $s; $tok = Get-ContextTokens $t
+    if (-not $Force -and (Test-Rotate $tok ([math]::Round($t.Length / 1MB, 1)))) {
+      $size = if ($tok) { "$([math]::Round($tok / 1000))k 토큰" } else { "$([math]::Round($t.Length / 1MB, 1))MB" }
+      "$Role 의 멈춘 대화가 교대 기준 이상입니다($size). 이어 띄우지 않았습니다."
+      "새로 띄우세요: session.ps1 rotate $Role none (진행 중인 일이 있으면 인수인계 경로). 그래도 이어 띄우려면 -Force."
       break
     }
     if (-not $Prompt) { $Prompt = "[$PmRole] 세션을 다시 띄웠습니다. CLAUDE.md·$($ProgressDoc)에서 바뀐 점을 확인하고 지시를 기다리세요." }

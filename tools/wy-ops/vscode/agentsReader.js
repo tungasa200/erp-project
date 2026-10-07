@@ -1,7 +1,8 @@
 // 세션 상태 읽기(운영 도구 구현 계획 2.2, 담당 WY-backend1): claude agents 목록에 권한 요청 파일과 세션 등록 기록을 붙여
 // 화면이 바로 쓸 수 있는 상태(view)로 바꾼다. vscode에 의존하지 않아 훅(B2)·활동 탭(B3)·테스트에서도 쓴다.
 //   readSessionStatus({ root, ops }) → [{ name, id, sessionId, kind, state, status, waitingFor, view, offReason, pending, roleMissing,
-//                                         startedAt, alive, offMessages }]
+//                                         startedAt, alive, offMessages, contextTokens, rotate }]
+//   contextTokens: 현재 대화 토큰(contextSize.js, 못 읽으면 null) · rotate: rotation.contextTokens(기본 15만) 이상이면 true — session.ps1 health와 같은 기준
 //   view(사용자 확정 2026-10-07, 네 가지): working(일하는 중) · input(입력 대기) · permission(권한 대기) · off(꺼짐)
 //   offReason(꺼짐일 때만): stopped(멈춤, claude stop) · done(스스로 끝남) · failed(오류로 끝남)
 //   offMessages(꺼짐일 때만): 꺼진 뒤 이 세션 앞으로 보내려다 막힌 메시지 [{ at, from, summary }] — '꺼진 뒤 메시지 옴' 경고의 근거
@@ -10,6 +11,7 @@ const fs = require('fs');
 const path = require('path');
 const { execFile } = require('child_process');
 const { listPermissionRequests, readSessionRegistry } = require('./approvalStore');
+const { readContextTokens, transcriptFile, thresholds } = require('./contextSize');
 
 const COMMAND_TIMEOUT = 8000;
 
@@ -185,14 +187,24 @@ function safe(fn, fallback) {
   }
 }
 
-async function readSessionStatus({ root, ops = null, list } = {}) {
+// 대화 크기: 저장소 경로(ops.root)로 대화 기록 파일을 찾는다. 설정이 없으면 null
+function withContext(rows, ops, home) {
+  const { contextTokens } = thresholds(ops);
+  return rows.map((r) => {
+    const tokens = ops && ops.root && r.sessionId ? readContextTokens(transcriptFile(ops.root, r.sessionId, home)) : null;
+    return { ...r, contextTokens: tokens, rotate: !!tokens && tokens >= contextTokens };
+  });
+}
+
+async function readSessionStatus({ root, ops = null, list, home } = {}) {
   const agents = list || (await readAgents());
-  return buildStatus(agents, {
+  const rows = buildStatus(agents, {
     requests: safe(() => listPermissionRequests(root), []),
     registry: safe(() => readSessionRegistry(root), new Map()),
     blocks: readMessageBlocks(root),
     ops,
   });
+  return withContext(rows, ops, home);
 }
 
 module.exports = { readSessionStatus, readAgents, buildStatus, readMessageBlocks, isReachable, isAlive, PERMISSION_WAITS, INPUT_WAITS, MESSAGE_BLOCKS };

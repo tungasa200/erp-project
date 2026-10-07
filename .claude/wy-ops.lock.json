@@ -2,18 +2,18 @@
   "schema": 1,
   "version": "0.6.0",
   "files": {
-    ".claude/agents/WY-commit.md": "bec44693aafaa7d09d3b9e18dcead2d56b170a421121ff31a9c618f69c16d053",
-    ".claude/agents/WY-search.md": "d679b210131b89d8f091ff7007a8d1c5dadeef53fd38d919c8ab7bd088c3ff1a",
-    ".claude/agents/WY-planner.md": "bb21b7f3fb6a1d14099bd0c3541125827d6fe7b2148cd741adbe4a27c3988a8a",
-    ".claude/agents/WY-design.md": "3fc9e0487586cb8978da6325689b991451881d4e6d6a8078d8d7dfa46e9eb756",
-    ".claude/agents/WY-backend1.md": "82d6efd920620dbc67fa099a8684ba6bbde23502a2f1ccedabadd1668d7cfedd",
-    ".claude/agents/WY-backend2.md": "e2d4e883ba7c3530c7277946d003e061fdb8fb1b3d99326c32502b2cac79d5e1",
-    ".claude/agents/WY-backend3.md": "2fe4d231b0412f01c72679cd9d388f3280c8f41c762a4541c6fdef39000ee2de",
-    ".claude/agents/WY-frontend.md": "05563b39d7f7b1d6c306579138031063d3d6bf6191f8ee1ed38df4273e066448",
-    ".claude/agents/WY-frontend2.md": "1c6c7ef47245982a4e5cbaec75935d6be0430f3b457590879c5214ae9c884922",
-    ".claude/agents/WY-browser.md": "47fdd00a3a381b6c7589816815605ccf025ab750f0b1ebb4fb166fcf5c47ea69",
-    ".claude/agents/WY-qa.md": "b96ee77fc13847e5672517b6ca10d3c34db19bd94c3d71377b7bfd8dde8215c5",
-    ".claude/skills/pm-ops/SKILL.md": "f2b4e925468f8a5ed70a1d64fa00a7e9aee239eb7b0630976d9810aaf17a9bef",
-    ".claude/skills/pm-ops/scripts/session.ps1": "f6de27f885158b7e16d0e7104f0f572af7e173b7befb1ed277dabe02d2d4c60b"
+    ".claude/agents/WY-commit.md": "bd48e83c991b80d80d70fa2a992e0c53b024b4650ef660cc69d6f573526c99a8",
+    ".claude/agents/WY-search.md": "b85fba377dc485d2cb8f1e2875edc8567bf6d88ea05bd22c9c12aaf4a28d51fd",
+    ".claude/agents/WY-planner.md": "8d963609e005ca423b7ad5b14b303d54d41cbb141fe1477c59e9b83f6bd19c7c",
+    ".claude/agents/WY-design.md": "dd1868446f935091a279123a65537a23784f35b6e246278fee6cb3fde3542d9c",
+    ".claude/agents/WY-backend1.md": "b452bc0fc3539680889d58178d2540c7051511d2c62912ad45cc30f33bdca193",
+    ".claude/agents/WY-backend2.md": "484e4e48e145ee993c2d93515d53681e159645185f4c29d5dfd11f1860a41732",
+    ".claude/agents/WY-backend3.md": "2eef793cb335946c8542c070ddd0383055f566fe4f5bc68e7129fe065c934930",
+    ".claude/agents/WY-frontend.md": "f9f8faf211f7a8308628fd6012891270ea6cfb28d598946cfe3e375f724d7608",
+    ".claude/agents/WY-frontend2.md": "e42635f012804c12398a903aeafcff82c068917e0c95d4422a2c83bd406bd148",
+    ".claude/agents/WY-browser.md": "e7bd65324def9a596da6a9b7ec9e669c3461df8c55ae61931ae7991027937cb8",
+    ".claude/agents/WY-qa.md": "d7615de23b42344a36bbaabf6860e5ac8ade446744afeea60c024db4b11e0cdf",
+    ".claude/skills/pm-ops/SKILL.md": "92d4c4be575ef6351c49d1554e4a42216ee80a085fc3cafc6ff2cbd65a18e5bd",
+    ".claude/skills/pm-ops/scripts/session.ps1": "6002f3beefc311c04e26afb25f4a9ac116f7c3bc7bf2f73107b27ecef8428cc2"
   }
 }

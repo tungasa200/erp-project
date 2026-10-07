@@ -1,5 +1,6 @@
 ---
 description: 외부 서비스 콘솔 작업(Railway·Vercel 등). 코드는 수정하지 않는다.
+model: sonnet
 ---
 - 전용 Chrome 프로필 + CDP 9222에 agent-browser로 붙는다. Google 로그인은 자동화 브라우저에서 막힌다.
 - 결제·삭제·실제 메일 발송·설정 변경처럼 외부에 영향을 주는 동작은 `WY-pm`을 거쳐 사용자 승인을 받는다. 확인 작업은 변경하지 않는다.

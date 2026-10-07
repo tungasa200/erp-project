@@ -1,5 +1,5 @@
 // .claude/settings.local.json 병합(OPS-10, install.ps1 setup·init이 부른다)
-//   템플릿(templates/settings.hooks.json)의 deny 줄과 훅 5종을 넣는다. 다른 키·allow는 건드리지 않는다.
+//   템플릿(templates/settings.hooks.json)의 deny 줄과 훅(템플릿의 hooks 전부)을 넣는다. 다른 키·allow는 건드리지 않는다.
 //   이미 있는 훅이 같은 스크립트를 다른 경로(옛 설치본 ~/.wy-tools/vscode-dashboard 등)로 가리키면 새 경로로 바꾼다.
 //   plan은 쓰지 않고 바뀔 것만 돌려준다. apply는 .bak-<시각>을 남기고 임시 파일 → 이름 바꾸기로 쓴다.
 // CLI: node settings.js plan|apply <settings 파일> <훅 폴더>   (훅 폴더 예: C:/Users/me/.wy-tools/wy-ops/current/vscode/hooks)
@@ -123,7 +123,7 @@ if (require.main === module) {
     console.error('사용법: node settings.js plan|apply <settings 파일> <훅 폴더>');
     process.exit(64);
   }
-  for (const f of ['wy-approval-guard.js', 'wy-message-guard.js', 'wy-permission.js', 'wy-session-start.js']) {
+  for (const f of ['wy-approval-guard.js', 'wy-message-guard.js', 'wy-permission.js', 'wy-session-start.js', 'wy-context-size.js']) {
     if (!fs.existsSync(path.join(hooksDir, f))) {
       console.error(`훅 파일이 없습니다: ${path.join(hooksDir, f)} — 먼저 install.ps1 deploy`);
       process.exit(2); // 경로가 없으면 훅이 조용히 통과하므로 쓰지 않는다

@@ -203,6 +203,17 @@
     if (s) {
       meta.append(el('span', null, (s.kind === 'background' ? '백그라운드' : 'VS Code') + (s.id ? ' · ' : '')));
       if (s.id) meta.append(el('span', 's-id', s.id));
+      // 대화 크기(토큰): 매 턴 이만큼 다시 읽는다. 교대 기준 이상이면 배지
+      if (s.contextTokens) {
+        const ctx = el('span', 's-ctx', ' · ' + Math.round(s.contextTokens / 1000) + 'k');
+        ctx.title = `대화 약 ${s.contextTokens.toLocaleString('ko-KR')} 토큰(매 턴 다시 읽는 크기)`;
+        meta.append(ctx);
+      }
+      if (s.rotate) {
+        const badge = el('span', 'badge badge-warn', '교대 권장');
+        badge.title = '대화가 교대 기준 이상입니다. 다음 작업은 session.ps1 rotate로 새로 띄워 주세요';
+        meta.append(badge);
+      }
       if (s.roleMissing) {
         const badge = el('span', 'badge badge-warn', '역할 누락');
         badge.title = '--agent 없이 뜬 세션입니다. 역할 파일의 규칙이 실리지 않았을 수 있습니다';
