@@ -85,7 +85,7 @@ choice 요청에는 카드 필수 칸 what(무엇을)·why(왜)·onClick(누르�
 ## 6-1. 세션 띄우기·멈추기·교대 (백그라운드 세션)
 
 역할 세션은 `.claude/skills/pm-ops/scripts/session.ps1`로 다룬다(PowerShell). 역할 정의는 `.claude/agents/<역할>.md`이고, 그 원본은 `.claude/ops/`(생성: `node tools/wy-ops/gen-agents.js`).
-- `list` / `health`(대화 토큰·MB·교대 권장) / `start <역할> "<지시>"` / `stop <역할>` / `prep <역할>` / `rotate <역할> <경로|none>` / `adopt <역할> <세션ID>` / `pm-cmd`
+- `list` / `health`(대화 토큰·MB·교대 권장) / `start <역할> "<지시>"` / `stop <역할>` / `prep <역할>` / `rotate <역할> <경로|none>` / `adopt <역할> <세션ID>` / `pm-cmd` / `pin <역할>`·`unpin <역할>`(고정 목록 `~/.claude/jobs/pins.json`, 멈춘 세션 id 정리)
 - **재사용 정책(토큰 절감, 사용자 결정 2026-10-07): 작업 사이에도 세션을 멈추지 않고 대기로 둔다.** 매 턴 대화 전체를 다시 읽으므로 비용 ≈ 턴 수 × 대화 크기다. 다음 작업을 줄 때 `health`의 대화가 15만 토큰(`rotation.contextTokens`, 기본 150000) 미만이면 그 세션에 이어서 지시하고, 이상이면 `rotate`로 새로 띄운다(새 세션 기본 약 7만).
 - **멈춘 큰 세션을 `start`로 이어 띄우지 않는다.** 캐시가 만료돼 대화 전체를 다시 쓰므로 새로 띄우는 것보다 비싸다. `start`는 멈춘 대화가 기준 이상이면 이어 띄우지 않고 `rotate`를 권한다(`-Force`로 강행).
 - 메모리가 막는 선({{memory.blockFreeMB|size}}) 근처로 몰리면 대화가 가장 큰 대기 세션부터 `stop`한다. 멈춘 세션은 메모리 0이고 대화는 남지만, 위 기준 이상이면 다음에는 `rotate`로 새로 띄운다.

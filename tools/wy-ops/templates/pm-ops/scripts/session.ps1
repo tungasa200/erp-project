@@ -8,7 +8,10 @@
 #   session.ps1 rotate <역할> [경로]    교대: 이전 세션을 멈추고 역할 파일(+인수인계 경로)로 새 세션을 띄운다
 #   session.ps1 adopt <역할> <세션ID>   닫은 VS Code 세션의 대화를 백그라운드로 옮긴다
 #   session.ps1 pm-cmd [경로]           pm 교대용: 사용자가 새 터미널에 붙여 넣을 명령을 출력한다
-param([Parameter(Mandatory)][ValidateSet('list','health','start','stop','prep','rotate','adopt','pm-cmd')][string]$Cmd, [string]$Role, [string]$Prompt, [switch]$Force)
+#   session.ps1 pin <역할>              실행 중인 그 역할 세션을 고정 목록(~/.claude/jobs/pins.json)에 넣는다. 메모리 부족 정리에서 빠진다
+#   session.ps1 unpin <역할>            고정 목록에서 뺀다. pin·unpin 모두 멈춘·없는 세션의 id를 목록에서 정리한다
+#                                       start·rotate는 고정하지 않는다. 허용 규칙 한 줄로 이 명령만 열기 위해 pm이 따로 부른다
+param([Parameter(Mandatory)][ValidateSet('list','health','start','stop','prep','rotate','adopt','pm-cmd','pin','unpin')][string]$Cmd, [string]$Role, [string]$Prompt, [switch]$Force)
 
 # claude.exe가 stderr로 진행 문구를 내면 PowerShell 5.1이 'Stop'에서 오류로 끊어 버려 백그라운드 시작이 실패한다
 $ErrorActionPreference = 'Continue'
@@ -176,5 +179,27 @@ switch ($Cmd) {
     "아래 한 줄을 새 터미널(또는 VS Code 새 Claude 패널)에서 실행하면 $($PmRole)이 이어집니다. 이전 pm 창은 닫으세요."
     # 기본 실행 정책에서는 npm의 claude.ps1이 막히므로 claude.cmd로 부른다
     "cd $Repo; claude.cmd --name $PmRole `"/ecc:resume-session $($h -replace '\\','/')`""
+  }
+  { $_ -in 'pin','unpin' } {
+    $pinFile = "$env:USERPROFILE\.claude\jobs\pins.json"
+    $all = @(Get-Sessions)
+    $pins = @()
+    if (Test-Path $pinFile) {
+      try { $pins = @([IO.File]::ReadAllText($pinFile, [Text.Encoding]::UTF8) | ConvertFrom-Json | ForEach-Object { $_ }) }
+      catch { throw "고정 목록을 읽지 못했습니다: $pinFile" }
+    }
+    # 멈춘 세션·없는 세션의 id는 정리한다
+    $live = @($all | Where-Object { Test-Running $_ } | ForEach-Object { $_.id })
+    $kept = @($pins | Where-Object { $_ -in $live })
+    $s = $all | Where-Object { $_.kind -eq 'background' -and $_.name -eq $Role } | Sort-Object startedAt -Descending | Select-Object -First 1
+    if ($Cmd -eq 'pin') {
+      if (-not $s -or -not (Test-Running $s)) { throw "$Role 백그라운드 세션이 실행 중이 아닙니다. start 뒤에 pin 하세요." }
+      if ($s.id -notin $kept) { $kept += $s.id }
+    } elseif ($s) { $kept = @($kept | Where-Object { $_ -ne $s.id }) }
+    # PowerShell 5.1의 ConvertTo-Json은 원소 하나짜리 배열을 문자열로 내보내므로 직접 만든다. BOM 없는 UTF-8
+    $json = '[' + (($kept | ForEach-Object { '"' + $_ + '"' }) -join ',') + ']'
+    [IO.File]::WriteAllText($pinFile, $json, (New-Object Text.UTF8Encoding $false))
+    $gone = @($pins | Where-Object { $_ -notin $kept -and (-not $s -or $_ -ne $s.id) })
+    "$Cmd $Role 완료. 고정 목록: $json" + $(if ($gone.Count) { " (멈춘 세션 정리: $($gone -join ', '))" } else { '' })
   }
 }
