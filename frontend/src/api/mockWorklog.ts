@@ -458,6 +458,63 @@ function handleTasks(
 }
 
 // 업무 기록(P2-02). 결과 입력 팝오버(SCR-TASK-03)가 만들고 되돌리기가 보관한다. 시간 칸·확인 대기는 다루지 않는다
+const RECORD_FIELDS = [
+  'content',
+  'workDate',
+  'taskId',
+  'result',
+  'outcome',
+  'progress',
+  'startAt',
+  'endAt',
+  'durationMin',
+]
+
+/** 기록 칸 검사(계약 WorkRecordCreate, D-101). PATCH는 보낸 칸을 지금 값에 덮은 전체로 검사한다 */
+function recordFields(body: Record<string, unknown>, current: WorkRecord | null, state: WorklogState, r: Respond) {
+  const pick = <K extends keyof WorkRecord>(k: K) =>
+    (k in body ? body[k] : current ? current[k] : null) as WorkRecord[K] | null | undefined
+  const invalid = (field: string, code: string) => r.problem(400, 'VALIDATION_FAILED', { errors: [{ field, code }] })
+  const content = String(pick('content') ?? '').trim()
+  const outcome = pick('outcome') ?? null
+  const progress = pick('progress') ?? null
+  const startAt = pick('startAt') ?? null
+  const endAt = pick('endAt') ?? null
+  const durationMin = pick('durationMin') ?? null
+  if (!content || content.length > 500) return invalid('content', 'INVALID')
+  if (progress !== null && outcome !== 'IN_PROGRESS') return invalid('progress', 'INVALID_FORMAT')
+  if (endAt && !startAt) return invalid('endAt', 'INVALID_ORDER')
+  if (startAt && !endAt) return invalid('endAt', 'REQUIRED')
+  if (startAt && endAt && Date.parse(endAt) <= Date.parse(startAt)) return invalid('endAt', 'INVALID_ORDER')
+  if (startAt && durationMin !== null) return invalid('durationMin', 'INVALID_FORMAT')
+  // startAt이 있으면 workDate는 사용자 시간대(mock은 서울) 날짜로 계산한다
+  const workDate = startAt ? seoulDate(startAt) : pick('workDate')
+  if (!workDate) return invalid('workDate', 'REQUIRED')
+  const taskId = pick('taskId') ?? null
+  const task = taskId ? state.tasks.find((t) => t.id === taskId && !t.deletedAt) : undefined
+  // 이미 연결된 업무가 나중에 보관됐어도 그대로 두는 수정은 막지 않는다
+  if (taskId && !task && taskId !== current?.taskId) return r.problem(404, 'NOT_FOUND')
+  const kept = taskId && !task ? current : null
+  const result = String(pick('result') ?? '').trim()
+  return {
+    content,
+    workDate: String(workDate),
+    taskId,
+    projectId: task?.projectId ?? kept?.projectId ?? null,
+    tagIds: task?.tagIds ?? kept?.tagIds ?? [],
+    result: result || null,
+    outcome,
+    progress,
+    startAt,
+    endAt,
+    durationMin,
+  }
+}
+
+function seoulDate(iso: string) {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(new Date(iso))
+}
+
 function handleRecords(
   method: string,
   url: string,
@@ -501,34 +558,14 @@ function handleRecords(
     return r.json(200, { items })
   }
   if (method === 'POST' && path === '/api/worklog/records') {
-    const content = String(body.content ?? '').trim()
-    const outcome = (body.outcome as WorkRecord['outcome']) ?? null
-    const progress = (body.progress as number | null | undefined) ?? null
-    if (!content || content.length > 500)
-      return r.problem(400, 'VALIDATION_FAILED', { errors: [{ field: 'content', code: 'INVALID' }] })
-    if (!body.workDate)
-      return r.problem(400, 'VALIDATION_FAILED', { errors: [{ field: 'workDate', code: 'REQUIRED' }] })
-    if (progress !== null && outcome !== 'IN_PROGRESS')
-      return r.problem(400, 'VALIDATION_FAILED', { errors: [{ field: 'progress', code: 'INVALID_FORMAT' }] })
-    const task = state.tasks.find((t) => t.id === body.taskId && !t.deletedAt)
-    if (body.taskId && !task) return r.problem(404, 'NOT_FOUND')
-    const result = String(body.result ?? '').trim()
+    const fields = recordFields(body, null, state, r)
+    if (fields instanceof Response) return fields
     const record: WorkRecord = {
       id: id(),
       status: 'CONFIRMED',
-      workDate: String(body.workDate),
-      content,
-      taskId: task?.id ?? null,
-      projectId: task?.projectId ?? null,
-      tagIds: task?.tagIds ?? [],
       scheduleId: null,
       occurrenceStart: null,
-      result: result || null,
-      outcome,
-      progress,
-      startAt: null,
-      endAt: null,
-      durationMin: null,
+      ...fields,
       deletedAt: null,
       createdAt: now(),
       updatedAt: now(),
@@ -538,17 +575,37 @@ function handleRecords(
     save(state)
     return r.json(201, record)
   }
+  const restore = /^\/api\/worklog\/records\/([^/]+)\/restore$/.exec(path)
+  if (restore && method === 'POST') {
+    const record = records.find((x) => x.id === restore[1])
+    if (!record) return r.problem(404, 'NOT_FOUND')
+    if (record.deletedAt) {
+      Object.assign(record, { deletedAt: null, version: record.version + 1, updatedAt: now() })
+      save(state)
+    }
+    return r.json(200, record)
+  }
   const m = /^\/api\/worklog\/records\/([^/]+)$/.exec(path)
-  // 했어요·안 했어요·되돌리기(상태만). 내용 수정은 SCR-REC-01 때
+  // 하나 읽기(SCR-REC-01). 보관한 기록도 준다
+  if (m && method === 'GET') {
+    const record = records.find((x) => x.id === m[1])
+    return record ? r.json(200, record) : r.problem(404, 'NOT_FOUND')
+  }
+  // 했어요·안 했어요·되돌리기(상태)와 내용 수정(SCR-REC-01). 보낸 칸만 바꾸고 바꾼 뒤 전체 값으로 검사한다
   if (m && method === 'PATCH') {
     const record = records.find((x) => x.id === m[1])
     if (!record) return r.problem(404, 'NOT_FOUND')
     if (record.deletedAt) return r.problem(409, 'RECORD_DELETED')
     if (body.version !== record.version) return r.problem(409, 'VERSION_CONFLICT')
     const status = body.status as WorkRecord['status'] | undefined
-    if (status && status !== record.status) {
-      if (!record.occurrenceStart && status !== 'CONFIRMED') return r.problem(409, 'INVALID_STATUS')
-      Object.assign(record, { status, version: record.version + 1, updatedAt: now() })
+    const statusChange = Boolean(status && status !== record.status)
+    if (statusChange && !record.occurrenceStart && status !== 'CONFIRMED') return r.problem(409, 'INVALID_STATUS')
+    const fields = Object.keys(body).some((k) => RECORD_FIELDS.includes(k))
+      ? recordFields(body, record, state, r)
+      : null
+    if (fields instanceof Response) return fields
+    if (fields || statusChange) {
+      Object.assign(record, fields, statusChange ? { status } : {}, { version: record.version + 1, updatedAt: now() })
       save(state)
     }
     return r.json(200, record)

@@ -251,7 +251,7 @@ export function TaskListPage() {
         </div>
 
         <section aria-label="업무 목록" className={styles.listCard}>
-          {main.isPending && mainEnabled && <Skeleton count={5} />}
+          {main.isPending && mainEnabled && <Skeleton count={5} offlineText="연결되면 업무를 불러올게요" />}
           {main.isError && (
             <p role="alert" className={styles.error}>
               업무를 불러오지 못했어요

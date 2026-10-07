@@ -1,6 +1,7 @@
 // SCR-ONB-02 빠른 입력 문법 도움말. 예시를 누르면 입력창에 채운다.
-import { useEffect, useRef } from 'react'
+import { useEffect, useLayoutEffect, useRef } from 'react'
 import { EXAMPLES } from './examples'
+import { fitInClip, refitOnResize } from './fitInClip'
 import styles from './QuickInput.module.css'
 
 const RULES = [
@@ -20,6 +21,13 @@ export function GrammarHelp({
   onPick: (example: string) => void
 }) {
   const ref = useRef<HTMLElement>(null)
+
+  // 좁은 패널(캘린더 할 일 상자)에서는 오른쪽 맞춤 520px가 패널 왼쪽 밖으로 잘린다(P1-09-12와 같은 유형)
+  useLayoutEffect(() => {
+    if (!ref.current) return
+    fitInClip(ref.current)
+    return refitOnResize(ref.current)
+  }, [])
 
   useEffect(() => {
     ref.current?.focus()

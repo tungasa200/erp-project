@@ -12,7 +12,8 @@ export const RECORDS_QUERY_KEY = ['records'] as const
 
 export const recordApi = {
   /** 직접 쓴 기록은 서버가 바로 확정(CONFIRMED)으로 만든다 */
-  create: (body: WorkRecordCreate) => api.request<WorkRecord>('/api/worklog/records', { method: 'POST', body }),
+  create: (body: WorkRecordCreate, options: { keepalive?: boolean } = {}) =>
+    api.request<WorkRecord>('/api/worklog/records', { method: 'POST', body, ...options }),
   /** 보관(소프트 삭제) */
   remove: (id: string) => api.request<void>(`/api/worklog/records/${id}`, { method: 'DELETE' }),
 }

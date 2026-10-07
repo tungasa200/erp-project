@@ -45,16 +45,19 @@ export function CompletionResultHost({ children }: { children: ReactNode }) {
   const nextKey = useRef(1)
 
   const send = useCallback(
-    (e: Entry, choice: Choice) =>
-      recordApi.create({
-        content: e.task.title,
-        taskId: e.task.id,
-        workDate: e.workDate,
-        result: choice.result.trim() || null,
-        outcome: choice.outcome,
-        // progress는 진행 중일 때만 (계약: 다른 결과에 보내면 INVALID_FORMAT)
-        progress: choice.outcome === 'IN_PROGRESS' ? choice.progress : null,
-      }),
+    (e: Entry, choice: Choice, keepalive = false) =>
+      recordApi.create(
+        {
+          content: e.task.title,
+          taskId: e.task.id,
+          workDate: e.workDate,
+          result: choice.result.trim() || null,
+          outcome: choice.outcome,
+          // progress는 진행 중일 때만 (계약: 다른 결과에 보내면 INVALID_FORMAT)
+          progress: choice.outcome === 'IN_PROGRESS' ? choice.progress : null,
+        },
+        { keepalive },
+      ),
     [],
   )
 
@@ -93,6 +96,22 @@ export function CompletionResultHost({ children }: { children: ReactNode }) {
     },
     [close, queryClient, send, showToast],
   )
+
+  // 팝오버를 연 채 새로고침·탭 닫기를 하면 건너뛰기와 같게 결과 없이 "완료"로 기록한다(업무만 완료되고 기록이 빠지지 않게).
+  // 페이지가 내려가는 중이라 keepalive로 보낸다
+  useEffect(() => {
+    const onPageHide = () => {
+      const e = entryRef.current
+      if (!e || e.closed) return
+      e.closed = true
+      entryRef.current = null
+      // 뒤로 가기 캐시(bfcache)로 돌아왔을 때 이미 기록한 팝오버가 남아 두 번 기록되지 않게 닫아 둔다
+      setEntry(null)
+      void send(e, { result: '', outcome: 'DONE', progress: 0 }, true).catch(() => null)
+    }
+    window.addEventListener('pagehide', onPageHide)
+    return () => window.removeEventListener('pagehide', onPageHide)
+  }, [send])
 
   const open = useCallback<OpenCompletionResult>(
     (task, returnFocus) => {

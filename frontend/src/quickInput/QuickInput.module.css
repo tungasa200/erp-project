@@ -165,11 +165,6 @@
   box-shadow: 0 18px 44px rgba(40, 44, 90, 0.18);
 }
 
-.chipMenuRight {
-  left: auto;
-  right: 0;
-}
-
 .chipOption {
   display: flex;
   align-items: center;
@@ -357,6 +352,8 @@
   background: var(--color-surface);
   box-shadow: 0 18px 44px rgba(40, 44, 90, 0.18);
   outline: none;
+  /* 좁은 패널(할 일 상자)에 들어가면 폭으로 줄 배치를 바꾼다 */
+  container-type: inline-size;
 }
 
 .popoverTitle {
@@ -426,7 +423,8 @@
   cursor: pointer;
 }
 
-@media (max-width: 767px) {
+/* 화면이 아니라 도움말 폭 기준: 좁은 패널 안에서도 설명이 한 글자씩 꺾이지 않게 */
+@container (max-width: 440px) {
   .rule {
     flex-direction: column;
     align-items: flex-start;

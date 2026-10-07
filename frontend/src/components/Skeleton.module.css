@@ -16,6 +16,13 @@
   gap: 6px;
 }
 
+.offline {
+  margin: 0;
+  padding: 10px 0;
+  font-size: 14px;
+  color: var(--color-text-muted);
+}
+
 .bar {
   display: block;
   background: var(--color-skeleton);

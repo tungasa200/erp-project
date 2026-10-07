@@ -555,6 +555,18 @@ describe('SCR-TASK-03 완료 결과 입력 (P2-02)', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
+  it('팝오버를 연 채 페이지를 떠나면(새로고침) 결과 없이 "완료"로 기록한다', async () => {
+    const { recordCalls } = server(SAMPLE)
+    renderApp('/tasks')
+    await userEvent.click(await screen.findByRole('checkbox', { name: '팀 회고 정리 완료' }))
+    await screen.findByRole('button', { name: '건너뛰기' })
+    act(() => {
+      window.dispatchEvent(new Event('pagehide'))
+    })
+    await waitFor(() => expect(recordPosts(recordCalls)).toHaveLength(1))
+    expect(recordPosts(recordCalls)[0]).toMatchObject({ result: null, outcome: 'DONE', progress: null })
+  })
+
   it('진행 중 칩은 업무 진행률에서 시작해 10 단위로 바꾸고, 다른 칩으로 바꾸면 progress를 null로 보낸다', async () => {
     const { recordCalls } = server([task('a', '자료 조사', { progress: 40 }), task('b', '정리')])
     renderApp('/tasks')

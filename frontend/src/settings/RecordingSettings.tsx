@@ -58,9 +58,12 @@ function RecordingForm({ settings, save }: { settings: WorklogSettings; save: Sa
   const [on, setOn] = useState(settings.timeTrackingEnabled)
   const [failure, setFailure] = useState<Failure | null>(null)
   const change = async (next: boolean) => {
+    const before = on
     setOn(next)
     const result = await save({ timeTrackingEnabled: next })
     setFailure(result.ok ? null : result)
+    // 충돌이면 저장되지 않았으니 스위치를 누르기 전(마지막으로 아는 저장값)으로 돌린다. 서버의 지금 값은 충돌 띠의 새로 불러오기로
+    if (!result.ok && result.reason === 'conflict') setOn(before)
   }
 
   return (

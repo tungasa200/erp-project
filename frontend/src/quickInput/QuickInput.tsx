@@ -362,6 +362,8 @@ export function QuickInput({
                     }}
                     className={`${styles.chip} ${styles.suggestion}`}
                     title={s.title}
+                    // 접근 이름은 한 문자열로. 글자 조각을 이어 붙이면 브라우저가 사이에 빈 칸을 넣어 "제목 , 영업"이 된다
+                    aria-label={project ? `${s.title}, ${project.name}` : s.title}
                     // 누르는 동안 포커스를 입력창에 둔다. 버튼에 포커스를 주지 않는 브라우저(Safari)에서 칩이 먼저 사라지지 않게
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => pickSuggestion(s)}
@@ -375,7 +377,6 @@ export function QuickInput({
                       />
                     )}
                     <span className={styles.suggestionTitle}>{s.title}</span>
-                    {project && <span className={styles.srOnly}>, {project.name}</span>}
                   </button>
                 </li>
               )

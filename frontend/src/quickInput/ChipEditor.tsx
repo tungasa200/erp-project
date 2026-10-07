@@ -2,6 +2,7 @@
 // 입력창 글자가 원본이라 고른 값은 그 칩의 낱말 자리에 글자로 바꿔 쓴다(onPick). 빈 글자는 그 낱말을 뺀다.
 // 포커스: 열면 지금 값(없으면 첫 항목)으로, Esc·Tab은 칩으로 돌아가고, 고르면 입력창으로 간다(QuickInput이 맡음).
 import { useId, useLayoutEffect, useRef, useState } from 'react'
+import { fitInClip, refitOnResize } from './fitInClip'
 import styles from './QuickInput.module.css'
 
 export interface ChipOption {
@@ -26,17 +27,17 @@ interface Props {
 
 export function ChipEditor({ edit, onPick, onClose }: Props) {
   const ref = useRef<HTMLDivElement>(null)
-  const [alignRight, setAlignRight] = useState(false)
 
   useLayoutEffect(() => {
     const el = ref.current
     if (!el) return
-    // 화면 오른쪽 끝 칩이면 칩 오른쪽에 맞춰 연다(좁은 화면에서 잘리지 않게)
-    if (el.getBoundingClientRect().right > window.innerWidth - 16) setAlignRight(true)
+    // 화면 끝·좁은 패널 안의 칩이면 잘리지 않게 가로로 밀어 연다(P1-09-12)
+    fitInClip(el)
     const first =
       el.querySelector<HTMLElement>('[aria-checked="true"]') ??
       el.querySelector<HTMLElement>('input, [role^="menuitem"]')
     first?.focus()
+    return refitOnResize(el)
   }, [])
 
   // 바깥을 누르면 닫는다. 칩(부모 li) 안을 누른 것은 칩 버튼이 열고 닫기를 맡는다
@@ -50,7 +51,7 @@ export function ChipEditor({ edit, onPick, onClose }: Props) {
 
   const common = {
     ref,
-    className: `${styles.chipMenu} ${alignRight ? styles.chipMenuRight : ''}`,
+    className: styles.chipMenu,
     'aria-label': edit.title,
     onBlur: (e: React.FocusEvent) => {
       // 마우스로 다른 곳을 눌러 포커스가 나가면 닫는다(칩 버튼으로 간 것은 칩 버튼이 처리)
