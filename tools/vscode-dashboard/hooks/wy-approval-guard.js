@@ -130,7 +130,9 @@ const mentionsProtected = (t) => {
 // 대상을 알 수 없는 인자(변수·명령 치환). 보호 경로가 나오는 명령에서 이런 대상에 쓰면 우회일 수 있어 막는다
 const UNKNOWN_TARGET = /[$`%]/;
 // 디렉터리 이동. 보호 경로(또는 알 수 없는 값)로 들어가면 이후 상대 경로 쓰기가 보호 경로에 쓰는 것이 된다
-const CHDIR = new Set(['cd', 'pushd', 'chdir', 'set-location', 'sl', 'push-location']);
+const CHDIR = new Set(['cd', 'pushd', 'chdir', 'set-location', 'sl', 'push-location', 'popd', 'pop-location']);
+// 이동 대상이 명령에 안 보이는 이동(popd·Pop-Location, cd -·Set-Location -): 이전 상태에 기대므로 알 수 없는 곳으로 본다(WY-commit 제안)
+const HIDDEN_CHDIR = new Set(['popd', 'pop-location']);
 
 function leadingTokens(seg) {
   let t = tokens(seg);
@@ -244,9 +246,13 @@ function sedFiles(args) {
 
 // 명령 안에 보호 폴더(또는 알 수 없는 곳)로 들어가는 이동이 있는지
 function movesIntoProtected(command, cwd) {
-  return segments(command).some((seg) => {
+  const segs = segments(command);
+  return segs.some((seg, i) => {
     const t = leadingTokens(seg);
-    if (!t.length || !CHDIR.has(path.basename(t[0]).toLowerCase())) return false;
+    const prog = t.length ? path.basename(t[0]).toLowerCase() : '';
+    if (!CHDIR.has(prog)) return false;
+    // 맨 끝의 popd(pushd … && popd 되돌리기)는 뒤에 쓰기가 없으므로 보지 않는다
+    if (HIDDEN_CHDIR.has(prog) || t.slice(1).includes('-')) return i < segs.length - 1;
     const args = t.slice(1).filter((a) => !/^-/.test(a));
     const up = PARENT_REF.test(command);
     const into = (p) => PROTECTED_DIR.test(p) || (up && CLAUDE_SUBDIR.test(p));

@@ -49,6 +49,11 @@ const deny = [
   'S=/tmp/x; read S; echo {} > $S/wy-ops.json',
   'S=/tmp/x; for S in a b; do echo {} > $S/wy-ops.json; done',
   'S=/tmp/x; S=$(pwd); echo {} > $S/settings.local.json',
+  // 대상이 안 보이는 이동 뒤 상대 경로 쓰기(이전 상태에 기댐)
+  'cd - && echo {} > wy-ops.json',
+  'popd && echo {} > settings.local.json',
+  'Pop-Location; Set-Content wy-ops.json 1',
+  'Set-Location -; Set-Content wy-ops.json 1',
   // 경로를 변수·명령 치환으로 쪼갠 우회
   'D=~/.claude/wy-approvals/erp-project; rm -rf $D/decisions',
   'D=$(echo ~/.claude/wy-approvals/erp-project); rm $D/decisions/a.json',
@@ -123,6 +128,9 @@ const allow = [
   'ls -la ~/.claude/wy-approvals/erp-project/decisions/',
   'cat ~/.claude/wy-approvals/erp-project/sessions/s.json',
   'tail -5 ~/.claude/wy-approvals/erp-project/message-blocks.log',
+  // 맨 끝의 되돌리기 이동은 막지 않는다
+  'pushd /tmp && echo x > a.txt && popd',
+  'Push-Location C:/tmp; Set-Content a.txt 1; Pop-Location',
   // 오탐 6건(WY-backend1·WY-backend2 보고, 2026-10-07): .claude의 다른 하위 폴더, ${PIPESTATUS[0]}, 같은 명령에서 정한 변수, 따옴표 안 CSS
   'cd "C:/Users/me/.claude/jobs/ed/tmp/b25" && node dom.js 2>&1 | grep -v NO_COLOR',
   'cd C:/Users/me/.claude/jobs/ed/tmp/b25 && sed -i "s#{ select } = {}#{ select, side } = {}#" build.js && node build.js',
