@@ -115,6 +115,7 @@ export interface paths {
          * @description workDate가 [from, to](양끝 포함)인 기록을 준다. 보관(소프트 삭제)한 기록은 빼고 준다.
          *     정렬: workDate → startAt(없으면 뒤) → occurrenceStart(없으면 뒤) → id. 페이지네이션 없이 한 번에 준다(기간 최대 400일).
          *     status를 생략하면 세 상태를 모두 준다(일 보기는 확인 대기·하지 않음도 상태로 그린다, SCR-CAL-01 states).
+         *     from과 to가 같은 날이면 그날 끝난 회차의 확인 대기 기록을 먼저 만든다(7일 범위와 관계없이, D-39).
          */
         get: operations["listRecords"];
         put?: never;
@@ -127,6 +128,57 @@ export interface paths {
          *     startAt이 있는데 프로필 사본이 없으면 identity에서 바로 가져온다(실패하면 503).
          */
         post: operations["createRecord"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/worklog/records/pending": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 확인 대기 목록 (P2-03 — SCR-HOME-01 확인 대기 띠·요약 카드, SCR-HOME-02, 하루 마감 1단계)
+         * @description 먼저 끝난 회차의 확인 대기 기록을 만들고(D-31, 보여줄 때 생성) 확인 대기 기록을 준다. 요약 카드의 개수는 items 길이다.
+         *     범위(D-39): 사용자의 현재 시간대 기준 오늘을 포함한 최근 7일(오늘-6일 ~ 오늘). 기록의 workDate로 판단한다.
+         *     생성 대상: 업무가 연결된 일정(반복 회차 포함)의 끝난 회차(끝 시각 ≤ 지금, 종일 일정은 마지막 날 다음 날 0시).
+         *     연결 업무가 보관 상태면 만들지 않는다. workDate는 회차 시작의 일정 시간대 날짜(NFR-04). 취소한 회차는 만들지 않는다.
+         *     이미 (일정, 회차 시작) 기록이 있으면 상태·보관 여부와 관계없이 다시 만들지 않는다(UNIQUE, 동시 호출에도 하나).
+         *     만드는 값: status=PENDING, content=회차 제목, taskId=일정의 업무, scheduleId·occurrenceStart=회차 키.
+         *     시간 칸(startAt·endAt·durationMin)은 비운다(계획 시간은 실제 시간이 아니다).
+         *     7일이 지난 확인 대기 기록은 상태를 유지한 채 여기서 빠진다(일 보기에서는 보이고 처리할 수 있다).
+         *     정렬: workDate → occurrenceStart → id. 보관한 기록은 빼고 준다.
+         */
+        get: operations["listPendingRecords"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/worklog/records/pending/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 모두 했어요 (P2-03 — SCR-HOME-02 ③)
+         * @description 보낸 id의 확인 대기 기록을 한 번에 CONFIRMED로 바꾼다. 화면에 보인 것만 확정하도록 id를 받는다
+         *     (목록을 받은 뒤 새로 생긴 확인 대기는 확정하지 않는다 — 확인은 반드시 사람이, REC-03).
+         *     최근 7일 범위 밖, 이미 처리함(CONFIRMED·DISMISSED), 보관함, 다른 사용자·없는 id는 건너뛴다(오류 아님, 멱등).
+         *     version을 받지 않는다. 되돌리기는 응답의 version으로 각 기록을 PATCH status=PENDING.
+         */
+        post: operations["confirmPendingRecords"];
         delete?: never;
         options?: never;
         head?: never;
@@ -408,6 +460,10 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        ConfirmPendingRequest: {
+            /** @description 확정할 확인 대기 기록 (화면에 보인 것) */
+            ids: string[];
+        };
         FrequentTask: {
             /**
              * Format: int32
@@ -489,6 +545,94 @@ export interface components {
              * @description 일정(Schedule)의 version
              */
             version: number;
+        };
+        /**
+         * @description 확인 대기 목록의 항목 (P2-03). 기록 전체에 지금의 계획(회차)을 붙인다(SCR-HOME-02 ① 계획 시간).
+         *     회차를 옮기거나 지우면 그 회차의 확인 대기는 지워지므로 plan은 늘 있다.
+         */
+        PendingRecord: {
+            /** @description 한 일. 확인 대기 기록은 만들 때 회차 제목을 복사한다 */
+            content: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            deletedAt?: string | null;
+            /**
+             * Format: int32
+             * @description 소요시간(분). startAt·endAt이 있으면 서버가 계산하고, 둘 다 없을 때만 직접 넣는다
+             */
+            durationMin?: number | null;
+            /**
+             * Format: date-time
+             * @description startAt보다 늦다. startAt만 있고 endAt이 null이면 진행 중(타이머, P2-06)
+             */
+            endAt?: string | null;
+            /** Format: uuid */
+            id: string;
+            /**
+             * Format: date-time
+             * @description 회차 키 (Occurrence.occurrenceStart, D-71). (scheduleId, occurrenceStart)는 유일하다
+             */
+            occurrenceStart?: string | null;
+            /**
+             * @description 결과 칩 (REC-02) — 완료 / 검토 요청 / 진행 중(진행률 n%)
+             * @enum {string|null}
+             */
+            outcome?: "DONE" | "REVIEW_REQUESTED" | "IN_PROGRESS" | null;
+            plan: components["schemas"]["PendingRecordPlan"];
+            /**
+             * Format: int32
+             * @description outcome=IN_PROGRESS일 때만 값이 있다
+             */
+            progress?: number | null;
+            /**
+             * Format: uuid
+             * @description 연결 업무의 프로젝트 (읽기 전용, 블록 색·일지 묶음)
+             */
+            projectId?: string | null;
+            /** @description 결과 한 줄 (REC-02) */
+            result?: string | null;
+            /** Format: uuid */
+            scheduleId?: string | null;
+            /** Format: date-time */
+            startAt?: string | null;
+            /**
+             * @description 확인 대기 / 확정 / 하지 않음 (REC-03). 일지와 자주 하는 업무 집계는 CONFIRMED만 쓴다
+             * @enum {string}
+             */
+            status: "PENDING" | "CONFIRMED" | "DISMISSED";
+            /** @description 연결 업무의 태그 (읽기 전용, 일지·필터용). 업무가 없으면 빈 배열 */
+            tagIds: string[];
+            /**
+             * Format: uuid
+             * @description 연결 업무 (선택). 확인 대기 기록은 일정의 연결 업무를 복사한다. 업무를 보관해도 남는다
+             */
+            taskId?: string | null;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: int64 */
+            version: number;
+            /**
+             * Format: date
+             * @description 귀속 날짜. 저장한 뒤 시간대를 바꿔도 바뀌지 않는다 (D-40)
+             */
+            workDate: string;
+        };
+        PendingRecordList: {
+            items: components["schemas"]["PendingRecord"][];
+        };
+        /** @description 회차의 지금 값. 시간 일정은 startAt·endAt, 종일 일정은 startDate·endDate(포함)만 있다. */
+        PendingRecordPlan: {
+            allDay: boolean;
+            /** Format: date-time */
+            endAt?: string | null;
+            /** Format: date */
+            endDate?: string | null;
+            /** Format: date-time */
+            startAt?: string | null;
+            /** Format: date */
+            startDate?: string | null;
+            title: string;
         };
         /** @description RFC 9457 Problem Details + 확장 필드 (P0-10 공통 모듈 형식) */
         Problem: {
@@ -1272,6 +1416,79 @@ export interface operations {
                 };
             };
             /** @description 입력 오류 (code=VALIDATION_FAILED). 참조한 업무가 없으면 errors[].code=NOT_FOUND */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description identity 조회 실패 (code=PROFILE_UNAVAILABLE) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listPendingRecords: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 확인 대기 기록 (최근 7일) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PendingRecordList"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description identity 조회 실패 (code=PROFILE_UNAVAILABLE) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    confirmPendingRecords: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConfirmPendingRequest"];
+            };
+        };
+        responses: {
+            /** @description 이번 요청으로 확정한 기록 (건너뛴 것은 빠짐) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkRecordList"];
+                };
+            };
+            /** @description 입력 오류 (code=VALIDATION_FAILED) */
             400: {
                 headers: {
                     [name: string]: unknown;
