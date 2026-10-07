@@ -302,6 +302,11 @@
   cursor: pointer;
 }
 
+/* 테두리 2px: ::after 기준(안쪽 상자)이 26px라 9px씩 넓혀 44px */
+.newProject::after {
+  inset: -9px -5px;
+}
+
 /* 태그: 페이지 배경 위에서도 보이게 흰 바탕 + 테두리. 아직 없는 태그는 점선 + "새" */
 .tag {
   border: 1px solid #d5d8e5;
@@ -448,6 +453,12 @@
   background: var(--color-surface);
   color: var(--color-text);
   cursor: pointer;
+}
+
+/* 테두리 1px 때문에 ::after 기준(안쪽 상자)이 28px라 1px씩 더 넓혀 44px를 맞춘다(TC-P2A-03) */
+.suggestion::after,
+.tag::after {
+  inset: -8px -4px;
 }
 
 .suggestion:focus-visible {

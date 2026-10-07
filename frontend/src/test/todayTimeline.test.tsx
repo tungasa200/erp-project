@@ -275,11 +275,12 @@ describe('SCR-HOME-01 ③ 오늘 일정 (P2-08)', () => {
     expect(within(dialog).getByRole('textbox', { name: '직접 입력' })).toHaveFocus()
   })
 
-  it('빈 구간의 이 시간 계획에 확인 대기가 있으면 새로 만들지 않고 그 기록을 구간 시각으로 확정한다', async () => {
+  it('빈 구간의 이 시간 계획에 확인 대기가 있으면 새로 만들지 않고 계획 시각과 겹치는 만큼만 그 기록을 확정한다', async () => {
+    // TC-P2A-01: 빈 구간(09:00–18:00, 9시간)이 계획(10:00–11:00)보다 넓어도 계획 시각만 채운다
     const gap: TimeGap = {
-      startAt: '2026-10-07T01:00:00Z',
-      endAt: '2026-10-07T01:30:00Z',
-      minutes: 30,
+      startAt: '2026-10-07T00:00:00Z',
+      endAt: '2026-10-07T09:00:00Z',
+      minutes: 540,
       previous: null,
       plan: {
         title: '코드 리뷰',
@@ -295,16 +296,17 @@ describe('SCR-HOME-01 ③ 오늘 일정 (P2-08)', () => {
     const { calls } = server({ timeTracking: true, gaps: [gap] })
     renderApp('/')
     const today = await section()
-    await userEvent.click(await within(today).findByRole('button', { name: /^빈 시간 10:00–10:30/ }))
+    await userEvent.click(await within(today).findByRole('button', { name: /^빈 시간 09:00–18:00/ }))
     const dialog = await screen.findByRole('dialog', { name: '빈 시간 메우기' })
-    await userEvent.click(within(dialog).getByRole('button', { name: /이 시간 계획/ }))
+    await userEvent.click(within(dialog).getByRole('button', { name: /이 시간 계획 · 10:00 – 11:00/ }))
     await waitFor(() =>
       expect(calls).toContainEqual({
         method: 'PATCH',
         url: '/api/worklog/records/r2',
-        body: { startAt: gap.startAt, endAt: gap.endAt, status: 'CONFIRMED', version: 0 },
+        body: { startAt: '2026-10-07T01:00:00Z', endAt: '2026-10-07T02:00:00Z', status: 'CONFIRMED', version: 0 },
       }),
     )
+    expect(await screen.findByText('10:00 – 11:00을 채웠어요')).toBeInTheDocument()
     expect(calls.some((c) => c.method === 'POST')).toBe(false)
 
     // 되돌리기: 다시 확인 대기로, 채운 시간 칸은 비우고 원래 날짜를 함께 보낸다

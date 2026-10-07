@@ -1,6 +1,6 @@
 // SCR-TASK-02 업무 상세 (오른쪽 패널, 모바일은 전체 화면). 모든 변경은 항목별 자동 저장이고(저장 버튼 없음),
 // 저장은 한 줄로 세워 앞 응답의 version으로 다음 저장을 보낸다. 409는 충돌 띠(2.5), 보관한 업무는 읽기 전용 + 복원.
-// 기록 이력(⑥)은 P2, 이월 이력(⑦)은 P3에서 채운다. 연결 일정 목록(⑤)은 업무별 일정 조회 API가 없어 배치 여부와 캘린더 링크만 둔다.
+// 기록 이력(⑥)은 RecordHistory, 이월 이력(⑦)은 P3에서 채운다. 연결 일정 목록(⑤)은 업무별 일정 조회 API가 없어 배치 여부와 캘린더 링크만 둔다.
 import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { useNavigate, useOutletContext, useParams, useSearchParams } from 'react-router'
@@ -15,6 +15,7 @@ import { projectColor } from '../projects/palette'
 import { refreshTasks, taskApi, taskKey, useTask, type Task, type TaskPatch } from './api'
 import { useCompletionResult } from './completionResultContext'
 import { LinkedSchedules } from './LinkedSchedules'
+import { RecordHistory } from './RecordHistory'
 import type { TaskListOutletContext } from './TaskListPage'
 import styles from './tasks.module.css'
 import { PRIORITY_LABEL, STATUS_LABEL, STATUSES } from './view'
@@ -518,6 +519,8 @@ function TaskForm({
       </fieldset>
 
       <LinkedSchedules task={task} archived={archived} />
+
+      <RecordHistory taskId={task.id} />
 
       {task.carriedOverFromId && <p className={styles.note}>이전 날짜에서 넘어온 업무예요</p>}
 

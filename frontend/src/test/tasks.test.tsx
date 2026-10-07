@@ -79,6 +79,8 @@ function server(
     const path = url.split('?')[0]
     // 업무 기록(P2-02 결과 팝오버)
     if (path.startsWith('/api/worklog/records')) {
+      // 업무 상세 ⑥ 기록 이력(P2)이 여는 목록. 결과 팝오버 호출 순서를 보는 테스트라 세지 않는다
+      if (method === 'GET' && path === '/api/worklog/records') return json(200, { items: [] })
       recordCalls.push({ method, url, body })
       if (method === 'POST') {
         if (options.recordFails) return problem(500, 'INTERNAL_ERROR')

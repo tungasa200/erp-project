@@ -8,7 +8,7 @@ import { Modal } from '../calendar/Modal'
 import { formatMinutes, toZoned } from '../calendar/time'
 import { useOnline } from '../components/useOnline'
 import { useToast } from '../components/useToast'
-import { durationText, fillGap, type GapChoice, type TimeGap } from './gaps'
+import { durationText, fillGap, planSpan, type GapChoice, type TimeGap } from './gaps'
 import styles from './GapFill.module.css'
 
 interface Props {
@@ -39,9 +39,10 @@ export function GapFill({ gap, timeZone, onClose }: Props) {
     setBusy(true)
     try {
       const { undo } = await fillGap(gap, choice)
+      const filled = choice.kind === 'plan' ? spanText(planSpan(gap, choice.plan), timeZone) : span
       showUndo({
         group: 'gap-fill',
-        message: (n) => (n > 1 ? `빈 시간 ${n}곳을 채웠어요` : `${span}을 채웠어요`),
+        message: (n) => (n > 1 ? `빈 시간 ${n}곳을 채웠어요` : `${filled}을 채웠어요`),
         undo: async () => {
           try {
             await undo()
@@ -70,10 +71,13 @@ export function GapFill({ gap, timeZone, onClose }: Props) {
       text: gap.previous.content,
       choice: { kind: 'previous', content: gap.previous.content, taskId: gap.previous.taskId },
     })
-  if (gap.plan)
+  // 계획 시각과 빈 구간이 겹치지 않으면(서버가 주지 않지만) 채울 시간이 없어 후보에서 뺀다
+  const plan = gap.plan && planSpan(gap, gap.plan)
+  if (gap.plan && plan && Date.parse(plan.startAt) < Date.parse(plan.endAt))
     candidates.push({
       key: 'plan',
-      label: '이 시간 계획',
+      // 계획 시각과 겹치는 만큼만 채우므로 그 시각을 함께 보인다
+      label: `이 시간 계획 · ${spanText(plan, timeZone)}`,
       text: gap.plan.title,
       choice: { kind: 'plan', plan: gap.plan },
     })
@@ -147,6 +151,6 @@ export function GapFill({ gap, timeZone, onClose }: Props) {
   )
 }
 
-function spanText(gap: TimeGap, timeZone: string) {
-  return `${formatMinutes(toZoned(gap.startAt, timeZone).minutes)} – ${formatMinutes(toZoned(gap.endAt, timeZone).minutes)}`
+function spanText(span: { startAt: string; endAt: string }, timeZone: string) {
+  return `${formatMinutes(toZoned(span.startAt, timeZone).minutes)} – ${formatMinutes(toZoned(span.endAt, timeZone).minutes)}`
 }

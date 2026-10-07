@@ -108,13 +108,35 @@ export function AppShell() {
 
   const { pathname } = useLocation()
 
+  // 모바일에서 하단 탭 위 타이머가 떠 있으면 토스트를 그 위로 올린다(TC-P2A-02). 타이머 높이는 안내 줄 수에 따라 달라 잰다.
+  // 데스크톱·태블릿은 토스트가 사이드바 오른쪽에 떠서(Toast.module.css) 사이드바 타이머를 덮지 않는다
+  const timerMobileRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const dock = timerMobileRef.current
+    if (!dock) return
+    const root = document.documentElement
+    const sync = () => {
+      const h = dock.offsetHeight
+      // 108px: 타이머의 bottom(AppShell.module.css), 8px: 틈
+      if (h > 0) root.style.setProperty('--toast-bottom-mobile', `${108 + h + 8}px`)
+      else root.style.removeProperty('--toast-bottom-mobile')
+    }
+    const observer = new ResizeObserver(sync)
+    observer.observe(dock)
+    sync()
+    return () => {
+      observer.disconnect()
+      root.style.removeProperty('--toast-bottom-mobile')
+    }
+  }, [])
+
   // 누른 요소가 사라져 포커스가 body로 빠지면 이웃·화면 제목으로 되살린다(마지막 안전망, 화면별 처리가 우선)
   const contentRef = useRef<HTMLDivElement>(null)
   useFocusRescue(contentRef)
 
   return (
     <div className={styles.shell}>
-      <nav className={styles.sidebar} aria-label="주 메뉴">
+      <nav className={styles.sidebar} aria-label="주 메뉴" data-app-sidebar>
         <div className={styles.brand}>
           <span className={styles.logo} aria-hidden="true">
             w
@@ -159,7 +181,7 @@ export function AppShell() {
         </div>
       </div>
 
-      <div className={styles.timerMobile}>
+      <div ref={timerMobileRef} className={styles.timerMobile}>
         <TimerMiniPlayer />
       </div>
 
