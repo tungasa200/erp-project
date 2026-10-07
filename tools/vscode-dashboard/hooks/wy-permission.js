@@ -112,6 +112,28 @@ async function onPermissionRequest(input, root) {
   return { behavior: 'deny', message: '승인 센터에서 15분 동안 결정이 없어 거부했습니다. 다시 요청하거나 할 일 카드로 올리세요.' };
 }
 
+// 분류기 거부 사유를 쉬운 말로(사유 문구는 분류기가 정하므로 흔한 낱말만 본다)
+function plainReason(reason) {
+  const r = String(reason || '');
+  const why = [
+    [/scratch|sweep|tmp|temp/i, '여러 세션이 함께 쓰는 임시 폴더를 지우거나 훑는 명령이라, 다른 세션의 작업 파일까지 지울 수 있습니다'],
+    [/rm\b|delet|remov|destroy|wipe/i, '파일을 지우는 명령이라 되돌리기 어렵습니다'],
+    [/push|force|reset|history|git/i, '저장소 이력이나 원격 저장소를 바꾸는 명령입니다'],
+    [/network|curl|download|upload|exfil|external|http/i, '외부와 데이터를 주고받는 명령입니다'],
+    [/credential|secret|token|password/i, '비밀값에 닿을 수 있는 명령입니다'],
+  ].find(([re]) => re.test(r));
+  return (why ? why[1] : '자동 판단이 위험할 수 있다고 본 명령입니다') + (r ? ` (분류기 사유: ${r})` : '');
+}
+
+const GIT_BASH = ['C:\\Program Files\\Git\\bin\\bash.exe', 'C:\\Program Files (x86)\\Git\\bin\\bash.exe'].find((p) => fs.existsSync(p)) || 'C:\\Program Files\\Git\\bin\\bash.exe';
+
+// Bash 명령을 PowerShell(5.1)에 그대로 붙여 넣을 수 있는 형태로. 작은따옴표 here-string이라 $·따옴표를 고치지 않아도 되고,
+// 넘길 때 줄바꿈의 \r을 빼고 Windows 인자 규칙대로 "(와 그 앞 \)를 이스케이프한다(PowerShell 5.1은 이 이스케이프를 하지 않음)
+function bashForPowerShell(command) {
+  if (/^'@/m.test(command)) return null; // here-string을 닫는 줄이 들어 있으면 만들 수 없다
+  return ["$c = @'", command, "'@", `& '${GIT_BASH}' -c (($c -replace "\`r", '') -replace '(\\\\*)"', '$1$1\\"')`].join('\n');
+}
+
 function onPermissionDenied(input, root) {
   const p = store.ensureDirs(root);
   const id = `denied-${keyOf(input)}`;
@@ -119,16 +141,30 @@ function onPermissionDenied(input, root) {
   const command = commandOf(input);
   const sessionName = sessionNameOf(input.session_id);
   const who = sessionName || `세션 ${String(input.session_id || '').slice(0, 8)}`;
+  const shell = input.tool_name === 'Bash' ? 'bash' : input.tool_name === 'PowerShell' ? 'powershell' : null;
+  const ps = shell === 'bash' ? bashForPowerShell(command) : null;
+  const advice = "대부분은 실행하지 않아도 됩니다. 판단이 어려우면 실행하지 말고 메모에 '실행 안 함'이라고 적어 '했음'으로 닫으세요.";
+  const where =
+    shell === 'bash'
+      ? `Bash 명령입니다. PowerShell에서는 그대로 실행되지 않습니다. Git Bash 창에 붙여 넣거나${ps ? ', 아래 "PowerShell에 붙여 넣을 형태"를 PowerShell에 붙여 넣으세요' : ' Git Bash 창에서만 실행하세요(PowerShell 형태를 만들 수 없는 명령)'}.`
+      : shell === 'powershell'
+        ? 'PowerShell 명령입니다. VS Code의 PowerShell 터미널에 그대로 붙여 넣으세요(Git Bash에서는 실행되지 않음).'
+        : `${input.tool_name} 도구 동작입니다(셸 명령이 아님). 필요하면 같은 작업을 직접 하세요.`;
   store.writeJsonAtomic(path.join(p.requests, `${id}.json`), {
     kind: 'todo',
     session: who,
     sessionId: input.session_id || null,
     createdAt: new Date().toISOString(),
-    title: `${who}: 분류기가 막은 명령 직접 실행`,
-    what: command,
-    why: `자동 판단(분류기)이 이 명령을 막았습니다${input.reason ? `: ${input.reason}` : ''}. 훅으로 뒤집지 않으므로 사람이 직접 실행할지 정해야 합니다.`,
-    onClick: '했음: 명령을 직접 실행했거나 필요 없다고 정했음을 세션에 알립니다.',
-    steps: ['명령을 확인하고 필요하면 VS Code 터미널에서 직접 실행합니다.', `실행할 명령: ${command}`],
+    title: `${who}: 분류기가 막은 ${shell === 'bash' ? 'Bash' : shell === 'powershell' ? 'PowerShell' : input.tool_name} 명령`,
+    what: `${advice} ${where}`, // 명령은 command 칸으로 따로 보인다(화면이 what의 줄바꿈을 살리지 않아 명령이 붙어 두 번 보이던 것)
+    why: `${advice} ${plainReason(input.reason)}. 훅으로 뒤집지 않으므로 사람이 실행할지 정합니다.`,
+    onClick: "했음: 직접 실행했거나 실행하지 않기로 했음을 세션에 알립니다(메모에 '실행함'·'실행 안 함'을 적으면 세션이 그에 맞춰 이어 갑니다).",
+    tool: input.tool_name || null,
+    shell,
+    command,
+    ...(ps ? { commandPowerShell: ps } : {}),
+    steps: [advice, where, '실행했다면 결과(출력·오류)를 메모에 적고 \'했음\'을 누릅니다.'],
+    check: shell === 'bash' ? '명령이 오류 없이 끝나면 됩니다. "unexpected token" 같은 문법 오류는 PowerShell에 Bash 명령을 붙여 넣은 경우입니다.' : '명령이 오류 없이 끝나면 됩니다.',
   });
 }
 
@@ -158,4 +194,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { keyOf, commandOf, pickId, onPermissionRequest, onPermissionDenied };
+module.exports = { keyOf, commandOf, pickId, onPermissionRequest, onPermissionDenied, bashForPowerShell, plainReason };

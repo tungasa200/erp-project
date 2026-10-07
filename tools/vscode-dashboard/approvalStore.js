@@ -145,6 +145,11 @@ function readRequest(file, id) {
         sessionId: text(r.sessionId, 80) || null,
         steps: Array.isArray(r.steps) ? r.steps.slice(0, 20).map((x) => text(x, 1000)) : [],
         check: text(r.check, 1000),
+        // 직접 실행할 명령(분류기 거부 카드 등): 원래 셸('bash'·'powershell'·null)과, Bash면 PowerShell에 붙여 넣을 형태
+        command: text(r.command, 4000),
+        shell: r.shell === 'bash' || r.shell === 'powershell' ? r.shell : null,
+        commandPowerShell: text(r.commandPowerShell, 5000),
+        tool: text(r.tool, 80),
       };
     }
     return {
