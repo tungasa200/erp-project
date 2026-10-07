@@ -9,13 +9,13 @@ import { handleScheduleMock } from '../calendar/mockSchedules'
 import { checkCode, codeStatus, issueCode } from './mockCodes'
 import { handleWorklog } from './mockWorklog'
 import type { FieldError, Problem } from './problem'
-import type { Me, ProfileUpdateRequest } from './types'
+import type { Me, ProfileUpdateRequest, WorklogSettings } from './types'
 
 const STORE_KEY = 'worklog.mock'
 const ACCESS_TTL_MS = 10 * 60 * 1000
 
 interface MockState {
-  accounts: Record<string, { password: string; id: string; profile?: Partial<Me> }>
+  accounts: Record<string, { password: string; id: string; profile?: Partial<Me>; settings?: WorklogSettings }>
   session: { email: string; accessExpiresAt: number } | null
 }
 
@@ -257,6 +257,37 @@ export const mockFetch: typeof fetch = async (input, init) => {
     account.profile = result
     save(state)
     return json(200, result)
+  }
+
+  // worklog 프로필·설정 (WorklogMe). 설정 행이 없으면 기본값과 version 0
+  if ((method === 'GET' && path === '/api/worklog/me') || (method === 'PATCH' && path === '/api/worklog/me/settings')) {
+    const session = state.session
+    const account = session && state.accounts[session.email]
+    if (!session || !account || session.accessExpiresAt < Date.now()) return problem(401, 'UNAUTHENTICATED')
+    const current: WorklogSettings = account.settings ?? {
+      timeTrackingEnabled: false,
+      workHoursStart: '09:00',
+      workHoursEnd: '18:00',
+      dailyCloseTime: '18:00',
+      version: 0,
+    }
+    if (method === 'PATCH') {
+      if (body.version !== current.version) return problem(409, 'VERSION_CONFLICT')
+      const { version: _, ...fields } = body
+      account.settings = { ...current, ...(fields as Partial<WorklogSettings>), version: current.version + 1 }
+      save(state)
+      return json(200, account.settings)
+    }
+    const { timezone, weekStart, workDays, name, organization, position } = me(
+      session.email,
+      account.id,
+      account.profile,
+    )
+    return json(200, {
+      userId: account.id,
+      profile: { name, organization, position, timezone, weekStart, workDays },
+      settings: current,
+    })
   }
 
   if (method === 'POST' && path === '/api/worklog/me/profile/refresh') {

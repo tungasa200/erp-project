@@ -1,5 +1,5 @@
 // 설정 화면 틀: 데스크톱은 좌측 탭, 모바일은 목록 → 상세 (SCR-SET-01 비고).
-// 탭은 만든 화면만 둔다. 기록 옵션·테마·알림·계정은 해당 단계에서 더한다.
+// 탭은 만든 화면만 둔다. 테마·알림·계정은 해당 단계에서 더한다.
 import { useState } from 'react'
 import { Link, Navigate, NavLink, Outlet, useMatch } from 'react-router'
 import { useOnline } from '../components/useOnline'
@@ -8,6 +8,7 @@ import styles from './settings.module.css'
 const TABS = [
   { to: 'profile', label: '프로필' },
   { to: 'general', label: '일반' },
+  { to: 'recording', label: '기록 옵션' },
   { to: 'projects', label: '프로젝트·태그' },
 ]
 

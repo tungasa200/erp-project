@@ -1,6 +1,14 @@
 import { createApiClient } from './client'
 import { mockFetch } from './mockServer'
-import type { LoginRequest, Me, ProfileUpdateRequest, SignupRequest } from './types'
+import type {
+  LoginRequest,
+  Me,
+  ProfileUpdateRequest,
+  SignupRequest,
+  WorklogMe,
+  WorklogSettings,
+  WorklogSettingsPatch,
+} from './types'
 
 // 백엔드 없이 화면을 볼 때 VITE_API_MOCK=true. fetch 단계만 바꾸므로 클라이언트 로직은 실제와 같다.
 const useMock = import.meta.env.VITE_API_MOCK === 'true'
@@ -34,4 +42,8 @@ export const authApi = {
 export const worklogApi = {
   // identity 프로필 저장 직후 worklog 사본을 바로 맞춘다. 응답(WorklogMe)은 아직 화면에서 쓰지 않는다.
   refreshProfile: () => api.request<unknown>('/api/worklog/me/profile/refresh', { method: 'POST' }),
+  me: () => api.request<WorklogMe>('/api/worklog/me'),
+  /** worklog 전용 설정 수정(SCR-SET-02 ④⑤, SCR-SET-03). 보낸 칸만 바뀐다 */
+  updateSettings: (body: WorklogSettingsPatch) =>
+    api.request<WorklogSettings>('/api/worklog/me/settings', { method: 'PATCH', body }),
 }

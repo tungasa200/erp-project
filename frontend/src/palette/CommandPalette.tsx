@@ -107,6 +107,13 @@ export function CommandPalette({ onClose, onQuickAdd }: Props) {
       { id: 'go-logs', label: '업무일지', group: '이동', keywords: '일지', run: go('/logs') },
       { id: 'go-stats', label: '통계', group: '이동', run: go('/stats') },
       { id: 'go-settings', label: '설정', group: '이동', keywords: '환경설정 프로필', run: go('/settings') },
+      {
+        id: 'go-recording',
+        label: '기록 옵션',
+        group: '이동',
+        keywords: '시간 기록 타이머 설정',
+        run: go('/settings/recording'),
+      },
     ]
   }, [navigate, onQuickAdd, shortcutsEnabled])
 
