@@ -55,6 +55,7 @@ VS Code 사이드바에서 메모리, 프로세스 그룹별 사용량, Claude �
 | `decisions/<id>.json` | 확장 | 그 요청의 결정. 요청과 같은 id |
 | `decisions.log` | 확장 | 결정마다 JSON 한 줄을 덧붙인다(알림용) |
 | `used/<id>.json` | 가드 훅 | 그 승인으로 명령을 한 번 실행했다는 표시 |
+| `message-blocks.log` | 메시지 가드 훅 | 꺼진 세션에 보내려다 거부된 메시지마다 JSON 한 줄(`at`·`from`·`fromSessionId`·`to`·`toSessionId`·`toState`, 본문 없음). 1MB를 넘으면 앞 절반을 버린다. 세션 현황의 '꺼진 뒤 메시지 옴' 경고가 읽는다 |
 
 - id는 영문·숫자·`.`·`_`·`-`로 80자 이내, 요청을 쓰는 세션이 정한다. 겹치지 않게 `<날짜>-<시각>-<세션>-<짧은 설명>`을 권한다(예: `20261006-1530-WY-pm-p2-scope`).
 - 요청 파일도 임시 이름으로 다 쓴 뒤 `<id>.json`으로 이름을 바꿔 둔다. 반쯤 쓴 파일은 형식 오류 카드로 보인다.
@@ -212,6 +213,6 @@ git 명령 요청(`kind`: `commit` `push` `force-push` `branch` `delete-branch` 
 - 잠금 대상 git 명령(commit, push, 강제 푸시, 브랜치 생성·삭제, merge·`gh pr merge`, reset, rebase, 태그 삭제)은 `--agent WY-commit`으로 띄운 세션만 실행할 수 있다. agent_type이 없는 세션도 거부한다. 조회 명령(status, log, diff 등)은 누구나 쓴다.
 - WY-commit이라도 같은 종류·같은 명령의 승인 결정(결정 후 60분 이내, 아직 안 씀)이 없으면 거부하고, 요청 파일을 쓰라는 사유를 돌려준다.
 - `merge --abort`, `rebase --abort`처럼 되돌리는 명령은 잠그지 않는다.
-- 승인 파일(모든 namespace의 decisions·decisions.log·used), 설치 폴더(`~/.wy-tools`), 프로젝트 설정(`.claude/wy-ops.json`·`wy-ops.local.json`·`settings.local.json`)에 쓰는 셸 명령을 막는다: 그 경로로의 리다이렉트(`>`·`>>`), 쓰기 명령(cp·mv·rm·tee·Set-Content·Out-File·Remove-Item 등, `sed -i`, `find -delete`/`-exec`), 그 경로가 나오는 명령 안의 다른 리다이렉트·쓰기 명령(변수 경로 우회 방지), 쓰기 API(writeFileSync·appendFile·rename·unlink, open(…, 'w'/'a'), os.remove, Set-Content 등)나 난독화(eval·계산된 이름·getattr 등)를 쓰는 인터프리터 코드. 읽기 API(readFileSync·require·JSON.parse, json.load(open(…)), Get-Content·ConvertFrom-Json)만 쓰는 node·python·PowerShell 코드와 cat·ls·tail·test·`git add/diff` 같은 읽기, 설정을 안에서 읽는 스크립트 실행(`session.ps1`, `gen-agents.js`, `deploy.js`)은 통과한다. 판단할 수 없는 코드는 막는다. 설정 변경은 내용을 WY-pm에 보내 사용자가 직접 고친다.
+- 승인 파일(모든 namespace의 decisions·decisions.log·used·sessions·message-blocks.log), 설치 폴더(`~/.wy-tools`), 프로젝트 설정(`.claude/wy-ops.json`·`wy-ops.local.json`·`settings.local.json`)에 쓰는 셸 명령을 막는다: 그 경로로의 리다이렉트(`>`·`>>`), 쓰기 명령(cp·mv·rm·tee·Set-Content·Out-File·Remove-Item 등, `sed -i`, `find -delete`/`-exec`), 그 경로가 나오는 명령 안의 다른 리다이렉트·쓰기 명령(변수 경로 우회 방지), 쓰기 API(writeFileSync·appendFile·rename·unlink, open(…, 'w'/'a'), os.remove, Set-Content 등)나 난독화(eval·계산된 이름·getattr 등)를 쓰는 인터프리터 코드. 읽기 API(readFileSync·require·JSON.parse, json.load(open(…)), Get-Content·ConvertFrom-Json)만 쓰는 node·python·PowerShell 코드와 cat·ls·tail·test·`git add/diff` 같은 읽기, 설정을 안에서 읽는 스크립트 실행(`session.ps1`, `gen-agents.js`, `deploy.js`)은 통과한다. 판단할 수 없는 코드는 막는다. 설정 변경은 내용을 WY-pm에 보내 사용자가 직접 고친다.
 - 승인 폴더는 명령의 cwd가 속한 프로젝트 것을 쓴다(위 '파일' 참고).
 - 훅은 오류·시간 초과 때 통과시키는 특성이 있어서, 이 스크립트는 판단하지 못하면 종료 코드 2로 막는다. 다만 설정에 적힌 스크립트 경로가 없거나 `node`를 못 찾으면 Claude Code가 훅을 건너뛴다(통과).
