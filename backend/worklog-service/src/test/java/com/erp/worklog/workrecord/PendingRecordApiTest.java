@@ -30,6 +30,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.everyItem;
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
@@ -136,6 +137,36 @@ class PendingRecordApiTest {
 		pending(ALICE).andExpect(jsonPath("$.items.length()").value(8));
 		assertThat(count()).isEqualTo(8);
 		pending(BOB).andExpect(jsonPath("$.items.length()").value(1));
+	}
+
+	@Test
+	void 칠일_경계는_일정_시간대의_회차_날짜로_자르고_시간대를_바꿔도_만든_날짜는_그대로다() throws Exception {
+		String task = id(send(ALICE, post("/api/worklog/tasks"), "{\"title\":\"점검\"}"));
+		// 매일 00:30 KST: 9-30 15:30Z 회차는 UTC로는 9-30이지만 KST 10-01이라 범위 안이다. 10-07 회차도 끝났다
+		String early = schedule(ALICE, """
+				{"title":"자정 뒤","allDay":false,"startAt":"2026-09-28T15:30:00Z","endAt":"2026-09-28T15:45:00Z",
+				 "recurrence":{"frequency":"DAILY"},"taskId":"%s"}""".formatted(task));
+		// 매일 23:30 KST: 9-30 14:30Z 회차는 KST 9-30이라 밖이고, 10-07 회차는 아직 안 끝났다 (지금 21:00 KST)
+		String late = schedule(ALICE, """
+				{"title":"자정 앞","allDay":false,"startAt":"2026-09-28T14:30:00Z","endAt":"2026-09-28T14:45:00Z",
+				 "recurrence":{"frequency":"DAILY"},"taskId":"%s"}""".formatted(task));
+		String[] earlyDates = { "2026-10-01", "2026-10-02", "2026-10-03", "2026-10-04", "2026-10-05", "2026-10-06",
+				"2026-10-07" };
+
+		pending(ALICE)
+			.andExpect(jsonPath("$.items.length()").value(13))
+			.andExpect(jsonPath("$.items[?(@.scheduleId == '%s')].workDate".formatted(early)).value(contains(earlyDates)))
+			.andExpect(jsonPath("$.items[?(@.scheduleId == '%s')].occurrenceStart".formatted(early))
+				.value(hasItem("2026-09-30T15:30:00Z")))
+			.andExpect(jsonPath("$.items[?(@.scheduleId == '%s')].workDate".formatted(late)).value(contains("2026-10-01",
+					"2026-10-02", "2026-10-03", "2026-10-04", "2026-10-05", "2026-10-06")));
+
+		// 사용자 시간대를 바꿔도 만든 날짜는 그대로고 다시 만들지 않는다 (NFR-04, D-40)
+		jdbc.sql("UPDATE user_snapshot SET timezone = 'America/New_York' WHERE user_id = ?").params(ALICE).update();
+		pending(ALICE)
+			.andExpect(jsonPath("$.items.length()").value(13))
+			.andExpect(jsonPath("$.items[?(@.scheduleId == '%s')].workDate".formatted(early)).value(contains(earlyDates)));
+		assertThat(count()).isEqualTo(13);
 	}
 
 	@Test

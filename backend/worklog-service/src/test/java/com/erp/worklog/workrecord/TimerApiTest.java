@@ -31,6 +31,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -276,6 +277,36 @@ class TimerApiTest {
 		stop(ALICE);
 		send(ALICE, post("/api/worklog/records/" + first + "/restore"), "").andExpect(status().isOk());
 		timer(ALICE).andExpect(jsonPath("$.running.id").value(first));
+	}
+
+	@Test
+	void 옵션을_껐다_켜도_기록의_시간과_집계는_그대로다() throws Exception {
+		String typed = id(send(ALICE, post("/api/worklog/records"),
+				"{\"content\":\"직접\",\"startAt\":\"2026-10-07T00:00:00Z\",\"endAt\":\"2026-10-07T00:40:00Z\"}")
+			.andExpect(status().isCreated()));
+		start(ALICE, "{\"content\":\"타이머\"}").andExpect(status().isOk());
+		later(Duration.ofMinutes(30));
+		stop(ALICE).andExpect(jsonPath("$.stopped.record.durationMin").value(30));
+
+		// 끄면 시작만 막히고, 시간과 무관한 수정도 시간 칸을 지우지 않으며 집계도 그대로다
+		send(ALICE, patch("/api/worklog/me/settings"), "{\"version\":0,\"timeTrackingEnabled\":false}")
+			.andExpect(status().isOk());
+		send(ALICE, patch("/api/worklog/records/" + typed), "{\"version\":0,\"content\":\"내용만\"}")
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.startAt").value("2026-10-07T00:00:00Z"))
+			.andExpect(jsonPath("$.endAt").value("2026-10-07T00:40:00Z"))
+			.andExpect(jsonPath("$.durationMin").value(40));
+		send(ALICE, get("/api/worklog/records/time-summary?from=2026-10-07&to=2026-10-07"), "")
+			.andExpect(jsonPath("$.totalMin").value(70));
+
+		// 다시 켜도 그대로
+		send(ALICE, patch("/api/worklog/me/settings"), "{\"version\":1,\"timeTrackingEnabled\":true}")
+			.andExpect(status().isOk());
+		send(ALICE, get("/api/worklog/records?from=2026-10-07&to=2026-10-07"), "")
+			.andExpect(jsonPath("$.items.length()").value(2))
+			.andExpect(jsonPath("$.items[*].durationMin").value(containsInAnyOrder(40, 30)));
+		send(ALICE, get("/api/worklog/records/time-summary?from=2026-10-07&to=2026-10-07"), "")
+			.andExpect(jsonPath("$.totalMin").value(70));
 	}
 
 	private void later(Duration d) {
