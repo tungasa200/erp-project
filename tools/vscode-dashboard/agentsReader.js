@@ -1,7 +1,13 @@
 // 세션 상태 읽기(운영 도구 구현 계획 2.2, 담당 WY-backend1): claude agents 목록에 권한 요청 파일과 세션 등록 기록을 붙여
 // 화면이 바로 쓸 수 있는 상태(view)로 바꾼다. vscode에 의존하지 않아 훅(B2)·활동 탭(B3)·테스트에서도 쓴다.
-//   readSessionStatus({ root, ops }) → [{ name, id, sessionId, kind, state, status, waitingFor, view, pending, roleMissing, startedAt, alive }]
-//   view: working(일하는 중) · idle(대기) · input(입력 대기) · permission(권한 대기) · stopped(멈춤) · ended(대기 중 종료됨) · failed(오류)
+//   readSessionStatus({ root, ops }) → [{ name, id, sessionId, kind, state, status, waitingFor, view, offReason, pending, roleMissing,
+//                                         startedAt, alive, offMessages }]
+//   view(사용자 확정 2026-10-07, 네 가지): working(일하는 중) · input(입력 대기) · permission(권한 대기) · off(꺼짐)
+//   offReason(꺼짐일 때만): stopped(멈춤, claude stop) · done(스스로 끝남) · failed(오류로 끝남)
+//   offMessages(꺼짐일 때만): 꺼진 뒤 이 세션 앞으로 보내려다 막힌 메시지 [{ at, from, summary }] — '꺼진 뒤 메시지 옴' 경고의 근거
+//     (기록에 본문을 남기지 않으므로 summary는 대개 빈 문자열, from은 모르면 빈 문자열. 기록은 1MB를 넘으면 앞 절반이 지워진다)
+const fs = require('fs');
+const path = require('path');
 const { execFile } = require('child_process');
 const { listPermissionRequests, readSessionRegistry } = require('./approvalStore');
 
@@ -62,21 +68,62 @@ function latestByName(list) {
   return best;
 }
 
+const STOPPED = ['stopped', 'exited', 'killed'];
+const FAILED = ['failed', 'error', 'crashed'];
+
+// 꺼진 이유. 꺼진 세션만 부른다
+function offReasonOf(s) {
+  const st = lower(s.state);
+  if (STOPPED.includes(st)) return 'stopped';
+  if (FAILED.includes(st)) return 'failed';
+  return 'done';
+}
+
 function viewOf(s, hasPending) {
   const st = lower(s.state);
   const wf = lower(s.waitingFor);
   const alive = isAlive(s);
-  if (['failed', 'error', 'crashed'].includes(st)) return 'failed';
+  // 꺼짐: 프로세스가 없거나(--all의 끝난 세션) 멈췄거나 오류로 끝남. done과 stopped는 끈 주체만 다르다
+  if (!alive || STOPPED.includes(st) || FAILED.includes(st)) return 'off';
   if (PERMISSION_WAITS.includes(wf)) return 'permission';
   // 권한 요청 파일만 있을 때는 살아 있는 세션만 인정한다(훅이 기다리다 세션이 죽으면 파일이 남는다)
-  if (hasPending && alive) return 'permission';
-  if (['stopped', 'exited', 'killed'].includes(st)) return 'stopped';
-  if (!alive) return st === 'done' ? 'ended' : 'stopped';
-  if (INPUT_WAITS.includes(wf) || st === 'blocked') return 'input';
+  if (hasPending) return 'permission';
   const status = lower(s.status);
-  if (st === 'done' || status === 'waiting') return 'input';
   if (['working', 'running', 'starting'].includes(st) || status === 'busy') return 'working';
-  return 'idle';
+  // 질문 대화상자·다음 지시 기다림·일을 마치고 쉬는 중(done+idle, VS Code 세션 idle)은 모두 입력 대기(U-05)
+  return 'input';
+}
+
+// 메시지 가드(B2-6)가 꺼진 세션 앞으로 보내려던 메시지를 막을 때 남기는 기록(<승인 폴더>/message-blocks.log, JSONL)
+const MESSAGE_BLOCKS = 'message-blocks.log';
+const MAX_BLOCKS = 500;
+function readMessageBlocks(root) {
+  if (!root) return [];
+  let text;
+  try {
+    text = fs.readFileSync(path.join(root, MESSAGE_BLOCKS), 'utf8');
+  } catch {
+    return [];
+  }
+  const out = [];
+  for (const line of text.split(/\r?\n/).slice(-MAX_BLOCKS)) {
+    if (!line.trim()) continue;
+    try {
+      const b = JSON.parse(line);
+      if (b && b.to && Date.parse(b.at)) out.push({ at: b.at, from: String(b.from || ''), to: String(b.to), toSessionId: b.toSessionId || null, summary: String(b.summary || '').slice(0, 200) });
+    } catch {
+      // 모르는 줄은 건너뛴다
+    }
+  }
+  return out;
+}
+
+// 꺼진 세션 앞으로, 그 세션이 뜬 뒤에 온 막힌 메시지(교대 전 세션 앞의 기록은 빼려고 startedAt과 비교)
+function offMessagesOf(s, name, blocks) {
+  const since = s.startedAt || 0;
+  return blocks
+    .filter((b) => (b.toSessionId ? b.toSessionId === s.sessionId : b.to === name) && Date.parse(b.at) > since)
+    .map(({ at, from, summary }) => ({ at, from, summary }));
 }
 
 // 결정 전이고 만료되지 않은 권한 요청 중 세션마다 가장 최근 것
@@ -101,7 +148,7 @@ function roleMissingOf(s, ops, registry) {
   return !!rec && rec.agentType !== s.name;
 }
 
-function buildStatus(list, { requests = [], registry = new Map(), ops = null, now = Date.now() } = {}) {
+function buildStatus(list, { requests = [], registry = new Map(), ops = null, blocks = [], now = Date.now() } = {}) {
   const pending = pendingBySession(requests, now);
   return [...latestByName(list || []).entries()].map(([name, s]) => {
     const p = s.sessionId ? pending.get(s.sessionId) : undefined;
@@ -115,10 +162,12 @@ function buildStatus(list, { requests = [], registry = new Map(), ops = null, no
       status: s.status,
       waitingFor: s.waitingFor,
       view,
+      offReason: view === 'off' ? offReasonOf(s) : null,
       pending: view === 'permission' && p ? { key: p.key, tool: p.tool, command: p.command } : null,
       roleMissing: roleMissingOf(s, ops, registry),
       startedAt: s.startedAt,
       alive: isAlive(s),
+      offMessages: view === 'off' ? offMessagesOf(s, name, blocks) : [],
     };
   });
 }
@@ -137,8 +186,9 @@ async function readSessionStatus({ root, ops = null, list } = {}) {
   return buildStatus(agents, {
     requests: safe(() => listPermissionRequests(root), []),
     registry: safe(() => readSessionRegistry(root), new Map()),
+    blocks: readMessageBlocks(root),
     ops,
   });
 }
 
-module.exports = { readSessionStatus, readAgents, buildStatus, isReachable, isAlive, PERMISSION_WAITS, INPUT_WAITS };
+module.exports = { readSessionStatus, readAgents, buildStatus, readMessageBlocks, isReachable, isAlive, PERMISSION_WAITS, INPUT_WAITS, MESSAGE_BLOCKS };

@@ -97,9 +97,12 @@ function readRoles() {
 
 const READERS = { memory: async () => readMemory(), processes: readProcesses, sessions: readSessions };
 
+const OFF_ACK_KEY = 'erpSessions.offMessageAck'; // { sessionId: 확인한 마지막 막힌 메시지 시각 }
+
 class Provider {
-  constructor(extensionUri) {
+  constructor(extensionUri, globalState) {
     this.extensionUri = extensionUri;
+    this.globalState = globalState;
     this.view = undefined;
     this.timers = [];
     this.inflight = {};
@@ -126,6 +129,8 @@ class Provider {
         this.refreshAll().then(() => this.post({ type: 'refreshed' }));
       } else if (msg.type === 'open') {
         openSession(msg.id, msg.name);
+      } else if (msg.type === 'ackOff' && typeof msg.sessionId === 'string') {
+        this.ackOff(msg.sessionId);
       } else if (msg.type === 'fold') {
         if (msg.folded) this.folded.add(msg.source);
         else {
@@ -164,6 +169,30 @@ class Provider {
     this.post(msg);
   }
 
+  // '꺼진 뒤 메시지 옴' 경고: 사용자가 확인한 시각 뒤에 새로 막힌 메시지가 있을 때만 띄운다
+  acks() {
+    return (this.globalState && this.globalState.get(OFF_ACK_KEY)) || {};
+  }
+
+  applyAcks(rows) {
+    const acks = this.acks();
+    return rows.map((r) => {
+      const msgs = (r.offMessages || []).filter((m) => !acks[r.sessionId] || m.at > acks[r.sessionId]);
+      return { ...r, offWarning: msgs.length ? { count: msgs.length, lastAt: msgs[msgs.length - 1].at, from: [...new Set(msgs.map((m) => m.from).filter(Boolean))], summary: msgs[msgs.length - 1].summary } : null };
+    });
+  }
+
+  ackOff(sessionId) {
+    const cached = this.cache.sessions && this.cache.sessions.data;
+    const row = cached && cached.find((r) => r.sessionId === sessionId);
+    if (!row || !row.offWarning) return;
+    const acks = { ...this.acks(), [sessionId]: row.offWarning.lastAt };
+    if (this.globalState) this.globalState.update(OFF_ACK_KEY, acks);
+    const msg = { ...this.cache.sessions, data: cached.map((r) => (r.sessionId === sessionId ? { ...r, offWarning: null } : r)) };
+    this.cache.sessions = msg;
+    this.post(msg);
+  }
+
   post(msg) {
     if (this.view) this.view.webview.postMessage(msg);
   }
@@ -174,7 +203,8 @@ class Provider {
       this.inflight[source] = (async () => {
         let msg;
         try {
-          msg = { type: source, data: await READERS[source](), at: Date.now() };
+          const data = await READERS[source]();
+          msg = { type: source, data: source === 'sessions' ? this.applyAcks(data) : data, at: Date.now() };
         } catch (err) {
           msg = { type: source, error: firstLine(err), at: Date.now() };
         }
@@ -224,7 +254,7 @@ async function openSession(id, name) {
 }
 
 function register(context) {
-  const provider = new Provider(context.extensionUri);
+  const provider = new Provider(context.extensionUri, context.globalState);
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider(VIEW_ID, provider),
     vscode.commands.registerCommand('erpSessions.refresh', () => provider.refreshAll()),

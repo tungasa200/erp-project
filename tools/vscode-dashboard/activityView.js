@@ -30,15 +30,12 @@ function statusReader() {
 const PERMISSION_WAITS = ['permission prompt', 'sandbox request', 'worker request'];
 const INPUT_WAITS = ['dialog open', 'input needed'];
 
-// 계획 2.2의 view 값으로 나눈다(B1-1과 같은 기준: dialog open은 입력 대기, U-05)
+// agentsReader가 없을 때 쓰는 대체 분류. 네 가지 상태(사용자 확정 2026-10-07): working·input·permission·off(done·stopped·failed)
 function classify(s) {
-  if (s.state === 'failed') return 'failed';
+  if (!s.status || ['stopped', 'failed'].includes(s.state)) return 'off'; // 프로세스 없음: 스스로 끝남·멈춤·오류 모두 꺼짐
   if (PERMISSION_WAITS.includes(s.waitingFor)) return 'permission';
-  if (INPUT_WAITS.includes(s.waitingFor)) return 'input';
-  if (!s.status) return s.state === 'done' ? 'ended' : s.state === 'stopped' ? 'stopped' : 'idle'; // 프로세스 없음: done이면 대기 중 종료(B1과 같은 기준)
   if (s.status === 'busy' || s.state === 'working') return 'working';
-  if (s.state === 'blocked' || s.state === 'done') return 'input';
-  return 'idle';
+  return 'input'; // dialog open·input needed·일을 마친 idle(U-05)
 }
 
 function readAgentsFallback() {
@@ -59,7 +56,7 @@ function latestByName(list) {
   const out = new Map();
   for (const s of list) {
     const cur = out.get(s.name);
-    const alive = (x) => (x.alive !== undefined ? x.alive : x.view !== 'stopped' && x.view !== 'ended');
+    const alive = (x) => (x.alive !== undefined ? x.alive : x.view !== 'off');
     if (!cur || (alive(s) && !alive(cur)) || (alive(s) === alive(cur) && (s.startedAt || 0) > (cur.startedAt || 0))) out.set(s.name, s);
   }
   return out;
@@ -168,7 +165,8 @@ class ActivityView {
     const sessions = names.map((name) => {
       const s = byName.get(name);
       const a = actions.get(name);
-      return { name, view: s ? s.view : 'stopped', sessionId: s ? s.sessionId : null, pending: s ? s.pending || null : null, doing: a ? a.doing : null, lastAt: a ? a.lastAt : null };
+      // offWarn: 꺼진 뒤 이 세션 앞으로 보내려다 막힌 메시지 수(agentsReader offMessages)
+      return { name, view: s ? s.view : 'off', offReason: s ? s.offReason || null : null, offWarn: s && s.offMessages ? s.offMessages.length : 0, sessionId: s ? s.sessionId : null, pending: s ? s.pending || null : null, doing: a ? a.doing : null, lastAt: a ? a.lastAt : null };
     });
 
     const views = new Map(sessions.map((s) => [s.name, s.view]));

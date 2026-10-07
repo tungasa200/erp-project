@@ -7,18 +7,19 @@
   const REVEAL_MS = 6000;
 
   // 상태(view)는 확장의 agentsReader가 정한다(운영 도구 구현 계획 2.2)
+  // 네 가지 상태(사용자 확정 2026-10-07). 꺼짐(done·stopped)은 아래 접는 묶음, 이유는 작은 글씨로
   const STATES = {
-    working: { label: '작업 중', icon: 'i-working' },
-    idle: { label: '대기', icon: 'i-idle' },
+    working: { label: '일하는 중', icon: 'i-working' },
     input: { label: '입력 대기', icon: 'i-waiting' },
     permission: { label: '권한 대기', icon: 'i-approval' },
-    ended: { label: '종료됨', icon: 'i-warn' },
-    stopped: { label: '멈춤', icon: 'i-stopped' },
-    failed: { label: '오류', icon: 'i-failed' },
-    none: { label: '없음', icon: 'i-none' },
+    off: { label: '꺼짐', icon: 'i-stopped' },
+    none: { label: '띄우지 않음', icon: 'i-none' },
   };
-  // 사람이 봐야 하는 것(권한 대기 > 입력 대기·종료됨·오류) > 작업 중 > 대기 > 멈춤 > 없음. 같은 그룹 안은 역할 표 순서
-  const GROUP = { permission: 0, input: 1, ended: 1, failed: 1, working: 2, idle: 3, stopped: 4, none: 5 };
+  const OFF_REASON = { stopped: '멈춤', done: '스스로 끝남', failed: '오류로 끝남' };
+  // 권한 대기 > 일하는 중 > 입력 대기 > 꺼짐 > 띄우지 않음. 같은 그룹 안은 역할 표 순서
+  const GROUP = { permission: 0, working: 1, input: 2, off: 3, none: 4 };
+  // 꺼진 뒤 메시지가 온 세션은 접는 묶음에 숨기지 않는다
+  const isFoldable = (r) => (r.st === 'off' && !(r.s && r.s.offWarning)) || r.st === 'none';
   const WAITING_FOR = {
     'permission prompt': '권한 승인 요청',
     'sandbox request': '샌드박스 허용 요청',
@@ -192,6 +193,8 @@
     const tr = el('tr');
     tr.classList.add('st-row-' + state);
     if (state === 'none') tr.classList.add('is-absent');
+    // 입력 대기 중 질문 대화상자가 열린 세션은 사람이 답해야 하므로 바탕색으로 먼저 보이게 한다
+    if (state === 'input' && s && String(s.waitingFor || '').toLowerCase() === 'dialog open') tr.classList.add('needs-answer');
     if (s && s.sessionId) tr.dataset.sessionId = s.sessionId;
     const who = el('td');
     const nm = el('span', 's-name', name);
@@ -216,14 +219,35 @@
       line.title = cmd;
       who.append(line);
     }
+    // 꺼진 뒤 이 세션 앞으로 메시지가 왔거나 막혔다(주황 경고, 확인함으로 숨김)
+    // 좁은 사이드바에서도 읽히게 세션 줄 아래 한 줄을 통째로 쓴다
+    const warn = s && s.offWarning;
+    let warnRow = null;
+    if (warn) {
+      tr.classList.add('st-row-offwarn');
+      warnRow = el('tr', 'warn-row st-row-offwarn');
+      const cell = el('td');
+      cell.colSpan = 4;
+      const line = el('div', 's-offwarn');
+      const from = warn.from.length ? ` · ${warn.from.join(', ')}` : '';
+      line.append(icon('i-warn'), el('span', null, `꺼진 뒤 메시지 옴 ${warn.count}건${from}`));
+      line.title = (warn.summary ? `마지막: ${warn.summary}\n` : '') + '꺼진 뒤 보낸 메시지는 전달되지 않았습니다. 다시 띄운 뒤 보낸 세션에 알리세요.';
+      const ack = el('button', 'ack-btn', '확인함');
+      ack.type = 'button';
+      ack.setAttribute('aria-label', `${name} 꺼진 뒤 메시지 경고 확인함`);
+      ack.addEventListener('click', () => vscode.postMessage({ type: 'ackOff', sessionId: s.sessionId }));
+      line.append(ack);
+      cell.append(line);
+      warnRow.append(cell);
+    }
     const st = el('td');
     const chip = el('span', 'state st-' + state);
     chip.append(icon(STATES[state].icon), el('span', null, STATES[state].label));
+    if (state === 'off' && s && OFF_REASON[s.offReason]) chip.append(el('span', 'st-why', OFF_REASON[s.offReason]));
     const wf = s && s.waitingFor;
     if (wf) chip.title = WAITING_FOR[String(wf).toLowerCase()] || wf;
-    else if (state === 'ended') chip.title = '할 일을 기다리다 세션이 끝났습니다. 이 사이 보낸 메시지는 전달되지 않았을 수 있습니다';
     st.append(chip);
-    const live = s && !['stopped', 'ended'].includes(state);
+    const live = s && state !== 'off';
     const age = el('td', 'num elapsed', live ? fmtElapsed(s.startedAt) : '—');
     if (s && s.startedAt) age.title = new Date(s.startedAt).toLocaleString('ko-KR') + ' 시작';
     // 열기: 백그라운드 세션만 attach할 수 있다(D-89)
@@ -248,7 +272,7 @@
         });
       }
     }
-    return tr;
+    return warnRow ? [tr, warnRow] : [tr];
   }
 
   function renderSessions(msg) {
@@ -265,10 +289,38 @@
       $('sess-sum').textContent = '';
       return;
     }
-    const sessions = msg.data.map((s) => ({ name: s.name, s, st: STATES[s.view] ? s.view : 'idle' }));
+    const sessions = msg.data.map((s) => ({ name: s.name, s, st: STATES[s.view] ? s.view : 'input' }));
     const seen = new Set(sessions.map((r) => r.name));
     const rows = sortRows([...sessions, ...roles.filter((r) => !seen.has(r)).map((r) => ({ name: r, s: null, st: 'none' }))]);
-    for (const r of rows) body.append(sessionRow(r.name, r.s, r.st));
+    const top = rows.filter((r) => !isFoldable(r));
+    const bottom = rows.filter(isFoldable);
+    for (const r of top) body.append(...sessionRow(r.name, r.s, r.st));
+    // 꺼짐·띄우지 않음은 접는 묶음(접은 상태는 webview state에 남는다)
+    if (bottom.length) {
+      const offFolded = folded.has('offRows');
+      const tr = el('tr', 'fold-row');
+      const td = el('td');
+      td.colSpan = 4;
+      const b = el('button', 'fold');
+      b.type = 'button';
+      b.id = 'off-fold';
+      b.setAttribute('aria-expanded', String(!offFolded));
+      const chev = icon('i-chev');
+      chev.classList.add('chev');
+      b.append(chev, el('span', null, `꺼짐 ${bottom.filter((r) => r.st === 'off').length}` + (bottom.some((r) => r.st === 'none') ? ` · 띄우지 않음 ${bottom.filter((r) => r.st === 'none').length}` : '')));
+      b.addEventListener('click', () => {
+        if (folded.has('offRows')) folded.delete('offRows');
+        else folded.add('offRows');
+        vscode.setState({ ...saved, folded: [...folded] });
+        renderSessions(lastSessions);
+        const again = $('off-fold');
+        if (again) again.focus();
+      });
+      td.append(b);
+      tr.append(td);
+      body.append(tr);
+      if (!offFolded) for (const r of bottom) body.append(...sessionRow(r.name, r.s, r.st));
+    }
     if (!rows.length) {
       const td = el('td', 'empty', '실행 중인 Claude 세션이 없습니다');
       td.colSpan = 4;
@@ -282,7 +334,8 @@
     const parts = [`실행 ${live}`];
     if (count('permission')) parts.push(`권한 대기 ${count('permission')}`);
     if (count('input')) parts.push(`입력 대기 ${count('input')}`);
-    if (count('ended')) parts.push(`종료됨 ${count('ended')}`);
+    const warned = sessions.filter((r) => r.s.offWarning).length;
+    if (warned) parts.push(`꺼진 뒤 메시지 ${warned}`);
     $('sess-sum').textContent = parts.join(' · ') + (roles.length ? ` / 역할 ${roles.length}` : '');
   }
 

@@ -12,7 +12,9 @@ const flush = () => new Promise((r) => setImmediate(r));
 
 (async () => {
   try {
-    require(path.join(EXT, 'sessionsView.js')).register(fake.context);
+    const memento = new Map();
+    fake.context.globalState = { get: (k) => memento.get(k), update: async (k, v) => memento.set(k, v) };
+    const provider = require(path.join(EXT, 'sessionsView.js')).register(fake.context);
     const view = fake.resolveView('erpSessions.panel');
     view.visible = false; // 폴링(claude agents 실행)은 하지 않는다
 
@@ -51,6 +53,23 @@ const flush = () => new Promise((r) => setImmediate(r));
     view.send({ type: 'open', id: '985b4168', name: ops.commitRole });
     await flush();
     assert.deepStrictEqual(fake.terminals[1].sent, ['claude.cmd attach 985b4168'], '경고 뒤 열기');
+
+    // 꺼진 뒤 메시지 옴: 확인함을 누르면 그 세션 경고를 숨기고 globalState에 기억, 그 뒤 새로 막히면 다시 띄운다
+    const off = (msgs) => ({ name: 'WY-search', sessionId: 'sid-s', view: 'off', offReason: 'done', offMessages: msgs });
+    const m1 = { at: '2026-10-07T10:00:00Z', from: 'WY-pm', summary: '' };
+    const m2 = { at: '2026-10-07T11:00:00Z', from: '', summary: '' };
+    const quiet = { name: 'WY-frontend', sessionId: 'sid-f', view: 'off', offReason: 'done', offMessages: [] };
+    let rows = provider.applyAcks([off([m1]), quiet]);
+    assert.deepStrictEqual(rows[0].offWarning, { count: 1, lastAt: m1.at, from: ['WY-pm'], summary: '' }, '경고');
+    assert.strictEqual(rows[1].offWarning, null, '정상으로 끝난 세션은 경고 없음');
+    provider.cache.sessions = { type: 'sessions', data: rows, at: Date.now() };
+    view.posts.length = 0;
+    view.send({ type: 'ackOff', sessionId: 'sid-s' });
+    assert.deepStrictEqual(memento.get('erpSessions.offMessageAck'), { 'sid-s': m1.at }, 'globalState에 기억');
+    const sent = view.posts.find((m) => m.type === 'sessions');
+    assert.strictEqual(sent && sent.data[0].offWarning, null, '확인함 뒤 바로 숨김');
+    assert.strictEqual(provider.applyAcks([off([m1])])[0].offWarning, null, '다시 읽어도 숨김');
+    assert.strictEqual(provider.applyAcks([off([m1, m2])])[0].offWarning.count, 1, '확인 뒤 새로 막힌 것만 다시 경고');
 
     console.log('sessionsView 검사 통과');
   } finally {

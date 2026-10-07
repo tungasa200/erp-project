@@ -28,15 +28,16 @@
   }
   const short = (name) => String(name || '').replace(/^WY-/, '');
 
+  // 네 가지 상태와 순서(권한 대기 > 일하는 중 > 입력 대기 > 꺼짐). 꺼진 이유는 작은 글씨로
   const VIEW = {
     permission: ['권한 대기', 0],
-    input: ['입력 대기', 1],
-    failed: ['실패', 2],
-    ended: ['대기 중 종료', 2],
-    working: ['일하는 중', 3],
-    idle: ['대기', 4],
-    stopped: ['멈춤', 5],
+    working: ['일하는 중', 1],
+    input: ['입력 대기', 2],
+    off: ['꺼짐', 3],
   };
+  const OFF_REASON = { stopped: '멈춤', done: '스스로 끝남', failed: '오류로 끝남' };
+  // 꺼진 뒤 메시지가 온 세션은 꺼짐 묶음에 숨기지 않는다
+  const warned = (s) => s.view === 'off' && s.offWarn > 0;
   const STAGE = {
     bug: ['i-bug', '결함 보고'],
     order: ['i-send', '지시·전달'],
@@ -77,30 +78,29 @@
 
   const sessionView = (name) => {
     const s = state && state.sessions.find((x) => x.name === name);
-    return s ? s.view : '';
+    return s ? s.view + (warned(s) ? ' offwarn' : '') : '';
   };
   const av = (name, size = '') => `<span class="av ${size} ${sessionView(name)}" title="${esc(name)}">${esc(initials(name))}</span>`;
 
   function doingText(s) {
     if (s.view === 'permission') return s.pending && s.pending.command ? `권한 대기 · ${s.pending.command}` : '권한 대기';
-    if (s.view === 'input') return '입력 대기';
-    if (s.view === 'failed') return '실패';
-    if (s.view === 'ended') return '대기 중 종료됨 · 다시 띄워야 함';
     if (s.view === 'working') return s.doing || '일하는 중';
+    if (warned(s)) return `꺼진 뒤 메시지 옴 ${s.offWarn}건 · 다시 띄워야 함`;
+    if (s.view === 'off') return `꺼짐 · ${OFF_REASON[s.offReason] || '끝남'}`;
     if (!VIEW[s.view]) return `상태: ${s.view || '알 수 없음'}`;
-    return s.lastAt ? `대기 · ${ago(s.lastAt)} 마지막 동작` : '대기';
+    return s.lastAt ? `입력 대기 · ${ago(s.lastAt)} 마지막 동작` : '입력 대기';
   }
 
   function renderStrip() {
     const strip = $('strip');
     const rank = (v) => (VIEW[v] ? VIEW[v][1] : 9); // 모르는 상태 값(세션 현황 쪽에서 새로 생긴 것)은 뒤로
-    const live = state.sessions.filter((s) => s.view !== 'stopped').sort((a, b) => rank(a.view) - rank(b.view));
-    const stopped = state.sessions.filter((s) => s.view === 'stopped');
+    const live = state.sessions.filter((s) => s.view !== 'off' || warned(s)).sort((a, b) => rank(a.view) - rank(b.view));
+    const stopped = state.sessions.filter((s) => s.view === 'off' && !warned(s));
     const chips = live.map((s) => {
       const text = doingText(s);
-      return `<button type="button" class="sc ${s.view}" data-session="${esc(s.sessionId || '')}" aria-label="${esc(`${s.name}, ${text}. 세션 현황에서 보기`)}" title="${esc(text)}">${av(s.name)}<span><span class="nm">${esc(short(s.name))}</span><span class="ac">${esc(text)}</span></span></button>`;
+      return `<button type="button" class="sc ${s.view}${warned(s) ? ' offwarn' : ''}" data-session="${esc(s.sessionId || '')}" aria-label="${esc(`${s.name}, ${text}. 세션 현황에서 보기`)}" title="${esc(text)}">${av(s.name)}<span><span class="nm">${esc(short(s.name))}</span><span class="ac">${esc(text)}</span></span></button>`;
     });
-    if (stopped.length) chips.push(`<span class="sc rest" title="${esc(stopped.map((s) => s.name).join(', '))}">멈춤 ${stopped.length}</span>`);
+    if (stopped.length) chips.push(`<span class="sc rest" title="${esc(stopped.map((s) => `${s.name}(${OFF_REASON[s.offReason] || '끝남'})`).join(', '))}">꺼짐 ${stopped.length}</span>`);
     if (state.statusError) chips.push(`<span class="err">${ico('i-warn', 'i-s')}세션 상태를 읽지 못함: ${esc(state.statusError)}</span>`);
     strip.innerHTML = chips.join('') || '<span class="sc rest">살아 있는 세션 없음</span>';
   }
@@ -110,7 +110,8 @@
     const parts = [`일하는 중 <b>${count('working')}</b>`];
     if (count('permission')) parts.push(`권한 대기 <b>${count('permission')}</b>`);
     if (count('input')) parts.push(`입력 대기 <b>${count('input')}</b>`);
-    if (count('ended')) parts.push(`대기 중 종료 <b>${count('ended')}</b>`);
+    const warnedCount = state.sessions.filter(warned).length;
+    if (warnedCount) parts.push(`꺼진 뒤 메시지 옴 <b>${warnedCount}</b>`);
     parts.push(`최근 ${state.windowHours}시간 메시지 <b>${state.feed.length}</b>`);
     if (state.unreadable) parts.push(`<span class="warn" title="Claude Code 대화 기록 형식이 바뀌었을 수 있습니다. 해당 줄은 건너뛰었습니다.">${ico('i-warn', 'i-s')}읽을 수 없음 ${state.unreadable}</span>`);
     $('sum').innerHTML = parts.join(' · ');
@@ -259,7 +260,7 @@
     // 레인: 살아 있는 세션, 이 범위에서 일했거나 메시지를 주고받은 세션. 순서는 세션 칩과 같게
     const want = new Set(msgs.flatMap((m) => [m.from, m.to]));
     for (const [n, l] of lanesBy) if (l.bands.length) want.add(n);
-    for (const s of state.sessions) if (!['stopped'].includes(s.view)) want.add(s.name);
+    for (const s of state.sessions) if (s.view !== 'off' || warned(s)) want.add(s.name);
     const order = state.sessions.map((s) => s.name);
     const names = [...want].filter((n) => n && n !== '(알 수 없음)').sort((a, b) => (order.indexOf(a) + 1 || 99) - (order.indexOf(b) + 1 || 99) || a.localeCompare(b));
     if (!names.length) return empty('이 범위에 활동이 없습니다', '더 긴 범위를 고르거나, 세션이 일을 시작하면 여기에 띠와 화살표가 나타납니다.');
@@ -271,13 +272,14 @@
     for (let t = Math.ceil(t0 / step) * step; t < now - step / 3; t += step) ticks.push(`<line class="grid" x1="${x(t)}" y1="${TOP - 6}" x2="${x(t)}" y2="${H}"/><text class="tick" x="${x(t)}" y="${TOP - 12}" text-anchor="middle">${esc(clock(new Date(t).toISOString()))}</text>`);
 
     const lanes = names.map((n) => {
-      const view = sessionView(n) || 'stopped';
+      const view = sessionView(n) || 'off';
       const yy = y(n);
       const l = lanesBy.get(n) || { bands: [], from: null };
       // 처음 열 때 기록 끝부분만 읽으므로, 읽기 시작한 시각보다 앞은 '모름'으로 칠한다(비어 있다고 오해하지 않게)
       const unread = l.from && l.from > t0 ? `<rect class="unread" x="${X0}" y="${yy - 7}" width="${x(l.from) - X0}" height="14" rx="3"><title>이 앞은 읽지 않음(처음 열 때 기록 끝부분만 읽습니다)</title></rect>` : '';
       const bands = l.bands.map(([a, b]) => `<rect class="band" x="${x(a)}" y="${yy - 6}" width="${Math.max(3, x(b) - x(a))}" height="12" rx="6"/>`).join('');
-      const tail = ['permission', 'input', 'ended'].includes(view) ? `<rect class="tail tail-${view}" x="${X1 - 28}" y="${yy - 6}" width="28" height="12" rx="6"><title>${esc(VIEW[view][0])}</title></rect>` : '';
+      const tailKind = view.includes('offwarn') ? 'offwarn' : ['permission', 'input'].includes(view) ? view : '';
+      const tail = tailKind ? `<rect class="tail tail-${tailKind}" x="${X1 - 28}" y="${yy - 6}" width="28" height="12" rx="6"><title>${tailKind === 'offwarn' ? '꺼진 뒤 메시지 옴' : esc(VIEW[view][0])}</title></rect>` : '';
       const label = fitLabel(short(n), 15); // 이름 칸(약 110px)을 넘지 않게
       return `<g class="lane ${view}"><title>${esc(n)}</title><circle class="lav" cx="${16}" cy="${yy}" r="11"/><text class="lav-t" x="16" y="${yy + 4}" text-anchor="middle">${esc(initials(n))}</text><text class="lane-n" x="34" y="${yy + 4}">${esc(label)}</text>
         <rect class="track" x="${X0}" y="${yy - 2}" width="${X1 - X0}" height="4" rx="2"/>${unread}${bands}${tail}</g>`;
@@ -315,7 +317,7 @@
 
     const markers = Object.keys(STAGE).map((k) => `<marker id="mk-${k}" class="c-${k}" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path class="mk" d="M0 0 10 5 0 10Z"/></marker>`).join('');
     const nowLine = `<line class="now-line" x1="${X1}" y1="${TOP - 10}" x2="${X1}" y2="${H}"/><rect class="now-pill" x="${X1 - 19}" y="${TOP - 26}" width="38" height="16" rx="8"/><text class="now-t" x="${X1}" y="${TOP - 14}" text-anchor="middle">지금</text>`;
-    const legend = [['band', '일한 구간'], ['tail-permission', '권한 대기'], ['tail-input', '입력 대기'], ['tail-ended', '대기 중 종료']]
+    const legend = [['band', '일한 구간'], ['tail-permission', '권한 대기'], ['tail-input', '입력 대기'], ['tail-offwarn', '꺼진 뒤 메시지 옴']]
       .map(([c, t]) => `<span><i class="lg ${c}"></i>${t}</span>`).join('') + `<span><i class="lg box-lg"></i>진행 중인 묶음</span><span><i class="lg unread"></i>읽지 않은 앞부분</span>`;
 
     const selRow = ui.timeSel && state.messages[ui.timeSel] ? `<ul class="feed sel-msg">${msgRow(ui.timeSel, stageOf.get(ui.timeSel) || 'order')}</ul>` : `<p class="hint">화살표를 누르면 그 메시지의 원문이 여기에 펼쳐집니다.</p>`;

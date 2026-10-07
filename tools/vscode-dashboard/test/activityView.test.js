@@ -36,8 +36,8 @@ test('dialog open은 입력 대기, 권한 확인은 권한 대기로 나눈다'
   assert.strictEqual(classify({ state: 'blocked', status: 'waiting', waitingFor: 'permission prompt' }), 'permission');
   assert.strictEqual(classify({ state: 'blocked', status: 'waiting', waitingFor: 'dialog open' }), 'input');
   assert.strictEqual(classify({ state: 'done', status: 'idle' }), 'input');
-  assert.strictEqual(classify({ state: 'done' }), 'ended', '대기 중 종료');
-  assert.strictEqual(classify({ state: 'stopped' }), 'stopped');
+  assert.strictEqual(classify({ state: 'done' }), 'off', '스스로 끝남은 꺼짐');
+  assert.strictEqual(classify({ state: 'stopped' }), 'off', '멈춤도 꺼짐');
   assert.strictEqual(classify({ state: 'working', status: 'busy' }), 'working');
   assert.strictEqual(classify({ status: 'busy' }), 'working');
 });
@@ -46,9 +46,9 @@ test('이름마다 살아 있는 것, 그다음 최신 세션 하나만 남긴�
   const { latestByName } = pure();
   const m = latestByName([
     { name: 'WY-qa', view: 'working', startedAt: 1 },
-    { name: 'WY-qa', view: 'stopped', startedAt: 9 },
-    { name: 'WY-pm', view: 'idle', startedAt: 1 },
-    { name: 'WY-pm', view: 'idle', startedAt: 5 },
+    { name: 'WY-qa', view: 'off', startedAt: 9 },
+    { name: 'WY-pm', view: 'input', startedAt: 1 },
+    { name: 'WY-pm', view: 'input', startedAt: 5 },
   ]);
   assert.strictEqual(m.get('WY-qa').startedAt, 1);
   assert.strictEqual(m.get('WY-pm').startedAt, 5);
@@ -92,7 +92,7 @@ test('탭을 열면 메시지·묶음·세션 상태·카드 연결을 보낸다
 
     const f2 = st.sessions.find((s) => s.name === 'WY-frontend2');
     assert.deepStrictEqual([f2.view, f2.pending.command], ['permission', 'npx vitest']);
-    assert.strictEqual(st.sessions.find((s) => s.name === 'WY-design').view, 'stopped', '목록에 없는 역할은 멈춤');
+    assert.strictEqual(st.sessions.find((s) => s.name === 'WY-design').view, 'off', '목록에 없는 역할은 꺼짐');
 
     // 같은 상태면 다시 보내지 않고, 새 메시지가 붙으면 보낸다
     const n = panel.posts.length;
