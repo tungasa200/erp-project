@@ -8,6 +8,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { execFileSync } = require('child_process');
+const { rmTree, copyTree } = require('../lib/fsx'); // 한글 경로에서 fs.rmSync·cpSync가 프로세스를 죽이는 것을 피함(R5)
 
 const SRC = __dirname;
 const TARGET = process.env.WY_TOOLS_DIR ? path.join(process.env.WY_TOOLS_DIR, 'vscode-dashboard') : path.join(os.homedir(), '.wy-tools', 'vscode-dashboard');
@@ -24,7 +25,7 @@ function main() {
   const dirty = git(['status', '--porcelain', '--untracked-files=all', '--', '.'], { encoding: 'utf8' }).trim();
   const stage = `${TARGET}.new`;
   const old = `${TARGET}.old`;
-  fs.rmSync(stage, { recursive: true, force: true });
+  rmTree(stage);
   fs.mkdirSync(stage, { recursive: true });
   // HEAD의 이 폴더 파일을 하나씩 꺼낸다(tar는 Git Bash와 Windows tar.exe가 경로를 다르게 해석해 쓰지 않는다. index도 건드리지 않음)
   const entries = git(['ls-tree', '-r', '-z', 'HEAD', '--', `${rel}/`], { encoding: 'utf8', cwd: repo }).split('\0').filter(Boolean);
@@ -40,16 +41,16 @@ function main() {
   const version = JSON.parse(fs.readFileSync(path.join(stage, 'package.json'), 'utf8')).version;
   fs.writeFileSync(path.join(stage, 'deployed.json'), JSON.stringify({ version, commit, source: 'HEAD', deployedAt: new Date().toISOString() }, null, 2) + '\n');
 
-  fs.rmSync(old, { recursive: true, force: true });
+  rmTree(old);
   try {
     if (fs.existsSync(TARGET)) fs.renameSync(TARGET, old);
     fs.renameSync(stage, TARGET);
-    fs.rmSync(old, { recursive: true, force: true });
+    rmTree(old);
   } catch (err) {
     // 폴더를 다른 프로세스가 잡고 있어 이름을 못 바꾸면 파일을 덮어쓴다
     if (!fs.existsSync(TARGET) && fs.existsSync(old)) fs.renameSync(old, TARGET);
-    fs.cpSync(stage, TARGET, { recursive: true, force: true });
-    fs.rmSync(stage, { recursive: true, force: true });
+    copyTree(stage, TARGET);
+    rmTree(stage);
     console.warn(`폴더 교체 대신 덮어썼습니다(${err.code || err.message}).`);
   }
   console.log(`배포했습니다: ${TARGET} (v${version}, 커밋 ${commit})`);

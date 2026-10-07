@@ -10,6 +10,7 @@ const os = require('os');
 const path = require('path');
 const { execFileSync } = require('child_process');
 const stub = require('./stub');
+const { rmTree } = require('./fsx');
 
 const PKG = path.resolve(__dirname, '..');
 const KEEP = 3;
@@ -73,7 +74,7 @@ function deploy({ dir = toolsDir(), keep = KEEP, pkg = PKG } = {}) {
   fs.mkdirSync(dir, { recursive: true });
   if (!fs.existsSync(path.join(target, 'deployed.json'))) {
     const stage = `${target}.new`;
-    fs.rmSync(stage, { recursive: true, force: true });
+    rmTree(stage);
     const entries = git(['ls-tree', '-r', '-z', 'HEAD', '--', `${rel}/`], repo).split('\0').filter(Boolean);
     for (const e of entries) {
       const [meta, file] = e.split('\t');
@@ -85,7 +86,7 @@ function deploy({ dir = toolsDir(), keep = KEEP, pkg = PKG } = {}) {
     }
     const { hash } = stub.build(path.join(stage, 'vscode'), path.join(stage, 'stub-ext'));
     fs.writeFileSync(path.join(stage, 'deployed.json'), JSON.stringify({ version, commit, stubHash: hash, source: 'HEAD', deployedAt: new Date().toISOString() }, null, 2) + '\n');
-    fs.rmSync(target, { recursive: true, force: true });
+    rmTree(target);
     fs.renameSync(stage, target);
   }
   point(dir, name);
@@ -109,7 +110,7 @@ function prune(dir, keep) {
   const removed = [];
   for (const n of all.slice(keep)) {
     if (n === cur) continue;
-    fs.rmSync(path.join(dir, n), { recursive: true, force: true });
+    rmTree(path.join(dir, n));
     removed.push(n);
   }
   return removed;

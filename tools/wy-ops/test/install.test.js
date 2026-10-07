@@ -4,6 +4,7 @@ const assert = require('assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const { rmTree } = require('../lib/fsx');
 const { protectedPending } = require('../lib/install');
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'wy-inst-'));
@@ -18,7 +19,7 @@ try {
   card('broken-1', { kind: 'commit' }); // command가 없어도 형식은 맞음 — 아래에서 따로 본다
   fs.writeFileSync(path.join(root, 'requests', 'bad.json'), '{ 깨진 파일');
   assert.deepStrictEqual(protectedPending(root), ['broken-1'], '할 일·형식 오류는 세지 않음');
-  fs.rmSync(path.join(root, 'requests', 'broken-1.json'));
+  fs.unlinkSync(path.join(root, 'requests', 'broken-1.json'));
   assert.deepStrictEqual(protectedPending(root), [], 'todo만 남으면 통과');
   // commit 대기 1장이면 멈춤(setup이 이 목록이 비어 있지 않으면 멈춘다)
   card('c1', { kind: 'commit', command: 'git commit -F x' });
@@ -32,5 +33,5 @@ try {
   assert.deepStrictEqual(protectedPending(root).sort(), ['ch1', 'p-new'], '결정됨·기한 지남은 제외');
   console.log('wy-ops install 검사 통과');
 } finally {
-  fs.rmSync(root, { recursive: true, force: true });
+  rmTree(root);
 }

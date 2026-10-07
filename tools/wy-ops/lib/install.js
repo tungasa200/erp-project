@@ -25,11 +25,20 @@ const flag = (n) => argv.includes(n);
 const opt = (n) => (argv.indexOf(n) >= 0 ? argv[argv.indexOf(n) + 1] : null);
 const say = (s = '') => process.stdout.write(s + '\n');
 
-// code·claude·gh는 Windows에서 .cmd라 cmd.exe로 부른다
+// code·claude·gh는 Windows에서 .cmd 래퍼라 cmd.exe로 부르고, 나머지(where 등)는 바로 부른다.
+// cmd /s는 명령줄의 첫·끝 따옴표를 떼므로, 인자를 감싼 명령줄 전체를 한 번 더 "…"로 감싸고 그대로(verbatim) 넘긴다.
+// 이렇게 하지 않으면 공백·한글이 든 경로(--extensions-dir 등)가 깨진다(R5, doctor.js와 같은 방식)
+const CMD_WRAPPERS = ['code', 'claude', 'gh'];
 function run(cmd, args = []) {
-  const q = (a) => (/[\s"&|<>^]/.test(a) ? `"${String(a).replace(/"/g, '""')}"` : a);
-  const r = spawnSync(process.env.ComSpec || 'cmd.exe', ['/d', '/s', '/c', [cmd, ...args].map(q).join(' ')], { encoding: 'utf8', windowsHide: true, timeout: 180000 });
-  return { status: r.status, stdout: r.stdout || '', stderr: r.stderr || '' };
+  const opts = { encoding: 'utf8', windowsHide: true, timeout: 180000 };
+  let r;
+  if (process.platform === 'win32' && CMD_WRAPPERS.includes(cmd)) {
+    const q = (a) => (/[\s"&|<>^()]/.test(a) ? `"${String(a).replace(/"/g, '""')}"` : a);
+    r = spawnSync(process.env.ComSpec || 'cmd.exe', ['/d', '/s', '/c', `"${[cmd, ...args].map(q).join(' ')}"`], { ...opts, windowsVerbatimArguments: true });
+  } else {
+    r = spawnSync(cmd, args, opts);
+  }
+  return { status: r.error ? null : r.status, stdout: r.stdout || '', stderr: r.stderr || '' };
 }
 const codeArgs = (args) => (opt('--extensions-dir') ? ['--extensions-dir', opt('--extensions-dir'), ...args] : args);
 
@@ -83,7 +92,11 @@ function extensionStep(dep) {
   const file = path.join(os.tmpdir(), `wy-ops-${dep.stubHash}.vsix`);
   fs.writeFileSync(file, vsix(path.join(current, 'stub-ext')));
   const r = run('code', codeArgs(['--install-extension', file, '--force']));
-  fs.rmSync(file, { force: true });
+  try {
+    fs.unlinkSync(file); // fs.rmSync는 한글 경로에서 프로세스를 죽인다(R5)
+  } catch {
+    // 이미 없으면 그만
+  }
   if (r.status !== 0) throw new Error(`확장 설치 실패: ${(r.stderr || r.stdout).trim().split('\n').pop()}`);
   say(`확장: ${STUB_EXT}를 설치했습니다(Reload Window 필요).`);
   return true;

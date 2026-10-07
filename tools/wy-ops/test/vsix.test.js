@@ -4,6 +4,7 @@ const assert = require('assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const { rmTree } = require('../lib/fsx');
 const zlib = require('zlib');
 const { zip, crc32 } = require('../lib/zip');
 const { vsix } = require('../lib/vsix');
@@ -53,5 +54,5 @@ try {
   assert.ok(v['extension/stub.js'] && v['extension/media/icon.svg'], '껍데기와 아이콘');
   console.log('wy-ops vsix 검사 통과');
 } finally {
-  fs.rmSync(tmp, { recursive: true, force: true });
+  rmTree(tmp);
 }

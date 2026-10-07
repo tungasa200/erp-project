@@ -4,6 +4,7 @@ const assert = require('assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const { rmTree } = require('../lib/fsx');
 const settings = require('../lib/settings');
 const lock = require('../lib/lock');
 const { writeTodo } = require('../lib/todo');
@@ -101,5 +102,5 @@ try {
   }
   console.log('wy-ops lib 검사 통과');
 } finally {
-  fs.rmSync(tmp, { recursive: true, force: true });
+  rmTree(tmp);
 }

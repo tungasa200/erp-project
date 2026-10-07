@@ -5,6 +5,7 @@ const assert = require('assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const { rmTree } = require('../lib/fsx');
 const { execFileSync } = require('child_process');
 const { deploy, rollback, versions, currentTarget } = require('../lib/deploy');
 const stub = require('../lib/stub');
@@ -116,5 +117,5 @@ try {
   assert.deepStrictEqual([...stub.assetsOf({ a: 'media/i.svg', b: ['./media/j.png', 'x.svg', 'media/../k.svg'] })].sort(), ['media/i.svg', 'media/j.png'], '..로 밖을 가리키는 경로는 뺌');
   console.log('wy-ops deploy 검사 통과');
 } finally {
-  fs.rmSync(tmp, { recursive: true, force: true });
+  rmTree(tmp);
 }

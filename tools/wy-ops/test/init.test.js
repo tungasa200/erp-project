@@ -5,6 +5,7 @@ const assert = require('assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const { rmTree } = require('../lib/fsx');
 const { init } = require('../lib/init');
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'wy-init-'));
@@ -77,5 +78,5 @@ try {
   assert.throws(() => init({ project: Q, name: 'q', prefix: 'Q', templatesDir: T }), /접두사/);
   console.log('wy-ops init 검사 통과');
 } finally {
-  fs.rmSync(tmp, { recursive: true, force: true });
+  rmTree(tmp);
 }

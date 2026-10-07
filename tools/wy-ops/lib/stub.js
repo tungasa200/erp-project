@@ -6,6 +6,7 @@
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
+const { rmTree } = require('./fsx');
 
 const STUB_JS = path.join(__dirname, '..', 'stub', 'stub.js');
 const ID = { name: 'wy-ops', publisher: 'wy-ops' }; // 확장 id wy-ops.wy-ops(D5)
@@ -39,7 +40,7 @@ function build(realDir, outDir) {
     contributes: real.contributes,
     wyOpsStubHash: hash,
   };
-  fs.rmSync(outDir, { recursive: true, force: true });
+  rmTree(outDir);
   fs.mkdirSync(outDir, { recursive: true });
   fs.writeFileSync(path.join(outDir, 'package.json'), JSON.stringify(pkg, null, 2) + '\n');
   fs.writeFileSync(path.join(outDir, 'stub.js'), stubSrc);
