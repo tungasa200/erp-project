@@ -13,6 +13,7 @@ const VIEW_TYPE = 'wyActivity';
 const OPEN_COMMAND = 'wyActivity.open';
 const INTERVAL = { transcripts: 3000, status: 10000 }; // 메시지는 10초 안에 보여야 한다(OPS-09)
 const MAX_BUNDLES = 40;
+const DORMANT_MS = 2 * 60 * 60 * 1000; // 진행 중 묶음이 이만큼 조용하면 '휴면'으로 접는다(사용자 결정, 설정으로 빼지 않음)
 const LANE_HOURS = 12; // 시간 보기가 고를 수 있는 가장 긴 범위
 const LANE_STEP = 30000;
 
@@ -69,6 +70,7 @@ class ActivityView {
     this.timers = [];
     this.status = { list: [], error: null, at: 0 };
     this.lastSent = '';
+    this.clock = () => Date.now(); // 휴면 판정 시각(검사에서 바꾼다)
     const folder = vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders[0];
     this.repo = folder ? folder.uri.fsPath : null;
     const ops = this.repo ? loadOpsConfig(this.repo) : null;
@@ -156,6 +158,7 @@ class ActivityView {
   buildState() {
     if (!this.reader) return { error: '열린 폴더가 없어 대화 기록 위치를 알 수 없습니다.' };
     this.reader.poll();
+    const now = this.clock();
     const feed = this.reader.feed();
     const byName = latestByName(this.status.list);
     const actions = new Map(this.reader.lastActions().map((a) => [a.name, a]));
@@ -188,6 +191,8 @@ class ActivityView {
           // 완료 판정: 단계 사슬의 마지막이 완료([완료]·재검증 통과)이고, 권한 대기·대기 카드가 걸려 있지 않다.
           // 다시 메시지가 붙으면 마지막 단계가 바뀌어 진행 중으로 돌아간다(묶음은 lastAt 최신순)
           done: state === 'done',
+          // 휴면: 진행 중인데 마지막 메시지 뒤 DORMANT_MS 넘게 움직임이 없다. 권한 대기·대기 카드가 걸린 묶음은 사람 손을 기다리는 중이라 제외
+          dormant: state !== 'done' && state !== 'perm' && state !== 'me' && now - Date.parse(b.lastAt) > DORMANT_MS,
           startedAt: b.startedAt,
           lastAt: b.lastAt,
           sessions: b.sessions,
@@ -196,7 +201,9 @@ class ActivityView {
         };
       });
     // 진행 중과 완료를 따로 자른다(완료가 많아도 진행 중 묶음이 밀려나지 않게)
-    const bundles = [...all.filter((b) => !b.done).slice(0, MAX_BUNDLES), ...all.filter((b) => b.done).slice(0, MAX_BUNDLES)];
+    // 진행 중·휴면·완료를 따로 자른다(한쪽이 많아도 다른 쪽이 밀려나지 않게)
+    const pick = (f) => all.filter(f).slice(0, MAX_BUNDLES);
+    const bundles = [...pick((b) => !b.done && !b.dormant), ...pick((b) => b.dormant), ...pick((b) => b.done)];
 
     return {
       sessions,

@@ -135,6 +135,48 @@ test('완료 묶음은 진행 중 뒤로 가고, 다시 움직이면 진행 중�
   }
 });
 
+test('2시간 넘게 조용한 진행 중 묶음은 휴면, 새 메시지가 오면 깨어나고, 권한 대기·대기 카드는 휴면으로 보내지 않는다', () => {
+  const { fake, view, dir } = setup();
+  try {
+    const file = path.join(dir, 'pm.jsonl');
+    fs.writeFileSync(file, [line({ type: 'agent-name', agentName: 'WY-pm' }),
+      recv(10, 'WY-qa', 'q1', 'P2-01 확인 부탁'), // 그냥 조용해진 묶음 → 휴면
+      recv(10, 'WY-backend1', 'w1', 'P2-02 실행 전 권한 대기'), // 참여 세션이 권한 대기 → 진행 중 유지
+      recv(10, 'WY-browser', 'c1', 'P2-03 콘솔 작업 카드 올림'), // 대기 카드 걸림 → 진행 중 유지
+      recv(10, 'WY-design', 'd1', '[완료] P2-04 목업 끝')].join('\n') + '\n'); // 완료는 휴면이 아니라 완료
+    view.status = { list: [{ name: 'WY-backend1', view: 'permission', startedAt: 1 }], error: null, at: now };
+    const store = require(path.join(EXT, 'approvalStore.js'));
+    const root = store.rootFor(path.resolve(EXT, '..', '..'));
+    store.ensureDirs(root);
+    fs.writeFileSync(path.join(root, 'requests', 'card-browser.json'), JSON.stringify({ kind: 'commit', session: 'WY-browser', createdAt: at(5), title: '콘솔 작업', command: 'x', what: 'x', why: 'x', onClick: 'x' }));
+
+    fake.commands['wyActivity.open']();
+    const panel = fake.panels.find((p) => p.type === 'wyActivity');
+    const latest = () => panel.posts.filter((m) => m.type === 'state').pop().state;
+    const kinds = (st) => Object.fromEntries(st.bundles.map((b) => [b.taskId, b.done ? 'done' : b.dormant ? 'dormant' : 'running']));
+
+    // 10분 전 메시지: 아직 아무것도 휴면 아님
+    panel.send({ type: 'ready' });
+    assert.deepStrictEqual(kinds(latest()), { 'P2-01': 'running', 'P2-02': 'running', 'P2-03': 'running', 'P2-04': 'done' });
+
+    // 3시간 뒤: 조용한 묶음만 휴면, 권한 대기·대기 카드 묶음은 진행 중, 완료는 완료
+    view.clock = () => now + 3 * 3600000;
+    view.refresh();
+    let st = latest();
+    assert.deepStrictEqual(kinds(st), { 'P2-01': 'dormant', 'P2-02': 'running', 'P2-03': 'running', 'P2-04': 'done' });
+    const order = st.bundles.map((b) => b.taskId);
+    assert.ok(order.indexOf('P2-01') > order.indexOf('P2-02') && order.indexOf('P2-01') < order.indexOf('P2-04'), '휴면은 진행 중과 완료 사이');
+
+    // 휴면 묶음에 새 메시지가 오면 다시 진행 중
+    fs.appendFileSync(file, line({ type: 'user', isMeta: true, timestamp: new Date(now + 3 * 3600000 - 60000).toISOString(), origin: { kind: 'peer', name: 'WY-qa', msg_id: 'q2', body: 'P2-01 다시 확인' }, message: { role: 'user', content: '…' } }) + '\n');
+    view.refresh();
+    assert.strictEqual(kinds(latest())['P2-01'], 'running', '깨어남');
+    fs.rmSync(path.join(root, 'requests', 'card-browser.json'));
+  } finally {
+    fake.uninstall();
+  }
+});
+
 test('대화 기록 폴더가 없으면 그 경로를 알린다', () => {
   const { fake, view, dir } = setup();
   try {

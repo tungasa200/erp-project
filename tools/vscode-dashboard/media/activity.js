@@ -8,6 +8,7 @@
     range: [1, 3, 12].includes(saved.range) ? saved.range : 1,
     open: new Set(saved.open || []),
     doneOpen: saved.doneOpen === true, // '완료 n' 묶음: 기본 접힘
+    dormantOpen: saved.dormantOpen === true, // '휴면 n' 묶음: 기본 접힘
     openMsg: new Set(),
     timeSel: null, // 시간 보기에서 고른 메시지
   };
@@ -144,16 +145,27 @@
     return `<div class="chain" role="img" aria-label="${esc(`단계 ${b.steps.length}개: ${b.steps.map((s) => STAGE[s.stage][1]).join(' → ')}`)}">${nodes.join('')}</div>`;
   }
 
-  // 진행 중 묶음은 위(최근에 움직인 순), 완료 묶음은 아래 '완료 n'에 접어 둔다(기본 접힘, 상태는 webview에 기억)
+  // 진행 중 묶음은 위(최근에 움직인 순). 그 아래 '휴면 n'(2시간 넘게 조용한 진행 중), 맨 아래 '완료 n'.
+  // 두 묶음 모두 기본 접힘이고 접힘 상태는 webview에 기억한다. 휴면·완료 판정은 확장(activityView.js)이 한다
+  const GROUPS = {
+    dormant: { label: '휴면', icon: 'i-clock', aria: '2시간 넘게 움직임이 없는 묶음', key: 'dormantOpen' },
+    done: { label: '완료', icon: 'i-check', aria: '완료된 묶음', key: 'doneOpen' },
+  };
+
   function renderThreads() {
     if (!state.bundles.length) return empty('아직 세션 간 메시지가 없습니다', `최근 ${state.windowHours}시간 안에 세션이 SendMessage로 주고받은 메시지가 여기에 묶여 보입니다.`);
-    const running = state.bundles.filter((b) => !b.done);
-    const done = state.bundles.filter((b) => b.done);
+    const running = state.bundles.filter((b) => !b.done && !b.dormant);
     const top = running.length ? `<div class="threads">${cards(running)}</div>` : '<p class="none">진행 중인 묶음이 없습니다.</p>';
-    if (!done.length) return top;
-    return `${top}<section class="done-group" aria-label="완료된 묶음">
-      <button type="button" class="done-toggle" data-done-toggle aria-expanded="${ui.doneOpen}"${ui.doneOpen ? ' aria-controls="done-list"' : ''}>${ico('i-down', 'i-s')}${ico('i-check', 'i-s')}완료 <b>${done.length}</b>${ui.doneOpen ? '' : `<span class="dt-last">마지막 ${esc(ago(done[0].lastAt))}</span>`}</button>
-      ${ui.doneOpen ? `<div class="threads done-list" id="done-list">${cards(done)}</div>` : ''}</section>`;
+    return top + group('dormant', state.bundles.filter((b) => b.dormant)) + group('done', state.bundles.filter((b) => b.done));
+  }
+
+  function group(kind, list) {
+    if (!list.length) return '';
+    const g = GROUPS[kind];
+    const open = ui[g.key];
+    return `<section class="done-group g-${kind}" aria-label="${g.aria}">
+      <button type="button" class="done-toggle" data-group="${kind}" aria-expanded="${open}"${open ? ` aria-controls="${kind}-list"` : ''}>${ico('i-down', 'i-s')}${ico(g.icon, 'i-s')}${g.label} <b>${list.length}</b>${open ? '' : `<span class="dt-last">마지막 ${esc(ago(list[0].lastAt))}</span>`}</button>
+      ${open ? `<div class="threads done-list" id="${kind}-list">${cards(list)}</div>` : ''}</section>`;
   }
 
   function cards(list) {
@@ -207,7 +219,7 @@
     const el = document.activeElement;
     if (el && el.dataset && el.dataset.tmsg) return `[data-tmsg="${CSS.escape(el.dataset.tmsg)}"]`;
     if (!el || el.tagName !== 'BUTTON') return null;
-    if (el.dataset.doneToggle !== undefined) return 'button[data-done-toggle]';
+    if (el.dataset.group) return `button[data-group="${CSS.escape(el.dataset.group)}"]`;
     for (const k of ['mode', 'range', 'thread', 'card', 'session']) if (el.dataset[k] !== undefined) return `button[data-${k}="${CSS.escape(el.dataset[k])}"]`;
     const li = el.closest('.msg');
     return li ? `.msg[data-msg="${CSS.escape(li.dataset.msg)}"] > button` : null;
@@ -338,7 +350,7 @@
       <div class="legend">${legend}</div>${selRow}`;
   }
 
-  const save = () => vscode.setState({ mode: ui.mode, range: ui.range, open: [...ui.open], doneOpen: ui.doneOpen });
+  const save = () => vscode.setState({ mode: ui.mode, range: ui.range, open: [...ui.open], doneOpen: ui.doneOpen, dormantOpen: ui.dormantOpen });
 
   function pickTimeMsg(id) {
     ui.timeSel = ui.timeSel === id ? null : id;
@@ -367,8 +379,9 @@
       ui.range = Number(t.dataset.range);
       save();
       render();
-    } else if (t.dataset.doneToggle !== undefined) {
-      ui.doneOpen = !ui.doneOpen;
+    } else if (GROUPS[t.dataset.group]) {
+      const k = GROUPS[t.dataset.group].key;
+      ui[k] = !ui[k];
       save();
       render();
     } else if (t.dataset.thread) {

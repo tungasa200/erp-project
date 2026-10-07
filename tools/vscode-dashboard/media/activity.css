@@ -123,6 +123,8 @@ svg.i-s { width: 14px; height: 14px; flex: none; }
 .done-toggle:hover { color: var(--fg); }
 .done-toggle b { color: var(--fg); font-weight: 600; }
 .done-toggle svg:nth-of-type(2) { color: var(--ok); }
+.g-dormant .done-toggle svg:nth-of-type(2) { color: var(--dim); }
+.g-dormant + .done-group { border-top-style: dashed; }
 .done-toggle > svg:first-child { transform: rotate(-90deg); transition: transform 160ms var(--ease); }
 .done-toggle[aria-expanded="true"] > svg:first-child { transform: none; }
 .done-toggle .dt-last { margin-left: auto; font-size: 11.5px; }
