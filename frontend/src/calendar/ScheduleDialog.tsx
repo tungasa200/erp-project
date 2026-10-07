@@ -392,6 +392,10 @@ export function ScheduleDialog({ timeZone, draft, occurrence, askScope, onDelete
     (latest.allDay ? Date.parse(fromZoned(addDays(latest.endDate!, 1), 0, timeZone)) : Date.parse(latest.endAt!)) <=
       nowMs
   const recordTime = record && timed ? recordTimeText(record, timeZone) : null
+  // 했어요·안 했어요로 이미 기록한 회차는 시작해도 막히므로(이미 기록했어요) 띠를 숨긴다. ⑥ 기록 상태가 대신 보여 준다.
+  // 확인 대기와 이 회차로 돌고 있는 타이머 기록은 아직 확정이 아니라 띠를 둔다. 기록을 받기 전에는 깜박이지 않게 숨긴다
+  const recorded = !!record && record.status !== 'PENDING' && !(record.startAt && !record.endAt)
+  const timerBand = todayPlan && !dayRecords.isPending && !recorded ? todayPlan : null
   /** 오류 문구가 가리키는 칸이면 aria-invalid와 문구 연결 */
   const invalid = (group: 'time' | 'recurrence', at: TimeField | RecurrenceField) =>
     errors[`${group}At`] === at ? { 'aria-invalid': true, 'aria-describedby': `${id}-${group}-error` } : {}
@@ -412,12 +416,12 @@ export function ScheduleDialog({ timeZone, draft, occurrence, askScope, onDelete
           </button>
         </div>
       )}
-      {todayPlan && (
+      {timerBand && (
         <div className={styles.timerBand}>
           <span>
-            오늘 {formatMinutes(todayPlan.start.minutes)}~
-            {todayPlan.end.date === todayPlan.start.date ? '' : '다음 날 '}
-            {formatMinutes(todayPlan.end.minutes)} 계획
+            오늘 {formatMinutes(timerBand.start.minutes)}~
+            {timerBand.end.date === timerBand.start.date ? '' : '다음 날 '}
+            {formatMinutes(timerBand.end.minutes)} 계획
           </span>
           <button
             type="button"

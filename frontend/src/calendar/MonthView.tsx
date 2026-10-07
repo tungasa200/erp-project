@@ -76,7 +76,9 @@ export function MonthView({
     const [date, key] = chip.dataset.chip!.split('#')
     const occurrence = byDate.get(date)?.find((o) => occurrenceKey(o) === key)
     if (!occurrence) return
+    // 끌기를 위해 기본 동작을 막으면 칩이 포커스를 받지 못한다. 직접 옮겨 두어야 연 창을 닫을 때 이 칩으로 돌아온다
     e.preventDefault()
+    chip.focus({ preventScroll: true })
     e.currentTarget.setPointerCapture(e.pointerId)
     setDrag({ occurrence, from: date, over: date, x: e.clientX, y: e.clientY, moved: false })
   }

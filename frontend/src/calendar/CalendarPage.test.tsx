@@ -668,7 +668,13 @@ describe('캘린더', () => {
     const dialog = await screen.findByRole('dialog', { name: '일정 편집' })
     expect(await within(dialog).findByText('안 했어요')).toBeInTheDocument()
     await user.click(within(dialog).getByRole('button', { name: '기록 보기' }))
-    expect(await screen.findByRole('dialog', { name: '기록 수정' })).toBeInTheDocument()
+    const recordDialog = await screen.findByRole('dialog', { name: '기록 수정' })
     expect(screen.queryByRole('dialog', { name: '일정 편집' })).toBeNull()
+    // 일정 창은 이미 닫혔으므로 기록 창을 닫으면 그 일정 블록으로 돌아간다
+    await waitFor(() => expect(within(recordDialog).getByLabelText(/한 일/)).toHaveFocus())
+    await user.keyboard('{Escape}')
+    await waitFor(() =>
+      expect(screen.getAllByRole('button', { name: /^팀 스탠드업, 10:00–11:00, 반복$/ })[0]).toHaveFocus(),
+    )
   })
 })

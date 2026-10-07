@@ -1,6 +1,6 @@
 // SCR-CAL-07 일정 상세의 [이 일정으로 타이머 시작] (P2-06, 사용자 결정 2026-10-07, D-101)과 ⑥ 기록 상태(사용자 결정 카드 20261008-0230)
 // "오늘"은 사용자 시간대 기준이라 시각은 Date.now()에서 만든다(KST·TZ=UTC 둘 다 돌린다).
-import { screen, waitFor, within } from '@testing-library/react'
+import { cleanup, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -318,6 +318,27 @@ describe('일정 상세 — ⑥ 기록 상태 (SCR-CAL-07)', () => {
     expect(await screen.findByText('했어요')).toBeInTheDocument()
     const time = `${formatMinutes(toZoned(startAt, TZ).minutes)}–${toZoned(endAt, TZ).date === toZoned(startAt, TZ).date ? '' : '다음 날 '}${formatMinutes(toZoned(endAt, TZ).minutes)}`
     expect(screen.getByText(time)).toBeInTheDocument()
+  })
+
+  it('이미 했어요·안 했어요로 기록한 회차면 아직 끝나지 않았어도 타이머 시작 띠를 숨긴다(WY-pm 결정)', async () => {
+    for (const status of ['CONFIRMED', 'DISMISSED']) {
+      const o = occurrence()
+      const { user } = setup(o, { records: [linked(o, { status, startAt: null })] })
+      await openDialog(user)
+      expect(await screen.findByText(status === 'CONFIRMED' ? '했어요' : '안 했어요')).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: '이 일정으로 타이머 시작' })).toBeNull()
+      expect(screen.queryByText(planText(o))).toBeNull()
+      cleanup()
+    }
+  })
+
+  it('확인 대기 기록이나 이 회차로 돌고 있는 타이머면 띠를 둔다', async () => {
+    for (const over of [{ status: 'PENDING', startAt: null }, {}]) {
+      const o = occurrence()
+      setup(o, { records: [linked(o, over)] })
+      await startButton()
+      cleanup()
+    }
   })
 
   it('안 했어요 기록은 옵션이 꺼져 있으면 시간 없이 상태만 보인다', async () => {

@@ -19,6 +19,12 @@ const occurrences = ['기획 회의', '디자인 검토', '배포 준비', '회�
     }) as Occurrence,
 )
 
+// jsdom에는 PointerEvent·포인터 캡처가 없다
+window.PointerEvent ??= class extends MouseEvent {
+  pointerId = 1
+} as unknown as typeof PointerEvent
+Element.prototype.setPointerCapture ??= function () {}
+
 const renderMonth = (overview: boolean) => {
   const onOpenDay = vi.fn()
   const onCreateAllDay = vi.fn()
@@ -48,6 +54,14 @@ describe('월 보기 (P1-07-11)', () => {
     expect(screen.getByRole('button', { name: '디자인 검토' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '배포 준비' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: '+2개 더보기' })).toBeInTheDocument()
+  })
+
+  it('칩을 마우스로 열면 끌기 처리가 기본 동작을 막아도 칩이 포커스를 받는다(창을 닫으면 그 칩으로 돌아옴)', () => {
+    renderMonth(false)
+    const chip = screen.getByRole('button', { name: '기획 회의' })
+    fireEvent.pointerDown(chip, { button: 0 })
+    fireEvent.pointerUp(chip, { button: 0 })
+    expect(chip).toHaveFocus()
   })
 
   it('시각 일정 칩: 좁은 칸에서 숨길 수 있게 시각을 따로 감싸고, 접근 이름에는 시각을 둔다 (SCR-CAL-03 v1.7)', () => {

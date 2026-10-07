@@ -160,7 +160,9 @@ export function TimeGrid(props: Props) {
       const [date, key] = blockEl.dataset.segment!.split('#')
       const segment = segments.get(date)?.find((s) => occurrenceKey(s.occurrence) === key)
       if (!segment) return
+      // 끌기를 위해 기본 동작을 막으면 블록이 포커스를 받지 못한다. 직접 옮겨 두어야 연 창을 닫을 때 이 블록으로 돌아온다
       e.preventDefault()
+      blockEl.focus({ preventScroll: true })
       e.currentTarget.setPointerCapture(e.pointerId)
       if (target.dataset.handle === 'resize') setDrag({ kind: 'resize', segment, end: segment.end })
       else
@@ -245,6 +247,7 @@ export function TimeGrid(props: Props) {
     const bar = bars.find((b) => occurrenceKey(b.occurrence) === barEl.dataset.bar)
     if (!bar) return
     e.preventDefault()
+    barEl.focus({ preventScroll: true })
     e.currentTarget.setPointerCapture(e.pointerId)
     setDrag({
       kind: 'moveAllDay',
