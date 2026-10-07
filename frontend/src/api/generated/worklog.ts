@@ -134,6 +134,33 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/worklog/records/gaps": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 빈 시간과 후보 (P2-07, TIME-11 — SCR-HOME-03, 하루 마감 1단계)
+         * @description date의 업무 시간대(WorklogSettings.workHoursStart~End, 사용자의 현재 시간대) 중 기록이 없는 15분 이상 구간을 시간순으로 준다.
+         *     - 덮은 구간: 보관하지 않은 확정 기록의 [startAt, endAt), 실행 중 타이머는 [startAt, 지금). workDate와 관계없이 시각으로 본다.
+         *     - 오늘이면 지금 이후는 빼고, 미래 날짜면 빈 배열. 업무 요일이 아닌 날도 계산한다(표시 여부는 화면이 정한다).
+         *     - 먼저 그날 끝난 회차의 확인 대기를 만든다(D-31) — 계획 후보가 그 기록을 가리키게.
+         *     구간마다 후보 3종(없으면 null): previous(직전 업무 이어서), plan(이 시간 계획, 확인 대기면 pendingRecordId),
+         *     frequent(구간 시작 시각 기준 자주 하는 업무 1위, GET /tasks/frequent?at=).
+         *     채우기는 기존 API를 쓴다: 새 기록은 POST /records(startAt·endAt=구간), 확인 대기는 PATCH /records/{id}.
+         *     시간 기록 옵션과 관계없이 응답한다.
+         */
+        get: operations["listTimeGaps"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/worklog/records/pending": {
         parameters: {
             query?: never;
@@ -179,6 +206,29 @@ export interface paths {
          *     version을 받지 않는다. 되돌리기는 응답의 version으로 각 기록을 PATCH status=PENDING.
          */
         post: operations["confirmPendingRecords"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/worklog/records/time-summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 소요시간 집계 (P2-07, TIME-07 — SCR-LOG-02, SCR-STAT-01)
+         * @description workDate가 [from, to](양끝 포함, 최대 400일)인 확정(CONFIRMED)·보관하지 않은 기록의 durationMin을 더한다.
+         *     일·주·월은 화면이 기간으로 정한다(주는 프로필의 주 시작 요일로 화면이 계산). 실행 중 타이머와 시간 없는 기록은 빼고
+         *     recordCount에도 넣지 않는다. 겹친 기록은 겹친 만큼 두 번 센다(겹침은 경고일 뿐 저장되므로, TIME-06).
+         *     프로젝트는 연결 업무의 지금 프로젝트다. 업무 없는 기록은 taskId=null 한 줄로, 프로젝트 없는 업무는 projectId=null 한 줄로 묶는다.
+         */
+        get: operations["getTimeSummary"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -456,6 +506,80 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/worklog/timer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 지금 실행 중인 타이머 (SCR-COM-06)
+         * @description 타이머는 따로 저장하지 않는다. 실행 중 타이머 = startAt이 있고 endAt·durationMin이 없는 보관하지 않은 기록.
+         *     사용자당 하나뿐이다(DB 부분 UNIQUE, TIME-03). 브라우저를 닫아도 서버의 startAt 기준으로 이어진다.
+         *     시간 기록 옵션이 꺼져 있어도 응답한다(TIME-09).
+         */
+        get: operations["getTimer"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/worklog/timer/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 타이머 시작 — 실행 중인 타이머는 자동 정지 (TIME-03·10)
+         * @description 한 트랜잭션에서 (1) 실행 중인 타이머가 있으면 지금 시각으로 정지하고(규칙은 /timer/stop과 같다)
+         *     (2) startAt=지금, status=CONFIRMED인 기록을 만든다. workDate는 지금의 사용자 시간대 날짜(D-40).
+         *     - taskId만: content는 업무 제목. content를 함께 보내면 그 값. content만: 업무 없이 시작.
+         *     - scheduleId+occurrenceStart(이어달리기, TIME-10): 그 회차를 가져간다. 회차의 확인 대기 기록이 있으면 그 기록을
+         *       실행 중으로 바꾸고, 없으면 회차 키를 단 새 기록을 만든다(회차가 끝나도 확인 대기가 따로 생기지 않는다).
+         *       taskId·content를 안 보내면 회차의 업무·제목을 쓴다. 그 회차의 기록이 이미 확정·하지 않음·보관이면 409 ALREADY_RECORDED.
+         *     시간 기록 옵션이 꺼져 있으면 409 TIME_TRACKING_DISABLED.
+         */
+        post: operations["startTimer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/worklog/timer/stop": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 타이머 정지 + 이어달리기 제안 (TIME-03·10)
+         * @description 실행 중인 타이머의 endAt을 지금으로 채운다. 실행 중인 타이머가 없으면 stopped=null(멱등, 200).
+         *     - 1분이 안 되면 버린다(discarded=true): 직접 시작한 기록은 지우고(하드 삭제), 회차를 가져간 기록은 시간 칸을 비워 확인 대기로 되돌린다.
+         *     - 24시간을 넘으면 endAt=startAt+24시간으로 멈추고 capped=true(소요시간 최대 1440분). 화면은 안내 후 수정을 권한다.
+         *     - 시간 기록 옵션과 관계없이 동작한다(꺼진 상태에서도 남은 타이머를 멈출 수 있게).
+         *     이어달리기(next): 사용자 시간대 오늘과 겹치는 시간 일정 회차(종일·취소 제외) 중 끝 시각이 지금 이후이고
+         *     아직 기록이 없는 것 하나 — 시작이 이른 순(지금 진행 중인 회차가 먼저). 업무가 없는 회차도 제안한다. 없으면 null.
+         *     수락하면 화면이 /timer/start에 회차 키를 보낸다.
+         */
+        post: operations["stopTimer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -632,6 +756,23 @@ export interface components {
             startAt?: string | null;
             /** Format: date */
             startDate?: string | null;
+            title: string;
+        };
+        /** @description 계획 회차 하나 (이어달리기 제안). 시간 일정만. */
+        PlanBlock: {
+            /** Format: date-time */
+            endAt: string;
+            /**
+             * Format: date-time
+             * @description 회차 키 (D-71). /timer/start에 그대로 보낸다
+             */
+            occurrenceStart: string;
+            /** Format: uuid */
+            scheduleId: string;
+            /** Format: date-time */
+            startAt: string;
+            /** Format: uuid */
+            taskId: string | null;
             title: string;
         };
         /** @description RFC 9457 Problem Details + 확장 필드 (P0-10 공통 모듈 형식) */
@@ -912,6 +1053,116 @@ export interface components {
             /** Format: int64 */
             version: number;
         };
+        TimeGap: {
+            /** Format: date-time */
+            endAt: string;
+            frequent: components["schemas"]["FrequentTask"] | null;
+            /** Format: int32 */
+            minutes: number;
+            plan: components["schemas"]["TimeGapPlan"] | null;
+            previous: components["schemas"]["TimeGapPrevious"] | null;
+            /** Format: date-time */
+            startAt: string;
+        };
+        TimeGapList: {
+            /** @description 시간순 */
+            items: components["schemas"]["TimeGap"][];
+        };
+        /**
+         * @description 이 시간 계획: 구간과 가장 많이 겹치는 시간 일정 회차(이미 처리한 회차 제외). pendingRecordId가 있으면 새로 만들지 말고
+         *     그 기록을 PATCH(startAt·endAt·status=CONFIRMED)한다(같은 계획이 두 번 세어지지 않게).
+         */
+        TimeGapPlan: {
+            /** Format: date-time */
+            endAt: string;
+            /** Format: date-time */
+            occurrenceStart: string;
+            /** Format: uuid */
+            pendingRecordId: string | null;
+            /** Format: uuid */
+            scheduleId: string;
+            /** Format: date-time */
+            startAt: string;
+            /** Format: uuid */
+            taskId: string | null;
+            title: string;
+        };
+        /** @description 직전 업무 이어서: 구간 시작 이전에 끝난 가장 가까운 같은 날 시간 기록 */
+        TimeGapPrevious: {
+            content: string;
+            /** Format: uuid */
+            taskId: string | null;
+        };
+        /** @description 정렬: minutes 내림차순 → id(null은 뒤) */
+        TimeSummary: {
+            /** Format: date */
+            from: string;
+            projects: components["schemas"]["TimeSummaryProject"][];
+            /**
+             * Format: int32
+             * @description 더한 기록 수
+             */
+            recordCount: number;
+            tasks: components["schemas"]["TimeSummaryTask"][];
+            /** Format: date */
+            to: string;
+            /** Format: int32 */
+            totalMin: number;
+        };
+        TimeSummaryProject: {
+            /** Format: int32 */
+            minutes: number;
+            /**
+             * Format: uuid
+             * @description null = 업무 없는 기록·프로젝트 없는 업무
+             */
+            projectId: string | null;
+        };
+        TimeSummaryTask: {
+            /** Format: int32 */
+            minutes: number;
+            /**
+             * Format: uuid
+             * @description 업무의 지금 프로젝트
+             */
+            projectId: string | null;
+            /**
+             * Format: uuid
+             * @description null = 업무 없는 기록
+             */
+            taskId: string | null;
+        };
+        /**
+         * @description taskId·content·회차 키 중 하나 이상(content REQUIRED). scheduleId와 occurrenceStart는 함께 보낸다(빠진 쪽 INVALID_FORMAT).
+         *     taskId는 보관하지 않은 내 업무(NOT_FOUND). content는 앞뒤 공백을 뺀다. taskId만 보내면 content는 업무 제목.
+         */
+        TimerStart: {
+            content?: string | null;
+            /** Format: date-time */
+            occurrenceStart?: string | null;
+            /** Format: uuid */
+            scheduleId?: string | null;
+            /** Format: uuid */
+            taskId?: string | null;
+        };
+        TimerStartResult: {
+            running: components["schemas"]["WorkRecord"];
+            stopped: components["schemas"]["TimerStopped"] | null;
+        };
+        TimerState: {
+            running: components["schemas"]["WorkRecord"] | null;
+        };
+        TimerStopResult: {
+            next: components["schemas"]["PlanBlock"] | null;
+            stopped: components["schemas"]["TimerStopped"] | null;
+        };
+        TimerStopped: {
+            /** @description 24시간을 넘어 startAt+24시간으로 멈췄다 */
+            capped: boolean;
+            /** @description 1분 미만이라 버렸다. 직접 시작한 기록은 지웠고(record는 마지막 값), 회차를 가져간 기록은 확인 대기로 되돌렸다 */
+            discarded: boolean;
+            record: components["schemas"]["WorkRecord"];
+        };
         /**
          * @description 업무 기록 (REC-01, 요구사항 6장 WorkRecord). "무엇을 했고 결과가 어떤가".
          *     계획에서 온 기록은 scheduleId·occurrenceStart를 가진다(SCR-REC-01 ⑥ 출처 표시). 일정을 지우면 scheduleId는 null이 되고
@@ -986,6 +1237,8 @@ export interface components {
         };
         /**
          * @description startAt이 없으면 workDate 필수(REQUIRED). endAt은 startAt 없이 보낼 수 없고 startAt보다 늦어야 한다(INVALID_ORDER).
+         *     startAt을 보내면 endAt도 필수(endAt REQUIRED). 진행 중(endAt 없음) 기록은 타이머(/timer/start)만 만든다(동시 1개, P2-06).
+         *     PATCH도 같다: 끝난 기록의 endAt을 비울 수 없고, 실행 중인 타이머는 endAt 없이 startAt·내용·업무를 고칠 수 있으며 endAt을 넣으면 정지와 같다.
          *     durationMin은 startAt과 함께 보낼 수 없다(INVALID_FORMAT). progress는 outcome=IN_PROGRESS일 때만(INVALID_FORMAT).
          *     taskId는 보관하지 않은 내 업무여야 한다(NOT_FOUND). 내용·결과는 앞뒤 공백을 빼고 저장한다(빈 결과는 null).
          *     다른 기록과 시간이 겹쳐도 저장한다(겹침 경고는 화면이 같은 날 목록으로 계산, TIME-06).
@@ -1436,6 +1689,47 @@ export interface operations {
             };
         };
     };
+    listTimeGaps: {
+        parameters: {
+            query: {
+                date: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 빈 구간 (시간순) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TimeGapList"];
+                };
+            };
+            /** @description 값 형식 오류 (code=VALIDATION_FAILED) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description identity 조회 실패 (code=PROFILE_UNAVAILABLE) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     listPendingRecords: {
         parameters: {
             query?: never;
@@ -1507,6 +1801,40 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+        };
+    };
+    getTimeSummary: {
+        parameters: {
+            query: {
+                from: string;
+                /** @description from 이후(같아도 됨), from + 400일 이내 */
+                to: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 집계 결과 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TimeSummary"];
+                };
+            };
+            /** @description 값 형식 오류 (code=VALIDATION_FAILED) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
         };
     };
     getRecord: {
@@ -1657,6 +1985,15 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             /** @description 없거나 다른 사용자의 기록 (code=NOT_FOUND) */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description 보관 중 실행 중이던 타이머인데 지금 다른 타이머가 실행 중 (code=TIMER_RUNNING, 동시 1개) */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2373,6 +2710,118 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             /** @description 없거나 다른 사용자의 업무 (code=NOT_FOUND) */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getTimer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description running이 null이면 실행 중인 타이머 없음 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TimerState"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    startTimer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TimerStart"];
+            };
+        };
+        responses: {
+            /** @description 새로 실행 중인 타이머와, 자동 정지한 앞 타이머(없으면 null) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TimerStartResult"];
+                };
+            };
+            /** @description 입력 오류 (code=VALIDATION_FAILED). 업무가 없으면 errors[].code=NOT_FOUND */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description 회차(scheduleId·occurrenceStart)가 없거나 취소됨 (code=NOT_FOUND) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description 시간 기록 옵션 꺼짐(code=TIME_TRACKING_DISABLED), 그 회차는 이미 기록됨(code=ALREADY_RECORDED) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description identity 조회 실패 (code=PROFILE_UNAVAILABLE) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    stopTimer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 정지 결과와 이어달리기 제안 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TimerStopResult"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description identity 조회 실패 (code=PROFILE_UNAVAILABLE) */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
