@@ -190,6 +190,27 @@ ok(!inJobs('echo {} > a.json && sed -i s/a/b/ a.json'), 'cwd .claude/jobs: 그 �
 ok(classify('git push -f origin x') === 'force-push' && classify('git status') === null && classify('git rebase --abort') === null, 'classify regression');
 ok(ev('git push').decision === 'deny', 'non-commit session git push denied');
 ok(writesApprovalFiles('ls') === false, 'unrelated passes');
+
+// 세션 등록 기록에 실제 agent_type 덧쓰기(fork 세션은 SessionStart 기록이 null)
+{
+  const { noteAgentType } = require('../hooks/wy-approval-guard.js');
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'wy-note-'));
+  const file = path.join(root, 'sessions', 'sess-fork-0001.json');
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, JSON.stringify({ sessionId: 'sess-fork-0001', agentType: null, startedAt: 'x', source: 'fork' }));
+  const a = noteAgentType({ session_id: 'sess-fork-0001', agent_type: 'WY-commit' }, root);
+  const r1 = JSON.parse(fs.readFileSync(file, 'utf8'));
+  ok(r1.agentTypeSeen === 'WY-commit' && r1.seenAt && r1.agentType === null && r1.source === 'fork', 'fork 기록에 실제 역할을 덧씀(시작 기록은 유지)');
+  const m1 = fs.statSync(file).mtimeMs;
+  noteAgentType({ session_id: 'sess-fork-0001', agent_type: 'WY-commit' }, root);
+  ok(fs.statSync(file).mtimeMs === m1 && a.seenAt === JSON.parse(fs.readFileSync(file, 'utf8')).seenAt, '같은 값이면 다시 쓰지 않음');
+  noteAgentType({ session_id: 'sess-fork-0001' }, root);
+  ok(JSON.parse(fs.readFileSync(file, 'utf8')).agentTypeSeen === null, 'agent_type이 없으면 null로 바뀜');
+  noteAgentType({ session_id: 'sess-new-00002', agent_type: 'WY-qa' }, root);
+  ok(JSON.parse(fs.readFileSync(path.join(root, 'sessions', 'sess-new-00002.json'), 'utf8')).agentTypeSeen === 'WY-qa', '기록이 없으면 새로 만듦');
+  ok(noteAgentType({ session_id: '../x' }, root) === null, '이상한 id는 쓰지 않음');
+  fs.rmSync(root, { recursive: true, force: true });
+}
 fs.rmSync(proj, { recursive: true, force: true });
 fs.rmSync(process.env.WY_APPROVALS_DIR, { recursive: true, force: true });
 console.log(fail ? `${fail} FAILED` : `guard 검사 통과 (거부 ${deny.length}, 통과 ${allow.length})`);

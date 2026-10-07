@@ -66,19 +66,23 @@ assert.strictEqual(reason(live('a', { state: 'done', status: 'idle' })), null, '
   assert.deepStrictEqual([noFile.view, noFile.pending], ['permission', null], '파일이 없으면 명령 없이 권한 대기');
 }
 
-// 4. 역할 누락(OPS-06 4): agent:true 역할인데 등록 기록의 agentType이 다름. 기록이 없으면 판단하지 않음
+// 4. 역할 누락(OPS-06 4): agent:true 역할인데 실제 agent_type이 다름. 기록이 없으면 판단하지 않음
 {
-  const ops = { roles: [{ name: 'WY-commit', agent: true }, { name: 'WY-pm', agent: false }] };
-  const registry = new Map([
-    ['WY-commit-sid', { sessionId: 'WY-commit-sid', agentType: null }],
-    ['WY-pm-sid', { sessionId: 'WY-pm-sid', agentType: null }],
-    ['WY-qa-sid', { sessionId: 'WY-qa-sid', agentType: 'WY-qa' }],
-  ]);
-  const rows = buildStatus([live('WY-commit'), live('WY-pm'), live('WY-qa'), live('WY-design')], { ops, registry, now: NOW });
-  const missing = Object.fromEntries(rows.map((r) => [r.name, r.roleMissing]));
-  assert.deepStrictEqual(missing, { 'WY-commit': true, 'WY-pm': false, 'WY-qa': false, 'WY-design': false });
-  const ok = buildStatus([live('WY-commit')], { ops, registry: new Map([['WY-commit-sid', { agentType: 'WY-commit' }]]), now: NOW });
-  assert.strictEqual(ok[0].roleMissing, false, '역할이 맞으면 표시 없음');
+  const ops = { roles: [{ name: 'WY-commit', agent: true }, { name: 'WY-pm', agent: false }, { name: 'WY-qa', agent: true }] };
+  const missingOf = (rec) => buildStatus([live('WY-commit')], { ops, registry: new Map([['WY-commit-sid', { sessionId: 'WY-commit-sid', ...rec }]]), now: NOW })[0].roleMissing;
+  // fork로 이어 띄운 세션: SessionStart가 agent_type을 못 받아 null → 알 수 없음, 경고 없음(2026-10-07 오탐)
+  assert.strictEqual(missingOf({ agentType: null, source: 'fork' }), false, 'fork null은 경고 없음');
+  // 도구를 쓴 뒤: 가드 훅이 받은 값이 근거
+  assert.strictEqual(missingOf({ agentType: null, agentTypeSeen: 'WY-commit', seenAt: 't' }), false, '도구 사용 뒤 실제 역할이 맞으면 경고 없음');
+  assert.strictEqual(missingOf({ agentType: null, agentTypeSeen: null, seenAt: 't' }), true, '도구 사용 때 agent_type이 없으면(--agent 없이 뜸) 경고');
+  // 실제 불일치
+  assert.strictEqual(missingOf({ agentType: 'WY-qa' }), true, '시작 기록이 다른 역할이면 경고');
+  assert.strictEqual(missingOf({ agentType: 'WY-commit', agentTypeSeen: 'WY-qa', seenAt: 't' }), true, '도구 사용 때 다른 역할이면 경고(시작 기록보다 우선)');
+  assert.strictEqual(missingOf({ agentType: 'WY-commit' }), false, '역할이 맞으면 표시 없음');
+  // agent:false 역할·기록 없는 세션은 판단하지 않음
+  const registry = new Map([['WY-pm-sid', { sessionId: 'WY-pm-sid', agentType: null, agentTypeSeen: null, seenAt: 't' }]]);
+  const rows = buildStatus([live('WY-pm'), live('WY-design')], { ops, registry, now: NOW });
+  assert.deepStrictEqual(rows.map((r) => r.roleMissing), [false, false]);
 }
 
 // 5. 메시지를 받을 수 있는가(B2 SendMessage 훅과 같은 기준)

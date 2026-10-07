@@ -403,6 +403,28 @@ function evaluate(input, rootOverride) {
   return { decision: 'allow', reason: `승인 센터 결정 ${[...taken].join(', ')}` };
 }
 
+// 이 훅이 실제로 받은 agent_type을 세션 등록 기록(sessions/<sessionId>.json)에 덧쓴다(agentTypeSeen·seenAt).
+// SessionStart 훅은 fork로 이어 띄운 세션의 agent_type을 받지 못해 null을 남긴다(2026-10-07 WY-commit 역할 누락 오탐).
+// 도구를 한 번 쓴 뒤에는 여기 남은 값이 역할 판정의 근거가 된다. 값이 바뀔 때만 쓴다
+function noteAgentType(input, root) {
+  const id = String(input.session_id || '');
+  if (!/^[A-Za-z0-9-]{8,80}$/.test(id)) return null;
+  const dir = path.join(root, 'sessions');
+  const file = path.join(dir, `${id}.json`);
+  let rec = {};
+  try {
+    rec = store.readJson(file) || {};
+  } catch {
+    // 기록이 없으면(훅 설치 전에 뜬 세션) 새로 만든다
+  }
+  const seen = input.agent_type || null;
+  if (rec.seenAt && rec.agentTypeSeen === seen) return rec;
+  const out = { sessionId: id, agentType: rec.agentType === undefined ? null : rec.agentType, ...rec, agentTypeSeen: seen, seenAt: new Date().toISOString() };
+  fs.mkdirSync(dir, { recursive: true });
+  store.writeJsonAtomic(file, out);
+  return out;
+}
+
 function respond(result) {
   if (!result) process.exit(0); // 잠금 대상이 아니면 평소 권한 흐름대로
   const out = { hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: result.decision, permissionDecisionReason: result.reason } };
@@ -420,7 +442,13 @@ if (require.main === module) {
   process.stdin.on('data', (d) => (raw += d));
   process.stdin.on('end', () => {
     try {
-      respond(evaluate(JSON.parse(raw)));
+      const input = JSON.parse(raw);
+      try {
+        noteAgentType(input, store.rootFor(input.cwd || process.cwd()));
+      } catch {
+        // 기록은 판정 근거를 보태는 일이라 실패해도 가드 판단에 영향을 주지 않는다
+      }
+      respond(evaluate(input));
     } catch (err) {
       // 판단을 못 하면 막는다. 잠금 대상이 아니었더라도 원인을 알 수 있게 사유를 남긴다
       process.stderr.write(`WY 승인 가드 오류로 막았습니다: ${err.message}\n`);
@@ -429,4 +457,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { segments, classify, evaluate, writesApprovalFiles };
+module.exports = { segments, classify, evaluate, writesApprovalFiles, noteAgentType };
