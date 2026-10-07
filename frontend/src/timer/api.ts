@@ -13,6 +13,12 @@ export type TimerStart = Schemas['TimerStart']
 export type TimerStopped = Schemas['TimerStopped']
 export type PlanBlock = Schemas['PlanBlock']
 
+/** 무엇으로 시작할지 정해 둔 타이머(일정 회차·업무). name은 확인 문구에 쓴다 */
+export interface TimerPreset {
+  body: TimerStart
+  name: string
+}
+
 export const TIMER_QUERY_KEY = ['records', 'timer'] as const
 
 export const timerApi = {
@@ -81,6 +87,11 @@ export function startFailedMessage(error: unknown): string | null {
   if (error.code === 'TIME_TRACKING_DISABLED') return '시간 기록이 꺼져 있어요. 기록 옵션에서 켜 주세요'
   if (error.code === 'ALREADY_RECORDED') return '그 계획은 이미 기록했어요'
   return null
+}
+
+/** 시작 404의 까닭: 회차가 없거나 취소됨, 또는 업무가 없거나 보관됨 */
+export function notFoundMessage(body: TimerStart): string {
+  return body.scheduleId ? '그 일정이 바뀌었거나 취소됐어요' : '고른 업무를 찾지 못했어요. 보관됐을 수 있어요'
 }
 
 /** 토스트·안내 안의 업무명은 한 줄로 줄인다(내용은 500자까지) */

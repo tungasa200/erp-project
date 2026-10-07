@@ -1,6 +1,7 @@
 // 일정 상세·편집 (SCR-CAL-07). 새로 만들 때와 고칠 때 같은 모달을 쓴다. 저장 버튼이 있는 모달이다.
 // 반복 일정은 저장·삭제할 때 범위를 묻는다(SCR-CAL-08). 종일 여부·반복 규칙을 바꾸면 "모든 일정"만 가능하다(계약 OccurrencePatch).
 // ④ 연결 업무는 TaskLinkField(P1-05-06, 반복 일정은 시리즈 전체에 연결 D-71). ⑥ 기록 상태는 P2라 아직 없다.
+// 오늘의 시간 일정이면 [이 일정으로 타이머 시작](P2-06, 사용자 결정 2026-10-07): 회차 키를 보내 회차를 타이머가 가져간다(D-101).
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { toastForError } from '../api/errorToast'
@@ -9,6 +10,7 @@ import { Skeleton } from '../components/Skeleton'
 import { useOnline } from '../components/useOnline'
 import { useToast } from '../components/useToast'
 import { TASKS_QUERY_KEY } from '../tasks/api'
+import { useTimerLauncher } from '../timer/useTimerLauncher'
 import { occurrenceFocusId } from './focus'
 import { Modal } from './Modal'
 import { TaskLinkField } from './TaskLinkField'
@@ -33,6 +35,7 @@ import {
   formatMinutes,
   fromZoned,
   toZoned,
+  todayIn,
   weekdayIndex,
   type Weekday,
 } from './time'
@@ -359,6 +362,13 @@ export function ScheduleDialog({ timeZone, draft, occurrence, askScope, onDelete
   }
 
   const title = occurrence ? '일정 편집' : '새 일정'
+  // 고치던 칸이 있으면(form) 시작해도 모달을 닫지 않는다(고친 내용을 잃지 않게)
+  const timer = useTimerLauncher(() => !form && onClose())
+  const timerStart =
+    timer.available && latest && !latest.allDay && latest.startAt && latest.endAt
+      ? { start: toZoned(latest.startAt, timeZone), end: toZoned(latest.endAt, timeZone) }
+      : null
+  const todayPlan = timerStart?.start.date === todayIn(timeZone) ? timerStart : null
   /** 오류 문구가 가리키는 칸이면 aria-invalid와 문구 연결 */
   const invalid = (group: 'time' | 'recurrence', at: TimeField | RecurrenceField) =>
     errors[`${group}At`] === at ? { 'aria-invalid': true, 'aria-describedby': `${id}-${group}-error` } : {}
@@ -379,6 +389,29 @@ export function ScheduleDialog({ timeZone, draft, occurrence, askScope, onDelete
           </button>
         </div>
       )}
+      {todayPlan && (
+        <div className={styles.timerBand}>
+          <span>
+            오늘 {formatMinutes(todayPlan.start.minutes)}~
+            {todayPlan.end.date === todayPlan.start.date ? '' : '다음 날 '}
+            {formatMinutes(todayPlan.end.minutes)} 계획
+          </span>
+          <button
+            type="button"
+            className={styles.secondary}
+            disabled={!online || timer.busy}
+            onClick={() =>
+              void timer.launch({
+                body: { scheduleId: latest!.scheduleId, occurrenceStart: latest!.occurrenceStart },
+                name: latest!.title,
+              })
+            }
+          >
+            이 일정으로 타이머 시작
+          </button>
+        </div>
+      )}
+      {timer.dialog}
       {!current ? (
         schedule.isError ? (
           <p className={styles.muted}>일정을 불러오지 못했어요. 이미 삭제됐을 수 있어요</p>
