@@ -140,6 +140,8 @@ class WorkRecordController {
 
 	@Schema(name = "WorkRecordCreate", description = """
 			startAt이 없으면 workDate 필수(REQUIRED). endAt은 startAt 없이 보낼 수 없고 startAt보다 늦어야 한다(INVALID_ORDER).
+			startAt을 보내면 endAt도 필수(endAt REQUIRED). 진행 중(endAt 없음) 기록은 타이머(/timer/start)만 만든다(동시 1개, P2-06).
+			PATCH도 같다: 끝난 기록의 endAt을 비울 수 없고, 실행 중인 타이머는 endAt 없이 startAt·내용·업무를 고칠 수 있으며 endAt을 넣으면 정지와 같다.
 			durationMin은 startAt과 함께 보낼 수 없다(INVALID_FORMAT). progress는 outcome=IN_PROGRESS일 때만(INVALID_FORMAT).
 			taskId는 보관하지 않은 내 업무여야 한다(NOT_FOUND). 내용·결과는 앞뒤 공백을 빼고 저장한다(빈 결과는 null).
 			다른 기록과 시간이 겹쳐도 저장한다(겹침 경고는 화면이 같은 날 목록으로 계산, TIME-06).""")
@@ -158,10 +160,12 @@ class WorkRecordController {
 	}
 
 	private final WorkRecordService records;
+	private final TimeQueries times;
 	private final UserProfileService profiles;
 
-	WorkRecordController(WorkRecordService records, UserProfileService profiles) {
+	WorkRecordController(WorkRecordService records, TimeQueries times, UserProfileService profiles) {
 		this.records = records;
+		this.times = times;
 		this.profiles = profiles;
 	}
 
@@ -253,6 +257,49 @@ class WorkRecordController {
 				.stream().map(WorkRecordView::of).toList());
 	}
 
+	@GetMapping("/time-summary")
+	@Operation(operationId = "getTimeSummary", summary = "소요시간 집계 (P2-07, TIME-07 — SCR-LOG-02, SCR-STAT-01)",
+			description = """
+					workDate가 [from, to](양끝 포함, 최대 400일)인 확정(CONFIRMED)·보관하지 않은 기록의 durationMin을 더한다.
+					일·주·월은 화면이 기간으로 정한다(주는 프로필의 주 시작 요일로 화면이 계산). 실행 중 타이머와 시간 없는 기록은 빼고
+					recordCount에도 넣지 않는다. 겹친 기록은 겹친 만큼 두 번 센다(겹침은 경고일 뿐 저장되므로, TIME-06).
+					프로젝트는 연결 업무의 지금 프로젝트다. 업무 없는 기록은 taskId=null 한 줄로, 프로젝트 없는 업무는 projectId=null 한 줄로 묶는다.""",
+			security = @SecurityRequirement(name = SecurityConfig.COOKIE_SCHEME))
+	@ApiResponse(responseCode = "200", description = "집계 결과")
+	@ApiResponse(responseCode = "400", description = "값 형식 오류 (code=VALIDATION_FAILED)",
+			content = @Content(mediaType = "application/problem+json", schema = @Schema(ref = PROBLEM)))
+	TimeViews.TimeSummaryView timeSummary(@Parameter(hidden = true) CurrentUser user,
+			@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+			@Parameter(required = true) LocalDate from,
+			@Parameter(required = true, description = "from 이후(같아도 됨), from + 400일 이내")
+			@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+		return TimeViews.TimeSummaryView.of(times.summary(user.id(), from, to));
+	}
+
+	@GetMapping("/gaps")
+	@Operation(operationId = "listTimeGaps", summary = "빈 시간과 후보 (P2-07, TIME-11 — SCR-HOME-03, 하루 마감 1단계)",
+			description = """
+					date의 업무 시간대(WorklogSettings.workHoursStart~End, 사용자의 현재 시간대) 중 기록이 없는 15분 이상 구간을 시간순으로 준다.
+					- 덮은 구간: 보관하지 않은 확정 기록의 [startAt, endAt), 실행 중 타이머는 [startAt, 지금). workDate와 관계없이 시각으로 본다.
+					- 오늘이면 지금 이후는 빼고, 미래 날짜면 빈 배열. 업무 요일이 아닌 날도 계산한다(표시 여부는 화면이 정한다).
+					- 먼저 그날 끝난 회차의 확인 대기를 만든다(D-31) — 계획 후보가 그 기록을 가리키게.
+					구간마다 후보 3종(없으면 null): previous(직전 업무 이어서), plan(이 시간 계획, 확인 대기면 pendingRecordId),
+					frequent(구간 시작 시각 기준 자주 하는 업무 1위, GET /tasks/frequent?at=).
+					채우기는 기존 API를 쓴다: 새 기록은 POST /records(startAt·endAt=구간), 확인 대기는 PATCH /records/{id}.
+					시간 기록 옵션과 관계없이 응답한다.""",
+			security = @SecurityRequirement(name = SecurityConfig.COOKIE_SCHEME))
+	@ApiResponse(responseCode = "200", description = "빈 구간 (시간순)")
+	@ApiResponse(responseCode = "400", description = "값 형식 오류 (code=VALIDATION_FAILED)",
+			content = @Content(mediaType = "application/problem+json", schema = @Schema(ref = PROBLEM)))
+	@ApiResponse(responseCode = "503", description = "identity 조회 실패 (code=PROFILE_UNAVAILABLE)",
+			content = @Content(mediaType = "application/problem+json", schema = @Schema(ref = PROBLEM)))
+	TimeViews.TimeGapList gaps(@Parameter(hidden = true) CurrentUser user, @AuthenticationPrincipal Jwt jwt,
+			@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+			@Parameter(required = true) LocalDate date) {
+		return new TimeViews.TimeGapList(times.gaps(user.id(), timezone(user, jwt), date).stream()
+				.map(TimeViews.TimeGapView::of).toList());
+	}
+
 	@GetMapping("/{recordId}")
 	@Operation(operationId = "getRecord", summary = "업무 기록 조회 (보관한 기록 포함)",
 			security = @SecurityRequirement(name = SecurityConfig.COOKIE_SCHEME))
@@ -308,6 +355,8 @@ class WorkRecordController {
 			security = @SecurityRequirement(name = SecurityConfig.COOKIE_SCHEME))
 	@ApiResponse(responseCode = "200", description = "복원 후 전체")
 	@ApiResponse(responseCode = "404", description = "없거나 다른 사용자의 기록 (code=NOT_FOUND)",
+			content = @Content(mediaType = "application/problem+json", schema = @Schema(ref = PROBLEM)))
+	@ApiResponse(responseCode = "409", description = "보관 중 실행 중이던 타이머인데 지금 다른 타이머가 실행 중 (code=TIMER_RUNNING, 동시 1개)",
 			content = @Content(mediaType = "application/problem+json", schema = @Schema(ref = PROBLEM)))
 	WorkRecordView restore(@Parameter(hidden = true) CurrentUser user, @PathVariable UUID recordId) {
 		return WorkRecordView.of(records.restore(user.id(), recordId));

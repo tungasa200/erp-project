@@ -92,10 +92,9 @@ class WorkRecordApiTest {
 			.andExpect(jsonPath("$.workDate").value("2026-10-08"))
 			.andExpect(jsonPath("$.durationMin").value(90));
 
-		// 시작만 있으면 진행 중(소요시간 없음)
-		send(ALICE, post("/api/worklog/records"), "{\"content\":\"타이머\",\"startAt\":\"2026-10-07T01:00:00Z\"}")
-			.andExpect(jsonPath("$.endAt").isEmpty())
-			.andExpect(jsonPath("$.durationMin").isEmpty());
+		// 시작만 보내면 안 된다: 진행 중 기록은 타이머만 만든다 (P2-06)
+		expectFieldError(send(ALICE, post("/api/worklog/records"), "{\"content\":\"타이머\",\"startAt\":\"2026-10-07T01:00:00Z\"}"),
+				"endAt", "REQUIRED");
 	}
 
 	@Test
@@ -130,8 +129,8 @@ class WorkRecordApiTest {
 		String task = id(send(ALICE, post("/api/worklog/tasks"),
 				"{\"title\":\"업무\",\"projectId\":\"" + project + "\",\"tagIds\":[\"" + tag + "\"]}"));
 		String noTime = id(record(ALICE, "{\"content\":\"시간 없음\",\"workDate\":\"2026-10-07\"}"));
-		String late = id(record(ALICE, "{\"content\":\"늦게\",\"startAt\":\"2026-10-07T05:00:00Z\",\"taskId\":\"" + task + "\"}"));
-		String early = id(record(ALICE, "{\"content\":\"일찍\",\"startAt\":\"2026-10-07T01:00:00Z\"}"));
+		String late = id(record(ALICE, "{\"content\":\"늦게\",\"startAt\":\"2026-10-07T05:00:00Z\",\"endAt\":\"2026-10-07T06:00:00Z\",\"taskId\":\"" + task + "\"}"));
+		String early = id(record(ALICE, "{\"content\":\"일찍\",\"startAt\":\"2026-10-07T01:00:00Z\",\"endAt\":\"2026-10-07T02:00:00Z\"}"));
 		String prev = id(record(ALICE, "{\"content\":\"전날\",\"workDate\":\"2026-10-06\"}"));
 		String archived = id(record(ALICE, "{\"content\":\"보관\",\"workDate\":\"2026-10-07\"}"));
 		send(ALICE, delete("/api/worklog/records/" + archived), "").andExpect(status().isNoContent());
@@ -182,7 +181,7 @@ class WorkRecordApiTest {
 
 	@Test
 	void 날짜는_startAt이_바뀔_때만_다시_계산하고_시간대를_바꿔도_그대로다() throws Exception {
-		String id = id(record(ALICE, "{\"content\":\"t\",\"startAt\":\"2026-10-07T16:00:00Z\"}"));
+		String id = id(record(ALICE, "{\"content\":\"t\",\"startAt\":\"2026-10-07T16:00:00Z\",\"endAt\":\"2026-10-07T17:00:00Z\"}"));
 		jdbc.sql("UPDATE user_snapshot SET timezone = 'America/New_York' WHERE user_id = ?").params(ALICE).update();
 
 		send(ALICE, patch("/api/worklog/records/" + id), "{\"version\":0,\"content\":\"내용만\",\"workDate\":\"2026-01-01\"}")
@@ -190,8 +189,10 @@ class WorkRecordApiTest {
 		// 뉴욕 기준 10/7 12:00
 		send(ALICE, patch("/api/worklog/records/" + id), "{\"version\":1,\"startAt\":\"2026-10-07T16:00:01Z\"}")
 			.andExpect(jsonPath("$.workDate").value("2026-10-07"));
+		// 끝난 기록의 endAt만 비울 수는 없다 (P2-06)
+		expectFieldError(send(ALICE, patch("/api/worklog/records/" + id), "{\"version\":2,\"endAt\":null}"), "endAt", "REQUIRED");
 		// 시간을 비우면 날짜는 보낸 값
-		send(ALICE, patch("/api/worklog/records/" + id), "{\"version\":2,\"startAt\":null,\"workDate\":\"2026-10-09\"}")
+		send(ALICE, patch("/api/worklog/records/" + id), "{\"version\":2,\"startAt\":null,\"endAt\":null,\"workDate\":\"2026-10-09\"}")
 			.andExpect(jsonPath("$.workDate").value("2026-10-09"))
 			.andExpect(jsonPath("$.startAt").isEmpty());
 	}

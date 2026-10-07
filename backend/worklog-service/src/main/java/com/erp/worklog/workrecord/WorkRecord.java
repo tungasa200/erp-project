@@ -66,6 +66,12 @@ class WorkRecord {
 		this.updatedAt = now;
 	}
 
+	/** 타이머가 계획 회차를 가져간 기록 (P2-06 이어달리기). 만들 때 한 번만 정한다. */
+	void plan(UUID scheduleId, Instant occurrenceStart) {
+		this.scheduleId = scheduleId;
+		this.occurrenceStart = occurrenceStart;
+	}
+
 	void status(Status status) {
 		this.status = status;
 	}
@@ -115,6 +121,11 @@ class WorkRecord {
 	/** 계획(일정 회차)에서 온 기록인지. 일정을 지워도 회차 키는 남는다. */
 	boolean fromPlan() {
 		return occurrenceStart != null;
+	}
+
+	/** 실행 중인 타이머 모양인지 (시작만 있고 끝·소요시간이 없다, V7 work_record_one_running). 보관 여부는 따로 본다. */
+	boolean running() {
+		return startAt != null && endAt == null && durationMin == null;
 	}
 
 	UUID id() {

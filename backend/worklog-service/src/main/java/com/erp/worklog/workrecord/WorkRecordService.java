@@ -9,6 +9,7 @@ import com.erp.worklog.schedule.EndedOccurrences;
 import com.erp.worklog.schedule.EndedOccurrences.Ended;
 import com.erp.worklog.workrecord.WorkRecord.Outcome;
 import com.erp.worklog.workrecord.WorkRecord.Status;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
@@ -176,6 +177,10 @@ class WorkRecordService {
 		if (n.startAt() == null && n.workDate() == null) {
 			errors.add(error("workDate", "REQUIRED"));
 		}
+		// 진행 중(endAt 없음) 기록은 타이머만 만든다 (P2-06, 동시 1개)
+		if (n.startAt() != null && n.endAt() == null) {
+			errors.add(error("endAt", "REQUIRED"));
+		}
 		if (n.taskId() != null) {
 			checkTask(ownerId, n.taskId(), errors);
 		}
@@ -213,6 +218,10 @@ class WorkRecordService {
 				c.endAt() == null ? r.endAt() : c.endAt().orElse(null),
 				c.durationMin() == null ? r.durationMin() : c.durationMin().orElse(null),
 				c.durationMin() != null && c.durationMin().isPresent()), errors);
+		// 끝난 기록의 endAt은 비울 수 없다. 실행 중인 타이머는 끝 없이 고칠 수 있다 (P2-06)
+		if (v.startAt() != null && v.endAt() == null && !r.running()) {
+			errors.add(error("endAt", "REQUIRED"));
+		}
 		UUID taskId = c.taskId() == null ? r.taskId() : c.taskId().orElse(null);
 		if (taskId != null && !taskId.equals(r.taskId())) {
 			checkTask(ownerId, taskId, errors);
@@ -245,11 +254,23 @@ class WorkRecordService {
 		find(ownerId, id).delete(clock.instant());
 	}
 
+	/** 보관 중 실행 중이던 타이머는 다른 타이머가 돌고 있으면 복원하지 않는다 (409 TIMER_RUNNING, 동시 1개). */
 	@Transactional
 	RecordInfo restore(UUID ownerId, UUID id) {
 		WorkRecord r = find(ownerId, id);
+		if (r.deletedAt() != null && r.running() && records.findRunning(ownerId).isPresent()) {
+			throw timerRunning();
+		}
 		r.restore(clock.instant());
-		return infos(List.of(records.saveAndFlush(r))).getFirst();
+		try {
+			return infos(List.of(records.saveAndFlush(r))).getFirst();
+		} catch (DataIntegrityViolationException e) {
+			throw timerRunning(); // 확인과 복원 사이에 타이머가 시작됨 (부분 UNIQUE가 막음)
+		}
+	}
+
+	static ApiException timerRunning() {
+		return new ApiException(HttpStatus.CONFLICT, "TIMER_RUNNING", "다른 타이머가 실행 중이에요. 먼저 정지해 주세요.");
 	}
 
 	/**
@@ -257,7 +278,7 @@ class WorkRecordService {
 	 * (일정, 회차 시작) UNIQUE라 이미 있으면(상태·보관과 관계없이) 그대로 두고, 동시에 불려도 하나만 생긴다.
 	 * 시간 칸은 비운다(계획 시간은 실제 시간이 아니다). 찾은 회차를 (일정, 회차 키)로 돌려준다.
 	 */
-	private Map<String, Ended> generate(UUID ownerId, LocalDate from, LocalDate to) {
+	Map<String, Ended> generate(UUID ownerId, LocalDate from, LocalDate to) {
 		Instant now = clock.instant();
 		List<Ended> ended = occurrences.find(ownerId, from, to, now);
 		Map<String, Ended> plans = new HashMap<>();
@@ -288,12 +309,12 @@ class WorkRecordService {
 		return plans;
 	}
 
-	private static String key(UUID scheduleId, Instant occurrenceStart) {
+	static String key(UUID scheduleId, Instant occurrenceStart) {
 		return scheduleId + "@" + occurrenceStart;
 	}
 
 	/** JPA 밖에서 넣는 행의 id. 앞 48비트가 만든 밀리초인 UUIDv7 (RFC 9562). */
-	private static UUID uuidV7(Instant now) {
+	static UUID uuidV7(Instant now) {
 		ThreadLocalRandom random = ThreadLocalRandom.current();
 		long high = (now.toEpochMilli() << 16) | 0x7000L | (random.nextLong() & 0xFFFL);
 		long low = (random.nextLong() & 0x3FFFFFFFFFFFFFFFL) | Long.MIN_VALUE;
@@ -365,12 +386,12 @@ class WorkRecordService {
 		}
 	}
 
-	private static LocalDate dateOf(Instant at, Supplier<String> timezone) {
+	static LocalDate dateOf(Instant at, Supplier<String> timezone) {
 		return LocalDate.ofInstant(at, ZoneId.of(timezone.get()));
 	}
 
 	/** 보관하지 않은 내 업무여야 한다. 다른 사용자의 업무는 없는 것과 같다. */
-	private void checkTask(UUID ownerId, UUID taskId, List<FieldErrorDetail> errors) {
+	void checkTask(UUID ownerId, UUID taskId, List<FieldErrorDetail> errors) {
 		if (jdbc.sql("SELECT count(*) FROM task WHERE id = ? AND owner_id = ? AND deleted_at IS NULL")
 				.params(taskId, ownerId).query(Long.class).single() == 0) {
 			errors.add(error("taskId", "NOT_FOUND"));
@@ -378,7 +399,7 @@ class WorkRecordService {
 	}
 
 	/** 연결 업무의 프로젝트·태그를 한 번에 붙인다. */
-	private List<RecordInfo> infos(List<WorkRecord> found) {
+	List<RecordInfo> infos(List<WorkRecord> found) {
 		List<UUID> taskIds = found.stream().map(WorkRecord::taskId).filter(Objects::nonNull).distinct().toList();
 		Map<UUID, UUID> projects = new HashMap<>();
 		Map<UUID, List<UUID>> tags = new HashMap<>();
@@ -402,11 +423,11 @@ class WorkRecordService {
 				r.version())).toList();
 	}
 
-	private static FieldErrorDetail error(String field, String code) {
+	static FieldErrorDetail error(String field, String code) {
 		return new FieldErrorDetail(field, code, null);
 	}
 
-	private static void throwIfAny(List<FieldErrorDetail> errors) {
+	static void throwIfAny(List<FieldErrorDetail> errors) {
 		if (!errors.isEmpty()) {
 			throw new ApiException(HttpStatus.BAD_REQUEST, Problems.VALIDATION_FAILED, "입력값을 확인해 주세요.", errors,
 					Map.of());
