@@ -274,7 +274,15 @@ export const mockFetch: typeof fetch = async (input, init) => {
     if (method === 'PATCH') {
       if (body.version !== current.version) return problem(409, 'VERSION_CONFLICT')
       const { version: _, ...fields } = body
-      account.settings = { ...current, ...(fields as Partial<WorklogSettings>), version: current.version + 1 }
+      const next = { ...current, ...(fields as Partial<WorklogSettings>), version: current.version + 1 }
+      // 서버와 같게: 업무 종료는 시작보다 늦어야 한다(자정 넘는 시간대 없음)
+      if (next.workHoursEnd <= next.workHoursStart)
+        return problem(400, 'VALIDATION_FAILED', {
+          errors: [
+            { field: 'workHoursEnd', code: 'INVALID_ORDER', message: '업무 종료 시각은 시작 시각보다 늦어야 해요.' },
+          ],
+        })
+      account.settings = next
       save(state)
       return json(200, account.settings)
     }
