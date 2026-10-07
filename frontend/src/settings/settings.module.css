@@ -221,6 +221,27 @@
   font-weight: 700;
 }
 
+.hours {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-text-muted);
+}
+
+.time {
+  /* 폭은 브라우저에 맡긴다: 한국어 로캘은 '오전 09:00'처럼 오전·오후가 붙는다 */
+  font-variant-numeric: tabular-nums;
+}
+
+.time:focus-visible {
+  outline: none;
+  border-color: var(--color-accent);
+}
+
+.time[aria-invalid='true'] {
+  border-color: var(--color-danger);
+}
+
 .days {
   display: flex;
   flex-wrap: wrap;

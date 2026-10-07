@@ -1,4 +1,5 @@
 // 설정 화면 공통 조각: 항목별 저장 오류, 동시 수정 충돌 띠 (화면정의서 2.5)
+import type { ReactNode } from 'react'
 import { CopyCodeButton } from '../components/CopyCodeButton'
 import { focusSectionHeading } from '../components/focusFallback'
 import styles from './settings.module.css'
@@ -10,6 +11,20 @@ const INVALID_MESSAGE: Record<string, string> = {
   TOO_LONG: '100자 이하로 적어 주세요',
   TIMEZONE_INVALID: '지원하지 않는 시간대예요',
   WORK_DAYS_INVALID: '업무 요일을 하루 이상 골라 주세요',
+  INVALID_ORDER: '종료 시각은 시작 시각보다 늦어야 해요',
+}
+
+/** 설정 한 항목: 왼쪽 제목·설명, 오른쪽 입력 */
+export function Row({ title, description, children }: { title: ReactNode; description: string; children: ReactNode }) {
+  return (
+    <div className={styles.row}>
+      <div className={styles.rowText}>
+        <div className={styles.rowTitle}>{title}</div>
+        <div className={styles.rowDescription}>{description}</div>
+      </div>
+      <div className={styles.rowControl}>{children}</div>
+    </div>
+  )
 }
 
 /** 그 항목 아래에 보여 줄 저장 실패 안내. 충돌은 화면 위 띠가 대신 알린다 */

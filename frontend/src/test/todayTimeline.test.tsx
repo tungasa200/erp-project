@@ -84,9 +84,10 @@ function server(
     holdSchedules?: boolean
     gaps?: TimeGap[]
     totalMin?: number
+    records?: WorkRecord[]
   } = {},
 ) {
-  let records = RECORDS.map((r) => ({ ...r }))
+  let records = (options.records ?? RECORDS).map((r) => ({ ...r }))
   const calls: { method: string; url: string; body?: unknown }[] = []
   const fetchMock = stubFetch({
     'GET /api/users/me': () => json(200, ME),
@@ -339,6 +340,38 @@ describe('SCR-HOME-01 ③ 오늘 일정 (P2-08)', () => {
     const editor = await screen.findByRole('dialog', { name: '확인 대기 수정' })
     expect(await within(editor).findByLabelText('시작')).toHaveValue('10:00')
     expect(within(editor).getByLabelText('종료')).toHaveValue('11:00')
+  })
+
+  // TC-P2-prod-timer-discard-pending: 끝나기 전 회차에 타이머를 1분 미만으로 버리면 서버가 그 기록을 PENDING으로 되돌린다.
+  // 확인 대기는 끝난 회차만(D-31)이므로 진행 중·예정 회차에는 태그·처리 버튼을 붙이지 않는다
+  const DISCARDED = [
+    ...RECORDS,
+    rec('r6', { ...link(OCCURRENCES[3]), content: '워크숍', status: 'PENDING' }),
+    rec('r7', { ...link(OCCURRENCES[4]), content: '고객사 미팅', status: 'PENDING' }),
+  ]
+
+  it('옵션 꺼짐: 끝나기 전 회차의 PENDING 기록에는 확인 대기 태그·버튼이 없다', async () => {
+    server({ records: DISCARDED })
+    renderApp('/')
+    const today = await section()
+    await within(today).findByRole('button', { name: '코드 리뷰 했어요' })
+    const rows = within(today)
+      .getAllByRole('listitem')
+      .map((li) => li.textContent)
+    expect(rows.slice(3)).toEqual(['11:30 – 13:00워크숍진행 중', '지금 12:00', '15:00 – 16:00고객사 미팅'])
+    expect(within(today).queryByRole('button', { name: '워크숍 했어요' })).not.toBeInTheDocument()
+    expect(within(today).queryByRole('button', { name: '고객사 미팅 했어요' })).not.toBeInTheDocument()
+  })
+
+  it('옵션 켜짐: 끝나기 전 회차의 PENDING 기록은 확인 대기 블록이 아니다', async () => {
+    server({ timeTracking: true, records: DISCARDED })
+    renderApp('/')
+    const today = await section()
+    const plan = await within(today).findByRole('list', { name: '계획' })
+    await within(plan).findByRole('button', { name: '10:00–11:00 코드 리뷰, 확인 대기, 눌러서 확인' })
+    expect(within(plan).getByRole('img', { name: '11:30–13:00 워크숍' })).toBeInTheDocument()
+    expect(within(plan).getByRole('img', { name: '15:00–16:00 고객사 미팅' })).toBeInTheDocument()
+    expect(within(plan).getAllByText('확인 대기')).toHaveLength(2)
   })
 
   it('불러오는 동안 "없어요"를 먼저 보이지 않는다', async () => {

@@ -1,13 +1,15 @@
 // SCR-SET-02 설정 — 일반. ①시간대 ②주 시작 요일 ③업무 요일 ⑥키보드 단축키는 identity 프로필이고 바꾸는 즉시 항목별로 저장한다.
-// ④업무 시간대(P2)·⑤하루 마감 시각(P3)은 worklog 설정이며 화면정의서 단계 표기에 따라 그 단계에서 같은 방식으로 더한다.
+// ④업무 시간대(P2)는 worklog 설정이라 따로 저장한다(WorkHoursSetting). ⑤하루 마감 시각(P3)도 그 단계에서 같은 방식으로 더한다.
 import { useId, useState, type ReactNode } from 'react'
 import type { Me } from '../api/types'
 import { useAuth } from '../auth/useAuth'
 import { WEEKDAY_NAMES } from '../quickInput/dates'
-import { ConflictBanner, SaveError } from './parts'
+import { ConflictBanner, Row, SaveError } from './parts'
 import { TimeZoneCombobox } from './TimeZoneCombobox'
 import styles from './settings.module.css'
 import { useProfileSaver, type ProfilePatch, type SaveResult } from './useProfileSaver'
+import { useWorklogSettingsSaver } from './useWorklogSettings'
+import { WorkHoursSetting } from './WorkHoursSetting'
 
 type Save = (patch: ProfilePatch) => Promise<SaveResult>
 type Failure = Extract<SaveResult, { ok: false }>
@@ -31,6 +33,9 @@ export function GeneralSettings() {
   const { save, conflict, reload } = useProfileSaver()
   // 충돌 뒤 새로 불러오면 입력칸을 서버 값으로 다시 채운다(key로 다시 만든다).
   const [reloaded, setReloaded] = useState<{ me: Me; count: number } | null>(null)
+  // ④는 worklog 설정이라 저장·충돌을 따로 다룬다
+  const worklog = useWorklogSettingsSaver()
+  const [worklogReloads, setWorklogReloads] = useState(0)
   if (!user) return null
 
   return (
@@ -43,27 +48,27 @@ export function GeneralSettings() {
           }}
         />
       )}
+      {worklog.conflict && !conflict && (
+        <ConflictBanner
+          onReload={async () => {
+            if (await worklog.reload()) setWorklogReloads((n) => n + 1)
+          }}
+        />
+      )}
       <h2 id="settings-general" className={styles.panelTitle}>
         일반
       </h2>
-      <GeneralForm key={reloaded?.count ?? 0} user={reloaded?.me ?? user} save={save} />
+      <GeneralForm
+        key={reloaded?.count ?? 0}
+        user={reloaded?.me ?? user}
+        save={save}
+        workHours={<WorkHoursSetting save={worklog.save} reloadKey={worklogReloads} />}
+      />
     </section>
   )
 }
 
-function Row({ title, description, children }: { title: ReactNode; description: string; children: ReactNode }) {
-  return (
-    <div className={styles.row}>
-      <div className={styles.rowText}>
-        <div className={styles.rowTitle}>{title}</div>
-        <div className={styles.rowDescription}>{description}</div>
-      </div>
-      <div className={styles.rowControl}>{children}</div>
-    </div>
-  )
-}
-
-function GeneralForm({ user, save }: { user: Me; save: Save }) {
+function GeneralForm({ user, save, workHours }: { user: Me; save: Save; workHours: ReactNode }) {
   const id = useId()
   const timezone = useInstantSave(user.timezone, (v) => ({ timezone: v }), save)
   const weekStart = useInstantSave(user.weekStart, (v) => ({ weekStart: v }), save)
@@ -148,6 +153,8 @@ function GeneralForm({ user, save }: { user: Me; save: Save }) {
         </p>
       )}
       <SaveError id={`${id}-wd-error`} failure={workDays.failure} onRetry={workDays.retry} />
+
+      {workHours}
 
       <Row
         title={<label htmlFor={`${id}-sc`}>키보드 단축키</label>}

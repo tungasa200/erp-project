@@ -49,10 +49,12 @@ export function planEntries(
     // 종일 일정은 그날이 끝나야 끝난다(오늘 안에서는 '진행 중'으로 보지 않고 예정으로 둔다)
     const phase: PlanPhase =
       endsAt === null ? 'upcoming' : endsAt <= now ? 'ended' : startsAt! <= now ? 'now' : 'upcoming'
+    const record = byLink.get(linkKey(o.scheduleId, o.occurrenceStart))
     return {
       key: `${o.scheduleId}|${o.occurrenceStart}`,
       occurrence: o,
-      record: byLink.get(linkKey(o.scheduleId, o.occurrenceStart)),
+      // 확인 대기는 끝난 회차만(D-31). 끝나기 전 회차의 PENDING(타이머를 1분 미만으로 버리면 서버가 되돌림)은 없는 것으로 본다
+      record: record?.status === 'PENDING' && phase !== 'ended' ? undefined : record,
       phase,
       start,
       end,
