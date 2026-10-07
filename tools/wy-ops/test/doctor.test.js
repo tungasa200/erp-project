@@ -104,6 +104,7 @@ try {
     assert.strictEqual(snapshot(pc.root), before, '어떤 파일도 쓰지 않음');
     assert.ok(results.every((r) => r.id && r.title && r.detail !== undefined && 'fix' in r), '결과 형식');
     assert.ok(byId(results).ledger.detail.includes('새로 시작'), 'wy-ops 확장이 있으면 원장 새로 시작 안내');
+    assert.strictEqual(byId(results).extension.detail, `wy-ops.wy-ops(껍데기) · 확장 코드 0.1.0 · 패키지 ${pkgVersion || '0.1.0'}`, '껍데기 버전과 패키지 버전을 나눠 보임');
   }
 
   // 2. 훅: 파일 없음·current 밖(옛 설치본)·설정에 없음 → 실패

@@ -181,8 +181,10 @@ function checkExtension(o) {
     hash = null;
   }
   if (d && d.stubHash && hash !== d.stubHash) return result('extension', '확장', 'fail', `껍데기 확장의 contributes가 설치본과 다름(${hash || '해시 없음'} ≠ ${d.stubHash}) — 뷰·명령 목록이 바뀜`, `${INSTALL} setup`);
-  if (old) return result('extension', '확장', 'warn', `${STUB_ID}@${stub.version} 있음. 옛 ${OLD_EXT_ID}@${old.version}이 남아 있음(같은 화면이 두 번 뜰 수 있음)`, `code --uninstall-extension ${OLD_EXT_ID}`);
-  return result('extension', '확장', 'ok', `${STUB_ID}@${stub.version}`);
+  // 껍데기 확장 버전과 패키지(설치본) 버전은 따로 간다(껍데기는 contributes가 바뀔 때만 다시 설치) — 둘을 나눠 보인다
+  const label = `${STUB_ID}(껍데기) · 확장 코드 ${stub.version}${d && d.version ? ` · 패키지 ${d.version}` : ''}`;
+  if (old) return result('extension', '확장', 'warn', `${label}. 옛 ${OLD_EXT_ID}@${old.version}이 남아 있음(같은 화면이 두 번 뜰 수 있음)`, `code --uninstall-extension ${OLD_EXT_ID}`);
+  return result('extension', '확장', 'ok', label);
 }
 
 // plugins.json의 version은 최소 버전(pm 결정: 마켓플레이스가 개별 버전 고정을 못 하므로 설치는 늘 최신을 받는다).
