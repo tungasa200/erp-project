@@ -1,7 +1,7 @@
 // SCR-HOME-01 ③ 오늘 일정 (P2-08, SCH-05). 시간 기록 옵션(TIME-09)에 따라 두 모양:
 // - 꺼짐: 계획 목록 + 완료 체크. 끝난 회차는 기록 상태(했어요·안 했어요·확인 대기, 화면정의서 2.3), 확인 대기는 그 자리에서 했어요/안 했어요.
 // - 켜짐: 계획/실제 두 열 시간 격자. 실제 = 시작 시각이 있는 확정 기록. 확인 대기 블록을 누르면 SCR-HOME-02 패널.
-// 둘 다 현재 시각을 표시한다. 빈 시간 메우기(SCR-HOME-03)와 "수정"(SCR-REC-01)은 각 작업에서 붙인다.
+// 둘 다 현재 시각을 표시한다. 켜짐이면 실제 열에 빈 구간(SCR-HOME-03, P2-07)을 버튼으로 두고, 열 머리에 오늘 합계를 적는다.
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from 'react'
 import { Link } from 'react-router'
@@ -16,6 +16,8 @@ import { usePendingDecision, type Decision } from '../records/usePendingDecision
 import type { WorkRecord } from '../records/api'
 import { RecordDialog } from '../records/RecordDialog'
 import { useTimeTracking } from '../settings/useWorklogSettings'
+import { GapFill } from './GapFill'
+import { durationText, useTimeGaps, useTimeSummary, type TimeGap } from './gaps'
 import homeStyles from './home.module.css'
 import { actualEntries, gridRange, packLanes, planEntries, useRecordsOn, type PlanEntry } from './timeline'
 import styles from './TodayTimeline.module.css'
@@ -32,8 +34,12 @@ interface Props {
   onOpenPending: (e: { currentTarget: HTMLElement }) => void
 }
 
-const HOUR_PX = 48
+// 30분 블록 = 28px(테두리 안 누르는 영역 24px 이상, D-76)
+const NO_GAPS: TimeGap[] = []
+const HOUR_PX = 56
 const MIN_BLOCK = 30
+// '지금' 알약은 시간 열에 그린다. 그 근처 시각 라벨은 겹치므로 숨긴다
+const NOW_LABEL_CLEAR = 20
 
 export function TodayTimeline(props: Props) {
   const { occurrences, loading, failed, onRetry, today, timeZone, now } = props
@@ -55,7 +61,10 @@ export function TodayTimeline(props: Props) {
   const headingRef = useRef<HTMLHeadingElement>(null)
   const empty = !loading && !failed && occurrences.length === 0
   const actual = actualEntries(items, today, timeZone, now)
-  const showGrid = timeTracking && !loading && !failed && (occurrences.length > 0 || actual.timed.length > 0)
+  const gapsQuery = useTimeGaps(today, timeTracking)
+  const gaps = gapsQuery.data ?? NO_GAPS
+  const showGrid =
+    timeTracking && !loading && !failed && (occurrences.length > 0 || actual.timed.length > 0 || gaps.length > 0)
 
   return (
     <section aria-labelledby="home-today" className={`${homeStyles.panel} ${styles.panel}`}>
@@ -98,9 +107,21 @@ export function TodayTimeline(props: Props) {
           </button>
         </p>
       )}
-      {empty && !showGrid && <p className={homeStyles.muted}>오늘 잡힌 일정이 없어요</p>}
+      {/* 켜짐이면 빈 시간이 격자를 띄울 수 있어 받을 때까지 '없어요'를 미룬다 */}
+      {empty && !showGrid && !(timeTracking && gapsQuery.isPending) && (
+        <p className={homeStyles.muted}>오늘 잡힌 일정이 없어요</p>
+      )}
       {showGrid ? (
-        <PlanActualGrid entries={entries} actual={actual} nowMinutes={nowMinutes} onOpenPending={props.onOpenPending} />
+        <PlanActualGrid
+          entries={entries}
+          actual={actual}
+          gaps={gaps}
+          nowMinutes={nowMinutes}
+          today={today}
+          timeZone={timeZone}
+          headingRef={headingRef}
+          onOpenPending={props.onOpenPending}
+        />
       ) : (
         !loading &&
         !failed &&
@@ -166,7 +187,17 @@ function PlanList(props: {
 
   return (
     <>
-      {editing?.record && <RecordDialog recordId={editing.record.id} onClose={closeEditor} />}
+      {editing?.record && (
+        <RecordDialog
+          recordId={editing.record.id}
+          planned={
+            editing.occurrence.allDay
+              ? undefined
+              : { startAt: editing.occurrence.startAt!, endAt: editing.occurrence.endAt! }
+          }
+          onClose={closeEditor}
+        />
+      )}
       <ol className={styles.list}>
         {entries.map((entry, index) => (
           <PlanRowWithNow key={entry.key} showNow={index === nowAt} nowMinutes={nowMinutes}>
@@ -291,14 +322,30 @@ function PlanRow(props: {
 function PlanActualGrid(props: {
   entries: PlanEntry[]
   actual: ReturnType<typeof actualEntries>
+  gaps: TimeGap[]
   nowMinutes: number
+  today: string
+  timeZone: string
+  headingRef: RefObject<HTMLHeadingElement | null>
   onOpenPending: Props['onOpenPending']
 }) {
-  const { entries, actual, nowMinutes, onOpenPending } = props
+  const { entries, actual, gaps, nowMinutes, today, timeZone, headingRef, onOpenPending } = props
   const colorOf = useColorOf()
+  const online = useOnline()
+  const total = useTimeSummary(today, today).data?.totalMin
+  const totalText = total ? `오늘 ${durationText(total)}` : null
+  const [filling, setFilling] = useState<TimeGap | null>(null)
+  // 채우면 누른 빈 구간이 사라지므로 제목으로. 모달이 닫히며(정리 단계) 돌려준 포커스를 같은 커밋의 이 효과가 덮는다
+  const refocus = useRef(false)
+  useEffect(() => {
+    if (filling || !refocus.current) return
+    refocus.current = false
+    headingRef.current?.focus()
+  }, [filling, headingRef])
+  const gapSpans = gaps.map((g) => ({ gap: g, start: toZoned(g.startAt, timeZone).minutes, end: gapEnd(g, timeZone) }))
   const allDay = entries.filter((e) => e.occurrence.allDay)
   const timedPlan = entries.filter((e) => !e.occurrence.allDay)
-  const [from, to] = gridRange([...timedPlan, ...actual.timed], nowMinutes)
+  const [from, to] = gridRange([...timedPlan, ...actual.timed, ...gapSpans], nowMinutes)
   const px = (m: number) => ((m - from) / 60) * HOUR_PX
   const place = (start: number, end: number, lane: number, lanes: number): CSSProperties => ({
     top: px(start),
@@ -321,12 +368,19 @@ function PlanActualGrid(props: {
       <div className={styles.gridHead} aria-hidden="true">
         <span />
         <span>계획</span>
-        <span>실제</span>
+        <span>실제{totalText && <span className={styles.total}> · {totalText}</span>}</span>
       </div>
       <div className={styles.gridBody} style={{ height: px(to) }}>
         <div className={styles.hours} aria-hidden="true">
           {hours.map((h) => (
-            <span key={h} className={styles.hour} style={{ top: px(h) }}>
+            <span
+              key={h}
+              className={styles.hour}
+              style={{
+                top: px(h),
+                visibility: showNow && Math.abs(h - nowMinutes) < NOW_LABEL_CLEAR ? 'hidden' : undefined,
+              }}
+            >
               {formatMinutes(h)}
             </span>
           ))}
@@ -373,7 +427,25 @@ function PlanActualGrid(props: {
             )
           })}
         </ul>
-        <ul className={styles.track} aria-label="실제">
+        <ul className={styles.track} aria-label={totalText ? `실제, ${totalText}` : '실제'}>
+          {/* 빈 구간을 먼저 그려 겹치면 기록 블록이 위에 온다 */}
+          {gapSpans.map(({ gap, start, end }) => {
+            const label = `빈 시간 ${formatMinutes(start)}–${endText(end)}, ${durationText(gap.minutes)}, 눌러서 채우기`
+            return (
+              <li key={gap.startAt} className={`${styles.block} ${styles.gap}`} style={place(start, end, 0, 1)}>
+                <button
+                  type="button"
+                  className={styles.blockButton}
+                  aria-haspopup="dialog"
+                  aria-label={label}
+                  title={label}
+                  onClick={() => setFilling(gap)}
+                >
+                  <BlockText title="빈 시간" tag={durationText(gap.minutes)} />
+                </button>
+              </li>
+            )
+          })}
           {packLanes(actual.timed, MIN_BLOCK).map(({ item: a, lane, lanes }) => {
             const color = a.record.projectId ? colorOf(a.record.projectId) : null
             const style = {
@@ -390,13 +462,29 @@ function PlanActualGrid(props: {
             )
           })}
         </ul>
-        {actual.timed.length === 0 && <p className={styles.noActual}>아직 시간을 남긴 기록이 없어요</p>}
+        {actual.timed.length === 0 && gapSpans.length === 0 && (
+          <p className={styles.noActual}>아직 시간을 남긴 기록이 없어요</p>
+        )}
         {showNow && (
           <div className={styles.gridNow} style={{ top: px(nowMinutes) }}>
             <span className={styles.nowLabel}>지금 {formatMinutes(nowMinutes)}</span>
           </div>
         )}
       </div>
+      {/* 확인 대기 블록은 패널을 열 뿐이지만, 열어도 처리할 수 없다는 것을 미리 글로 알린다(목록 모양과 같게) */}
+      {!online && timedPlan.some((e) => e.record?.status === 'PENDING') && (
+        <p className={homeStyles.muted}>연결되면 처리할 수 있어요</p>
+      )}
+      {filling && (
+        <GapFill
+          gap={filling}
+          timeZone={timeZone}
+          onClose={(filled) => {
+            refocus.current = filled
+            setFilling(null)
+          }}
+        />
+      )}
       {actual.untimed.length > 0 && (
         <p className={homeStyles.muted}>
           {`시간 없이 남긴 기록 ${actual.untimed.length}건${untimedMinutes > 0 ? ` · ${durationText(untimedMinutes)}` : ''}`}
@@ -432,8 +520,9 @@ function statusText(status: WorkRecord['status'] | undefined) {
   return ''
 }
 
-function durationText(min: number) {
-  const h = Math.floor(min / 60)
-  const m = min % 60
-  return h ? (m ? `${h}시간 ${m}분` : `${h}시간`) : `${m}분`
+/** 빈 구간 끝(분). 자정에 끝나면 24:00 */
+function gapEnd(gap: TimeGap, timeZone: string) {
+  const end = toZoned(gap.endAt, timeZone)
+  const start = toZoned(gap.startAt, timeZone)
+  return end.date !== start.date ? 24 * 60 : end.minutes
 }

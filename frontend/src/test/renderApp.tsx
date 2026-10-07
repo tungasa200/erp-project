@@ -52,6 +52,7 @@ const EMPTY_LISTS = [
   'GET /api/worklog/schedules',
   'GET /api/worklog/records/pending',
   'GET /api/worklog/records',
+  'GET /api/worklog/records/gaps',
 ]
 
 export function stubFetch(handlers: Record<string, Handler>) {
@@ -68,6 +69,9 @@ export function stubFetch(handlers: Record<string, Handler>) {
     if (key === 'GET /api/worklog/me') return json(200, { userId: 'u-1', settings: { timeTrackingEnabled: false } })
     // 옵션이 켜지면 앱 셸 타이머 미니 플레이어가 실행 중인 타이머를 묻는다. 등록하지 않았으면 없음으로 답한다
     if (key === 'GET /api/worklog/timer') return json(200, { running: null })
+    // 옵션이 켜진 홈 타임라인의 오늘 합계(SCR-HOME-01 ③). 등록하지 않았으면 0분
+    if (key.split('?')[0] === 'GET /api/worklog/records/time-summary')
+      return json(200, { from: '', to: '', totalMin: 0, recordCount: 0, projects: [], tasks: [] })
     return problem(401, 'UNAUTHENTICATED')
   })
   vi.stubGlobal('fetch', fetchMock)

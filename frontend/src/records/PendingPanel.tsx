@@ -199,7 +199,7 @@ export function PendingPanel({ today, timeZone, onClose }: Props) {
         )}
       </div>
       {/* 시트 밖(겹침 판 안)에 둔다: 시트의 여는 움직임(transform)이 고정 위치 모달을 가두지 않게 */}
-      {editing && <RecordDialog recordId={editing} onClose={closeEditor} />}
+      {editing && <RecordDialog recordId={editing} planned={plannedOf(items, editing)} onClose={closeEditor} />}
     </div>
   )
 }
@@ -276,6 +276,12 @@ function dayLabel(date: string, today: string) {
   if (date === today) return `오늘 · ${shortDate(date)}`
   if (date === addDays(today, -1)) return `어제 · ${shortDate(date)}`
   return shortDate(date)
+}
+
+/** 수정 창의 시작·종료를 계획 시각으로 채운다(종일 계획은 비워 둔다) */
+function plannedOf(items: PendingRecord[], id: string) {
+  const plan = items.find((r) => r.id === id)?.plan
+  return plan && !plan.allDay && plan.startAt && plan.endAt ? { startAt: plan.startAt, endAt: plan.endAt } : undefined
 }
 
 /** 계획 시간(기록의 시간 칸은 비어 있다, D-100). 날을 넘으면 끝 날짜를 붙인다 */

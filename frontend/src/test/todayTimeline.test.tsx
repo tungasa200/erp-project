@@ -2,6 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Occurrence } from '../calendar/api'
+import type { TimeGap } from '../home/gaps'
 import type { WorkRecord } from '../records/api'
 import { json, ME, renderApp, stubFetch } from './renderApp'
 
@@ -76,7 +77,15 @@ const RECORDS = [
   rec('r5', { content: '메일 정리', durationMin: 20 }),
 ]
 
-function server(options: { timeTracking?: boolean; occurrences?: Occurrence[]; holdSchedules?: boolean } = {}) {
+function server(
+  options: {
+    timeTracking?: boolean
+    occurrences?: Occurrence[]
+    holdSchedules?: boolean
+    gaps?: TimeGap[]
+    totalMin?: number
+  } = {},
+) {
   let records = RECORDS.map((r) => ({ ...r }))
   const calls: { method: string; url: string; body?: unknown }[] = []
   const fetchMock = stubFetch({
@@ -99,14 +108,42 @@ function server(options: { timeTracking?: boolean; occurrences?: Occurrence[]; h
       return json(200, {
         items: records
           .filter((r) => r.status === 'PENDING')
-          .map((r) => ({ ...r, plan: { title: r.content, allDay: false } })),
+          .map((r) => {
+            const o = OCCURRENCES.find((x) => x.scheduleId === r.scheduleId)
+            return { ...r, plan: { title: r.content, allDay: false, startAt: o?.startAt, endAt: o?.endAt } }
+          }),
       })
+    }
+    if (url.startsWith('/api/worklog/records/gaps')) return json(200, { items: options.gaps ?? [] })
+    if (url.startsWith('/api/worklog/records/time-summary'))
+      return json(200, {
+        from: '2026-10-07',
+        to: '2026-10-07',
+        totalMin: options.totalMin ?? 0,
+        recordCount: 0,
+        projects: [],
+        tasks: [],
+      })
+    if (method === 'DELETE') {
+      records = records.filter((r) => r.id !== url.split('/').pop())
+      return new Response(null, { status: 204 })
+    }
+    if (method === 'POST') {
+      const created = rec('r-new', { ...body, status: 'CONFIRMED' })
+      records = [...records, created]
+      return json(201, created)
+    }
+    if (method === 'GET' && url !== '/api/worklog/records' && !url.includes('?')) {
+      return json(
+        200,
+        records.find((r) => r.id === url.split('/').pop()),
+      )
     }
     if (method === 'GET') return json(200, { items: records })
     if (method === 'PATCH') {
       const id = url.split('/').pop()!
-      const { status } = body as { status: WorkRecord['status'] }
-      records = records.map((r) => (r.id === id ? { ...r, status, version: r.version + 1 } : r))
+      const { version: _v, ...fields } = body as Partial<WorkRecord>
+      records = records.map((r) => (r.id === id ? { ...r, ...fields, version: r.version + 1 } : r))
       return json(
         200,
         records.find((r) => r.id === id),
@@ -173,6 +210,116 @@ describe('SCR-HOME-01 ③ 오늘 일정 (P2-08)', () => {
 
     await userEvent.click(within(plan).getByRole('button', { name: '10:00–11:00 코드 리뷰, 확인 대기, 눌러서 확인' }))
     expect(await screen.findByRole('dialog', { name: /확인 대기/ })).toBeInTheDocument()
+  })
+
+  it('옵션 켜짐: 끊겼으면 확인 대기를 처리할 수 없다고 글로 알린다', async () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    server({ timeTracking: true })
+    renderApp('/')
+    const today = await section()
+    await within(today).findByRole('button', { name: '10:00–11:00 코드 리뷰, 확인 대기, 눌러서 확인' })
+    expect(within(today).getByText('연결되면 처리할 수 있어요')).toBeInTheDocument()
+  })
+
+  it('옵션 켜짐: 실제 열 머리에 오늘 합계, 빈 구간을 키보드로 열어 후보로 채우면 POST 후 제목으로 포커스', async () => {
+    const gap: TimeGap = {
+      startAt: '2026-10-07T01:30:00Z',
+      endAt: '2026-10-07T02:30:00Z',
+      minutes: 60,
+      previous: { content: '버그 수정', taskId: null },
+      plan: null,
+      frequent: null,
+    }
+    const { calls } = server({ timeTracking: true, gaps: [gap], totalMin: 80 })
+    renderApp('/')
+    const today = await section()
+    expect(await within(today).findByRole('list', { name: '실제, 오늘 1시간 20분' })).toBeInTheDocument()
+    const open = await within(today).findByRole('button', { name: '빈 시간 10:30–11:30, 1시간, 눌러서 채우기' })
+    open.focus()
+    await userEvent.keyboard('{Enter}')
+    const dialog = await screen.findByRole('dialog', { name: '빈 시간 메우기' })
+    expect(within(dialog).getByText('10:30 – 11:30')).toBeInTheDocument()
+    // 열면 첫 후보에 포커스, Enter로 채운다
+    expect(within(dialog).getByRole('button', { name: /직전 업무 이어서/ })).toHaveFocus()
+    await userEvent.keyboard('{Enter}')
+    await waitFor(() => expect(within(today).getByRole('heading', { name: '오늘 일정' })).toHaveFocus())
+    expect(calls).toContainEqual({
+      method: 'POST',
+      url: '/api/worklog/records',
+      body: { content: '버그 수정', taskId: null, startAt: gap.startAt, endAt: gap.endAt },
+    })
+    expect(await screen.findByText('10:30 – 11:30을 채웠어요')).toBeInTheDocument()
+
+    // 되돌리기: 새로 만든 기록은 보관
+    await userEvent.click(screen.getByRole('button', { name: '되돌리기' }))
+    await waitFor(() => expect(calls).toContainEqual({ method: 'DELETE', url: '/api/worklog/records/r-new' }))
+  })
+
+  it('빈 시간 메우기: 끊겼으면 후보·저장을 막고 글로 알린다', async () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    const gap: TimeGap = {
+      startAt: '2026-10-07T01:30:00Z',
+      endAt: '2026-10-07T02:30:00Z',
+      minutes: 60,
+      previous: { content: '버그 수정', taskId: null },
+      plan: null,
+      frequent: null,
+    }
+    server({ timeTracking: true, gaps: [gap] })
+    renderApp('/')
+    const today = await section()
+    await userEvent.click(await within(today).findByRole('button', { name: /^빈 시간 10:30–11:30/ }))
+    const dialog = await screen.findByRole('dialog', { name: '빈 시간 메우기' })
+    expect(within(dialog).getByRole('button', { name: /직전 업무 이어서/ })).toBeDisabled()
+    expect(within(dialog).getByText('연결되면 채울 수 있어요')).toBeInTheDocument()
+    expect(within(dialog).getByRole('textbox', { name: '직접 입력' })).toHaveFocus()
+  })
+
+  it('빈 구간의 이 시간 계획에 확인 대기가 있으면 새로 만들지 않고 그 기록을 구간 시각으로 확정한다', async () => {
+    const gap: TimeGap = {
+      startAt: '2026-10-07T01:00:00Z',
+      endAt: '2026-10-07T01:30:00Z',
+      minutes: 30,
+      previous: null,
+      plan: {
+        title: '코드 리뷰',
+        scheduleId: 's2',
+        occurrenceStart: '2026-10-07T01:00:00Z',
+        startAt: '2026-10-07T01:00:00Z',
+        endAt: '2026-10-07T02:00:00Z',
+        taskId: null,
+        pendingRecordId: 'r2',
+      },
+      frequent: null,
+    }
+    const { calls } = server({ timeTracking: true, gaps: [gap] })
+    renderApp('/')
+    const today = await section()
+    await userEvent.click(await within(today).findByRole('button', { name: /^빈 시간 10:00–10:30/ }))
+    const dialog = await screen.findByRole('dialog', { name: '빈 시간 메우기' })
+    await userEvent.click(within(dialog).getByRole('button', { name: /이 시간 계획/ }))
+    await waitFor(() =>
+      expect(calls).toContainEqual({
+        method: 'PATCH',
+        url: '/api/worklog/records/r2',
+        body: { startAt: gap.startAt, endAt: gap.endAt, status: 'CONFIRMED', version: 0 },
+      }),
+    )
+    expect(calls.some((c) => c.method === 'POST')).toBe(false)
+  })
+
+  it('확인 대기 패널에서 수정을 열면 시작·종료 칸이 그 계획 시각으로 채워져 있다', async () => {
+    server({ timeTracking: true })
+    renderApp('/')
+    const today = await section()
+    await userEvent.click(
+      await within(today).findByRole('button', { name: '10:00–11:00 코드 리뷰, 확인 대기, 눌러서 확인' }),
+    )
+    const panel = await screen.findByRole('dialog', { name: /확인 대기/ })
+    await userEvent.click(await within(panel).findByRole('button', { name: /코드 리뷰 수정/ }))
+    const editor = await screen.findByRole('dialog', { name: '확인 대기 수정' })
+    expect(await within(editor).findByLabelText('시작')).toHaveValue('10:00')
+    expect(within(editor).getByLabelText('종료')).toHaveValue('11:00')
   })
 
   it('불러오는 동안 "없어요"를 먼저 보이지 않는다', async () => {

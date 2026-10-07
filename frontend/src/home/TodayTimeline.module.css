@@ -262,7 +262,7 @@
   padding: 0;
   list-style: none;
   border-radius: 10px;
-  background: repeating-linear-gradient(to bottom, var(--color-divider) 0 1px, transparent 1px 48px);
+  background: repeating-linear-gradient(to bottom, var(--color-divider) 0 1px, transparent 1px 56px);
 }
 
 .block {
@@ -340,6 +340,23 @@
   opacity: 0.85;
 }
 
+/* 빈 구간(SCR-HOME-03): 점선 칸. 누르면 채우기 창 */
+.block.gap {
+  border: 1px dashed var(--color-text-muted);
+  background: transparent;
+  color: var(--color-text-muted);
+}
+
+.block.gap:hover {
+  background: var(--color-accent-faint);
+  color: var(--color-accent-ink);
+}
+
+.total {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
 .noActual {
   position: absolute;
   top: 6px;
@@ -362,6 +379,15 @@
   pointer-events: none;
 }
 
+/* 시간 열에 오른쪽을 맞춰 그린다(계획 블록·시각 라벨을 가리지 않게, 가까운 시각 라벨은 숨김) */
 .gridNow .nowLabel {
+  position: absolute;
+  top: -1px;
+  /* 오른쪽 끝은 시간 열과 계획 열 사이 간격(8px) 안까지 */
+  right: calc(100% - 6px);
+  /* 시간 열(48px)+패널 여백(22px) 안에 들어가게 좁힌다 */
+  padding: 1px 5px;
+  font-size: 11px;
+  white-space: nowrap;
   transform: translateY(-50%);
 }

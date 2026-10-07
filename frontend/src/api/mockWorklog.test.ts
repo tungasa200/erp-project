@@ -132,3 +132,46 @@ describe('가짜 타이머(P2-06)', () => {
     expect((await call('GET', '/api/worklog/timer')).body.running).toBeNull()
   })
 })
+
+describe('가짜 빈 시간·시간 집계(P2-07)', () => {
+  const call = async (method: string, url: string, body = {}) => {
+    const res = handleWorklog(method, url, body, r, { timeTrackingEnabled: true })!
+    return (await res.json()) as Record<string, never>
+  }
+
+  it('업무 시간대 중 확정 기록이 덮지 않은 15분 이상 구간, 직전 업무 후보, 지난 날짜 합계', async () => {
+    // 서울 10/6 10:00–11:00, 11:10–12:00 기록 → 09:00–10:00, 12:00–18:00 (11:00–11:10은 15분 미만)
+    await call('POST', '/api/worklog/records', {
+      content: '설계',
+      startAt: '2026-10-06T01:00:00Z',
+      endAt: '2026-10-06T02:00:00Z',
+    })
+    await call('POST', '/api/worklog/records', {
+      content: '리뷰',
+      startAt: '2026-10-06T02:10:00Z',
+      endAt: '2026-10-06T03:00:00Z',
+    })
+    await call('POST', '/api/worklog/records', { content: '메일', workDate: '2026-10-06', durationMin: 20 })
+
+    const { items } = await call('GET', '/api/worklog/records/gaps?date=2026-10-06')
+    expect(items).toEqual([
+      expect.objectContaining({
+        startAt: '2026-10-06T00:00:00.000Z',
+        endAt: '2026-10-06T01:00:00.000Z',
+        minutes: 60,
+        previous: null,
+      }),
+      expect.objectContaining({
+        startAt: '2026-10-06T03:00:00.000Z',
+        endAt: '2026-10-06T09:00:00.000Z',
+        minutes: 360,
+        previous: { content: '리뷰', taskId: null },
+      }),
+    ])
+    expect((await call('GET', '/api/worklog/records/gaps?date=2999-01-01')).items).toEqual([])
+    expect(await call('GET', '/api/worklog/records/time-summary?from=2026-10-06&to=2026-10-06')).toMatchObject({
+      totalMin: 130,
+      recordCount: 3,
+    })
+  })
+})

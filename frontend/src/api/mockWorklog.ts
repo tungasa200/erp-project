@@ -10,6 +10,13 @@ import type { Task } from '../tasks/api'
 
 const STORE_KEY = 'worklog.mock.worklog'
 
+/** mockServer가 넘기는 내 설정. 업무 시간대가 없으면 09:00–18:00 */
+interface MockSettings {
+  timeTrackingEnabled: boolean
+  workHoursStart?: string
+  workHoursEnd?: string
+}
+
 interface WorklogState {
   projects: Project[]
   tags: Tag[]
@@ -285,7 +292,7 @@ export function handleWorklog(
   url: string,
   body: Record<string, unknown>,
   r: Respond,
-  settings: { timeTrackingEnabled: boolean } = { timeTrackingEnabled: false },
+  settings: MockSettings = { timeTrackingEnabled: false },
 ): Response | null {
   const path = url.split('?')[0]
   const state = load()
@@ -353,6 +360,9 @@ export function handleWorklog(
   const tasks = handleTasks(method, url, body, state, r)
   if (tasks) return tasks
 
+  const gaps = handleGapsAndSummary(method, url, state, r, settings)
+  if (gaps) return gaps
+
   const records = handleRecords(method, url, body, state, r)
   if (records) return records
 
@@ -402,26 +412,7 @@ function handleTasks(
   for (const t of state.tasks) t.hasSchedule = linked.has(t.id)
   // 자주 하는 업무 제안(P2-04). 체험용이라 요일·시간대·2번 이상 조건 없이 같은 제목 묶음 상위 3개를 준다
   if (method === 'GET' && path === '/api/worklog/tasks/frequent') {
-    const groups = new Map<string, Task[]>()
-    for (const t of state.tasks) {
-      if (t.deletedAt) continue
-      const key = t.title.trim().replace(/\s+/g, ' ').toLowerCase()
-      groups.set(key, [...(groups.get(key) ?? []), t])
-    }
-    const items = [...groups.values()]
-      .map((group) => {
-        const latest = group.reduce((a, b) => (a.createdAt >= b.createdAt ? a : b))
-        return {
-          title: latest.title,
-          projectId: latest.projectId,
-          tagIds: latest.tagIds,
-          latestTaskId: latest.id,
-          count: group.length,
-        }
-      })
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 3)
-    return r.json(200, { items })
+    return r.json(200, { items: frequentTasks(state) })
   }
   if (method === 'GET' && path === '/api/worklog/tasks') {
     const q = new URLSearchParams(url.split('?')[1] ?? '')
@@ -701,6 +692,145 @@ function handleRecords(
     return new Response(null, { status: 204 })
   }
   return null
+}
+
+function frequentTasks(state: WorklogState) {
+  const groups = new Map<string, Task[]>()
+  for (const t of state.tasks) {
+    if (t.deletedAt) continue
+    const key = t.title.trim().replace(/\s+/g, ' ').toLowerCase()
+    groups.set(key, [...(groups.get(key) ?? []), t])
+  }
+  return [...groups.values()]
+    .map((group) => {
+      const latest = group.reduce((a, b) => (a.createdAt >= b.createdAt ? a : b))
+      return {
+        title: latest.title,
+        projectId: latest.projectId,
+        tagIds: latest.tagIds,
+        latestTaskId: latest.id,
+        count: group.length,
+      }
+    })
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 3)
+}
+
+const GAP_MIN = 15
+const minutesBetween = (from: number, to: number) => Math.floor((to - from) / 60_000)
+
+/**
+ * 빈 시간(P2-07, GET /records/gaps)과 시간 집계(GET /records/time-summary). 시간대는 서울로 고정한다.
+ * 빈 시간: 업무 시간대 중 확정 기록(실행 중 타이머는 지금까지)이 덮지 않은 15분 이상 구간. 오늘이면 지금 이후는 빼고, 미래 날짜는 빈 배열.
+ */
+function handleGapsAndSummary(
+  method: string,
+  url: string,
+  state: WorklogState,
+  r: Respond,
+  settings: MockSettings,
+): Response | null {
+  const path = url.split('?')[0]
+  if (method !== 'GET') return null
+  const q = new URLSearchParams(url.split('?')[1] ?? '')
+  const records: MockRecord[] = (state.records ??= [])
+  const confirmed = records.filter((x) => !x.deletedAt && x.status === 'CONFIRMED')
+
+  if (path === '/api/worklog/records/time-summary') {
+    const from = q.get('from') ?? ''
+    const to = q.get('to') ?? ''
+    const minutesOf = (x: MockRecord) =>
+      x.startAt && x.endAt ? minutesBetween(Date.parse(x.startAt), Date.parse(x.endAt)) : (x.durationMin ?? 0)
+    // 실행 중 타이머는 끝나야 센다
+    const counted = confirmed.filter((x) => x.workDate >= from && x.workDate <= to && (!x.startAt || x.endAt))
+    const projectOf = (taskId: string | null | undefined) => state.tasks.find((t) => t.id === taskId)?.projectId ?? null
+    const sum = (key: (x: MockRecord) => string | null) => {
+      const m = new Map<string | null, number>()
+      for (const x of counted) m.set(key(x), (m.get(key(x)) ?? 0) + minutesOf(x))
+      return [...m.entries()].sort((a, b) => b[1] - a[1])
+    }
+    return r.json(200, {
+      from,
+      to,
+      totalMin: counted.reduce((n, x) => n + minutesOf(x), 0),
+      recordCount: counted.length,
+      projects: sum((x) => projectOf(x.taskId) ?? x.projectId ?? null).map(([projectId, minutes]) => ({
+        projectId,
+        minutes,
+      })),
+      tasks: sum((x) => x.taskId ?? null).map(([taskId, minutes]) => ({
+        taskId,
+        projectId: projectOf(taskId),
+        minutes,
+      })),
+    })
+  }
+
+  if (path !== '/api/worklog/records/gaps') return null
+  const date = q.get('date') ?? seoulToday()
+  if (date > seoulToday()) return r.json(200, { items: [] })
+  // 먼저 끝난 회차의 확인 대기를 만든다(D-31) — 계획 후보가 그 기록을 가리키게
+  syncPlanRecords(state, records)
+  save(state)
+  const nowMs = Date.now()
+  const at = (hhmm: string) => Date.parse(`${date}T${hhmm}:00+09:00`)
+  const dayStart = at(settings.workHoursStart ?? '09:00')
+  const dayEnd = Math.min(at(settings.workHoursEnd ?? '18:00'), nowMs)
+  const covered = confirmed
+    .filter((x) => x.startAt)
+    .map((x) => [Date.parse(x.startAt!), x.endAt ? Date.parse(x.endAt) : nowMs] as const)
+    .sort((a, b) => a[0] - b[0])
+  const spans: [number, number][] = []
+  let cursor = dayStart
+  for (const [s, e] of covered) {
+    if (cursor >= dayEnd) break
+    if (s > cursor) spans.push([cursor, Math.min(s, dayEnd)])
+    cursor = Math.max(cursor, e)
+  }
+  if (cursor < dayEnd) spans.push([cursor, dayEnd])
+
+  const occurrences = occurrencesBetween(new Date(dayStart).toISOString(), new Date(dayEnd).toISOString()).filter(
+    (o) => !o.allDay,
+  )
+  const linkOf = (o: Occurrence) =>
+    records.find(
+      (x) =>
+        !x.deletedAt &&
+        x.scheduleId === o.scheduleId &&
+        Date.parse(x.occurrenceStart ?? '') === Date.parse(o.occurrenceStart),
+    )
+  const frequent = frequentTasks(state)[0] ?? null
+  const items = spans
+    .filter(([s, e]) => minutesBetween(s, e) >= GAP_MIN)
+    .map(([s, e]) => {
+      const previous = confirmed
+        .filter((x) => x.startAt && x.endAt && Date.parse(x.endAt) <= s && seoulDate(x.startAt) === date)
+        .sort((a, b) => Date.parse(b.endAt!) - Date.parse(a.endAt!))[0]
+      // 구간과 가장 많이 겹치는 회차(이미 처리한 회차 제외)
+      const overlap = (o: Occurrence) => Math.min(e, Date.parse(o.endAt!)) - Math.max(s, Date.parse(o.startAt!))
+      const plan = occurrences
+        .filter((o) => overlap(o) > 0 && (linkOf(o)?.status ?? 'PENDING') === 'PENDING')
+        .sort((a, b) => overlap(b) - overlap(a))[0]
+      return {
+        startAt: new Date(s).toISOString(),
+        endAt: new Date(e).toISOString(),
+        minutes: minutesBetween(s, e),
+        previous: previous ? { content: previous.content, taskId: previous.taskId ?? null } : null,
+        plan: plan
+          ? {
+              title: plan.title,
+              scheduleId: plan.scheduleId,
+              occurrenceStart: plan.occurrenceStart,
+              startAt: plan.startAt!,
+              endAt: plan.endAt!,
+              taskId: plan.taskId ?? null,
+              pendingRecordId: linkOf(plan)?.id ?? null,
+            }
+          : null,
+        frequent,
+      }
+    })
+  return r.json(200, { items })
 }
 
 // 타이머(P2-06, D-101): 실행 중 타이머 = endAt 없는 확정 기록(하나). 정지 규칙: 1분 미만 버림, 24시간 상한

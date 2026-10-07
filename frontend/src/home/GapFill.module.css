@@ -1,0 +1,90 @@
+/* SCR-HOME-03 빈 시간 메우기. 틀은 캘린더 모달, 후보는 한 번 누르면 채워지는 넓은 버튼 */
+.span {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.minutes {
+  margin-left: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+}
+
+.candidates {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.candidate {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  min-height: var(--size-touch);
+  box-sizing: border-box;
+  padding: 8px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.candidate:not(:disabled):hover {
+  border-color: var(--color-accent);
+  background: var(--color-accent-faint);
+}
+
+.candidate:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.candidate:disabled {
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+}
+
+.candidateLabel {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--color-accent-ink);
+}
+
+.candidate:disabled .candidateLabel {
+  color: inherit;
+}
+
+.candidateText {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 14.5px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.direct {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.direct label {
+  flex: 1;
+}
+
+.muted {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
