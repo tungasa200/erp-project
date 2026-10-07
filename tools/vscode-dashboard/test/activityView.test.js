@@ -7,6 +7,7 @@ const os = require('os');
 const path = require('path');
 process.env.WY_APPROVALS_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'wy-act-ap-'));
 const { install, EXT } = require('./fakeVscode');
+const made = []; // setup()이 만든 임시 대화 기록 폴더
 
 const now = Date.now();
 const at = (minAgo) => new Date(now - minAgo * 60000).toISOString();
@@ -19,6 +20,7 @@ function setup() {
   const { ActivityReader } = require(path.join(EXT, 'sessionActivity.js'));
   const view = activity.register(fake.context);
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'wy-act-tr-'));
+  made.push(dir);
   view.reader = new ActivityReader({ dir }); // 실제 대화 기록 대신 합성 기록
   return { fake, view, dir, activity };
 }
@@ -206,4 +208,5 @@ test('열린 폴더가 없으면 오류 상태를 보낸다', () => {
   }
 });
 
-test.after(() => fs.rmSync(process.env.WY_APPROVALS_DIR, { recursive: true, force: true }));
+// 승인 폴더와 검사마다 만든 대화 기록 폴더를 모든 검사가 끝나면(실패해도) 지운다
+test.after(() => [process.env.WY_APPROVALS_DIR, ...made].forEach((d) => fs.rmSync(d, { recursive: true, force: true })));

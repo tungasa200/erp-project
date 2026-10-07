@@ -25,8 +25,14 @@ const bashLine = (min, description) => ({
   type: 'assistant', timestamp: at(min), message: { role: 'assistant', content: [{ type: 'tool_use', id: `b${min}`, name: 'Bash', input: { command: 'x', description } }] },
 });
 
+// 만든 임시 폴더는 모든 검사가 끝나면(실패해도) 지운다
+const made = [];
+test.after(() => made.forEach((d) => fs.rmSync(d, { recursive: true, force: true })));
+
 function tmpDir() {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'wy-act-'));
+  const d = fs.mkdtempSync(path.join(os.tmpdir(), 'wy-act-'));
+  made.push(d);
+  return d;
 }
 const write = (dir, f, lines) => fs.writeFileSync(path.join(dir, f), lines.map((l) => (typeof l === 'string' ? l : JSON.stringify(l))).join('\n') + '\n');
 const append = (dir, f, lines) => fs.appendFileSync(path.join(dir, f), lines.map((l) => JSON.stringify(l)).join('\n') + '\n');
