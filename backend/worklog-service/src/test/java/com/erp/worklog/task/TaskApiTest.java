@@ -54,6 +54,7 @@ class TaskApiTest {
 
 	@BeforeEach
 	void reset() {
+		jdbc.sql("DELETE FROM work_record").update(); // 기록이 업무를 가리킨다 (work_record.task_id)
 		jdbc.sql("DELETE FROM schedule").update(); // 일정이 업무를 가리킨다 (schedule.task_id)
 		jdbc.sql("DELETE FROM task").update();
 		jdbc.sql("DELETE FROM tag").update();

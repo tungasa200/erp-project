@@ -52,6 +52,7 @@ class FrequentTaskApiTest {
 
 	@BeforeEach
 	void reset() {
+		jdbc.sql("DELETE FROM work_record").update(); // 기록이 업무를 가리킨다 (work_record.task_id)
 		jdbc.sql("DELETE FROM schedule").update();
 		jdbc.sql("DELETE FROM task").update();
 		jdbc.sql("DELETE FROM tag").update();

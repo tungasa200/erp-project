@@ -143,6 +143,9 @@ class ScheduleService {
 		}
 		throwIfAny(errors);
 
+		if (!timing.equals(current) || !Objects.equals(rrule(recurrence), rrule(s.recurrence()))) {
+			deletePendingRecords(s.getId(), null); // 회차 키가 달라질 수 있으므로 이 일정의 확인 대기를 모두 지운다
+		}
 		s.title(title);
 		s.timing(timing, recurrence);
 		if (p.taskIdSent()) {
@@ -157,7 +160,9 @@ class ScheduleService {
 
 	@Transactional
 	void delete(UUID ownerId, UUID id) {
-		schedules.delete(find(ownerId, id));
+		Schedule s = find(ownerId, id);
+		deletePendingRecords(s.getId(), null); // 나머지 기록은 work_record.schedule_id ON DELETE SET NULL로 남는다
+		schedules.delete(s);
 	}
 
 	@Transactional
@@ -209,6 +214,9 @@ class ScheduleService {
 		}
 		throwIfAny(errors);
 
+		if (p.getStartAt() != null || p.getEndAt() != null || p.getStartDate() != null || p.getEndDate() != null) {
+			deletePendingRecords(s.getId(), key);
+		}
 		s.override(key, override.copy());
 		s.touch(clock.instant());
 		Schedule saved = schedules.saveAndFlush(s);
@@ -230,8 +238,27 @@ class ScheduleService {
 		if (!s.hasOccurrence(key)) {
 			throw Errors.notFound();
 		}
+		deletePendingRecords(s.getId(), key);
 		s.override(key, ScheduleOverride.cancelledOccurrence());
 		s.touch(clock.instant());
+	}
+
+	/**
+	 * 일정을 지우거나 시각·반복을 바꾸면 그 일정(key가 있으면 그 회차)의 확인 대기(PENDING) 기록을 지운다 (P2-01 결정).
+	 * 확정·하지 않음 기록은 사용자가 고른 것이라 남긴다.
+	 */
+	private void deletePendingRecords(UUID scheduleId, Instant key) {
+		if (key == null) {
+			jdbc.update("DELETE FROM work_record WHERE schedule_id = ? AND status = 'PENDING'", scheduleId);
+		}
+		else {
+			jdbc.update("DELETE FROM work_record WHERE schedule_id = ? AND occurrence_start = ? AND status = 'PENDING'",
+					scheduleId, java.sql.Timestamp.from(key));
+		}
+	}
+
+	private static String rrule(Recurrence recurrence) {
+		return recurrence == null ? null : recurrence.toRrule();
 	}
 
 	private Schedule find(UUID ownerId, UUID id) {
