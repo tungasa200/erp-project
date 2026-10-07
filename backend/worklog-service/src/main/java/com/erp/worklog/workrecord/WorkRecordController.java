@@ -1,10 +1,13 @@
 package com.erp.worklog.workrecord;
 
 import com.erp.common.autoconfigure.OpenApiAutoConfiguration;
+import com.erp.worklog.schedule.EndedOccurrences.Ended;
 import com.erp.worklog.security.CurrentUser;
 import com.erp.worklog.security.SecurityConfig;
 import com.erp.worklog.user.UserProfileService;
+import com.erp.worklog.workrecord.WorkRecordService.PendingInfo;
 import com.erp.worklog.workrecord.WorkRecordService.RecordInfo;
+import com.fasterxml.jackson.annotation.JsonUnwrapped;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
@@ -15,6 +18,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -37,6 +41,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Supplier;
 
@@ -97,6 +102,42 @@ class WorkRecordController {
 	record WorkRecordList(@Schema(requiredMode = RequiredMode.REQUIRED) List<WorkRecordView> items) {
 	}
 
+	@Schema(name = "PendingRecordPlan", description = "회차의 지금 값. 시간 일정은 startAt·endAt, 종일 일정은 startDate·endDate(포함)만 있다.")
+	record PlanView(
+			@Schema(requiredMode = RequiredMode.REQUIRED) String title,
+			@Schema(requiredMode = RequiredMode.REQUIRED) boolean allDay,
+			@Schema(types = { "string", "null" }, format = "date-time") Instant startAt,
+			@Schema(types = { "string", "null" }, format = "date-time") Instant endAt,
+			@Schema(types = { "string", "null" }, format = "date") LocalDate startDate,
+			@Schema(types = { "string", "null" }, format = "date") LocalDate endDate) {
+
+		static PlanView of(Ended e) {
+			return new PlanView(e.title(), e.allDay(), e.startAt(), e.endAt(), e.startDate(), e.endDate());
+		}
+	}
+
+	@Schema(name = "PendingRecord", description = """
+			확인 대기 목록의 항목 (P2-03). 기록 전체에 지금의 계획(회차)을 붙인다(SCR-HOME-02 ① 계획 시간).
+			회차를 옮기거나 지우면 그 회차의 확인 대기는 지워지므로 plan은 늘 있다.""")
+	record PendingRecordView(@JsonUnwrapped WorkRecordView record,
+			@Schema(requiredMode = RequiredMode.REQUIRED) PlanView plan) {
+
+		static PendingRecordView of(PendingInfo p) {
+			return new PendingRecordView(WorkRecordView.of(p.record()), PlanView.of(p.plan()));
+		}
+	}
+
+	@Schema(name = "PendingRecordList")
+	record PendingRecordList(@Schema(requiredMode = RequiredMode.REQUIRED) List<PendingRecordView> items) {
+	}
+
+	@Schema(name = "ConfirmPendingRequest")
+	record ConfirmPendingRequest(
+			@ArraySchema(arraySchema = @Schema(requiredMode = RequiredMode.REQUIRED,
+					description = "확정할 확인 대기 기록 (화면에 보인 것)"), minItems = 1, maxItems = 200, uniqueItems = true)
+			@NotEmpty(message = "REQUIRED") @Size(min = 1, max = 200, message = "OUT_OF_RANGE") List<@NotNull(message = "REQUIRED") UUID> ids) {
+	}
+
 	@Schema(name = "WorkRecordCreate", description = """
 			startAt이 없으면 workDate 필수(REQUIRED). endAt은 startAt 없이 보낼 수 없고 startAt보다 늦어야 한다(INVALID_ORDER).
 			durationMin은 startAt과 함께 보낼 수 없다(INVALID_FORMAT). progress는 outcome=IN_PROGRESS일 때만(INVALID_FORMAT).
@@ -129,7 +170,8 @@ class WorkRecordController {
 			description = """
 					workDate가 [from, to](양끝 포함)인 기록을 준다. 보관(소프트 삭제)한 기록은 빼고 준다.
 					정렬: workDate → startAt(없으면 뒤) → occurrenceStart(없으면 뒤) → id. 페이지네이션 없이 한 번에 준다(기간 최대 400일).
-					status를 생략하면 세 상태를 모두 준다(일 보기는 확인 대기·하지 않음도 상태로 그린다, SCR-CAL-01 states).""",
+					status를 생략하면 세 상태를 모두 준다(일 보기는 확인 대기·하지 않음도 상태로 그린다, SCR-CAL-01 states).
+					from과 to가 같은 날이면 그날 끝난 회차의 확인 대기 기록을 먼저 만든다(7일 범위와 관계없이, D-39).""",
 			security = @SecurityRequirement(name = SecurityConfig.COOKIE_SCHEME))
 	@ApiResponse(responseCode = "200", description = "조회 성공")
 	@ApiResponse(responseCode = "400", description = "값 형식 오류 (code=VALIDATION_FAILED)",
@@ -168,6 +210,47 @@ class WorkRecordController {
 		return WorkRecordView.of(records.create(user.id(), timezone(user, jwt), new WorkRecordService.NewRecord(
 				body.content(), body.workDate(), body.taskId(), body.result(), body.outcome(), body.progress(),
 				body.startAt(), body.endAt(), body.durationMin())));
+	}
+
+	@GetMapping("/pending")
+	@Operation(operationId = "listPendingRecords",
+			summary = "확인 대기 목록 (P2-03 — SCR-HOME-01 확인 대기 띠·요약 카드, SCR-HOME-02, 하루 마감 1단계)",
+			description = """
+					먼저 끝난 회차의 확인 대기 기록을 만들고(D-31, 보여줄 때 생성) 확인 대기 기록을 준다. 요약 카드의 개수는 items 길이다.
+					범위(D-39): 사용자의 현재 시간대 기준 오늘을 포함한 최근 7일(오늘-6일 ~ 오늘). 기록의 workDate로 판단한다.
+					생성 대상: 업무가 연결된 일정(반복 회차 포함)의 끝난 회차(끝 시각 ≤ 지금, 종일 일정은 마지막 날 다음 날 0시).
+					연결 업무가 보관 상태면 만들지 않는다. workDate는 회차 시작의 일정 시간대 날짜(NFR-04). 취소한 회차는 만들지 않는다.
+					이미 (일정, 회차 시작) 기록이 있으면 상태·보관 여부와 관계없이 다시 만들지 않는다(UNIQUE, 동시 호출에도 하나).
+					만드는 값: status=PENDING, content=회차 제목, taskId=일정의 업무, scheduleId·occurrenceStart=회차 키.
+					시간 칸(startAt·endAt·durationMin)은 비운다(계획 시간은 실제 시간이 아니다).
+					7일이 지난 확인 대기 기록은 상태를 유지한 채 여기서 빠진다(일 보기에서는 보이고 처리할 수 있다).
+					정렬: workDate → occurrenceStart → id. 보관한 기록은 빼고 준다.""",
+			security = @SecurityRequirement(name = SecurityConfig.COOKIE_SCHEME))
+	@ApiResponse(responseCode = "200", description = "확인 대기 기록 (최근 7일)")
+	@ApiResponse(responseCode = "503", description = "identity 조회 실패 (code=PROFILE_UNAVAILABLE)",
+			content = @Content(mediaType = "application/problem+json", schema = @Schema(ref = PROBLEM)))
+	PendingRecordList pending(@Parameter(hidden = true) CurrentUser user, @AuthenticationPrincipal Jwt jwt) {
+		return new PendingRecordList(records.pending(user.id(), timezone(user, jwt)).stream()
+				.map(PendingRecordView::of).toList());
+	}
+
+	@PostMapping(path = "/pending/confirm", consumes = MediaType.APPLICATION_JSON_VALUE)
+	@Operation(operationId = "confirmPendingRecords", summary = "모두 했어요 (P2-03 — SCR-HOME-02 ③)",
+			description = """
+					보낸 id의 확인 대기 기록을 한 번에 CONFIRMED로 바꾼다. 화면에 보인 것만 확정하도록 id를 받는다
+					(목록을 받은 뒤 새로 생긴 확인 대기는 확정하지 않는다 — 확인은 반드시 사람이, REC-03).
+					최근 7일 범위 밖, 이미 처리함(CONFIRMED·DISMISSED), 보관함, 다른 사용자·없는 id는 건너뛴다(오류 아님, 멱등).
+					version을 받지 않는다. 되돌리기는 응답의 version으로 각 기록을 PATCH status=PENDING.""",
+			security = @SecurityRequirement(name = SecurityConfig.COOKIE_SCHEME))
+	@ApiResponse(responseCode = "200", description = "이번 요청으로 확정한 기록 (건너뛴 것은 빠짐)")
+	@ApiResponse(responseCode = "400", description = "입력 오류 (code=VALIDATION_FAILED)",
+			content = @Content(mediaType = "application/problem+json", schema = @Schema(ref = PROBLEM)))
+	@ApiResponse(responseCode = "503", description = "identity 조회 실패 (code=PROFILE_UNAVAILABLE)",
+			content = @Content(mediaType = "application/problem+json", schema = @Schema(ref = PROBLEM)))
+	WorkRecordList confirmPending(@Parameter(hidden = true) CurrentUser user, @AuthenticationPrincipal Jwt jwt,
+			@Valid @RequestBody ConfirmPendingRequest body) {
+		return new WorkRecordList(records.confirmPending(user.id(), timezone(user, jwt), Set.copyOf(body.ids()))
+				.stream().map(WorkRecordView::of).toList());
 	}
 
 	@GetMapping("/{recordId}")
@@ -230,7 +313,7 @@ class WorkRecordController {
 		return WorkRecordView.of(records.restore(user.id(), recordId));
 	}
 
-	/** 시간대는 startAt으로 날짜를 계산할 때만 필요하므로 그때 프로필을 읽는다. */
+	/** 시간대는 startAt으로 날짜를 계산하거나 오늘(확인 대기 범위)을 정할 때만 필요하므로 그때 프로필을 읽는다. */
 	private Supplier<String> timezone(CurrentUser user, Jwt jwt) {
 		return () -> profiles.snapshotOf(user.id(), jwt.getTokenValue()).profile().timezone();
 	}

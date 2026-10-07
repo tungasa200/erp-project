@@ -5,6 +5,8 @@ import com.erp.common.error.FieldErrorDetail;
 import com.erp.common.error.Problems;
 import com.erp.worklog.error.Conflicts;
 import com.erp.worklog.error.Errors;
+import com.erp.worklog.schedule.EndedOccurrences;
+import com.erp.worklog.schedule.EndedOccurrences.Ended;
 import com.erp.worklog.workrecord.WorkRecord.Outcome;
 import com.erp.worklog.workrecord.WorkRecord.Status;
 import org.springframework.http.HttpStatus;
@@ -16,29 +18,41 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Supplier;
 
-/** 업무 기록 (P2-01, REC-01·02). 확인 대기(PENDING) 생성은 P2-03. 요청 하나가 한 트랜잭션이다. */
+/** 업무 기록 (P2-01, REC-01·02)과 확인 대기 생성·모두 했어요 (P2-03, REC-03). 요청 하나가 한 트랜잭션이다. */
 @Service
 class WorkRecordService {
 
 	static final int MAX_RANGE_DAYS = 400;
+	/** 홈 확인 대기 범위: 오늘을 포함한 최근 7일 (D-39). */
+	static final int PENDING_DAYS = 7;
 
 	record RecordInfo(UUID id, String status, LocalDate workDate, String content, UUID taskId, UUID scheduleId,
 			Instant occurrenceStart, String result, String outcome, Integer progress, Instant startAt, Instant endAt,
 			Integer durationMin, List<UUID> tagIds, UUID projectId, Instant deletedAt, Instant createdAt, Instant updatedAt,
 			long version) {
+	}
+
+	/** 확인 대기 목록 항목: 기록과 지금의 계획(회차). */
+	record PendingInfo(RecordInfo record, Ended plan) {
 	}
 
 	record NewRecord(String content, LocalDate workDate, UUID taskId, String result, String outcome, Integer progress,
@@ -57,16 +71,19 @@ class WorkRecordService {
 	}
 
 	private final WorkRecordRepository records;
+	private final EndedOccurrences occurrences;
 	private final JdbcClient jdbc;
 	private final Clock clock;
 
-	WorkRecordService(WorkRecordRepository records, JdbcClient jdbc, Clock clock) {
+	WorkRecordService(WorkRecordRepository records, EndedOccurrences occurrences, JdbcClient jdbc, Clock clock) {
 		this.records = records;
+		this.occurrences = occurrences;
 		this.jdbc = jdbc;
 		this.clock = clock;
 	}
 
-	@Transactional(readOnly = true)
+	/** from과 to가 같은 날이면(일 보기) 그날 끝난 회차의 확인 대기를 먼저 만든다 (7일 범위와 관계없이, D-39). */
+	@Transactional
 	List<RecordInfo> list(UUID ownerId, LocalDate from, LocalDate to, Collection<String> statuses, UUID taskId) {
 		List<FieldErrorDetail> errors = new ArrayList<>();
 		if (from == null) {
@@ -94,7 +111,55 @@ class WorkRecordService {
 		if (wanted.isEmpty()) {
 			wanted = EnumSet.allOf(Status.class);
 		}
+		if (from.equals(to)) {
+			generate(ownerId, from, to);
+		}
 		return infos(records.findInRange(ownerId, from, to, wanted, taskId));
+	}
+
+	/** 최근 7일의 끝난 회차에서 확인 대기를 만들고, 그 범위의 확인 대기 기록을 계획 값과 함께 준다. */
+	@Transactional
+	List<PendingInfo> pending(UUID ownerId, Supplier<String> timezone) {
+		LocalDate today = LocalDate.ofInstant(clock.instant(), ZoneId.of(timezone.get()));
+		LocalDate from = today.minusDays(PENDING_DAYS - 1);
+		Map<String, Ended> plans = generate(ownerId, from, today);
+		List<WorkRecord> found = records.findInRange(ownerId, from, today, EnumSet.of(Status.PENDING), null);
+		List<RecordInfo> infos = infos(found);
+		List<PendingInfo> result = new ArrayList<>();
+		for (RecordInfo r : infos) {
+			Ended plan = r.scheduleId() == null ? null : plans.get(key(r.scheduleId(), r.occurrenceStart()));
+			// 회차를 옮기거나 지우면 그 확인 대기는 지워지므로 계획이 없는 확인 대기는 없다. 있더라도 계획 시간을 그릴 수 없어 뺀다
+			if (plan != null) {
+				result.add(new PendingInfo(r, plan));
+			}
+		}
+		return result;
+	}
+
+	/**
+	 * 모두 했어요. 보낸 id 중 최근 7일의 확인 대기만 확정하고 나머지(처리함·보관함·범위 밖·남의 것)는 건너뛴다.
+	 * 화면에 보인 것만 확정한다(목록 뒤에 생긴 확인 대기는 사람이 보지 않았다, REC-03).
+	 */
+	@Transactional
+	List<RecordInfo> confirmPending(UUID ownerId, Supplier<String> timezone, Collection<UUID> ids) {
+		LocalDate today = LocalDate.ofInstant(clock.instant(), ZoneId.of(timezone.get()));
+		OffsetDateTime now = OffsetDateTime.ofInstant(clock.instant(), ZoneOffset.UTC);
+		List<UUID> confirmed = jdbc.sql("""
+				UPDATE work_record SET status = 'CONFIRMED', version = version + 1, updated_at = :now
+				WHERE owner_id = :owner AND id IN (:ids) AND status = 'PENDING' AND deleted_at IS NULL
+				  AND work_date BETWEEN :from AND :to
+				RETURNING id""")
+				.param("now", now).param("owner", ownerId).param("ids", ids)
+				.param("from", today.minusDays(PENDING_DAYS - 1)).param("to", today)
+				.query(UUID.class).list();
+		if (confirmed.isEmpty()) {
+			return List.of();
+		}
+		List<WorkRecord> found = new ArrayList<>(records.findAllById(confirmed));
+		found.sort(Comparator.<WorkRecord, LocalDate>comparing(WorkRecord::workDate)
+				.thenComparing(WorkRecord::occurrenceStart, Comparator.nullsLast(Comparator.naturalOrder()))
+				.thenComparing(WorkRecord::id));
+		return infos(found);
 	}
 
 	@Transactional(readOnly = true)
@@ -185,6 +250,54 @@ class WorkRecordService {
 		WorkRecord r = find(ownerId, id);
 		r.restore(clock.instant());
 		return infos(List.of(records.saveAndFlush(r))).getFirst();
+	}
+
+	/**
+	 * [from, to]에 끝난 회차 중 업무가 연결되고 그 업무가 보관되지 않은 것의 확인 대기를 만든다 (D-31, 보여줄 때 생성).
+	 * (일정, 회차 시작) UNIQUE라 이미 있으면(상태·보관과 관계없이) 그대로 두고, 동시에 불려도 하나만 생긴다.
+	 * 시간 칸은 비운다(계획 시간은 실제 시간이 아니다). 찾은 회차를 (일정, 회차 키)로 돌려준다.
+	 */
+	private Map<String, Ended> generate(UUID ownerId, LocalDate from, LocalDate to) {
+		Instant now = clock.instant();
+		List<Ended> ended = occurrences.find(ownerId, from, to, now);
+		Map<String, Ended> plans = new HashMap<>();
+		for (Ended e : ended) {
+			plans.put(key(e.scheduleId(), e.key()), e);
+		}
+		List<UUID> taskIds = ended.stream().map(Ended::taskId).filter(Objects::nonNull).distinct().toList();
+		if (taskIds.isEmpty()) {
+			return plans;
+		}
+		Set<UUID> liveTasks = new HashSet<>(jdbc.sql("SELECT id FROM task WHERE id IN (:ids) AND owner_id = :owner AND deleted_at IS NULL")
+				.param("ids", taskIds).param("owner", ownerId).query(UUID.class).list());
+		OffsetDateTime at = OffsetDateTime.ofInstant(now, ZoneOffset.UTC);
+		for (Ended e : ended) {
+			if (e.taskId() == null || !liveTasks.contains(e.taskId())) {
+				continue;
+			}
+			jdbc.sql("""
+					INSERT INTO work_record (id, owner_id, task_id, schedule_id, occurrence_start, status, work_date, content,
+					                         version, created_at, updated_at)
+					VALUES (:id, :owner, :task, :schedule, :key, 'PENDING', :date, :content, 0, :now, :now)
+					ON CONFLICT (schedule_id, occurrence_start) DO NOTHING""")
+					.param("id", uuidV7(now)).param("owner", ownerId).param("task", e.taskId())
+					.param("schedule", e.scheduleId()).param("key", OffsetDateTime.ofInstant(e.key(), ZoneOffset.UTC))
+					.param("date", e.workDate()).param("content", e.title()).param("now", at)
+					.update();
+		}
+		return plans;
+	}
+
+	private static String key(UUID scheduleId, Instant occurrenceStart) {
+		return scheduleId + "@" + occurrenceStart;
+	}
+
+	/** JPA 밖에서 넣는 행의 id. 앞 48비트가 만든 밀리초인 UUIDv7 (RFC 9562). */
+	private static UUID uuidV7(Instant now) {
+		ThreadLocalRandom random = ThreadLocalRandom.current();
+		long high = (now.toEpochMilli() << 16) | 0x7000L | (random.nextLong() & 0xFFFL);
+		long low = (random.nextLong() & 0x3FFFFFFFFFFFFFFFL) | Long.MIN_VALUE;
+		return new UUID(high, low);
 	}
 
 	private WorkRecord find(UUID ownerId, UUID id) {
