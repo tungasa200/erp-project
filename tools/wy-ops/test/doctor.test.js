@@ -209,6 +209,58 @@ try {
     assert.strictEqual(byId(doctor.checkAll(pc.opts)).secrets.level, 'ok', '비밀값 폴더 있으면 통과');
   }
 
+  // 8-1. 비밀값 폴더: 저장소 기준 상대 경로(커밋 파일에 PC 경로 없음), PC별 wy-ops.local.json이 덮어씀
+  {
+    const pc = makePc('secrets');
+    const opsFile = path.join(pc.repo, '.claude', 'wy-ops.json');
+    json(opsFile, { ...JSON.parse(fs.readFileSync(opsFile, 'utf8')), secretsDir: '../worklog-secret' });
+    let r = byId(doctor.checkAll(pc.opts)).secrets;
+    assert.ok(r.level === 'warn' && r.detail.includes(`${path.join(pc.root, 'worklog-secret').replace(/\\/g, '/')} 없음`), '상대 경로는 저장소 루트 기준');
+    fs.mkdirSync(path.join(pc.root, 'worklog-secret'));
+    write(path.join(pc.root, 'worklog-secret', 'secret.txt'), '읽으면 안 됨');
+    r = byId(doctor.checkAll(pc.opts)).secrets;
+    assert.ok(r.level === 'ok' && !r.detail.includes('읽으면 안 됨'), '있으면 통과, 내용은 읽지 않음');
+    const elsewhere = path.join(pc.root, 'other-place', 'secret');
+    json(path.join(pc.repo, '.claude', 'wy-ops.local.json'), { secretsDir: elsewhere });
+    r = byId(doctor.checkAll(pc.opts)).secrets;
+    assert.ok(r.level === 'warn' && r.detail.includes('other-place'), 'local이 덮어씀');
+    fs.mkdirSync(elsewhere, { recursive: true });
+    assert.strictEqual(byId(doctor.checkAll(pc.opts)).secrets.level, 'ok', 'local 경로에 있으면 통과');
+    assert.strictEqual(byId(doctor.checkAll(pc.opts))['paths-personal'].level, 'ok', '상대 경로는 개인 경로 점검에 걸리지 않음');
+  }
+
+  // 8-2. 확장 폴더 지정(setup --extensions-dir과 같은 값): 그 폴더의 extensions.json을 읽고 code에도 붙인다
+  {
+    const pc = makePc('extdir');
+    const custom = path.join(pc.root, 'ext-dir');
+    fs.renameSync(path.join(pc.home, '.vscode', 'extensions'), custom);
+    const list = JSON.parse(fs.readFileSync(path.join(custom, 'extensions.json'), 'utf8'));
+    list[0].location.path = '/' + path.join(custom, 'wy-ops.wy-ops-0.1.0').replace(/\\/g, '/');
+    json(path.join(custom, 'extensions.json'), list);
+    assert.strictEqual(byId(doctor.checkAll(pc.opts)).extension.level, 'fail', '지정하지 않으면 기본 폴더에서 못 찾음');
+    pc.state.calls = [];
+    assert.strictEqual(byId(doctor.checkAll({ ...pc.opts, extensionsDir: custom })).extension.level, 'ok', '지정한 폴더에서 찾음');
+    assert.ok(pc.state.calls.some((c) => c.startsWith('code --list-extensions') && c.includes(`--extensions-dir ${custom}`)), 'code에도 --extensions-dir');
+  }
+
+  // 8-3. 설치본 위치 기본값은 deploy.toolsDir()(WY_TOOLS_DIR가 있으면 그 아래 wy-ops)
+  {
+    const pc = makePc('toolsenv');
+    const envDir = path.join(pc.root, 'tools-env');
+    fs.cpSync(pc.toolsDir, path.join(envDir, 'wy-ops'), { recursive: true });
+    const saved = process.env.WY_TOOLS_DIR;
+    process.env.WY_TOOLS_DIR = envDir;
+    try {
+      const { toolsDir, ...rest } = pc.opts;
+      const r = byId(doctor.checkAll(rest)).install;
+      assert.strictEqual(r.level, 'ok', `WY_TOOLS_DIR/wy-ops를 봄: ${r.detail}`);
+      assert.strictEqual(doctor.defaults({ repoRoot: pc.repo }).toolsDir, path.join(envDir, 'wy-ops'));
+    } finally {
+      if (saved === undefined) delete process.env.WY_TOOLS_DIR;
+      else process.env.WY_TOOLS_DIR = saved;
+    }
+  }
+
   // 9. 한글·공백 홈은 주의하고 훅을 문법 검사만 한다(실행하지 않음)
   {
     const pc = makePc('korean', { home: '사용자 홈' });

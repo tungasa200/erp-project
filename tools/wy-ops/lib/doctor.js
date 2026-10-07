@@ -1,10 +1,11 @@
 // 운영 도구 점검(OPS-10-1, tools/PACKAGING-PLAN.md 4장). 읽기만 한다 — 어떤 파일도 쓰지 않는다(OPS-10-3).
 //   checkAll(opts) → [{ id, title, level: 'ok'|'warn'|'fail', detail, fix, todo? }]
-//     opts = { repoRoot, home, toolsDir, approvalsRoot, settingsFile, run, env }
-//       toolsDir 기본 <home>/.wy-tools/wy-ops, approvalsRoot 기본 approvalStore.rootFor(repoRoot),
+//     opts = { repoRoot, home, toolsDir, extensionsDir, approvalsRoot, settingsFile, run }
+//       toolsDir 기본 deploy.toolsDir()(WY_TOOLS_DIR가 있으면 그 아래 wy-ops), extensionsDir 기본 <home>/.vscode/extensions
+//       (setup의 --extensions-dir과 같은 값을 넘기면 code에도 붙여 부른다), approvalsRoot 기본 approvalStore.rootFor(repoRoot),
 //       settingsFile 기본 <repoRoot>/.claude/settings.local.json, run(cmd, args) → { status, stdout } (테스트에서 바꿔 끼운다)
 //     fix: 고치는 명령 한 줄. todo: 자동으로 확인할 수 없거나 미충족인 손일(lib/todo.js writeTodo가 그대로 받는 형식)
-// CLI: node tools/wy-ops/lib/doctor.js [--json] [--project <폴더>]   fail이 하나라도 있으면 종료 코드 1
+// CLI: node tools/wy-ops/lib/doctor.js [--json] [--project <폴더>] [--extensions-dir <폴더>]   fail이 하나라도 있으면 종료 코드 1
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -137,7 +138,7 @@ function checkDeny(o, template) {
 }
 
 function installedExtensions(o) {
-  const r = o.run('code', ['--list-extensions', '--show-versions']);
+  const r = o.run('code', ['--list-extensions', '--show-versions', ...(o.extensionsDir ? ['--extensions-dir', o.extensionsDir] : [])]);
   if (r.status !== 0) return null;
   return String(r.stdout).split(/\r?\n/).map((l) => l.trim()).filter(Boolean).map((l) => {
     const [id, version] = l.split('@');
@@ -145,13 +146,13 @@ function installedExtensions(o) {
   });
 }
 
-// 껍데기 확장 폴더: ~/.vscode/extensions/extensions.json의 위치
+// 껍데기 확장 폴더: <확장 폴더>/extensions.json의 위치
 function stubFolder(o) {
   try {
-    const list = readJson(path.join(o.home, '.vscode', 'extensions', 'extensions.json'));
+    const list = readJson(path.join(o.extensionsDir || path.join(o.home, '.vscode', 'extensions'), 'extensions.json'));
     const e = list.find((x) => x && x.identifier && String(x.identifier.id).toLowerCase() === STUB_ID);
     if (!e) return null;
-    const p = (e.location && (e.location.fsPath || e.location.path)) || path.join(o.home, '.vscode', 'extensions', e.relativeLocation || '');
+    const p = (e.location && (e.location.fsPath || e.location.path)) || path.join(o.extensionsDir || path.join(o.home, '.vscode', 'extensions'), e.relativeLocation || '');
     return p.replace(/^\/([A-Za-z]:)/, '$1');
   } catch {
     return null;
@@ -235,14 +236,18 @@ function checkApprovals(o) {
   return result('approvals', '승인 폴더', 'ok', slash(o.approvalsRoot));
 }
 
+// 커밋되는 wy-ops.json을 확인한 뒤, PC별 wy-ops.local.json 덮어쓰기까지 합친 값을 쓴다(opsConfig.loadOpsConfig와 같은 규칙)
 function opsConfig(o) {
   const file = path.join(o.repoRoot, '.claude', 'wy-ops.json');
   if (!exists(file)) return { error: `${slash(file)} 없음` };
   try {
-    return { ops: readJson(file), file };
+    readJson(file);
   } catch (err) {
     return { error: `${slash(file)}을 읽지 못함: ${err.message}` };
   }
+  const merged = require('../vscode/opsConfig').loadOpsConfig(o.repoRoot);
+  if (!merged) return { error: `${slash(file)}이 객체가 아님` };
+  return { ops: merged, file };
 }
 
 function checkConfig(o) {
@@ -325,10 +330,17 @@ function checkLedger(o) {
   return result('ledger', '출처 대조 원장', 'ok', '확장 id 전환 전(해당 없음)');
 }
 
-// 비밀값 폴더는 있는지만 본다. 내용은 읽지 않는다(wy-ops.json secretsDir, 없으면 점검하지 않음)
+// 비밀값 폴더는 있는지만 본다. 내용은 읽지 않는다. wy-ops.json secretsDir(없으면 점검하지 않음):
+// 커밋되는 파일에 PC 절대 경로를 넣지 않도록 저장소 루트 기준 상대 경로를 쓰고(예 ../worklog-secret), 배치가 다른 PC는 wy-ops.local.json으로 덮어쓴다
+function secretsPath(o, value) {
+  const v = String(value);
+  if (/^~(?=$|[\\/])/.test(v)) return path.join(o.home, v.slice(1));
+  return path.resolve(o.repoRoot, v);
+}
+
 function checkSecrets(o) {
   const { ops } = opsConfig(o);
-  const dir = ops && ops.secretsDir ? String(ops.secretsDir).replace(/^~(?=[\\/])/, o.home) : null;
+  const dir = ops && ops.secretsDir ? secretsPath(o, ops.secretsDir) : null;
   if (!dir) return result('secrets', '비밀값 폴더', 'ok', 'wy-ops.json에 secretsDir가 없어 확인하지 않음');
   if (exists(dir)) return result('secrets', '비밀값 폴더', 'ok', `${slash(dir)} 있음(내용은 읽지 않음)`);
   return result('secrets', '비밀값 폴더', 'warn', `${slash(dir)} 없음`, 'NEW-PC.md 비밀값 항목', {
@@ -381,7 +393,8 @@ function defaults(opts = {}) {
   return {
     repoRoot,
     home,
-    toolsDir: opts.toolsDir || (opts.env || process.env).WY_TOOLS_DIR || path.join(home, '.wy-tools', 'wy-ops'),
+    toolsDir: opts.toolsDir || require('./deploy').toolsDir(),
+    extensionsDir: opts.extensionsDir || null,
     approvalsRoot,
     settingsFile: opts.settingsFile || path.join(repoRoot, '.claude', 'settings.local.json'),
     run: opts.run || defaultRun,
@@ -434,10 +447,11 @@ function format(results) {
 }
 
 function parseArgs(argv) {
-  const out = { json: false, project: null };
+  const out = { json: false, project: null, extensionsDir: null };
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === '--json') out.json = true;
     else if (argv[i] === '--project') out.project = argv[++i];
+    else if (argv[i] === '--extensions-dir') out.extensionsDir = argv[++i];
   }
   return out;
 }
@@ -449,7 +463,7 @@ function main(argv = process.argv.slice(2)) {
     const top = defaultRun('git', ['rev-parse', '--show-toplevel']);
     repoRoot = top.status === 0 ? String(top.stdout).trim() : process.cwd();
   }
-  const results = checkAll({ repoRoot });
+  const results = checkAll({ repoRoot, extensionsDir: a.extensionsDir });
   process.stdout.write((a.json ? JSON.stringify(results, null, 2) : format(results)) + '\n');
   return results.some((r) => r.level === 'fail') ? 1 : 0;
 }
