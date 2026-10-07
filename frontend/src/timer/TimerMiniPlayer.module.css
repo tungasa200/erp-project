@@ -1,5 +1,5 @@
 /* SCR-COM-06 타이머 미니 플레이어. 놓이는 자리의 너비에 맞춘다(컨테이너 쿼리):
-   사이드바(약 216px) 세로 카드, 태블릿 좁은 사이드바(76px) 시간·정지만, 모바일 하단 탭 위(360px 이상) 가로 한 줄 */
+   사이드바(약 216px) 세로 카드, 태블릿 좁은 사이드바(76px) 시간 아래 정지·전환 아이콘 버튼 세로, 모바일 하단 탭 위(360px 이상) 가로 한 줄 */
 .slot {
   container-type: inline-size;
 }
@@ -89,8 +89,14 @@
   outline-offset: 2px;
 }
 
-.narrowOnly {
+.narrowOnly,
+.icon {
   display: none;
+}
+
+.icon {
+  width: 18px;
+  height: 18px;
 }
 
 .srOnly {
@@ -102,7 +108,8 @@
   white-space: nowrap;
 }
 
-/* 태블릿 좁은 사이드바: 실행 중에는 시간과 정지만(업무명은 영역 이름으로 읽힌다), 정지 뒤 안내는 그대로 */
+/* 태블릿 좁은 사이드바: 실행 중에는 점·경과 아래 정지·전환을 44×44 아이콘 버튼으로 세로로 쌓는다
+   (업무명은 영역 이름으로 읽힌다), 정지 뒤 안내는 그대로 */
 @container (max-width: 120px) {
   .player {
     padding: 8px 4px;
@@ -111,12 +118,26 @@
   }
   .name,
   .note,
-  .narrowHide,
   .wide {
     display: none;
   }
   .narrowOnly {
     display: inline;
+  }
+  .player:has(.icon) .actions {
+    flex-direction: column;
+    align-items: center;
+  }
+  .icon {
+    display: block;
+  }
+  .stop:has(.icon),
+  .switch:has(.icon) {
+    display: grid;
+    place-items: center;
+    width: var(--size-touch);
+    height: var(--size-touch);
+    padding: 0;
   }
   .relay,
   .offline {

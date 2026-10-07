@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { handleScheduleMock } from '../calendar/mockSchedules'
 import type { Task } from '../tasks/api'
 import { handleWorklog } from './mockWorklog'
@@ -130,6 +130,26 @@ describe('가짜 타이머(P2-06)', () => {
     expect((await call('POST', '/api/worklog/timer/stop')).body.stopped).toMatchObject({ discarded: true })
     expect((await call('POST', '/api/worklog/timer/stop')).body).toEqual({ stopped: null, next: null })
     expect((await call('GET', '/api/worklog/timer')).body.running).toBeNull()
+  })
+
+  it('정지는 소요시간을 분 버림으로 채우고, 그 기록은 durationMin:null을 함께 보내도 내용만 고쳐진다(TC-REC-01, 서버와 같게)', async () => {
+    vi.useFakeTimers({ now: new Date('2026-10-07T01:00:00Z'), toFake: ['Date'] })
+    try {
+      await call('POST', '/api/worklog/timer/start', { content: '정리' })
+      vi.setSystemTime(new Date('2026-10-07T01:30:50Z'))
+      const stopped = (await call('POST', '/api/worklog/timer/stop')).body.stopped as { record: Record<string, never> }
+      expect(stopped.record).toMatchObject({ endAt: '2026-10-07T01:30:50.000Z', durationMin: 30 })
+      const { id, version, startAt, endAt } = stopped.record
+      const url = `/api/worklog/records/${String(id)}`
+      // 기록 수정 창은 시간 칸이 있으면 startAt·endAt과 durationMin:null을 함께 보낸다
+      const edited = await call('PATCH', url, { version, content: '정리 끝', startAt, endAt, durationMin: null })
+      expect(edited.status).toBe(200)
+      expect(edited.body).toMatchObject({ content: '정리 끝', durationMin: 30 })
+      expect((await call('PATCH', url, { version: version + 1, content: '정리 2' })).status).toBe(200)
+      expect((await call('PATCH', url, { version: version + 2, durationMin: 10 })).status).toBe(400)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })
 

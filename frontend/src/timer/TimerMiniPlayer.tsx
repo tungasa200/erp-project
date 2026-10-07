@@ -1,5 +1,5 @@
 // SCR-COM-06 타이머 미니 플레이어 (TIME-03·10, P2-06, D-101). 사이드바 하단 / 모바일 하단 탭 위에 앱 셸이 단다.
-// ① 업무명 ② 경과 시간 ③ 정지 ④ 업무 전환. 시간 기록 옵션이 켜져 있고 타이머가 돌 때만 보인다.
+// ① 업무명 ② 경과 시간 ③ 정지 ④ 업무 전환(태블릿 좁은 사이드바에서는 둘 다 44×44 아이콘 버튼). 시간 기록 옵션이 켜져 있고 타이머가 돌 때만 보인다.
 // 경과 시간은 서버의 startAt 기준이라 브라우저를 닫았다 열어도 이어진다. 정지하면 서버가 기록을 끝내고
 // 1분 미만은 버리고 24시간이 넘으면 자른다(discarded·capped를 알린다). 이어달리기 제안(next)이 있으면
 // 플레이어 자리에 "다음 계획을 시작할까요?"를 남긴다.
@@ -158,18 +158,34 @@ export function TimerMiniPlayer() {
               disabled={busy || !online}
               aria-describedby={online ? undefined : offlineId}
               title={online ? undefined : '연결되면 멈출 수 있어요'}
+              aria-label="타이머 정지"
               onClick={() => void onStop()}
             >
-              정지
+              <span className={styles.wide}>정지</span>
+              <svg className={styles.icon} viewBox="0 0 16 16" aria-hidden="true">
+                <rect x="3" y="3" width="10" height="10" rx="1.5" fill="currentColor" />
+              </svg>
             </button>
             <button
               type="button"
-              className={`${styles.switch} ${styles.narrowHide}`}
+              className={styles.switch}
               disabled={busy || !online}
               aria-describedby={online ? undefined : offlineId}
+              title={online ? undefined : '연결되면 바꿀 수 있어요'}
+              aria-label="업무 전환"
               onClick={() => setSwitching(true)}
             >
-              업무 전환
+              <span className={styles.wide}>업무 전환</span>
+              <svg className={styles.icon} viewBox="0 0 16 16" aria-hidden="true">
+                <path
+                  d="M2 5h11M10 2l3 3-3 3M14 11H3M6 8l-3 3 3 3"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
             </button>
           </div>
         </section>

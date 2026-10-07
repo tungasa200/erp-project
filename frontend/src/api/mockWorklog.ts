@@ -546,13 +546,21 @@ function recordFields(body: Record<string, unknown>, current: WorkRecord | null,
   const progress = pick('progress') ?? null
   const startAt = pick('startAt') ?? null
   const endAt = pick('endAt') ?? null
-  const durationMin = pick('durationMin') ?? null
+  // 서버와 같이 null은 보내지 않은 것으로 본다(PATCH에서 키만 있고 null이면 지금 값을 비우는 뜻이 아님)
+  const durationSent = body.durationMin != null
+  const sentOrKept = pick('durationMin') ?? null
   if (!content || content.length > 500) return invalid('content', 'INVALID')
   if (progress !== null && outcome !== 'IN_PROGRESS') return invalid('progress', 'INVALID_FORMAT')
   if (endAt && !startAt) return invalid('endAt', 'INVALID_ORDER')
   if (startAt && !endAt) return invalid('endAt', 'REQUIRED')
   if (startAt && endAt && Date.parse(endAt) <= Date.parse(startAt)) return invalid('endAt', 'INVALID_ORDER')
-  if (startAt && durationMin !== null) return invalid('durationMin', 'INVALID_FORMAT')
+  if (startAt && durationSent) return invalid('durationMin', 'INVALID_FORMAT')
+  // startAt이 있으면 소요시간은 endAt-startAt(분, 버림)으로 계산하고 진행 중이면 null(서버 WorkRecordService.check)
+  const durationMin = startAt
+    ? endAt
+      ? Math.floor((Date.parse(endAt) - Date.parse(startAt)) / 60_000)
+      : null
+    : sentOrKept
   // startAt이 있으면 workDate는 사용자 시간대(mock은 서울) 날짜로 계산한다
   const workDate = startAt ? seoulDate(startAt) : pick('workDate')
   if (!workDate) return invalid('workDate', 'REQUIRED')
@@ -856,7 +864,7 @@ function stopRunning(records: MockRecord[]) {
   const end = capped ? startMs + DAY : startMs + elapsed
   Object.assign(running, {
     endAt: new Date(end).toISOString(),
-    durationMin: Math.round((end - startMs) / MINUTE),
+    durationMin: Math.floor((end - startMs) / MINUTE),
     version: running.version + 1,
     updatedAt: now(),
   })

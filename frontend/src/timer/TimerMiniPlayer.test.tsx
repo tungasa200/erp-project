@@ -130,7 +130,7 @@ describe('타이머 미니 플레이어 (SCR-COM-06)', () => {
     expect(within(player).getByText(/^1:0\d$/)).toBeInTheDocument()
     expect(within(player).getByText('1분 지남')).toBeInTheDocument()
 
-    await user.click(within(player).getByRole('button', { name: '정지' }))
+    await user.click(within(player).getByRole('button', { name: '타이머 정지' }))
     expect(await screen.findByText('기록을 남겼어요')).toBeInTheDocument()
     await waitFor(() => expect(screen.queryByRole('region', { name: /타이머/ })).toBeNull())
     expect(sent.map((s) => s.key)).toEqual(['stop'])
@@ -145,7 +145,7 @@ describe('타이머 미니 플레이어 (SCR-COM-06)', () => {
       },
     })
     const user = show()
-    await user.click(await screen.findByRole('button', { name: '정지' }))
+    await user.click(await screen.findByRole('button', { name: '타이머 정지' }))
     expect(await screen.findByText('1분이 안 돼서 기록하지 않았어요')).toBeInTheDocument()
   })
 
@@ -162,7 +162,7 @@ describe('타이머 미니 플레이어 (SCR-COM-06)', () => {
       },
     })
     const user = show()
-    await user.click(await screen.findByRole('button', { name: '정지' }))
+    await user.click(await screen.findByRole('button', { name: '타이머 정지' }))
     const panel = await screen.findByRole('region', { name: '타이머' })
     expect(within(panel).getByRole('status')).toHaveTextContent('기록을 남겼어요')
     expect(within(panel).getByText('다음 계획 ‘주간 회의’을(를) 시작할까요?')).toBeInTheDocument()
@@ -175,7 +175,7 @@ describe('타이머 미니 플레이어 (SCR-COM-06)', () => {
       scheduleId: 's-1',
       occurrenceStart: '2026-10-07T05:00:00Z',
     })
-    await waitFor(() => expect(within(player).getByRole('button', { name: '정지' })).toHaveFocus())
+    await waitFor(() => expect(within(player).getByRole('button', { name: '타이머 정지' })).toHaveFocus())
   })
 
   it('이어달리기 회차가 이미 기록됐으면(409) 제안을 거두고 알린다. [괜찮아요]로 닫는다', async () => {
@@ -187,7 +187,7 @@ describe('타이머 미니 플레이어 (SCR-COM-06)', () => {
       },
     })
     const user = show()
-    await user.click(await screen.findByRole('button', { name: '정지' }))
+    await user.click(await screen.findByRole('button', { name: '타이머 정지' }))
     await user.click(await screen.findByRole('button', { name: '시작' }))
     expect(await screen.findByText('그 계획은 이미 기록했어요')).toBeInTheDocument()
     const panel = screen.getByRole('region', { name: '타이머' })
@@ -204,7 +204,7 @@ describe('타이머 미니 플레이어 (SCR-COM-06)', () => {
       },
     })
     const user = show()
-    await user.click(await screen.findByRole('button', { name: '정지' }))
+    await user.click(await screen.findByRole('button', { name: '타이머 정지' }))
     const panel = await screen.findByRole('region', { name: '타이머' })
     expect(within(panel).getByRole('status')).toHaveTextContent('24시간이 넘어 24시간까지만 기록했어요')
     expect(within(panel).getByRole('button', { name: '시간 고치기' })).toHaveFocus()
@@ -244,7 +244,7 @@ describe('타이머 미니 플레이어 (SCR-COM-06)', () => {
       },
     })
     const user = show()
-    await user.click(await screen.findByRole('button', { name: '정지' }))
+    await user.click(await screen.findByRole('button', { name: '타이머 정지' }))
     const panel = await screen.findByRole('region', { name: '타이머' })
     await waitFor(() => expect(within(panel).getByRole('button', { name: '시작' })).toHaveFocus())
   })
@@ -257,7 +257,7 @@ describe('타이머 미니 플레이어 (SCR-COM-06)', () => {
       },
     })
     const user = show()
-    await user.click(await screen.findByRole('button', { name: '정지' }))
+    await user.click(await screen.findByRole('button', { name: '타이머 정지' }))
     expect(await screen.findByText('1분이 안 돼서 기록하지 않았어요')).toBeInTheDocument()
     await waitFor(() => expect(screen.queryByRole('region', { name: /타이머/ })).toBeNull())
     expect(screen.queryByText(/다음 계획/)).toBeNull()
@@ -274,7 +274,7 @@ describe('타이머 미니 플레이어 (SCR-COM-06)', () => {
       },
     })
     const user = show()
-    await user.click(await screen.findByRole('button', { name: '정지' }))
+    await user.click(await screen.findByRole('button', { name: '타이머 정지' }))
     await user.click(await screen.findByRole('button', { name: '시간 고치기' }))
     const dialog = await screen.findByRole('dialog', { name: '기록 수정' })
     const end = await within(dialog).findByLabelText('종료')
@@ -288,8 +288,12 @@ describe('타이머 미니 플레이어 (SCR-COM-06)', () => {
     vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
     server()
     show()
-    const stop = await screen.findByRole('button', { name: '정지' })
+    const stop = await screen.findByRole('button', { name: '타이머 정지' })
     expect(stop).toBeDisabled()
     expect(stop).toHaveAccessibleDescription('연결되면 멈추거나 바꿀 수 있어요')
+    // 좁은 사이드바 레일에서도 전환을 숨기지 않는다(아이콘 버튼, TC-COM-06)
+    const change = screen.getByRole('button', { name: '업무 전환' })
+    expect(change).toBeDisabled()
+    expect(change).toHaveAccessibleDescription('연결되면 멈추거나 바꿀 수 있어요')
   })
 })
