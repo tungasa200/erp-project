@@ -1,0 +1,459 @@
+// 운영 도구 점검(OPS-10-1, tools/PACKAGING-PLAN.md 4장). 읽기만 한다 — 어떤 파일도 쓰지 않는다(OPS-10-3).
+//   checkAll(opts) → [{ id, title, level: 'ok'|'warn'|'fail', detail, fix, todo? }]
+//     opts = { repoRoot, home, toolsDir, approvalsRoot, settingsFile, run, env }
+//       toolsDir 기본 <home>/.wy-tools/wy-ops, approvalsRoot 기본 approvalStore.rootFor(repoRoot),
+//       settingsFile 기본 <repoRoot>/.claude/settings.local.json, run(cmd, args) → { status, stdout } (테스트에서 바꿔 끼운다)
+//     fix: 고치는 명령 한 줄. todo: 자동으로 확인할 수 없거나 미충족인 손일(lib/todo.js writeTodo가 그대로 받는 형식)
+// CLI: node tools/wy-ops/lib/doctor.js [--json] [--project <폴더>]   fail이 하나라도 있으면 종료 코드 1
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+const { spawnSync } = require('child_process');
+const { readSettings, scriptOf } = require('./settings');
+
+const PKG = path.join(__dirname, '..');
+const TEMPLATE = path.join(PKG, 'templates', 'settings.hooks.json');
+const PLUGINS = path.join(PKG, 'plugins.json');
+const STUB_ID = 'wy-ops.wy-ops';
+const OLD_EXT_ID = 'erp-project.erp-session-dashboard';
+const GITIGNORE_LINES = ['.claude/settings.local.json', '.claude/wy-ops.local.json', '.claude/*.bak-*'];
+const INSTALL = 'powershell -ExecutionPolicy Bypass -File tools\\wy-ops\\install.ps1';
+
+const slash = (p) => String(p || '').replace(/\\/g, '/');
+const lower = (p) => slash(p).toLowerCase().replace(/\/+$/, '');
+const under = (file, dir) => lower(file).startsWith(lower(dir) + '/');
+const readJson = (file) => JSON.parse(fs.readFileSync(file, 'utf8').replace(/^﻿/, ''));
+const exists = (p) => {
+  try {
+    return fs.existsSync(p);
+  } catch {
+    return false;
+  }
+};
+
+// Windows에서 code·claude·gh는 .cmd 래퍼라 cmd.exe로 부른다. 출력만 보고 아무것도 쓰지 않는다
+function defaultRun(cmd, args = []) {
+  const quote = (a) => (/[\s"&|<>^]/.test(a) ? `"${String(a).replace(/"/g, '\\"')}"` : a);
+  const opts = { encoding: 'utf8', timeout: 20000, windowsHide: true, maxBuffer: 8 * 1024 * 1024 };
+  const r = process.platform === 'win32'
+    ? spawnSync(process.env.ComSpec || 'cmd.exe', ['/d', '/s', '/c', [cmd, ...args].map(quote).join(' ')], opts)
+    : spawnSync(cmd, args, opts);
+  return { status: r.error ? null : r.status, stdout: r.stdout || '' };
+}
+
+function result(id, title, level, detail, fix = '', todo) {
+  return { id, title, level, detail, fix, ...(todo ? { todo } : {}) };
+}
+
+/* ── 점검 항목(계획 4장 표 순서) ── */
+
+function checkTools(o) {
+  const missing = [];
+  const notes = [];
+  const major = Number(String(process.versions.node).split('.')[0]);
+  if (major < 18) missing.push(`node 18 이상(지금 ${process.versions.node})`);
+  for (const [cmd, args, label] of [['git', ['--version'], 'git'], ['code', ['--version'], 'code(VS Code, PATH)'], ['claude', ['--version'], 'claude(Claude Code CLI)']]) {
+    const r = o.run(cmd, args);
+    if (r.status !== 0) missing.push(label);
+    else notes.push(`${label.split('(')[0]} ${String(r.stdout).trim().split(/\r?\n/)[0]}`);
+  }
+  const ps = o.run('powershell', ['-NoProfile', '-Command', '$PSVersionTable.PSVersion.ToString()']);
+  const psv = String(ps.stdout).trim();
+  if (ps.status !== 0 || !/^5\.1|^[67]\./.test(psv)) missing.push(`PowerShell 5.1${psv ? `(지금 ${psv})` : ''}`);
+  if (missing.length) return result('tools', '전제 도구', 'fail', `없음: ${missing.join(', ')}`, '설치: git https://git-scm.com · node https://nodejs.org · VS Code https://code.visualstudio.com(셸 명령 code 설치) · Claude Code https://docs.claude.com/claude-code');
+  return result('tools', '전제 도구', 'ok', notes.join(' · '));
+}
+
+function repoVersion(o) {
+  let version = null;
+  try {
+    version = readJson(path.join(PKG, 'package.json')).version || null;
+  } catch {
+    // R2 전에는 패키지 버전 파일이 없다
+  }
+  const head = o.run('git', ['-C', o.repoRoot, 'rev-parse', '--short', 'HEAD']);
+  return { version, commit: head.status === 0 ? String(head.stdout).trim() : null };
+}
+
+function readDeployed(o) {
+  try {
+    return readJson(path.join(o.toolsDir, 'current', 'deployed.json'));
+  } catch {
+    return null;
+  }
+}
+
+function checkInstall(o) {
+  const cur = path.join(o.toolsDir, 'current');
+  if (!exists(cur)) return result('install', '설치본', 'fail', `${slash(cur)} 없음(패키지가 설치되지 않음)`, `${INSTALL} deploy`);
+  const d = readDeployed(o);
+  if (!d) return result('install', '설치본', 'fail', `${slash(cur)}/deployed.json을 읽지 못함`, `${INSTALL} deploy`);
+  const want = repoVersion(o);
+  const same = (a, b) => !!a && !!b && (String(a).startsWith(b) || String(b).startsWith(a));
+  const diffs = [];
+  if (want.version && d.version !== want.version) diffs.push(`버전 ${d.version || '?'} → 저장소 ${want.version}`);
+  if (want.commit && !same(d.commit, want.commit)) diffs.push(`커밋 ${String(d.commit || '?').slice(0, 7)} → HEAD ${want.commit}`);
+  if (diffs.length) return result('install', '설치본', 'fail', `설치본이 저장소와 다름: ${diffs.join(', ')}`, `${INSTALL} deploy`);
+  return result('install', '설치본', 'ok', `${d.version || '버전 없음'} @ ${String(d.commit || '').slice(0, 7)}${want.version ? '' : ' (저장소 package.json 버전 없음)'}`);
+}
+
+function readSettingsSafe(o) {
+  try {
+    return { s: readSettings(o.settingsFile) };
+  } catch (err) {
+    return { error: err.message };
+  }
+}
+
+function checkHooks(o, template) {
+  const { s, error } = readSettingsSafe(o);
+  if (error) return result('hooks', '훅 5종', 'fail', `${slash(o.settingsFile)}을 읽지 못함: ${error}`, `${INSTALL} setup`);
+  const hooksDir = path.join(o.toolsDir, 'current', 'vscode', 'hooks');
+  const problems = [];
+  for (const t of template.hooks) {
+    const groups = (s.hooks && s.hooks[t.event]) || [];
+    const found = groups
+      .filter((g) => (g.matcher || null) === (t.matcher || null))
+      .flatMap((g) => g.hooks || [])
+      .map(scriptOf)
+      .find((p) => p && path.posix.basename(p) === t.script);
+    const label = `${t.event}${t.matcher ? `(${t.matcher})` : ''} ${t.script}`;
+    // 경로가 틀리면 Claude Code가 훅을 조용히 건너뛰어 보호가 꺼진다 — 가장 중요한 점검
+    if (!found) problems.push(`${label}: 없음`);
+    else if (!exists(found)) problems.push(`${label}: 파일 없음 ${found}`);
+    else if (!under(found, hooksDir)) problems.push(`${label}: current 밖을 가리킴 ${found}`);
+  }
+  if (problems.length) return result('hooks', '훅 5종', 'fail', problems.join(' / '), `${INSTALL} setup`);
+  return result('hooks', '훅 5종', 'ok', `모두 ${slash(hooksDir)} 아래에 있음`);
+}
+
+function checkDeny(o, template) {
+  const { s, error } = readSettingsSafe(o);
+  if (error) return result('deny', 'deny 줄', 'fail', `settings를 읽지 못함: ${error}`, `${INSTALL} setup`);
+  const have = new Set(((s.permissions && s.permissions.deny) || []).map(String));
+  const missing = template.deny.filter((d) => !have.has(d));
+  if (missing.length) return result('deny', 'deny 줄', 'fail', `빠진 줄 ${missing.length}개: ${missing.join(', ')}`, `${INSTALL} setup`);
+  return result('deny', 'deny 줄', 'ok', `${template.deny.length}줄 모두 있음`);
+}
+
+function installedExtensions(o) {
+  const r = o.run('code', ['--list-extensions', '--show-versions']);
+  if (r.status !== 0) return null;
+  return String(r.stdout).split(/\r?\n/).map((l) => l.trim()).filter(Boolean).map((l) => {
+    const [id, version] = l.split('@');
+    return { id: id.toLowerCase(), version };
+  });
+}
+
+// 껍데기 확장 폴더: ~/.vscode/extensions/extensions.json의 위치
+function stubFolder(o) {
+  try {
+    const list = readJson(path.join(o.home, '.vscode', 'extensions', 'extensions.json'));
+    const e = list.find((x) => x && x.identifier && String(x.identifier.id).toLowerCase() === STUB_ID);
+    if (!e) return null;
+    const p = (e.location && (e.location.fsPath || e.location.path)) || path.join(o.home, '.vscode', 'extensions', e.relativeLocation || '');
+    return p.replace(/^\/([A-Za-z]:)/, '$1');
+  } catch {
+    return null;
+  }
+}
+
+function checkExtension(o) {
+  const list = installedExtensions(o);
+  if (!list) return result('extension', '확장', 'fail', 'code --list-extensions를 실행하지 못함', 'VS Code 명령 팔레트 → Shell Command: Install \'code\' command in PATH');
+  const stub = list.find((e) => e.id === STUB_ID);
+  const old = list.find((e) => e.id === OLD_EXT_ID);
+  if (!stub) return result('extension', '확장', 'fail', `껍데기 확장 ${STUB_ID} 없음${old ? `(옛 ${OLD_EXT_ID}@${old.version}만 있음)` : ''}`, `${INSTALL} setup`);
+  const d = readDeployed(o);
+  let hash = null;
+  const folder = stubFolder(o);
+  try {
+    hash = folder ? readJson(path.join(folder, 'package.json')).wyOpsStubHash || null : null;
+  } catch {
+    hash = null;
+  }
+  if (d && d.stubHash && hash !== d.stubHash) return result('extension', '확장', 'fail', `껍데기 확장의 contributes가 설치본과 다름(${hash || '해시 없음'} ≠ ${d.stubHash}) — 뷰·명령 목록이 바뀜`, `${INSTALL} setup`);
+  if (old) return result('extension', '확장', 'warn', `${STUB_ID}@${stub.version} 있음. 옛 ${OLD_EXT_ID}@${old.version}이 남아 있음(같은 화면이 두 번 뜰 수 있음)`, `code --uninstall-extension ${OLD_EXT_ID}`);
+  return result('extension', '확장', 'ok', `${STUB_ID}@${stub.version}`);
+}
+
+function readPlugins() {
+  const raw = readJson(PLUGINS);
+  return Array.isArray(raw) ? raw : raw.plugins || [];
+}
+
+function checkPlugins(o) {
+  let want;
+  try {
+    want = readPlugins();
+  } catch (err) {
+    return result('plugins', '플러그인', 'fail', `plugins.json을 읽지 못함: ${err.message}`, '');
+  }
+  const r = o.run('claude', ['plugin', 'list', '--json']);
+  let have;
+  try {
+    have = r.status === 0 ? JSON.parse(r.stdout) : null;
+  } catch {
+    have = null;
+  }
+  if (!Array.isArray(have)) return result('plugins', '플러그인', 'fail', 'claude plugin list --json을 읽지 못함', 'claude --version으로 Claude Code CLI 설치·로그인 확인');
+  const byId = new Map(have.map((p) => [p.id, p]));
+  const fails = [];
+  const warns = [];
+  const notes = [];
+  const fixes = [];
+  for (const p of want) {
+    const got = byId.get(p.id);
+    const install = `claude plugin marketplace add ${p.marketplace} && claude plugin install ${p.id}`;
+    if (!got) {
+      if (p.required) {
+        fails.push(`${p.id} 없음`);
+        fixes.push(install);
+      } else notes.push(`선택 ${p.id} 없음`);
+    } else if (got.enabled === false) {
+      if (p.required) {
+        fails.push(`${p.id} 꺼져 있음`);
+        fixes.push(`claude plugin enable ${p.id}`);
+      } else notes.push(`선택 ${p.id} 꺼짐`);
+    } else if (p.required && p.version && got.version !== p.version) {
+      warns.push(`${p.id} ${got.version}(기준 ${p.version})`);
+    } else notes.push(`${p.id} ${got.version}`);
+  }
+  if (fails.length) return result('plugins', '플러그인', 'fail', [...fails, ...warns].join(', '), fixes.join(' ; '));
+  if (warns.length) return result('plugins', '플러그인', 'warn', `버전이 기준과 다름: ${warns.join(', ')}(일은 막지 않음)`, 'claude plugin marketplace update');
+  return result('plugins', '플러그인', 'ok', notes.join(' · '));
+}
+
+function checkApprovals(o) {
+  if (!o.approvalsRoot) return result('approvals', '승인 폴더', 'fail', '승인 폴더 위치를 정하지 못함(wy-ops.json approvals.namespace)', `${INSTALL} setup`);
+  if (!exists(o.approvalsRoot)) return result('approvals', '승인 폴더', 'fail', `${slash(o.approvalsRoot)} 없음`, `${INSTALL} setup`);
+  try {
+    fs.accessSync(o.approvalsRoot, fs.constants.W_OK);
+  } catch {
+    return result('approvals', '승인 폴더', 'fail', `${slash(o.approvalsRoot)}에 쓸 수 없음`, '폴더 권한 확인');
+  }
+  return result('approvals', '승인 폴더', 'ok', slash(o.approvalsRoot));
+}
+
+function opsConfig(o) {
+  const file = path.join(o.repoRoot, '.claude', 'wy-ops.json');
+  if (!exists(file)) return { error: `${slash(file)} 없음` };
+  try {
+    return { ops: readJson(file), file };
+  } catch (err) {
+    return { error: `${slash(file)}을 읽지 못함: ${err.message}` };
+  }
+}
+
+function checkConfig(o) {
+  const { ops, error } = opsConfig(o);
+  if (error) return result('config', '설정', 'fail', error, `${INSTALL} init`);
+  const problems = [];
+  if (!ops.project) problems.push('project 없음');
+  const roles = Array.isArray(ops.roles) ? ops.roles : [];
+  if (!roles.length) problems.push('roles가 비어 있음');
+  const names = new Set(roles.map((r) => r && r.name));
+  if (roles.some((r) => !r || !r.name)) problems.push('이름 없는 역할');
+  for (const k of ['pmRole', 'commitRole']) if (!ops[k] || !names.has(ops[k])) problems.push(`${k}(${ops[k] || '없음'})가 roles에 없음`);
+  const ns = ops.approvals && ops.approvals.namespace;
+  if (!ns || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$/.test(ns)) problems.push('approvals.namespace 형식이 틀림');
+  if (problems.length) return result('config', '설정', 'fail', `wy-ops.json: ${problems.join(', ')}`, '.claude/wy-ops.json을 고친 뒤(사용자) 다시 doctor');
+  const gen = o.run('node', [path.join(PKG, 'gen-agents.js'), '--check', '--root', o.repoRoot]);
+  if (gen.status !== 0) {
+    const why = String(gen.stdout).trim().split(/\r?\n/).slice(0, 2).join(' ');
+    return result('config', '설정', 'fail', `역할 파일(.claude/agents)이 원본과 다름${why ? `: ${why}` : ''}`, 'node tools/wy-ops/gen-agents.js');
+  }
+  return result('config', '설정', 'ok', `${ops.project} · 역할 ${roles.length}개 · namespace ${ns}`);
+}
+
+// 커밋되는 설정 파일에 이 PC의 홈 경로가 들어가 있으면 다른 PC에서 깨진다(OPS-10-1)
+function checkPersonalPaths(o) {
+  const home = slash(o.home).replace(/\/+$/, '');
+  if (!home) return result('paths-personal', '개인 경로', 'ok', '홈 경로를 모름(건너뜀)');
+  const needles = [home, home.replace(/\//g, '\\'), home.replace(/\//g, '\\\\')].map((n) => n.toLowerCase());
+  const files = [];
+  const walk = (p) => {
+    let st;
+    try {
+      st = fs.statSync(p);
+    } catch {
+      return;
+    }
+    if (st.isDirectory()) for (const n of fs.readdirSync(p)) walk(path.join(p, n));
+    else if (st.size < 2 * 1024 * 1024) files.push(p);
+  };
+  const claude = path.join(o.repoRoot, '.claude');
+  walk(path.join(claude, 'wy-ops.json'));
+  for (const d of ['ops', 'agents', 'skills']) walk(path.join(claude, d));
+  const hits = [];
+  for (const f of files) {
+    let text;
+    try {
+      text = fs.readFileSync(f, 'utf8');
+    } catch {
+      continue;
+    }
+    text.split(/\r?\n/).forEach((line, i) => {
+      const l = line.toLowerCase();
+      if (needles.some((n) => l.includes(n))) hits.push(`${slash(path.relative(o.repoRoot, f))}:${i + 1}`);
+    });
+  }
+  if (hits.length) return result('paths-personal', '개인 경로', 'fail', `커밋되는 파일에 홈 경로(${home})가 있음: ${hits.slice(0, 8).join(', ')}${hits.length > 8 ? ` 외 ${hits.length - 8}곳` : ''}`, '해당 줄을 ~ 또는 상대 경로로 바꾸기');
+  return result('paths-personal', '개인 경로', 'ok', `${files.length}개 파일에 홈 경로 없음`);
+}
+
+function checkGitignore(o) {
+  let lines = [];
+  try {
+    lines = fs.readFileSync(path.join(o.repoRoot, '.gitignore'), 'utf8').split(/\r?\n/).map((l) => l.trim());
+  } catch {
+    // 파일이 없으면 모두 빠진 것으로 본다
+  }
+  const norm = (l) => l.replace(/^\//, '');
+  const have = new Set(lines.map(norm));
+  const missing = GITIGNORE_LINES.filter((l) => !have.has(l));
+  if (missing.length) return result('gitignore', '.gitignore', 'fail', `빠진 줄: ${missing.join(', ')}(setup이 .bak-<시각>을 만들기 때문에 필요)`, `.gitignore에 넣을 줄: ${missing.join(' ')}`);
+  return result('gitignore', '.gitignore', 'ok', '3줄 모두 있음');
+}
+
+// 확장 id가 wy-ops로 바뀐 뒤에는 VS Code 저장 상태가 새로 시작된다(R4, pm 결정: 알리기만)
+function checkLedger(o) {
+  const list = installedExtensions(o);
+  if (list && list.some((e) => e.id === STUB_ID)) {
+    return result('ledger', '출처 대조 원장', 'ok', '확장 id가 wy-ops로 바뀐 뒤에는 출처 대조 원장을 새로 시작합니다(그 시각 전의 결정은 신뢰). 확인함·접힘 같은 화면 상태도 처음부터입니다');
+  }
+  return result('ledger', '출처 대조 원장', 'ok', '확장 id 전환 전(해당 없음)');
+}
+
+// 비밀값 폴더는 있는지만 본다. 내용은 읽지 않는다(wy-ops.json secretsDir, 없으면 점검하지 않음)
+function checkSecrets(o) {
+  const { ops } = opsConfig(o);
+  const dir = ops && ops.secretsDir ? String(ops.secretsDir).replace(/^~(?=[\\/])/, o.home) : null;
+  if (!dir) return result('secrets', '비밀값 폴더', 'ok', 'wy-ops.json에 secretsDir가 없어 확인하지 않음');
+  if (exists(dir)) return result('secrets', '비밀값 폴더', 'ok', `${slash(dir)} 있음(내용은 읽지 않음)`);
+  return result('secrets', '비밀값 폴더', 'warn', `${slash(dir)} 없음`, 'NEW-PC.md 비밀값 항목', {
+    key: 'secrets',
+    title: '비밀값 폴더 옮기기',
+    what: `비밀값 폴더 ${slash(dir)}가 이 PC에 없습니다.`,
+    why: '비밀값은 저장소에 없고 패키지도 옮기지 않습니다. 운영 확인(배포·메일 등)에 필요합니다.',
+    steps: ['원래 PC의 비밀값 폴더를 안전한 방법(암호화된 USB·비밀번호 관리자 등)으로 옮깁니다', `이 PC의 ${slash(dir)}에 둡니다`, '메신저·메일·클라우드 공유로 보내지 않습니다'],
+    check: 'install.ps1 doctor에서 비밀값 폴더가 ok로 보이면 됩니다.',
+  });
+}
+
+function checkGithub(o) {
+  const r = o.run('gh', ['auth', 'status']);
+  if (r.status === 0) return result('login-github', 'GitHub 로그인', 'ok', 'gh auth status 통과');
+  return result('login-github', 'GitHub 로그인', 'warn', r.status === null ? 'gh(GitHub CLI)가 없음' : 'gh 로그인 안 됨', 'gh auth login', {
+    key: 'login-github',
+    title: 'GitHub CLI 로그인',
+    what: 'GitHub CLI(gh)에 로그인되어 있지 않습니다.',
+    why: '커밋 세션이 PR·CI 확인에 gh를 씁니다.',
+    steps: ['gh가 없으면 https://cli.github.com 에서 설치합니다', '터미널에서 `gh auth login`을 실행하고 안내를 따릅니다'],
+    check: '`gh auth status`가 Logged in을 보이면 됩니다.',
+  });
+}
+
+// 홈·저장소 경로에 공백·한글이 있으면 훅 명령이 깨지기 쉽다. 이때는 훅 스크립트를 문법 검사(node --check)만 한다(실행하지 않음)
+function checkPathWarnings(o, template) {
+  const odd = (p) => /\s|[^\x00-\x7f]/.test(p);
+  const where = o.run('where', ['code']);
+  const codePath = where.status === 0 ? String(where.stdout).split(/\r?\n/)[0].trim() : '';
+  const codeKind = !codePath ? 'code 위치 모름' : /appdata[\\/]local[\\/]programs/i.test(codePath) ? `User 설치(${codePath})` : `System 설치(${codePath})`;
+  const risky = [['홈', o.home], ['저장소', o.repoRoot]].filter(([, p]) => odd(p));
+  if (!risky.length) return result('paths-warn', '경로 주의', 'ok', `공백·한글 없음 · VS Code ${codeKind}`);
+  const hooksDir = path.join(o.toolsDir, 'current', 'vscode', 'hooks');
+  const broken = template.hooks.map((t) => t.script).filter((s, i, a) => a.indexOf(s) === i).filter((s) => o.run('node', ['--check', path.join(hooksDir, s)]).status !== 0);
+  return result('paths-warn', '경로 주의', 'warn', `${risky.map(([k, p]) => `${k} ${slash(p)}`).join(', ')}에 공백·한글이 있음${broken.length ? ` — 문법 검사 실패: ${broken.join(', ')}` : ' — 훅 스크립트 문법 검사 통과'} · VS Code ${codeKind}`, broken.length ? `${INSTALL} setup` : '');
+}
+
+function defaults(opts = {}) {
+  const home = opts.home || os.homedir();
+  const repoRoot = path.resolve(opts.repoRoot || process.cwd());
+  let approvalsRoot = opts.approvalsRoot;
+  if (approvalsRoot === undefined) {
+    try {
+      approvalsRoot = require('../vscode/approvalStore').rootFor(repoRoot);
+    } catch {
+      approvalsRoot = null;
+    }
+  }
+  return {
+    repoRoot,
+    home,
+    toolsDir: opts.toolsDir || (opts.env || process.env).WY_TOOLS_DIR || path.join(home, '.wy-tools', 'wy-ops'),
+    approvalsRoot,
+    settingsFile: opts.settingsFile || path.join(repoRoot, '.claude', 'settings.local.json'),
+    run: opts.run || defaultRun,
+  };
+}
+
+function checkAll(opts = {}) {
+  const o = defaults(opts);
+  let template;
+  try {
+    template = readJson(TEMPLATE);
+  } catch (err) {
+    return [result('template', '패키지', 'fail', `templates/settings.hooks.json을 읽지 못함: ${err.message}`, '저장소를 다시 받기')];
+  }
+  const checks = [
+    () => checkTools(o),
+    () => checkInstall(o),
+    () => checkHooks(o, template),
+    () => checkDeny(o, template),
+    () => checkExtension(o),
+    () => checkPlugins(o),
+    () => checkApprovals(o),
+    () => checkConfig(o),
+    () => checkPersonalPaths(o),
+    () => checkGitignore(o),
+    () => checkLedger(o),
+    () => checkSecrets(o),
+    () => checkGithub(o),
+    () => checkPathWarnings(o, template),
+  ];
+  // 한 항목이 예외로 죽어도 나머지는 본다
+  return checks.map((c, i) => {
+    try {
+      return c();
+    } catch (err) {
+      return result(`check-${i}`, '점검 오류', 'fail', String(err && err.message ? err.message : err), '');
+    }
+  });
+}
+
+const RANK = { fail: 0, warn: 1, ok: 2 };
+const MARK = { fail: '[실패]', warn: '[주의]', ok: '[ 통과 ]' };
+
+function format(results) {
+  const sorted = results.slice().sort((a, b) => RANK[a.level] - RANK[b.level]);
+  const lines = sorted.map((r) => `${MARK[r.level]} ${r.title} — ${r.detail}${r.fix && r.level !== 'ok' ? `\n          고치기: ${r.fix}` : ''}`);
+  const n = (l) => results.filter((r) => r.level === l).length;
+  lines.push('', `실패 ${n('fail')} · 주의 ${n('warn')} · 통과 ${n('ok')}`);
+  return lines.join('\n');
+}
+
+function parseArgs(argv) {
+  const out = { json: false, project: null };
+  for (let i = 0; i < argv.length; i++) {
+    if (argv[i] === '--json') out.json = true;
+    else if (argv[i] === '--project') out.project = argv[++i];
+  }
+  return out;
+}
+
+function main(argv = process.argv.slice(2)) {
+  const a = parseArgs(argv);
+  let repoRoot = a.project;
+  if (!repoRoot) {
+    const top = defaultRun('git', ['rev-parse', '--show-toplevel']);
+    repoRoot = top.status === 0 ? String(top.stdout).trim() : process.cwd();
+  }
+  const results = checkAll({ repoRoot });
+  process.stdout.write((a.json ? JSON.stringify(results, null, 2) : format(results)) + '\n');
+  return results.some((r) => r.level === 'fail') ? 1 : 0;
+}
+
+if (require.main === module) process.exitCode = main();
+
+module.exports = { checkAll, format, defaults, defaultRun, STUB_ID, OLD_EXT_ID, GITIGNORE_LINES };
