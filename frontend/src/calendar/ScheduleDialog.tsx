@@ -436,10 +436,18 @@ export function ScheduleDialog({ timeZone, draft, occurrence, askScope, onDelete
             {timerBand.end.date === timerBand.start.date ? '' : '다음 날 '}
             {formatMinutes(timerBand.end.minutes)} 계획
           </span>
+          {/* 끊기면 버튼을 흐리게 하고 옆에 짧게 알린다(타이머 미니 플레이어 SCR-COM-06과 같게) */}
+          {!online && (
+            <span id={`${id}-timer-offline`} className={styles.timerOffline}>
+              연결 끊김
+            </span>
+          )}
           <button
             type="button"
             className={styles.secondary}
             disabled={!online || timer.busy}
+            aria-describedby={online ? undefined : `${id}-timer-offline`}
+            title={online ? undefined : '연결되면 타이머를 시작할 수 있어요'}
             onClick={() =>
               void timer.launch({
                 body: { scheduleId: latest!.scheduleId, occurrenceStart: latest!.occurrenceStart },

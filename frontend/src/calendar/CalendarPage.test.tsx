@@ -645,6 +645,8 @@ describe('캘린더', () => {
     expect(note).toHaveTextContent('했어요')
     expect(note).toHaveTextContent('금요일까지 확정')
     expect(within(panel).getByRole('button', { name: /팀 스탠드업/ })).toHaveTextContent('확인 대기')
+    // 확인 대기는 시간이 비어 있어 계획 시간을 적는다(홈 확인 대기 목록과 같게)
+    expect(within(panel).getByRole('button', { name: /팀 스탠드업/ })).toHaveTextContent('계획 10:00 – 11:00')
 
     await user.click(within(panel).getByRole('button', { name: /팀 스탠드업/ }))
     const dialog = await screen.findByRole('dialog', { name: '확인 대기 수정' })

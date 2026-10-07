@@ -4,6 +4,7 @@
 // 시간 칸은 옵션이 켜졌을 때만 보이고, 꺼져 있으면 저장된 시간을 건드리지 않는다(옵션은 화면 표시만 바꾼다, TIME-09).
 // 시작을 적으면 종료도 받는다(D-101 초안: startAt이면 endAt 필수, 진행 중 기록은 타이머만 만든다).
 // 확인 대기 기록은 시간이 비어 있어(D-100) planned로 받은 계획 시각을 시작·종료 칸에 채워 둔다(WY-pm 결정 2026-10-07).
+// planned가 없으면 확인 대기 목록의 plan으로 채운다: 홈·일 보기·일정 상세·업무 기록 어디서 열든 같게(WY-pm 결정 2026-10-08).
 // 채운 값은 기록과 다르므로 저장하면 고친 칸처럼 startAt·endAt을 함께 보낸다.
 // 24시간에서 잘린 타이머 기록(capped)은 종료가 다음 날 같은 시각이라 하루 안 칸으로 옮길 수 없다: 종료를 비우고 안내하며 연다(WY-pm 결정).
 // 종료가 시작보다 이르면 다음 날 종료로 본다(자정 넘김, 24시간 미만, WY-pm 결정 2026-10-08). 같으면 순서 오류.
@@ -23,6 +24,7 @@ import { shortDate } from '../quickInput/dates'
 import { useTimeTracking } from '../settings/useWorklogSettings'
 import { RECORDS_QUERY_KEY, recordApi, type WorkRecord, type WorkRecordCreate, type WorkRecordOutcome } from './api'
 import { OutcomeChips } from './OutcomeChips'
+import { plannedOf, usePendingRecords } from './pending'
 import { recordEditApi, useDayRecords, useRecord, type WorkRecordPatch } from './recordEdit'
 import styles from './RecordDialog.module.css'
 
@@ -167,6 +169,9 @@ export function RecordDialog({ recordId, defaults, planned, capped, onClose }: P
   const online = useOnline()
   const record = useRecord(recordId)
   const original = record.data
+  const needsPlan = !planned && original?.status === 'PENDING' && !original.startAt
+  const pending = usePendingRecords(needsPlan)
+  const plan = planned ?? plannedOf(pending.data?.find((r) => r.id === recordId)?.plan)
   const [form, setForm] = useState<Form | null>(
     recordId
       ? null
@@ -190,9 +195,13 @@ export function RecordDialog({ recordId, defaults, planned, capped, onClose }: P
   const endRef = useRef<HTMLInputElement>(null)
   const closeRef = useRef<HTMLButtonElement>(null)
 
+  // 확인 대기 목록을 받는 동안은 칸을 내지 않는다(받은 뒤 채우면 이미 고친 칸이 빈 채로 남는다). 끊겨 멈췄으면 기다리지 않는다
+  const planLoading = needsPlan && pending.isPending && pending.fetchStatus === 'fetching'
   const current =
     form ??
-    (original ? { ...formWithPlan(original, timeZone, planned), ...(capped && timed ? { end: '' } : {}) } : null)
+    (original && !planLoading
+      ? { ...formWithPlan(original, timeZone, plan), ...(capped && timed ? { end: '' } : {}) }
+      : null)
   const running = !!original?.startAt && !original.endAt
   const archived = !!original?.deletedAt
   const editable = online && !archived

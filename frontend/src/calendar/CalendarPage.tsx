@@ -482,6 +482,7 @@ function Calendar({ view, date, today, timeZone, weekStart }: CalendarProps) {
             <DayRecords
               date={date}
               timeZone={timeZone}
+              occurrences={query.data ?? []}
               editable={online}
               onOpen={(r) => setRecordOpen({ recordId: r.id, planned: plannedOf(occurrenceOf(query.data ?? [], r)) })}
               onAdd={() => setRecordOpen({ workDate: date })}

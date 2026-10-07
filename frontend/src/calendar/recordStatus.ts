@@ -35,9 +35,8 @@ export function occurrenceOf(occurrences: Occurrence[], r: WorkRecord) {
   return r.scheduleId && r.occurrenceStart ? occurrences.find((o) => sameOccurrence(r, o)) : undefined
 }
 
-/** 시간 일정이면 확인 대기 수정 창에 채울 계획 시각(RecordDialog planned) */
-export const plannedOf = (o: Occurrence | undefined) =>
-  o && !o.allDay && o.startAt && o.endAt ? { startAt: o.startAt, endAt: o.endAt } : undefined
+/** 시간 일정이면 확인 대기 수정 창에 채울 계획 시각(RecordDialog planned). 회차를 그대로 넘긴다 */
+export { plannedOf } from '../records/pending'
 
 /**
  * 그날(workDate) 기록 전체 — 세 상태 모두. from=to면 서버가 그날 끝난 회차의 확인 대기를 먼저 만든다(D-39).

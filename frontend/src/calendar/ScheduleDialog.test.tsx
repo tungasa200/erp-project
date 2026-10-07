@@ -276,6 +276,19 @@ describe('일정 상세 — 이 일정으로 타이머 시작 (SCR-CAL-07, P2-06
     expect(onClose).not.toHaveBeenCalled()
   })
 
+  it('끊겼으면 버튼을 끄고 옆에 연결 끊김을 알린다(SCR-SYS-02 ③, SCR-COM-06과 같게)', async () => {
+    const onLine = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    try {
+      setup(occurrence())
+      const button = await startButton()
+      expect(button).toBeDisabled()
+      expect(button).toHaveAccessibleDescription('연결 끊김')
+      expect(button).toHaveAttribute('title', '연결되면 타이머를 시작할 수 있어요')
+    } finally {
+      onLine.mockRestore()
+    }
+  })
+
   it('고치던 칸이 있으면 시작해도 모달을 닫지 않는다', async () => {
     const { sent, onClose, user } = setup(occurrence())
     await user.click(await screen.findByRole('button', { name: '일정 열기' }))

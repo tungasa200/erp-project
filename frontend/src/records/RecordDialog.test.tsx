@@ -185,6 +185,28 @@ describe('기록 추가·수정 (SCR-REC-01)', () => {
     })
   })
 
+  it('planned 없이 열어도 확인 대기 기록은 확인 대기 목록의 계획 시각으로 채운다(일 보기·일정 상세·업무 기록에서 열 때, WY-pm 결정)', async () => {
+    const pending = record({ status: 'PENDING', scheduleId: 's-1', occurrenceStart: '2026-10-07T01:00:00Z' })
+    const plan = {
+      title: '주간 회의',
+      allDay: false,
+      startAt: '2026-10-07T00:30:00Z',
+      endAt: '2026-10-07T01:00:00Z',
+      startDate: null,
+      endDate: null,
+    }
+    server({
+      timed: true,
+      handlers: {
+        'GET /api/worklog/records/r-1': () => json(200, pending),
+        'GET /api/worklog/records/pending': () => json(200, { items: [{ ...pending, plan }] }),
+      },
+    })
+    const { dialog } = await open({ recordId: 'r-1' })
+    expect(await within(dialog).findByLabelText('시작')).toHaveValue('09:30')
+    expect(within(dialog).getByLabelText('종료')).toHaveValue('10:00')
+  })
+
   it('시작이 있는 기록에는 계획 시각을 덮어쓰지 않는다', async () => {
     server({
       timed: true,

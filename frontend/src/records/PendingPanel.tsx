@@ -3,13 +3,12 @@
 // 수정은 SCR-REC-01(RecordDialog)을 연다: 저장하면 고친 칸과 했어요가 한 요청으로 간다. 확인은 반드시 사람이 한다: 모두 했어요는 화면에 보인 id만 보낸다.
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
-import { formatMinutes, toZoned } from '../calendar/time'
 import { Skeleton } from '../components/Skeleton'
 import { useOnline } from '../components/useOnline'
 import { useToast } from '../components/useToast'
 import { addDays, shortDate } from '../quickInput/dates'
 import { useTask } from '../tasks/api'
-import { PENDING_QUERY_KEY, pendingApi, usePendingRecords, type PendingRecord } from './pending'
+import { PENDING_QUERY_KEY, pendingApi, planTime, plannedOf, usePendingRecords, type PendingRecord } from './pending'
 import styles from './PendingPanel.module.css'
 import { RecordDialog } from './RecordDialog'
 import { usePendingDecision, type Decision } from './usePendingDecision'
@@ -199,7 +198,13 @@ export function PendingPanel({ today, timeZone, onClose }: Props) {
         )}
       </div>
       {/* 시트 밖(겹침 판 안)에 둔다: 시트의 여는 움직임(transform)이 고정 위치 모달을 가두지 않게 */}
-      {editing && <RecordDialog recordId={editing} planned={plannedOf(items, editing)} onClose={closeEditor} />}
+      {editing && (
+        <RecordDialog
+          recordId={editing}
+          planned={plannedOf(items.find((r) => r.id === editing)?.plan)}
+          onClose={closeEditor}
+        />
+      )}
     </div>
   )
 }
@@ -276,22 +281,4 @@ function dayLabel(date: string, today: string) {
   if (date === today) return `오늘 · ${shortDate(date)}`
   if (date === addDays(today, -1)) return `어제 · ${shortDate(date)}`
   return shortDate(date)
-}
-
-/** 수정 창의 시작·종료를 계획 시각으로 채운다(종일 계획은 비워 둔다) */
-function plannedOf(items: PendingRecord[], id: string) {
-  const plan = items.find((r) => r.id === id)?.plan
-  return plan && !plan.allDay && plan.startAt && plan.endAt ? { startAt: plan.startAt, endAt: plan.endAt } : undefined
-}
-
-/** 계획 시간(기록의 시간 칸은 비어 있다, D-100). 날을 넘으면 끝 날짜를 붙인다 */
-function planTime(plan: PendingRecord['plan'], timeZone: string): string {
-  if (plan.allDay) {
-    return !plan.endDate || plan.endDate === plan.startDate ? '종일' : `종일 · ${shortDate(plan.endDate)}까지`
-  }
-  if (!plan.startAt || !plan.endAt) return ''
-  const s = toZoned(plan.startAt, timeZone)
-  const e = toZoned(plan.endAt, timeZone)
-  const end = e.date === s.date ? formatMinutes(e.minutes) : `${shortDate(e.date)} ${formatMinutes(e.minutes)}`
-  return `${formatMinutes(s.minutes)} – ${end}`
 }
