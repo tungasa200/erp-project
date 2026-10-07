@@ -151,6 +151,7 @@
     }
     if (k === 'choice') out.push(chip('', `질문 ${r.questions.length}`));
     if (k === 'todo' && r.steps && r.steps.length) out.push(chip('', `단계 ${r.steps.length}`));
+    if (k === 'todo' && r.shell) out.push(chip('mono', r.shell === 'bash' ? 'Bash' : 'PowerShell'));
     if (k === 'permission' && r.tool) out.push(chip('mono', r.tool));
     if (r.sessionEnded) out.push(chip('red', '세션 끝남'));
     return out;
@@ -707,7 +708,15 @@
       blk.append(h, ol);
       body.append(blk);
     }
-    if (r.command) body.append(codeBlock('직접 실행할 명령', r.command));
+    // 어느 창에 붙여 넣을지 헷갈리지 않게 셸을 제목에 쓴다(Bash 명령을 PowerShell에 붙여 넣다 실패한 일이 계기).
+    // VS Code 기본 터미널은 PowerShell이라, 바꾼 형태가 있으면 그것을 먼저 보인다
+    if (r.commandPowerShell) body.append(codeBlock('PowerShell에 붙여 넣을 형태 — VS Code PowerShell 터미널용', r.commandPowerShell));
+    if (r.command) {
+      const label = r.shell === 'bash' ? 'Bash 명령 — Git Bash 창용(PowerShell에서는 실패)'
+        : r.shell === 'powershell' ? 'PowerShell 명령 — VS Code PowerShell 터미널용(Git Bash에서는 실패)'
+          : '직접 실행할 명령';
+      body.append(codeBlock(label, r.command));
+    }
     if (r.check) {
       const blk = el('div', 'blk');
       blk.append(el('div', 'blk-h', '확인 방법'), rich('p', 'note-text', r.check));

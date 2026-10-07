@@ -183,7 +183,19 @@ function screenBehavior(jsdom) {
   s3.send({ type: 'select', id: 'g1' });
   assert.strictEqual(s3.d.querySelector('.dt').scrollTop, 0, '다른 카드는 맨 위');
 
-  assert.deepStrictEqual([...s.errors, ...s2.errors, ...s3.errors], [], '화면 오류 없음');
+  // 분류기가 막은 Bash 명령 할 일: 어느 창에 붙여 넣을지 제목에 쓰고, 판단 안내가 명령 블록보다 위
+  const s4 = screen(jsdom, 1000);
+  const advice = '대부분은 실행하지 않아도 됩니다.';
+  s4.send({ type: 'state', state: { ...STATE, untrusted: [], roleWarnings: [], pending: [card({ id: 'd1', kind: 'todo', title: '막힌 명령', what: advice, sessionId: 'sid-9',
+    steps: [advice, 'Bash 명령입니다.'], tool: 'Bash', shell: 'bash', command: 'ls -la | head', commandPowerShell: 'ls | Select-Object -First 10' })] } });
+  assert.deepStrictEqual(s4.txt('.blk-h').filter((t) => t.includes('명령') || t.includes('형태')), ['PowerShell에 붙여 넣을 형태 — VS Code PowerShell 터미널용', 'Bash 명령 — Git Bash 창용(PowerShell에서는 실패)'], 'PowerShell 형태 먼저, Bash 원문은 창 이름과 함께');
+  assert.deepStrictEqual(s4.txt('.code pre'), ['ls | Select-Object -First 10', 'ls -la | head'], '두 명령');
+  assert.strictEqual(s4.d.querySelectorAll('.code .icon-btn').length, 2, '둘 다 복사 버튼');
+  const order = [...s4.d.querySelectorAll('.what, .todo-steps, .code')].map((e) => e.className);
+  assert.ok(order.indexOf('what') < order.indexOf('code') && order.indexOf('todo-steps') < order.indexOf('code'), '판단 안내가 명령 블록보다 위');
+  assert.ok(s4.txt('.row .mc').includes('Bash'), '목록에 셸 칩');
+
+  assert.deepStrictEqual([...s.errors, ...s2.errors, ...s3.errors, ...s4.errors], [], '화면 오류 없음');
 }
 
 try {
