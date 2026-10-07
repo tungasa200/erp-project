@@ -1,0 +1,45 @@
+#!/usr/bin/env node
+// 메시지 대상 확인 훅(PreToolUse, matcher SendMessage). 운영 도구 구현 계획 B2-6
+//   대상 이름의 세션이 모두 끝나 있으면(done·stopped·failed, 살아 있는 같은 이름 없음) 보내기를 거부한다.
+//   2026-10-07 '대기 중 종료 → 메시지 유실'이 두 번 있었다. 보내는 쪽이 바로 알게 한다.
+// 살아 있거나 대화형이면 통과. 목록에 없는 이름(main·하위 에이전트·팀원)과 claude agents를 못 읽을 때도 통과(평소 흐름).
+// 보안 장치가 아니라 편의 장치라 오류는 통과시킨다(가드 훅과 반대).
+const { readAgents, isReachable } = require('../agentsReader');
+
+// "WY-qa [3fa9c1]" → "WY-qa"
+const nameOf = (to) => String(to || '').replace(/\s*\[[^\]]*\]\s*$/, '').trim();
+
+function check(list, to) {
+  const name = nameOf(to);
+  if (!name || name === 'main') return null;
+  const same = (list || []).filter((s) => s && s.name === name);
+  if (!same.length || isReachable(list, name)) return null;
+  const latest = same.reduce((a, b) => ((b.startedAt || 0) > (a.startedAt || 0) ? b : a));
+  const state = latest.state || '끝남';
+  return {
+    decision: 'deny',
+    reason: `대상 세션 ${name}이 대기 중 종료됨(${state}) — 메시지가 전달되지 않습니다. WY-pm에 알리거나 session.ps1 start ${name}으로 다시 띄우세요.`,
+  };
+}
+
+if (require.main === module) {
+  let raw = '';
+  process.stdin.setEncoding('utf8');
+  process.stdin.on('data', (d) => (raw += d));
+  process.stdin.on('end', async () => {
+    try {
+      const input = JSON.parse(raw);
+      const result = check(await readAgents(), input.tool_input && input.tool_input.to);
+      if (result) {
+        process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny', permissionDecisionReason: result.reason } }));
+        process.stderr.write(result.reason + '\n');
+        process.exit(2);
+      }
+    } catch {
+      // 목록을 못 읽으면 평소대로 보낸다
+    }
+    process.exit(0);
+  });
+}
+
+module.exports = { check, nameOf };
