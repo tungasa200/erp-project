@@ -43,6 +43,13 @@ function stubServer() {
       return handleScheduleMock(method, url, body, { json, problem })!
     }
     if (url === '/api/users/me') return json(200, ME)
+    // 일 보기 "이날의 기록"·일정 상세 ⑥이 받는 그날 기록과 기록 한 건
+    if (url.startsWith('/api/worklog/records?')) return json(200, { items: records })
+    const one = /^\/api\/worklog\/records\/([^/?]+)$/.exec(url)
+    if (one) {
+      const found = records.find((r) => r.id === one[1])
+      return found ? json(200, found) : problem(404, 'NOT_FOUND')
+    }
     if (url.startsWith('/api/worklog/projects')) return json(200, { items: [] })
     if (url === '/api/worklog/tasks' && method === 'POST') {
       const body = JSON.parse(String(init!.body))
@@ -82,8 +89,33 @@ const task = (id: string, title: string, dueDate: string | null) => ({
 })
 const tasks = [task('task-report', '9월 매출 보고서', '2026-10-06'), task('task-idea', '아이디어 정리', null)]
 
+const workRecord = (id: string, over: Record<string, unknown>) => ({
+  id,
+  status: 'CONFIRMED',
+  workDate: '2026-10-07',
+  content: '',
+  taskId: null,
+  projectId: null,
+  tagIds: [],
+  scheduleId: null,
+  occurrenceStart: null,
+  result: null,
+  outcome: null,
+  progress: null,
+  startAt: null,
+  endAt: null,
+  durationMin: null,
+  deletedAt: null,
+  createdAt: '2026-10-07T00:00:00Z',
+  updatedAt: '2026-10-07T00:00:00Z',
+  version: 0,
+  ...over,
+})
+let records: ReturnType<typeof workRecord>[] = []
+
 beforeEach(() => {
   localStorage.setItem('worklog.mock.schedules', JSON.stringify([standup]))
+  records = []
 })
 
 // matchMedia 등 테스트에서 바꾼 전역을 다음 테스트로 넘기지 않는다
@@ -587,5 +619,56 @@ describe('캘린더', () => {
     const post = fetchMock.mock.calls.find(([url, init]) => url === '/api/worklog/tasks' && init?.method === 'POST')
     expect(JSON.parse(String(post![1]!.body))).toMatchObject({ title: '보고서 정리' })
     expect(within(panel).getByLabelText('업무 빠른 입력')).toHaveValue('')
+  })
+
+  it('일 보기 "이날의 기록": 시간 없는 기록까지 상태와 함께 보이고, 누르면 기록 창, [기록 추가]는 그날 새 기록 (SCR-CAL-02)', async () => {
+    stubServer()
+    records = [
+      workRecord('r-plan', {
+        status: 'PENDING',
+        content: '팀 스탠드업',
+        scheduleId: standup.id,
+        occurrenceStart: standup.startAt,
+      }),
+      workRecord('r-note', { content: '견적 메일 회신', result: '금요일까지 확정' }),
+    ]
+    const user = userEvent.setup()
+    renderApp('/calendar/day/2026-10-07', routes)
+    const panel = await screen.findByRole('region', { name: '이날의 기록' })
+    const note = await within(panel).findByRole('button', { name: /견적 메일 회신/ })
+    expect(note).toHaveTextContent('했어요')
+    expect(note).toHaveTextContent('금요일까지 확정')
+    expect(within(panel).getByRole('button', { name: /팀 스탠드업/ })).toHaveTextContent('확인 대기')
+
+    await user.click(within(panel).getByRole('button', { name: /팀 스탠드업/ }))
+    const dialog = await screen.findByRole('dialog', { name: '확인 대기 수정' })
+    await user.click(within(dialog).getByRole('button', { name: '닫기' }))
+    await waitFor(() => expect(within(panel).getByRole('button', { name: /팀 스탠드업/ })).toHaveFocus())
+
+    await user.click(within(panel).getByRole('button', { name: '기록 추가' }))
+    const add = await screen.findByRole('dialog', { name: '기록 추가' })
+    expect(within(add).getByLabelText('날짜')).toHaveValue('2026-10-07')
+  })
+
+  it('일정 상세 ⑥ [기록 보기]는 일정 창을 닫고 그 회차의 기록 창을 연다 (SCR-CAL-07)', async () => {
+    stubServer()
+    records = [
+      workRecord('r-plan', {
+        status: 'DISMISSED',
+        content: '팀 스탠드업',
+        scheduleId: standup.id,
+        occurrenceStart: standup.startAt,
+      }),
+    ]
+    const user = userEvent.setup()
+    renderApp('/calendar/week/2026-10-07', routes)
+    const [block] = await screen.findAllByRole('button', { name: /^팀 스탠드업, 10:00–11:00, 반복$/ })
+    block.focus()
+    await user.keyboard('{Enter}')
+    const dialog = await screen.findByRole('dialog', { name: '일정 편집' })
+    expect(await within(dialog).findByText('안 했어요')).toBeInTheDocument()
+    await user.click(within(dialog).getByRole('button', { name: '기록 보기' }))
+    expect(await screen.findByRole('dialog', { name: '기록 수정' })).toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { name: '일정 편집' })).toBeNull()
   })
 })

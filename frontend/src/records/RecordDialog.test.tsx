@@ -142,6 +142,8 @@ describe('기록 추가·수정 (SCR-REC-01)', () => {
     const { user, dialog } = await open({ recordId: 'r-1' })
     expect(await within(dialog).findByRole('heading', { name: '확인 대기 수정' })).toBeInTheDocument()
     expect(within(dialog).getByText(/계획에서 온 기록 · 10\/7\(수\) 10:00 회차/)).toBeInTheDocument()
+    // 확인 대기는 '안 했어요'가 지우는 일을 맡아 삭제가 없다(WY-pm 결정)
+    expect(within(dialog).queryByRole('button', { name: '삭제' })).toBeNull()
     const content = within(dialog).getByRole('textbox', { name: '한 일' })
     await waitFor(() => expect(content).toHaveFocus())
     await user.clear(content)

@@ -523,7 +523,8 @@ export function RecordDialog({ recordId, defaults, planned, capped, onClose }: P
             )}
           </fieldset>
           <div className={calendar.actions}>
-            {original && !archived && (
+            {/* 확인 대기는 '안 했어요'가 지우는 일을 맡아 삭제를 숨긴다(WY-pm 결정, '안 했어요'와 겹침) */}
+            {original && !archived && original.status !== 'PENDING' && (
               <button
                 type="button"
                 className={calendar.danger}

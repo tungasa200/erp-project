@@ -1,7 +1,10 @@
 // 일정 상세·편집 (SCR-CAL-07). 새로 만들 때와 고칠 때 같은 모달을 쓴다. 저장 버튼이 있는 모달이다.
 // 반복 일정은 저장·삭제할 때 범위를 묻는다(SCR-CAL-08). 종일 여부·반복 규칙을 바꾸면 "모든 일정"만 가능하다(계약 OccurrencePatch).
-// ④ 연결 업무는 TaskLinkField(P1-05-06, 반복 일정은 시리즈 전체에 연결 D-71). ⑥ 기록 상태는 P2라 아직 없다.
-// 오늘의 시간 일정이면 [이 일정으로 타이머 시작](P2-06, 사용자 결정 2026-10-07): 회차 키를 보내 회차를 타이머가 가져간다(D-101).
+// ④ 연결 업무는 TaskLinkField(P1-05-06, 반복 일정은 시리즈 전체에 연결 D-71).
+// ⑥ 기록 상태: 이 회차에서 만든 기록(확인 대기·했어요·안 했어요, 시간 기록 옵션이 켜졌으면 기록 시간)과 [기록 보기](SCR-REC-01).
+// 기록이 없으면 끝난 회차에만 "기록이 없어요"를 적는다(사용자 결정 카드 20261008-0230).
+// 오늘의 시간 일정이 아직 끝나지 않았으면 [이 일정으로 타이머 시작](P2-06, 사용자 결정 2026-10-07; 끝난 회차는 띠 없음, WY-pm 결정):
+// 회차 키를 보내 회차를 타이머가 가져간다(D-101).
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { toastForError } from '../api/errorToast'
@@ -9,10 +12,15 @@ import { ApiError } from '../api/problem'
 import { Skeleton } from '../components/Skeleton'
 import { useOnline } from '../components/useOnline'
 import { useToast } from '../components/useToast'
+import type { WorkRecord } from '../records/api'
+import { useTimeTracking } from '../settings/useWorklogSettings'
 import { TASKS_QUERY_KEY } from '../tasks/api'
 import { useTimerLauncher } from '../timer/useTimerLauncher'
 import { occurrenceFocusId } from './focus'
 import { Modal } from './Modal'
+import { RecordStatusTag } from './RecordStatusTag'
+import { plannedOf, recordOf, recordTimeText, useRecordsOnDate } from './recordStatus'
+import recordStyles from './records.module.css'
 import { TaskLinkField } from './TaskLinkField'
 import {
   OCCURRENCES_QUERY_KEY,
@@ -77,6 +85,8 @@ interface Props {
   occurrence?: Occurrence
   askScope: AskScope
   onDelete: (o: Occurrence) => void
+  /** ⑥ [기록 보기]: 이 창을 닫고 기록 창(SCR-REC-01)을 연다. planned는 확인 대기 수정 창에 채울 계획 시각 */
+  onOpenRecord: (record: WorkRecord, planned: { startAt: string; endAt: string } | undefined) => void
   onClose: () => void
 }
 
@@ -201,7 +211,7 @@ function serverErrors(error: ApiError): Errors | null {
   return result
 }
 
-export function ScheduleDialog({ timeZone, draft, occurrence, askScope, onDelete, onClose }: Props) {
+export function ScheduleDialog({ timeZone, draft, occurrence, askScope, onDelete, onOpenRecord, onClose }: Props) {
   const id = useId()
   const { showToast } = useToast()
   const invalidate = useInvalidateOccurrences()
@@ -218,6 +228,8 @@ export function ScheduleDialog({ timeZone, draft, occurrence, askScope, onDelete
   const [saving, setSaving] = useState(false)
   // 연 회차. [새로 불러오기] 뒤에는 서버의 최신 회차로 바꾼다(제목·시각·메모는 회차 값이라, P1-05-05)
   const [latest, setLatest] = useState(occurrence)
+  // 연 시각. 타이머 띠·⑥은 연 때 끝났는지로 정한다(창이 열린 동안 바뀌지 않게)
+  const [nowMs] = useState(Date.now)
   const formRef = useRef<HTMLFormElement>(null)
   const closeRef = useRef<HTMLButtonElement>(null)
   // 오프라인이면 열어 보기만 한다(SCR-SYS-02 ③). 칸이 꺼지며 포커스를 잃으면 닫기 버튼으로 옮겨 Esc가 계속 듣게 한다
@@ -368,7 +380,18 @@ export function ScheduleDialog({ timeZone, draft, occurrence, askScope, onDelete
     timer.available && latest && !latest.allDay && latest.startAt && latest.endAt
       ? { start: toZoned(latest.startAt, timeZone), end: toZoned(latest.endAt, timeZone) }
       : null
-  const todayPlan = timerStart?.start.date === todayIn(timeZone) ? timerStart : null
+  const todayPlan =
+    timerStart?.start.date === todayIn(timeZone) && Date.parse(latest!.endAt!) > nowMs ? timerStart : null
+  // ⑥ 기록 상태. 기록 날짜는 회차가 시작한 날(사용자 시간대)
+  const timed = useTimeTracking()
+  const occurrenceDate = latest ? (latest.allDay ? latest.startDate! : toZoned(latest.startAt!, timeZone).date) : ''
+  const dayRecords = useRecordsOnDate(occurrenceDate, !!latest)
+  const record = latest && dayRecords.data ? recordOf(dayRecords.data, latest) : undefined
+  const ended =
+    !!latest &&
+    (latest.allDay ? Date.parse(fromZoned(addDays(latest.endDate!, 1), 0, timeZone)) : Date.parse(latest.endAt!)) <=
+      nowMs
+  const recordTime = record && timed ? recordTimeText(record, timeZone) : null
   /** 오류 문구가 가리키는 칸이면 aria-invalid와 문구 연결 */
   const invalid = (group: 'time' | 'recurrence', at: TimeField | RecurrenceField) =>
     errors[`${group}At`] === at ? { 'aria-invalid': true, 'aria-describedby': `${id}-${group}-error` } : {}
@@ -663,6 +686,30 @@ export function ScheduleDialog({ timeZone, draft, occurrence, askScope, onDelete
               />
             </label>
           </fieldset>
+          {(record || (ended && dayRecords.isSuccess)) && (
+            <div className={recordStyles.status}>
+              <span className={recordStyles.statusLabel}>기록</span>
+              {record ? (
+                <>
+                  <RecordStatusTag record={record} />
+                  {recordTime && <span className={recordStyles.statusTime}>{recordTime}</span>}
+                  <button
+                    type="button"
+                    className={`${styles.link} ${recordStyles.statusAction}`}
+                    aria-haspopup="dialog"
+                    onClick={() => {
+                      onClose()
+                      onOpenRecord(record, plannedOf(latest))
+                    }}
+                  >
+                    기록 보기
+                  </button>
+                </>
+              ) : (
+                <span className={recordStyles.statusTime}>이 일정에서 남긴 기록이 없어요</span>
+              )}
+            </div>
+          )}
           <div className={styles.actions}>
             {latest && (
               <button

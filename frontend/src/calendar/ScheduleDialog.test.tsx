@@ -1,4 +1,4 @@
-// SCR-CAL-07 일정 상세의 [이 일정으로 타이머 시작] (P2-06, 사용자 결정 2026-10-07, D-101)
+// SCR-CAL-07 일정 상세의 [이 일정으로 타이머 시작] (P2-06, 사용자 결정 2026-10-07, D-101)과 ⑥ 기록 상태(사용자 결정 카드 20261008-0230)
 // "오늘"은 사용자 시간대 기준이라 시각은 Date.now()에서 만든다(KST·TZ=UTC 둘 다 돌린다).
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ME, json, problem, renderApp, stubFetch } from '../test/renderApp'
 import type { Occurrence } from './api'
 import { ScheduleDialog } from './ScheduleDialog'
-import { addDays, fromZoned, todayIn } from './time'
+import { addDays, formatMinutes, fromZoned, toZoned, todayIn } from './time'
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -16,17 +16,17 @@ afterEach(() => {
 
 const TZ = 'Asia/Seoul'
 
-/** 오늘(사용자 시간대) 00:00–00:30 회차. day로 날짜를 옮긴다 */
+/** 지금(분 단위로 내림)부터 30분 회차 — 오늘의 아직 끝나지 않은 회차. day로 날짜를 옮긴다 */
 function occurrence(over: Partial<Occurrence> = {}, day = 0): Occurrence {
-  const date = addDays(todayIn(TZ), day)
-  const startAt = fromZoned(date, 0, TZ)
+  const start = Math.floor(Date.now() / 60_000) * 60_000 + day * 86_400_000
+  const startAt = new Date(start).toISOString()
   return {
     scheduleId: 'schedule-1',
     occurrenceStart: startAt,
     title: '주간 회의',
     allDay: false,
     startAt,
-    endAt: fromZoned(date, 30, TZ),
+    endAt: new Date(start + 30 * 60_000).toISOString(),
     startDate: null,
     endDate: null,
     memo: null,
@@ -37,6 +37,20 @@ function occurrence(over: Partial<Occurrence> = {}, day = 0): Occurrence {
     version: 0,
     ...over,
   } as Occurrence
+}
+
+/** 끝난 회차: 1시간 전에 시작해 30분 전에 끝남(자정 직후면 어제 회차가 된다) */
+function endedOccurrence(): Occurrence {
+  const start = Math.floor(Date.now() / 60_000) * 60_000 - 60 * 60_000
+  const startAt = new Date(start).toISOString()
+  return occurrence({ occurrenceStart: startAt, startAt, endAt: new Date(start + 30 * 60_000).toISOString() })
+}
+
+/** 화면에 적히는 계획 시각 "HH:MM~[다음 날 ]HH:MM" */
+function planText(o: Occurrence) {
+  const s = toZoned(o.startAt!, TZ)
+  const e = toZoned(o.endAt!, TZ)
+  return `오늘 ${formatMinutes(s.minutes)}~${e.date === s.date ? '' : '다음 날 '}${formatMinutes(e.minutes)} 계획`
 }
 
 const scheduleOf = (o: Occurrence) => ({
@@ -82,7 +96,12 @@ const timerRecord = (over: Record<string, unknown> = {}) => ({
 
 function setup(
   o: Occurrence,
-  options: { timed?: boolean; running?: ReturnType<typeof timerRecord> | null; start?: () => Response } = {},
+  options: {
+    timed?: boolean
+    running?: ReturnType<typeof timerRecord> | null
+    start?: () => Response
+    records?: ReturnType<typeof timerRecord>[]
+  } = {},
 ) {
   const sent: unknown[] = []
   const fetchMock = stubFetch({
@@ -95,6 +114,7 @@ function setup(
       }),
     [`GET /api/worklog/schedules/${o.scheduleId}`]: () => json(200, scheduleOf(o)),
     'GET /api/worklog/timer': () => json(200, { running: options.running ?? null }),
+    'GET /api/worklog/records': () => json(200, { items: options.records ?? [] }),
     'POST /api/worklog/timer/start': (init) => {
       sent.push(JSON.parse(String(init!.body)))
       if (options.start) return options.start()
@@ -113,13 +133,22 @@ function setup(
     },
   })
   const onClose = vi.fn()
+  const onOpenRecord = vi.fn()
   const user = userEvent.setup()
-  renderApp('/', [{ path: '/', element: <Opener o={o} onClose={onClose} /> }])
-  return { sent, onClose, user, fetchMock }
+  renderApp('/', [{ path: '/', element: <Opener o={o} onClose={onClose} onOpenRecord={onOpenRecord} /> }])
+  return { sent, onClose, onOpenRecord, user, fetchMock }
 }
 
 /** 캘린더처럼: 여는 버튼에서 열고, 닫히면 포커스가 그 버튼으로 돌아와야 한다. 대체 목적지(제목)도 둔다 */
-function Opener({ o, onClose }: { o: Occurrence; onClose: () => void }) {
+function Opener({
+  o,
+  onClose,
+  onOpenRecord,
+}: {
+  o: Occurrence
+  onClose: () => void
+  onOpenRecord: (...args: unknown[]) => void
+}) {
   const [open, setOpen] = useState(false)
   return (
     <>
@@ -135,6 +164,7 @@ function Opener({ o, onClose }: { o: Occurrence; onClose: () => void }) {
           occurrence={o}
           askScope={vi.fn()}
           onDelete={vi.fn()}
+          onOpenRecord={onOpenRecord}
           onClose={() => {
             onClose()
             setOpen(false)
@@ -155,7 +185,7 @@ describe('일정 상세 — 이 일정으로 타이머 시작 (SCR-CAL-07, P2-06
     const o = occurrence()
     const { sent, onClose, user } = setup(o)
     const button = await startButton()
-    expect(screen.getByText('오늘 00:00~00:30 계획')).toBeInTheDocument()
+    expect(screen.getByText(planText(o))).toBeInTheDocument()
     await user.click(button)
     expect(await screen.findByText('‘주간 회의’ 타이머를 시작했어요')).toBeInTheDocument()
     expect(sent).toEqual([{ scheduleId: o.scheduleId, occurrenceStart: o.occurrenceStart }])
@@ -169,6 +199,14 @@ describe('일정 상세 — 이 일정으로 타이머 시작 (SCR-CAL-07, P2-06
     setup(occurrence({ occurrenceStart: startAt, startAt, endAt: fromZoned(addDays(today, 1), 30, TZ) }))
     await startButton()
     expect(screen.getByText('오늘 23:30~다음 날 00:30 계획')).toBeInTheDocument()
+  })
+
+  it('이미 끝난 회차에는 없다(WY-pm 결정)', async () => {
+    const { fetchMock, user } = setup(endedOccurrence())
+    await user.click(await screen.findByRole('button', { name: '일정 열기' }))
+    await screen.findByDisplayValue('주간 회의')
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/worklog/me', expect.anything()))
+    expect(screen.queryByRole('button', { name: '이 일정으로 타이머 시작' })).toBeNull()
   })
 
   it('시간 기록 옵션이 꺼져 있으면 그리지 않는다', async () => {
@@ -248,5 +286,61 @@ describe('일정 상세 — 이 일정으로 타이머 시작 (SCR-CAL-07, P2-06
     expect(sent).toHaveLength(1)
     expect(onClose).not.toHaveBeenCalled()
     expect(screen.getByDisplayValue('주간 회의 준비')).toBeInTheDocument()
+  })
+})
+
+describe('일정 상세 — ⑥ 기록 상태 (SCR-CAL-07)', () => {
+  const linked = (o: Occurrence, over: Record<string, unknown>) =>
+    timerRecord({ id: 'r-9', content: o.title, scheduleId: o.scheduleId, occurrenceStart: o.occurrenceStart, ...over })
+
+  const openDialog = async (user: ReturnType<typeof userEvent.setup>) => {
+    await user.click(await screen.findByRole('button', { name: '일정 열기' }))
+    await screen.findByDisplayValue('주간 회의')
+  }
+
+  it('확인 대기 기록이면 상태를 보이고, [기록 보기]는 이 창을 닫고 계획 시각과 함께 기록 창을 연다', async () => {
+    const o = endedOccurrence()
+    const pending = linked(o, { status: 'PENDING', startAt: null })
+    const { onClose, onOpenRecord, user } = setup(o, { records: [pending] })
+    await openDialog(user)
+    expect(await screen.findByText('확인 대기')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '기록 보기' }))
+    expect(onClose).toHaveBeenCalled()
+    expect(onOpenRecord).toHaveBeenCalledWith(pending, { startAt: o.startAt, endAt: o.endAt })
+  })
+
+  it('했어요 기록이면 시간 기록 옵션이 켜졌을 때 기록 시간을 적는다', async () => {
+    const o = endedOccurrence()
+    const startAt = o.startAt!
+    const endAt = new Date(Date.parse(startAt) + 25 * 60_000).toISOString()
+    const { user } = setup(o, { records: [linked(o, { startAt, endAt })] })
+    await openDialog(user)
+    expect(await screen.findByText('했어요')).toBeInTheDocument()
+    const time = `${formatMinutes(toZoned(startAt, TZ).minutes)}–${toZoned(endAt, TZ).date === toZoned(startAt, TZ).date ? '' : '다음 날 '}${formatMinutes(toZoned(endAt, TZ).minutes)}`
+    expect(screen.getByText(time)).toBeInTheDocument()
+  })
+
+  it('안 했어요 기록은 옵션이 꺼져 있으면 시간 없이 상태만 보인다', async () => {
+    const o = endedOccurrence()
+    const { user } = setup(o, { timed: false, records: [linked(o, { status: 'DISMISSED', startAt: null })] })
+    await openDialog(user)
+    expect(await screen.findByText('안 했어요')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '기록 보기' })).toBeInTheDocument()
+  })
+
+  it('끝난 회차에 기록이 없으면 없다고 적는다', async () => {
+    const { user } = setup(endedOccurrence())
+    await openDialog(user)
+    expect(await screen.findByText('이 일정에서 남긴 기록이 없어요')).toBeInTheDocument()
+  })
+
+  it('아직 끝나지 않은 회차는 기록이 없으면 ⑥을 그리지 않는다', async () => {
+    const { fetchMock, user } = setup(occurrence())
+    await openDialog(user)
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(expect.stringMatching(/^\/api\/worklog\/records\?/), expect.anything()),
+    )
+    expect(screen.queryByText('이 일정에서 남긴 기록이 없어요')).toBeNull()
+    expect(screen.queryByRole('button', { name: '기록 보기' })).toBeNull()
   })
 })
