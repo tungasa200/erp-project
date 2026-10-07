@@ -45,7 +45,15 @@ const NEXT = {
 type Handlers = Parameters<typeof stubFetch>[0]
 
 /** running: 처음 실행 중인 타이머. 시작하면 응답의 running으로 바뀌고 정지하면 null */
-function server(options: { timed?: boolean; running?: ReturnType<typeof record> | null; handlers?: Handlers } = {}) {
+function server(
+  options: {
+    timed?: boolean
+    running?: ReturnType<typeof record> | null
+    handlers?: Handlers
+    /** 정지 뒤 타이머 조회를 늦게 돌려준다(정지 응답이 먼저 오고 플레이어가 나중에 사라지는 실제 순서) */
+    slowTimer?: boolean
+  } = {},
+) {
   const sent: { key: string; body: unknown }[] = []
   let running = options.running === undefined ? record() : options.running
   const fetchMock = stubFetch({
@@ -56,7 +64,11 @@ function server(options: { timed?: boolean; running?: ReturnType<typeof record> 
         profile: { timezone: 'Asia/Seoul', weekStart: 'MONDAY', workDays: 31 },
         settings: { timeTrackingEnabled: options.timed ?? true, version: 0 },
       }),
-    'GET /api/worklog/timer': () => json(200, { running }),
+    'GET /api/worklog/timer': async () => {
+      const now = running
+      if (options.slowTimer && !now) await new Promise((resolve) => setTimeout(resolve, 100))
+      return json(200, { running: now })
+    },
     'POST /api/worklog/timer/stop': () => {
       sent.push({ key: 'stop', body: null })
       const stopped = running && {
@@ -221,5 +233,63 @@ describe('타이머 미니 플레이어 (SCR-COM-06)', () => {
     expect(await screen.findByRole('region', { name: '타이머: 문서 정리' })).toBeInTheDocument()
     expect(screen.getByText('기록을 남겼어요 · ‘문서 정리’ 타이머를 시작했어요')).toBeInTheDocument()
     expect(sent.find((s) => s.key.endsWith('/start'))?.body).toEqual({ taskId: null, content: '문서 정리' })
+  })
+
+  it('정지 응답 뒤 타이머 조회가 늦게 비워져도 안내가 나타나면 첫 버튼으로 포커스(TC-COM-06-focus)', async () => {
+    server({
+      slowTimer: true,
+      handlers: {
+        'POST /api/worklog/timer/stop': () =>
+          json(200, { stopped: { record: record(), discarded: false, capped: false }, next: NEXT }),
+      },
+    })
+    const user = show()
+    await user.click(await screen.findByRole('button', { name: '정지' }))
+    const panel = await screen.findByRole('region', { name: '타이머' })
+    await waitFor(() => expect(within(panel).getByRole('button', { name: '시작' })).toHaveFocus())
+  })
+
+  it('1분 미만이라 버렸으면 이어달리기를 제안하지 않고 토스트 뒤 제목으로 포커스', async () => {
+    server({
+      handlers: {
+        'POST /api/worklog/timer/stop': () =>
+          json(200, { stopped: { record: record(), discarded: true, capped: false }, next: NEXT }),
+      },
+    })
+    const user = show()
+    await user.click(await screen.findByRole('button', { name: '정지' }))
+    expect(await screen.findByText('1분이 안 돼서 기록하지 않았어요')).toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByRole('region', { name: /타이머/ })).toBeNull())
+    expect(screen.queryByText(/다음 계획/)).toBeNull()
+    expect(screen.getByRole('heading', { name: '홈' })).toHaveFocus()
+  })
+
+  it('잘린 기록의 [시간 고치기]는 종료를 비우고 안내하며 열어 종료 칸으로 포커스', async () => {
+    const capped = record({ startAt: '2026-10-06T11:41:00Z', endAt: '2026-10-07T11:41:00Z', workDate: '2026-10-06' })
+    server({
+      handlers: {
+        'POST /api/worklog/timer/stop': () =>
+          json(200, { stopped: { record: capped, discarded: false, capped: true }, next: null }),
+        'GET /api/worklog/records/r-1': () => json(200, capped),
+      },
+    })
+    const user = show()
+    await user.click(await screen.findByRole('button', { name: '정지' }))
+    await user.click(await screen.findByRole('button', { name: '시간 고치기' }))
+    const dialog = await screen.findByRole('dialog', { name: '기록 수정' })
+    const end = await within(dialog).findByLabelText('종료')
+    expect(within(dialog).getByLabelText('시작')).toHaveValue('20:41')
+    expect(end).toHaveValue('')
+    expect(end).toHaveAccessibleDescription('24시간을 넘겨 잘렸어요. 끝난 시각을 넣어 주세요')
+    await waitFor(() => expect(end).toHaveFocus())
+  })
+
+  it('오프라인이면 정지·전환이 꺼진 까닭을 버튼 설명으로 읽는다(좁은 사이드바에서 안내가 짧아져도)', async () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    server()
+    show()
+    const stop = await screen.findByRole('button', { name: '정지' })
+    expect(stop).toBeDisabled()
+    expect(stop).toHaveAccessibleDescription('연결되면 멈추거나 바꿀 수 있어요')
   })
 })

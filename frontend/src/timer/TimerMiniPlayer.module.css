@@ -33,6 +33,7 @@
 }
 
 .note,
+.offline,
 .relay {
   margin: 0;
   overflow-wrap: anywhere;
@@ -55,7 +56,7 @@
 
 .stop,
 .switch {
-  min-height: 32px;
+  min-height: 44px;
   padding: 0 12px;
   border: 0;
   border-radius: var(--radius-input);
@@ -88,6 +89,10 @@
   outline-offset: 2px;
 }
 
+.narrowOnly {
+  display: none;
+}
+
 .srOnly {
   position: absolute;
   width: 1px;
@@ -106,10 +111,15 @@
   }
   .name,
   .note,
-  .narrowHide {
+  .narrowHide,
+  .wide {
     display: none;
   }
-  .relay {
+  .narrowOnly {
+    display: inline;
+  }
+  .relay,
+  .offline {
     font-size: 11px;
   }
   .elapsed {
@@ -136,6 +146,7 @@
     font-size: 17px;
   }
   .note,
+  .offline,
   .relay,
   .message {
     flex-basis: 100%;

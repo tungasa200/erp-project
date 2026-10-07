@@ -12,6 +12,7 @@ type Schemas = components['schemas']
 export type TimerStart = Schemas['TimerStart']
 export type TimerStopped = Schemas['TimerStopped']
 export type PlanBlock = Schemas['PlanBlock']
+type TimerState = Schemas['TimerState']
 
 /** 무엇으로 시작할지 정해 둔 타이머(일정 회차·업무). name은 확인 문구에 쓴다 */
 export interface TimerPreset {
@@ -62,11 +63,14 @@ export function useTimerCommands() {
   )
   const stop = useCallback(async () => {
     try {
-      return await timerApi.stop()
+      const result = await timerApi.stop()
+      // 다시 받기 전에도 플레이어가 바로 비도록(그 사이 [정지]를 또 누르면 "이미 멈춘 타이머"가 정지 안내를 덮는다)
+      queryClient.setQueryData<TimerState>(TIMER_QUERY_KEY, { running: null })
+      return result
     } finally {
       refresh()
     }
-  }, [refresh])
+  }, [queryClient, refresh])
   return { start, stop }
 }
 

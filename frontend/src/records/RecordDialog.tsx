@@ -5,6 +5,7 @@
 // 시작을 적으면 종료도 받는다(D-101 초안: startAt이면 endAt 필수, 진행 중 기록은 타이머만 만든다).
 // 확인 대기 기록은 시간이 비어 있어(D-100) planned로 받은 계획 시각을 시작·종료 칸에 채워 둔다(WY-pm 결정 2026-10-07).
 // 채운 값은 기록과 다르므로 저장하면 고친 칸처럼 startAt·endAt을 함께 보낸다.
+// 24시간에서 잘린 타이머 기록(capped)은 종료가 다음 날 같은 시각이라 하루 안 칸으로 옮길 수 없다: 종료를 비우고 안내하며 연다(WY-pm 결정).
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { toastForError } from '../api/errorToast'
@@ -49,6 +50,8 @@ interface Props {
   defaults?: { workDate: string; taskId?: string | null; content?: string }
   /** 고칠 기록에 시작이 없을 때(확인 대기) 시작·종료 칸에 채울 계획 시각. 종일 계획이면 넘기지 않는다 */
   planned?: { startAt: string; endAt: string }
+  /** 24시간에서 잘린 타이머 기록: 종료 칸을 비우고 끝난 시각을 넣어 달라고 안내한다 */
+  capped?: boolean
   /** changed: 저장하거나 삭제했으면 true */
   onClose: (changed: boolean) => void
 }
@@ -149,7 +152,7 @@ const overlaps = (a: [number, number], b: [string, string]) => {
   return a[0] < d && c < a[1]
 }
 
-export function RecordDialog({ recordId, defaults, planned, onClose }: Props) {
+export function RecordDialog({ recordId, defaults, planned, capped, onClose }: Props) {
   const id = useId()
   const { user } = useAuth()
   const timeZone = user?.timezone ?? 'Asia/Seoul'
@@ -179,18 +182,22 @@ export function RecordDialog({ recordId, defaults, planned, onClose }: Props) {
   const [saving, setSaving] = useState(false)
   const formRef = useRef<HTMLFormElement>(null)
   const contentRef = useRef<HTMLTextAreaElement>(null)
+  const endRef = useRef<HTMLInputElement>(null)
   const closeRef = useRef<HTMLButtonElement>(null)
 
-  const current = form ?? (original ? formWithPlan(original, timeZone, planned) : null)
+  const current =
+    form ??
+    (original ? { ...formWithPlan(original, timeZone, planned), ...(capped && timed ? { end: '' } : {}) } : null)
   const running = !!original?.startAt && !original.endAt
   const archived = !!original?.deletedAt
   const editable = online && !archived
 
-  // 칸이 나타나면 한 일로 포커스(고칠 때는 기록을 받은 뒤)
+  // 칸이 나타나면 한 일로 포커스(고칠 때는 기록을 받은 뒤). 잘린 기록은 채워야 할 종료로
   const ready = !!current
+  const cappedOpen = !!capped && timed
   useEffect(() => {
-    if (ready) contentRef.current?.focus()
-  }, [ready])
+    if (ready) (cappedOpen ? endRef : contentRef).current?.focus()
+  }, [ready, cappedOpen])
   // 오프라인이면 열어 보기만 한다(SCR-SYS-02 ③). 칸이 꺼지며 포커스를 잃으면 닫기 버튼으로 옮겨 Esc가 계속 듣게 한다
   useEffect(() => {
     const active = document.activeElement
@@ -470,12 +477,14 @@ export function RecordDialog({ recordId, defaults, planned, onClose }: Props) {
                   <label className={calendar.field}>
                     종료
                     <input
+                      ref={endRef}
                       type="time"
                       step={300}
                       className={calendar.input}
                       value={current.end}
                       placeholder={running ? '진행 중' : undefined}
                       onChange={(e) => update({ end: e.target.value })}
+                      {...(cappedOpen ? { 'aria-describedby': `${id}-capped` } : {})}
                       {...invalid('time', 'end')}
                     />
                   </label>
@@ -494,6 +503,11 @@ export function RecordDialog({ recordId, defaults, planned, onClose }: Props) {
                     />
                   </label>
                 </div>
+                {cappedOpen && (
+                  <p id={`${id}-capped`} className={calendar.muted}>
+                    24시간을 넘겨 잘렸어요. 끝난 시각을 넣어 주세요
+                  </p>
+                )}
                 {running && !current.end && (
                   <p className={calendar.muted}>타이머가 돌고 있어요. 종료를 넣으면 멈춰요</p>
                 )}

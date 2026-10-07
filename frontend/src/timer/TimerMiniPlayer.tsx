@@ -3,7 +3,7 @@
 // 경과 시간은 서버의 startAt 기준이라 브라우저를 닫았다 열어도 이어진다. 정지하면 서버가 기록을 끝내고
 // 1분 미만은 버리고 24시간이 넘으면 자른다(discarded·capped를 알린다). 이어달리기 제안(next)이 있으면
 // 플레이어 자리에 "다음 계획을 시작할까요?"를 남긴다.
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { toastForError } from '../api/errorToast'
 import { ApiError } from '../api/problem'
 import { focusPageHeading } from '../components/focusFallback'
@@ -47,10 +47,11 @@ export function TimerMiniPlayer() {
   const [after, setAfter] = useState<AfterStop | null>(null)
   const [switching, setSwitching] = useState(false)
   const [editing, setEditing] = useState<string | null>(null)
-  const afterRef = useRef<HTMLDivElement>(null)
+  const afterRef = useRef<HTMLElement>(null)
   const stopRef = useRef<HTMLButtonElement>(null)
   // 이어달리기로 시작하면 새 타이머의 정지 버튼으로 포커스를 옮긴다
   const focusStop = useRef(false)
+  const offlineId = useId()
 
   useEffect(() => {
     if (!running) return
@@ -58,9 +59,11 @@ export function TimerMiniPlayer() {
     return () => clearInterval(tick)
   }, [running])
 
+  // 정지 응답이 먼저 오고 타이머 조회가 뒤에 비워지므로, 안내가 실제로 나타난 뒤 첫 버튼(시작·시간 고치기)으로 옮긴다
+  const afterShown = !running && !!after
   useEffect(() => {
-    if (after) afterRef.current?.querySelector('button')?.focus()
-  }, [after])
+    if (afterShown) afterRef.current?.querySelector('button')?.focus()
+  }, [after, afterShown])
 
   const runningId = running?.id
   useEffect(() => {
@@ -81,7 +84,10 @@ export function TimerMiniPlayer() {
     if (busy || !online) return
     setBusy(true)
     try {
-      const { stopped, next } = await stop()
+      const result = await stop()
+      const { stopped } = result
+      // 이어달리기는 기록을 남긴 뒤에만 제안한다(1분 미만이라 버렸으면 제안하지 않는다)
+      const next = stopped?.discarded ? null : result.next
       const cappedId = stopped?.capped ? stopped.record.id : null
       if (next || cappedId) setAfter({ message: stoppedMessage(stopped), next, cappedId })
       else {
@@ -135,13 +141,23 @@ export function TimerMiniPlayer() {
             <span className={styles.srOnly}>{spokenElapsed(elapsed)} 지남</span>
           </p>
           {elapsed >= DAY_MS && <p className={styles.note}>24시간이 넘었어요. 멈추면 24시간까지만 기록돼요</p>}
-          {!online && <p className={styles.note}>연결되면 멈추거나 바꿀 수 있어요</p>}
+          {!online && (
+            <p id={offlineId} className={styles.offline}>
+              <span className={styles.wide}>연결되면 멈추거나 바꿀 수 있어요</span>
+              {/* 좁은 사이드바에서는 긴 안내가 들어가지 않아 짧게 보인다(버튼은 aria-describedby로 긴 안내를 읽는다) */}
+              <span className={styles.narrowOnly} aria-hidden="true">
+                연결 끊김
+              </span>
+            </p>
+          )}
           <div className={styles.actions}>
             <button
               ref={stopRef}
               type="button"
               className={styles.stop}
               disabled={busy || !online}
+              aria-describedby={online ? undefined : offlineId}
+              title={online ? undefined : '연결되면 멈출 수 있어요'}
               onClick={() => void onStop()}
             >
               정지
@@ -150,6 +166,7 @@ export function TimerMiniPlayer() {
               type="button"
               className={`${styles.switch} ${styles.narrowHide}`}
               disabled={busy || !online}
+              aria-describedby={online ? undefined : offlineId}
               onClick={() => setSwitching(true)}
             >
               업무 전환
@@ -191,6 +208,7 @@ export function TimerMiniPlayer() {
       {editing && (
         <RecordDialog
           recordId={editing}
+          capped
           onClose={(changed) => {
             setEditing(null)
             if (changed) setAfter((a) => (a ? { ...a, cappedId: null } : a))

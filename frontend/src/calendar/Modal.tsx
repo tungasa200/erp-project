@@ -16,7 +16,15 @@ export function Modal({ labelledBy, onClose, narrow, role = 'dialog', children }
 
   useEffect(() => {
     const previous = markFocus()
-    const first = ref.current?.querySelector<HTMLElement>('input:not([type=hidden]), textarea, select, button')
+    // 머리의 닫기(×)가 DOM 첫 버튼이라 입력 칸을 먼저 찾고, 칸이 없으면(확인만 하는 창) 제출 버튼, 그다음 아무 버튼
+    const dialog = ref.current
+    const first = [
+      'input:not([type=hidden]):not(:disabled), textarea:not(:disabled), select:not(:disabled)',
+      'button[type=submit]:not(:disabled)',
+      'button:not(:disabled)',
+    ]
+      .map((selector) => dialog?.querySelector<HTMLElement>(selector))
+      .find(Boolean)
     first?.focus()
     return () => restoreFocus(previous)
   }, [])
