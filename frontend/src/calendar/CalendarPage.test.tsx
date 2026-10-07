@@ -401,6 +401,35 @@ describe('캘린더', () => {
     })
   })
 
+  it('끊긴 채로 처음 연 일정은 스켈레톤 대신 연결되면 불러온다고 알린다 (qa P1-X-04)', async () => {
+    stubServer()
+    const user = userEvent.setup()
+    renderApp('/calendar/week/2026-10-07', routes)
+    ;(await screen.findAllByRole('button', { name: /^팀 스탠드업, / }))[0].focus()
+    const onLine = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    act(() => {
+      window.dispatchEvent(new Event('offline'))
+    })
+    try {
+      await user.keyboard('{Enter}')
+      const dialog = await screen.findByRole('dialog', { name: '일정 편집' })
+      expect(await within(dialog).findByText('연결되면 일정을 불러올게요')).toBeInTheDocument()
+
+      onLine.mockRestore()
+      act(() => {
+        window.dispatchEvent(new Event('online'))
+      })
+      // 다시 연결되면 저절로 채운다
+      await waitFor(() => expect(within(dialog).getByLabelText('제목')).toHaveValue('팀 스탠드업'))
+    } finally {
+      // 실패해도 React Query onlineManager를 되돌려야 뒤 테스트의 요청이 멈추지 않는다
+      onLine.mockRestore()
+      act(() => {
+        window.dispatchEvent(new Event('online'))
+      })
+    }
+  })
+
   it('상세 모달에서 업무를 검색해 연결하면 저장 때 taskId를 보낸다 (P1-05-06)', async () => {
     const review = { ...standup, id: 'schedule-review', title: '주간 리뷰', recurrence: null }
     Object.assign(review, { startAt: '2026-10-08T05:00:00.000Z', endAt: '2026-10-08T06:00:00.000Z' })

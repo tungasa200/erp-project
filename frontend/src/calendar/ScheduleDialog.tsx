@@ -382,6 +382,11 @@ export function ScheduleDialog({ timeZone, draft, occurrence, askScope, onDelete
       {!current ? (
         schedule.isError ? (
           <p className={styles.muted}>일정을 불러오지 못했어요. 이미 삭제됐을 수 있어요</p>
+        ) : schedule.fetchStatus === 'paused' ? (
+          // 끊긴 동안에는 조회가 멈춰(react-query paused) 스켈레톤이 끝없이 돌므로 이유를 알린다(업무 상세와 같은 문구)
+          <p className={styles.muted} role="status">
+            연결되면 일정을 불러올게요
+          </p>
         ) : (
           <Skeleton shape="lines" count={4} />
         )
