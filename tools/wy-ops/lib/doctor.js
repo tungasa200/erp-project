@@ -32,13 +32,20 @@ const exists = (p) => {
   }
 };
 
-// Windows에서 code·claude·gh는 .cmd 래퍼라 cmd.exe로 부른다. 출력만 보고 아무것도 쓰지 않는다
+// Windows에서 code·claude·gh는 .cmd 래퍼라 cmd.exe로 부르고, 나머지(node·git·powershell·where)는 바로 부른다.
+// cmd /s /c는 문자열의 첫·끝 따옴표를 떼므로, 명령줄 전체를 한 번 더 따옴표로 감싸고 node가 다시 이스케이프하지 않게 한다
+// (그러지 않으면 공백이 든 경로 인자가 깨진다 — R5 리허설에서 찾음). 출력만 보고 아무것도 쓰지 않는다
+const CMD_WRAPPERS = ['code', 'claude', 'gh'];
 function defaultRun(cmd, args = []) {
-  const quote = (a) => (/[\s"&|<>^]/.test(a) ? `"${String(a).replace(/"/g, '\\"')}"` : a);
   const opts = { encoding: 'utf8', timeout: 20000, windowsHide: true, maxBuffer: 8 * 1024 * 1024 };
-  const r = process.platform === 'win32'
-    ? spawnSync(process.env.ComSpec || 'cmd.exe', ['/d', '/s', '/c', [cmd, ...args].map(quote).join(' ')], opts)
-    : spawnSync(cmd, args, opts);
+  let r;
+  if (process.platform === 'win32' && CMD_WRAPPERS.includes(cmd)) {
+    const quote = (a) => (/[\s"&|<>^()]/.test(a) ? `"${String(a).replace(/"/g, '""')}"` : a);
+    const line = [cmd, ...args].map(quote).join(' ');
+    r = spawnSync(process.env.ComSpec || 'cmd.exe', ['/d', '/s', '/c', `"${line}"`], { ...opts, windowsVerbatimArguments: true });
+  } else {
+    r = spawnSync(cmd, args, opts);
+  }
   return { status: r.error ? null : r.status, stdout: r.stdout || '' };
 }
 
@@ -178,6 +185,21 @@ function checkExtension(o) {
   return result('extension', '확장', 'ok', `${STUB_ID}@${stub.version}`);
 }
 
+// plugins.json의 version은 최소 버전(pm 결정: 마켓플레이스가 개별 버전 고정을 못 하므로 설치는 늘 최신을 받는다).
+// 숫자 부분을 차례로 비교한다. 읽을 수 없는 버전은 낮다고 보지 않는다
+function versionBelow(have, min) {
+  const parts = (v) => String(v || '').split(/[.+-]/).map((x) => Number.parseInt(x, 10));
+  const a = parts(have);
+  const b = parts(min);
+  if (a.some(Number.isNaN) || b.some(Number.isNaN)) return false;
+  for (let i = 0; i < Math.max(a.length, b.length); i++) {
+    const x = a[i] || 0;
+    const y = b[i] || 0;
+    if (x !== y) return x < y;
+  }
+  return false;
+}
+
 function readPlugins() {
   const raw = readJson(PLUGINS);
   return Array.isArray(raw) ? raw : raw.plugins || [];
@@ -216,12 +238,12 @@ function checkPlugins(o) {
         fails.push(`${p.id} 꺼져 있음`);
         fixes.push(`claude plugin enable ${p.id}`);
       } else notes.push(`선택 ${p.id} 꺼짐`);
-    } else if (p.required && p.version && got.version !== p.version) {
-      warns.push(`${p.id} ${got.version}(기준 ${p.version})`);
+    } else if (p.required && p.version && versionBelow(got.version, p.version)) {
+      warns.push(`${p.id} ${got.version}(최소 ${p.version})`);
     } else notes.push(`${p.id} ${got.version}`);
   }
   if (fails.length) return result('plugins', '플러그인', 'fail', [...fails, ...warns].join(', '), fixes.join(' ; '));
-  if (warns.length) return result('plugins', '플러그인', 'warn', `버전이 기준과 다름: ${warns.join(', ')}(일은 막지 않음)`, 'claude plugin marketplace update');
+  if (warns.length) return result('plugins', '플러그인', 'warn', `최소 버전보다 낮음: ${warns.join(', ')}(일은 막지 않음)`, 'claude plugin marketplace update && claude plugin update <플러그인>');
   return result('plugins', '플러그인', 'ok', notes.join(' · '));
 }
 

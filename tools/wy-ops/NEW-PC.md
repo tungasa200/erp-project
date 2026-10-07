@@ -34,9 +34,11 @@
   - 그 프로필에서 외부 콘솔(GitHub, Railway, Vercel)에 로그인해 둔다. Google 로그인은 자동화 브라우저에서 막히므로 사람이 한다.
 - [ ] 개발 역할(백엔드·프론트): 저장소 README의 버전 표(JDK, Docker 등)를 따른다. 운영 도구 범위가 아니다.
 
-## 5. 선택 플러그인
+## 5. 플러그인
 
-`plugins.json`에서 required가 false인 것들이다. 필요하면 설치한다. doctor는 없어도 통과로 본다.
+필수 플러그인(ecc, impeccable)은 setup이 설치한다. 마켓플레이스가 플러그인별 버전 고정을 지원하지 않아 늘 최신이 설치된다. `plugins.json`의 version은 최소 버전이고, doctor는 그보다 낮을 때만 주의를 띄운다.
+
+아래는 `plugins.json`에서 required가 false인 선택 플러그인이다. 필요하면 설치한다. doctor는 없어도 통과로 본다.
 
 - claude-mem: `claude plugin marketplace add thedotmack/claude-mem` 뒤 `claude plugin install claude-mem@thedotmack`
 - prompts.chat: `claude plugin marketplace add f/prompts.chat` 뒤 `claude plugin install prompts.chat@prompts.chat`

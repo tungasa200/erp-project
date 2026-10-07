@@ -3,6 +3,7 @@
 const assert = require('assert');
 const fs = require('fs');
 const os = require('os');
+const { rmTree } = require('../lib/fsx');
 const path = require('path');
 const legacy = require('../lib/legacy');
 
@@ -73,5 +74,5 @@ try {
 
   console.log('legacy 검사 통과');
 } finally {
-  fs.rmSync(home, { recursive: true, force: true });
+  rmTree(home);
 }

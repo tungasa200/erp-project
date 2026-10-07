@@ -6,6 +6,7 @@
 //   remove(items, home, opts) → [{ path, removed, reason? }]  받은 것 중 지금 list에 있는 것만 지운다
 // 프로젝트별 승인 폴더(<승인 바탕>/<namespace>/…)는 어떤 경우에도 대상이 아니다.
 const fs = require('fs');
+const { rmTree } = require('./fsx');
 const path = require('path');
 const { readSettings, scriptOf } = require('./settings');
 
@@ -91,7 +92,7 @@ function remove(items, home, opts = {}) {
     const rel = path.relative(b.approvals, known.path);
     if (!rel.startsWith('..') && rel.includes(path.sep)) return { path: known.path, removed: false, reason: '프로젝트별 승인 폴더 안' };
     if (known.inUse) return { path: known.path, removed: false, reason: '훅이 아직 가리킴(setup으로 훅을 옮긴 뒤 다시)' };
-    fs.rmSync(known.path, { recursive: true, force: true });
+    rmTree(known.path);
     return { path: known.path, removed: true };
   });
 }

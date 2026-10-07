@@ -4,6 +4,7 @@
 const assert = require('assert');
 const fs = require('fs');
 const os = require('os');
+const { rmTree, copyTree } = require('../lib/fsx');
 const path = require('path');
 const { update, format } = require('../lib/update');
 const lock = require('../lib/lock');
@@ -79,8 +80,8 @@ try {
 
   // 5. lock에 없는데 이미 있는 파일(관리 밖)도 덮지 않는다, dryRun은 아무것도 쓰지 않는다
   const other = path.join(base, 'other');
-  fs.cpSync(project, other, { recursive: true });
-  fs.rmSync(path.join(other, lock.LOCK));
+  copyTree(project, other);
+  rmTree(path.join(other, lock.LOCK));
   fs.writeFileSync(path.join(other, '.claude', 'skills', 'pm-ops', 'SKILL.md'), '# 원래 있던 스킬\n');
   const before = fs.readFileSync(path.join(other, '.claude', 'skills', 'pm-ops', 'SKILL.md'), 'utf8');
   const dry = update({ project: other, dryRun: true });
@@ -94,5 +95,5 @@ try {
 
   console.log('update 검사 통과');
 } finally {
-  fs.rmSync(base, { recursive: true, force: true });
+  rmTree(base);
 }

@@ -3,6 +3,7 @@
 const assert = require('assert');
 const fs = require('fs');
 const os = require('os');
+const { rmTree, copyTree } = require('../lib/fsx');
 const path = require('path');
 const doctor = require('../lib/doctor');
 const { writeTodo } = require('../lib/todo');
@@ -108,7 +109,7 @@ try {
   // 2. 훅: 파일 없음·current 밖(옛 설치본)·설정에 없음 → 실패
   {
     const pc = makePc('hooks');
-    fs.rmSync(path.join(pc.hooksDir, 'wy-session-start.js'));
+    rmTree(path.join(pc.hooksDir, 'wy-session-start.js'));
     const s = JSON.parse(fs.readFileSync(pc.settingsFile, 'utf8'));
     const old = path.join(pc.home, '.wy-tools', 'vscode-dashboard', 'hooks', 'wy-approval-guard.js');
     fs.mkdirSync(path.dirname(old), { recursive: true });
@@ -143,7 +144,7 @@ try {
     const r = byId(doctor.checkAll(pc.opts)).install;
     assert.strictEqual(r.level, 'fail');
     assert.ok(r.detail.includes('HEAD abc1234') && r.fix.endsWith('install.ps1 deploy'), '커밋 다름');
-    fs.rmSync(path.join(pc.toolsDir, 'current'), { recursive: true });
+    rmTree(path.join(pc.toolsDir, 'current'));
     assert.ok(byId(doctor.checkAll(pc.opts)).install.detail.includes('없음'), '설치본 없음');
   }
 
@@ -161,14 +162,21 @@ try {
     assert.ok(r.level === 'fail' && r.detail.includes('contributes'), '해시 다름');
   }
 
-  // 6. 플러그인: 필수 없음은 실패, 버전 다름은 주의, 선택 없음은 통과
+  // 6. 플러그인: 필수 없음은 실패, version은 최소 버전(새 것은 통과, 낮으면 주의), 선택 없음은 통과
   {
     const pc = makePc('plugins');
     pc.state.plugins = pc.state.plugins.filter((p) => !p.id.startsWith('prompts.chat'));
     assert.strictEqual(byId(doctor.checkAll(pc.opts)).plugins.level, 'ok', '선택은 없어도 통과');
-    pc.state.plugins.find((p) => p.id === 'ecc@ecc').version = '9.9.9';
+    const ecc = pc.state.plugins.find((p) => p.id === 'ecc@ecc');
+    for (const newer of ['9.9.9', '2.2.10', '2.3.0']) {
+      ecc.version = newer;
+      assert.strictEqual(byId(doctor.checkAll(pc.opts)).plugins.level, 'ok', `최소보다 새 버전 ${newer}은 통과`);
+    }
+    ecc.version = '2.1.9';
     let r = byId(doctor.checkAll(pc.opts)).plugins;
-    assert.ok(r.level === 'warn' && r.detail.includes('ecc@ecc 9.9.9'), '버전 다름은 주의');
+    assert.ok(r.level === 'warn' && r.detail.includes('ecc@ecc 2.1.9(최소 2.2.2)'), '최소보다 낮으면 주의');
+    ecc.version = 'unknown';
+    assert.strictEqual(byId(doctor.checkAll(pc.opts)).plugins.level, 'ok', '읽을 수 없는 버전은 낮다고 보지 않음');
     pc.state.plugins = pc.state.plugins.filter((p) => p.id !== 'impeccable@impeccable');
     r = byId(doctor.checkAll(pc.opts)).plugins;
     assert.ok(r.level === 'fail' && r.fix.includes('claude plugin install impeccable@impeccable'), '필수 없음은 실패');
@@ -247,7 +255,7 @@ try {
   {
     const pc = makePc('toolsenv');
     const envDir = path.join(pc.root, 'tools-env');
-    fs.cpSync(pc.toolsDir, path.join(envDir, 'wy-ops'), { recursive: true });
+    copyTree(pc.toolsDir, path.join(envDir, 'wy-ops'));
     const saved = process.env.WY_TOOLS_DIR;
     process.env.WY_TOOLS_DIR = envDir;
     try {
@@ -286,5 +294,5 @@ try {
 
   console.log('doctor 검사 통과');
 } finally {
-  fs.rmSync(base, { recursive: true, force: true });
+  rmTree(base);
 }
