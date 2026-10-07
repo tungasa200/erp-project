@@ -281,7 +281,7 @@ function writesApprovalFiles(command, cwd) {
     // 쓰기 프로그램은 인자가 보호 경로로 갈 수 있을 때만 막는다(직접 언급·알 수 없는 값·와일드카드 펼친 결과)
     const risky = moved || mentionsProtected(seg) || rest.some((a) => riskyTarget(a, cwd));
     if (WRITERS.has(prog) && risky) return true;
-    if (prog === 'sed' && rest.some((a) => a.startsWith('-i') || a === '--in-place') && (moved || mentionsProtected(seg) || sedFiles(rest).some((a) => riskyTarget(a, cwd)))) return true;
+    if (prog === 'sed' && rest.some((a) => a.startsWith('-i') || a.startsWith('--in-place')) && (moved || mentionsProtected(seg) || sedFiles(rest).some((a) => riskyTarget(a, cwd)))) return true;
     if (prog === 'find' && risky && rest.some((a) => ['-delete', '-exec', '-execdir', '-ok'].includes(a))) return true;
     if (INTERPRETERS.has(prog) && sensitive) {
       const code = rest.join(' ');

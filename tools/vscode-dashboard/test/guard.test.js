@@ -80,6 +80,7 @@ const deny = [
   // sed: 스크립트가 아닌 파일 인자로 판단
   `sed -i 's/a/b/' .clau?e/wy-ops.json`,
   `F=.claude/wy-ops.json; sed -i -e 's/x$/y/' $F`,
+  `sed --in-place=.bak 's/a/b/' .claude/wy-ops.json`, // WY-commit 검증에서 찾음
   // 특수 변수를 빼도 진짜 와일드카드 우회는 그대로 막는다
   `node -e "require('fs').writeFileSync(process.argv[1],'x')" h/.cl*/wy-a*/erp-project/decisions/a.json; echo $?`,
 ];
