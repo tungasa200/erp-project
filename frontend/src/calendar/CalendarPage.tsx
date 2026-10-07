@@ -187,7 +187,7 @@ function Calendar({ view, date, today, timeZone, weekStart }: CalendarProps) {
   }, [panelOpen, wide])
   // 모바일 주 보기는 훑어보기 전용(D-77)
   const mobile = useMediaQuery(MOBILE_QUERY)
-  // 오프라인이면 끌기·만들기를 막는다(SCR-SYS-02, P1-X-04). 버튼·입력은 앱의 fieldset이 끈다
+  // 오프라인이면 끌기·만들기·저장을 막고 기간 이동·일정 열어 보기는 둔다(SCR-SYS-02 ③, P1-X-04)
   const online = useOnline()
 
   const askScope = useCallback(
@@ -325,7 +325,13 @@ function Calendar({ view, date, today, timeZone, weekStart }: CalendarProps) {
   return (
     <div ref={pageRef} className={styles.page}>
       <aside className={styles.side} aria-label="캘린더 사이드바">
-        <button type="button" className={styles.createButton} onClick={() => openCreate()} title="단축키 C">
+        <button
+          type="button"
+          className={styles.createButton}
+          onClick={() => openCreate()}
+          disabled={!online}
+          title="단축키 C"
+        >
           <svg
             width="20"
             height="20"
@@ -521,14 +527,16 @@ function Calendar({ view, date, today, timeZone, weekStart }: CalendarProps) {
           onLoadMore={() => void panel.tasks.fetchNextPage()}
           onPlace={(task) => openCreate(task)}
           quickInput={
-            <QuickInput
-              label="업무 빠른 입력"
-              // 좁은 패널에 맞춘 짧은 안내(목업 CAL-09)
-              placeholder="+ 업무 추가"
-              value={panelText}
-              onChange={setPanelText}
-              onSubmit={panel.quickSave}
-            />
+            <fieldset className={styles.fieldset} disabled={!online}>
+              <QuickInput
+                label="업무 빠른 입력"
+                // 좁은 패널에 맞춘 짧은 안내(목업 CAL-09)
+                placeholder="+ 업무 추가"
+                value={panelText}
+                onChange={setPanelText}
+                onSubmit={panel.quickSave}
+              />
+            </fieldset>
           }
         />
       )}

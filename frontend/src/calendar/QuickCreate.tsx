@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { ApiError } from '../api/problem'
 import { useAuth } from '../auth/useAuth'
+import { useOnline } from '../components/useOnline'
 import { useToast } from '../components/useToast'
 import { toastForError } from '../api/errorToast'
 import { PROJECTS_QUERY_KEY, projectApi, TAGS_QUERY_KEY, tagApi, type Project } from '../projects/api'
@@ -65,6 +66,8 @@ export function QuickCreate({ target, timeZone, anchor, onClose, onDetails }: Pr
   const [text, setText] = useState('')
   const [asTask, setAsTask] = useState(true)
   const [saving, setSaving] = useState(false)
+  // 연 뒤에 연결이 끊기면 저장만 막는다. 입력은 두어 포커스·Esc가 그대로 동작한다
+  const online = useOnline()
   const [error, setError] = useState<string | null>(null)
 
   // 닫으면 연 자리로 포커스를 돌린다(빈 칸을 눌러 열었으면 캘린더 제목)
@@ -109,6 +112,12 @@ export function QuickCreate({ target, timeZone, anchor, onClose, onDetails }: Pr
   const showChips = asTask && Boolean(full.project || full.tags?.length || full.priority || full.due)
 
   const inputRef = useRef<HTMLInputElement>(null)
+  // 저장·프로젝트 만들기 버튼이 꺼지며 포커스를 잃으면 입력칸으로 옮겨 Esc가 계속 듣게 한다
+  useEffect(() => {
+    const active = document.activeElement
+    if (!online && (active === document.body || (active instanceof HTMLElement && active.matches(':disabled'))))
+      inputRef.current?.focus()
+  }, [online])
   // 오류는 입력 칸에 연결하고 포커스를 그 칸으로(2.5). 저장 버튼을 눌러도 칸으로 돌아온다
   const showError = (message: string) => {
     setError(message)
@@ -169,7 +178,7 @@ export function QuickCreate({ target, timeZone, anchor, onClose, onDetails }: Pr
   }
 
   const save = async () => {
-    if (saving) return
+    if (saving || !online) return
     if (!draft.title) return showError('일정 이름을 적어 주세요')
     setSaving(true)
     try {
@@ -259,6 +268,7 @@ export function QuickCreate({ target, timeZone, anchor, onClose, onDetails }: Pr
                     type="button"
                     className={`${styles.parseChip} ${styles.parseChipNew}`}
                     onClick={() => void createProject(missingProject)}
+                    disabled={!online}
                   >
                     + 새 프로젝트 "{missingProject}" 만들기
                   </button>
@@ -300,6 +310,11 @@ export function QuickCreate({ target, timeZone, anchor, onClose, onDetails }: Pr
           </ul>
         )}
         {overridden && <p className={styles.muted}>입력한 시간으로 만들어요</p>}
+        {!online && (
+          <p className={styles.muted} role="status">
+            연결이 끊겼어요. 다시 연결되면 만들 수 있어요
+          </p>
+        )}
         {error && (
           <p id={`${id}-error`} role="alert" className={styles.fieldError}>
             {error}
@@ -321,7 +336,7 @@ export function QuickCreate({ target, timeZone, anchor, onClose, onDetails }: Pr
           <button type="button" className={styles.link} onClick={toDetails}>
             자세히
           </button>
-          <button type="submit" className={styles.primary} disabled={saving}>
+          <button type="submit" className={styles.primary} disabled={saving || !online}>
             저장
           </button>
         </div>

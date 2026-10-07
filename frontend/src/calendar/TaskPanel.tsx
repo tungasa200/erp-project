@@ -17,7 +17,7 @@ interface Props {
   pending: boolean
   /** 다음 쪽 불러오는 중 */
   loadingMore: boolean
-  /** false면(오프라인, P1-X-04) 카드를 끌 수 없다. 버튼·입력은 앱의 오프라인 처리(fieldset)가 끈다 */
+  /** false면(오프라인, P1-X-04) 카드를 끌 수 없고 일정 잡기도 꺼진다. 패널 빠른 입력은 CalendarPage가 끈다 */
   editable?: boolean
   /** 서버에 더 있으면 */
   hasMore: boolean
@@ -85,6 +85,7 @@ export function TaskPanel({
           <button
             type="button"
             className={panel.place}
+            disabled={!editable}
             onClick={() => onPlace(t)}
             aria-label={`${t.title} 일정 잡기`}
             data-focus-item

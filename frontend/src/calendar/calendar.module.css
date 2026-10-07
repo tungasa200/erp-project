@@ -73,6 +73,12 @@
   cursor: pointer;
 }
 
+.createButton:disabled {
+  opacity: 0.55;
+  box-shadow: none;
+  cursor: default;
+}
+
 .card {
   background: var(--color-surface);
   border-radius: var(--radius-card);
@@ -1223,6 +1229,11 @@ button.monthCell {
   cursor: pointer;
 }
 
+.parseChipNew:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
 .field {
   display: flex;
   flex-direction: column;
@@ -1294,9 +1305,14 @@ textarea.input {
   margin: 0;
   border: 0;
   padding: 0;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+fieldset.fieldset:disabled {
+  opacity: 0.55;
 }
 
 .fieldset legend {
@@ -1385,6 +1401,11 @@ textarea.input {
   background: transparent;
   color: var(--color-danger);
   padding: 0 8px;
+}
+
+.danger:disabled {
+  color: var(--color-text-muted);
+  cursor: default;
 }
 
 .link {

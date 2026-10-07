@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ME, json, problem, renderApp, stubFetch } from '../test/renderApp'
@@ -143,5 +143,32 @@ describe('일정 빠른 생성 해석 칩·업무로도 만들기 (P1-09-09)', (
     await user.type(within(dialog).getByLabelText('한 줄 입력'), '견적 회의 @영업 14-15')
     await user.click(within(dialog).getByRole('button', { name: '자세히' }))
     expect(onDetails).toHaveBeenCalledWith(expect.objectContaining({ title: '견적 회의 @영업', start: 840, end: 900 }))
+  })
+
+  it('연 뒤에 연결이 끊기면 입력은 두고 저장만 막으며, 꺼진 버튼의 포커스는 입력칸으로', async () => {
+    const fetchMock = server()
+    const user = userEvent.setup()
+    const { onClose } = renderQuickCreate()
+    const dialog = await screen.findByRole('dialog', { name: '새 일정' })
+    const input = within(dialog).getByLabelText('한 줄 입력')
+    await user.type(input, '견적 회의')
+    within(dialog).getByRole('button', { name: '저장' }).focus()
+
+    const onLine = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    act(() => {
+      window.dispatchEvent(new Event('offline'))
+    })
+    expect(within(dialog).getByRole('status')).toHaveTextContent('연결이 끊겼어요')
+    expect(within(dialog).getByRole('button', { name: '저장' })).toBeDisabled()
+    expect(input).toBeEnabled()
+    await waitFor(() => expect(input).toHaveFocus())
+    await user.type(input, '{Enter}')
+    expect(onClose).not.toHaveBeenCalled()
+    expect(bodyOf(fetchMock, 'POST /api/worklog/schedules')).toBeUndefined()
+    onLine.mockRestore()
+    // React Query onlineManager도 offline 이벤트로 멈췄으니 online으로 되돌려 다음 테스트의 저장이 멈추지 않게 한다
+    act(() => {
+      window.dispatchEvent(new Event('online'))
+    })
   })
 })

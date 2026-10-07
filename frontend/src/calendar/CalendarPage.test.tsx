@@ -351,6 +351,56 @@ describe('캘린더', () => {
     onLine.mockRestore()
   })
 
+  it('오프라인이면 일정은 열어 보기만 하고, 기간 이동은 된다 (SCR-SYS-02 ③)', async () => {
+    stubServer()
+    const user = userEvent.setup()
+    const onLine = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    renderApp('/calendar/week/2026-10-07', routes)
+    const panel = await screen.findByRole('complementary', { name: '할 일 상자' })
+    expect(await within(panel).findByRole('button', { name: '9월 매출 보고서 일정 잡기' })).toBeDisabled()
+    expect(within(panel).getByLabelText('업무 빠른 입력')).toBeDisabled()
+    expect(screen.getByRole('button', { name: '일정 만들기' })).toBeDisabled()
+
+    ;(await screen.findAllByRole('button', { name: /^팀 스탠드업, / }))[0].focus()
+    await user.keyboard('{Enter}')
+    const dialog = await screen.findByRole('dialog', { name: '일정 편집' })
+    await waitFor(() => expect(within(dialog).getByLabelText('제목')).toHaveValue('팀 스탠드업'))
+    expect(within(dialog).getByRole('status')).toHaveTextContent('연결이 끊겼어요')
+    expect(within(dialog).getByLabelText('제목')).toBeDisabled()
+    expect(within(dialog).getByRole('button', { name: '저장' })).toBeDisabled()
+    expect(within(dialog).getByRole('button', { name: '삭제' })).toBeDisabled()
+    await user.click(within(dialog).getByRole('button', { name: '취소' }))
+    expect(screen.queryByRole('dialog', { name: '일정 편집' })).not.toBeInTheDocument()
+
+    await user.keyboard('j')
+    expect(await screen.findByRole('heading', { name: '2026년 10월 12일 – 18일' })).toBeInTheDocument()
+    onLine.mockRestore()
+  })
+
+  it('편집 중에 연결이 끊기면 칸이 꺼지고 포커스는 닫기 버튼으로 간다', async () => {
+    stubServer()
+    const user = userEvent.setup()
+    renderApp('/calendar/week/2026-10-07', routes)
+    ;(await screen.findAllByRole('button', { name: /^팀 스탠드업, / }))[0].focus()
+    await user.keyboard('{Enter}')
+    const dialog = await screen.findByRole('dialog', { name: '일정 편집' })
+    const title = within(dialog).getByLabelText('제목')
+    await waitFor(() => expect(title).toHaveValue('팀 스탠드업'))
+    title.focus()
+
+    const onLine = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    act(() => {
+      window.dispatchEvent(new Event('offline'))
+    })
+    expect(title).toBeDisabled()
+    await waitFor(() => expect(within(dialog).getByRole('button', { name: '닫기' })).toHaveFocus())
+    onLine.mockRestore()
+    // React Query onlineManager도 offline 이벤트로 멈췄으니 online으로 되돌려 다음 테스트의 저장이 멈추지 않게 한다
+    act(() => {
+      window.dispatchEvent(new Event('online'))
+    })
+  })
+
   it('상세 모달에서 업무를 검색해 연결하면 저장 때 taskId를 보낸다 (P1-05-06)', async () => {
     const review = { ...standup, id: 'schedule-review', title: '주간 리뷰', recurrence: null }
     Object.assign(review, { startAt: '2026-10-08T05:00:00.000Z', endAt: '2026-10-08T06:00:00.000Z' })
