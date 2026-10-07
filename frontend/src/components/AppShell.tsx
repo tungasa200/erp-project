@@ -9,6 +9,7 @@ import { projectColor } from '../projects/palette'
 import { useSingleKeyShortcuts } from '../shortcuts/useShortcuts'
 import { UnverifiedBanner } from '../verification/UnverifiedBanner'
 import styles from './AppShell.module.css'
+import { useFocusRescue } from './focusRescue'
 import { useOnline } from './useOnline'
 
 const MENU = [
@@ -97,6 +98,10 @@ export function AppShell() {
 
   const { pathname } = useLocation()
 
+  // 누른 요소가 사라져 포커스가 body로 빠지면 이웃·화면 제목으로 되살린다(마지막 안전망, 화면별 처리가 우선)
+  const contentRef = useRef<HTMLDivElement>(null)
+  useFocusRescue(contentRef)
+
   return (
     <div className={styles.shell}>
       <nav className={styles.sidebar} aria-label="주 메뉴">
@@ -130,7 +135,7 @@ export function AppShell() {
         </NavLink>
       </nav>
 
-      <div className={styles.content}>
+      <div ref={contentRef} className={styles.content}>
         <UnverifiedBanner />
         {/* 끊긴 동안에는 입력을 막는다 (SCR-SYS-02 ③, 오프라인 기록은 범위 밖) */}
         <fieldset className={styles.main} disabled={!online}>
