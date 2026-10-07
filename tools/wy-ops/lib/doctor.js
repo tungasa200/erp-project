@@ -275,6 +275,17 @@ function opsConfig(o) {
   return { ops: merged, file };
 }
 
+// 생성물과 lock(.claude/wy-ops.lock.json) 대조: 정상 생성 경로(gen-agents·gen-skill·update)는 lock을 함께 맞추므로,
+// 어긋나 있으면 사람이 생성물을 직접 고친 것이다. 그대로 두면 update가 그 파일을 '사람이 고침'으로 보고 건너뛴다(84cd6e5 뒤 결함)
+function checkLock(o) {
+  const lock = require('./lock');
+  if (!fs.existsSync(path.join(o.repoRoot, lock.LOCK))) return result('lock', '생성 파일 lock', 'ok', 'lock 없음(init 전 프로젝트)');
+  const d = lock.drift(o.repoRoot);
+  if (!d.length) return result('lock', '생성 파일 lock', 'ok', `생성물 ${Object.keys(lock.readLock(o.repoRoot).files).filter((k) => /^\.claude\/(agents|skills)\//.test(k)).length}개가 lock과 같음`);
+  const list = d.map((x) => `${x.file}(${x.state === 'missing' ? '없음' : '다름'})`).join(', ');
+  return result('lock', '생성 파일 lock', 'warn', `lock과 다른 생성물: ${list}. 생성물을 직접 고쳤다면 원본(.claude/ops/·템플릿)을 고친 뒤 다시 생성하세요`, 'node tools/wy-ops/gen-agents.js 와 node tools/wy-ops/gen-skill.js (원본에서 다시 만들면 lock도 맞춰짐)');
+}
+
 function checkConfig(o) {
   const { ops, error } = opsConfig(o);
   if (error) return result('config', '설정', 'fail', error, `${INSTALL} init`);
@@ -443,6 +454,7 @@ function checkAll(opts = {}) {
     () => checkPlugins(o),
     () => checkApprovals(o),
     () => checkConfig(o),
+    () => checkLock(o),
     () => checkPersonalPaths(o),
     () => checkGitignore(o),
     () => checkLedger(o),

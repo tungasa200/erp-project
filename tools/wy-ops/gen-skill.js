@@ -68,6 +68,8 @@ function main() {
     fs.copyFileSync(s.src, s.dest);
     console.log(`썼음  ${s.dest}`);
   }
+  // 기본 위치에 썼으면 lock의 SKILL.md·스크립트 항목도 맞춘다(--out은 생성물이 아님)
+  if (!at('--out')) require('./lib/lock').recordWritten(root, [file, ...scripts.map((s) => s.dest)]);
 }
 
 // 줄바꿈(CRLF 체크아웃)만 다르면 같은 것으로 본다. BOM은 비교에 넣는다(.ps1에 필요)

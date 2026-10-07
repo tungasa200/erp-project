@@ -48,4 +48,36 @@ function writePlanned(root, lock, items, version) {
   return next;
 }
 
-module.exports = { LOCK, hash, readLock, decide, writePlanned };
+// 생성기(gen-agents·gen-skill)가 파일을 쓴 뒤 그 항목의 해시를 지금 내용으로 맞춘다.
+// 정상 생성 경로에서 lock이 어긋나지 않게(어긋나는 것은 사람이 생성물을 직접 고친 경우뿐) — 84cd6e5 뒤 11개가 어긋났던 결함(pm 결정).
+// lock 파일이 없는 프로젝트(init 전)는 건드리지 않는다. 다른 항목·version은 그대로 둔다
+function recordWritten(root, files) {
+  const file = path.join(root, LOCK);
+  if (!fs.existsSync(file)) return null;
+  const l = readLock(root);
+  for (const f of files) {
+    const key = rel(root, f);
+    const full = path.join(root, key);
+    if (fs.existsSync(full)) l.files[key] = hash(fs.readFileSync(full, 'utf8'));
+  }
+  fs.writeFileSync(file, JSON.stringify({ schema: 1, version: l.version || null, files: l.files }, null, 2) + '\n', 'utf8');
+  return l;
+}
+
+// 생성물(생성기가 만드는 파일). 역할 원본(.claude/ops/)·설정처럼 사람이 고치라고 둔 파일은 lock에 있어도(init이 덮지 않으려고 남김) 어긋남으로 보지 않는다
+const GENERATED = /^\.claude\/(?:agents\/[^/]+\.md|skills\/pm-ops\/)/;
+
+// 생성물 가운데 lock과 지금 파일이 다른 항목(사람이 직접 고쳤거나 생성 뒤 lock이 갱신되지 않음). 없는 파일은 missing
+function drift(root) {
+  const l = readLock(root);
+  const out = [];
+  for (const [key, h] of Object.entries(l.files)) {
+    if (!GENERATED.test(key)) continue;
+    const full = path.join(root, key);
+    if (!fs.existsSync(full)) out.push({ file: key, state: 'missing' });
+    else if (hash(fs.readFileSync(full, 'utf8')) !== h) out.push({ file: key, state: 'changed' });
+  }
+  return out;
+}
+
+module.exports = { LOCK, hash, readLock, decide, writePlanned, recordWritten, drift };

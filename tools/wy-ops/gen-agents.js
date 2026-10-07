@@ -80,6 +80,7 @@ function main() {
   if (!fs.existsSync(path.join(root, '.claude', 'wy-ops.json'))) throw new Error('프로젝트 설정(.claude/wy-ops.json)을 찾지 못했습니다. --root로 저장소를 지정하세요');
   const outDir = path.resolve(opt.out || path.join(root, '.claude', 'agents'));
   let differ = 0;
+  const written = [];
   for (const { name, text } of generate(root)) {
     const file = path.join(outDir, `${name}.md`);
     if (opt.check) {
@@ -97,8 +98,11 @@ function main() {
       fs.mkdirSync(outDir, { recursive: true });
       fs.writeFileSync(file, crlf ? text.replace(/\n/g, '\r\n') : text, 'utf8');
       console.log(`썼음  ${file}${crlf ? ' (CRLF)' : ''}`);
+      written.push(file);
     }
   }
+  // 기본 위치(.claude/agents)에 썼으면 lock의 그 항목도 맞춘다(--out으로 다른 곳에 쓴 것은 생성물이 아님)
+  if (!opt.check && !opt.out && written.length) require('./lib/lock').recordWritten(root, written);
   if (opt.check) {
     console.log(differ ? `다른 파일 ${differ}개` : '모두 같음');
     process.exit(differ ? 1 : 0);
