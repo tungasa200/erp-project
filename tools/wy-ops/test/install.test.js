@@ -5,7 +5,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { rmTree } = require('../lib/fsx');
-const { protectedPending } = require('../lib/install');
+const { protectedPending, claudeTrusted } = require('../lib/install');
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'wy-inst-'));
 const card = (id, o) => {
@@ -31,6 +31,15 @@ try {
   card('ch1', { kind: 'choice', questions: [{ question: 'q', options: [{ label: 'a', cost: '0' }, { label: 'b', cost: '0' }] }] });
   card('p-new', { kind: 'permission', command: 'ls', expiresAt: new Date(Date.now() + 60000).toISOString() });
   assert.deepStrictEqual(protectedPending(root).sort(), ['ch1', 'p-new'], '결정됨·기한 지남은 제외');
+  // Claude Code 폴더 신뢰 읽기(~/.claude.json, 읽기만): 정확히 같은 폴더·하위 폴더는 신뢰, 대소문자·구분자 무시, 없는 파일은 모름(null)
+  const home = path.join(root, 'home');
+  fs.mkdirSync(home);
+  assert.strictEqual(claudeTrusted('C:/x', home), null, '설정 파일이 없으면 모름');
+  fs.writeFileSync(path.join(home, '.claude.json'), JSON.stringify({ projects: { 'C:/projects/erp-project': { hasTrustDialogAccepted: true }, 'c:/projects/new': { hasTrustDialogAccepted: false } } }));
+  assert.strictEqual(claudeTrusted('C:\\projects\\erp-project', home), true);
+  assert.strictEqual(claudeTrusted('c:/Projects/ERP-project/tools/x', home), true, '하위 폴더');
+  assert.strictEqual(claudeTrusted('C:/projects/new', home), false, '신뢰 안 함');
+  assert.strictEqual(claudeTrusted('C:/projects/erp-project-2', home), false, '이름이 비슷한 다른 폴더');
   console.log('wy-ops install 검사 통과');
 } finally {
   rmTree(root);

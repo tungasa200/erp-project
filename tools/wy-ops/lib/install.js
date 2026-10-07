@@ -126,6 +126,26 @@ function pluginsStep() {
   if (optional.length) say(`선택 플러그인(필요하면 직접 설치): ${optional.map((p) => `claude plugin install ${p.id}`).join(' / ')}`);
 }
 
+// 이 폴더를 Claude Code가 신뢰하는지(~/.claude.json의 projects[경로].hasTrustDialogAccepted, 읽기만).
+// VS Code 작성자 신뢰와 따로이고, 없으면 claude --bg가 'Workspace not trusted'로 뜨지 않는다(R6). 하위 폴더는 위 폴더의 신뢰를 따른다
+function claudeTrusted(project, home = os.homedir()) {
+  let projects = {};
+  try {
+    projects = JSON.parse(fs.readFileSync(path.join(home, '.claude.json'), 'utf8')).projects || {};
+  } catch {
+    return null; // 읽지 못하면 모른다
+  }
+  const norm = (p) => path.resolve(p).replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase();
+  const want = norm(project);
+  return Object.entries(projects).some(([k, v]) => v && v.hasTrustDialogAccepted && (want === norm(k) || want.startsWith(`${norm(k)}/`)));
+}
+
+function trustHint(project) {
+  if (claudeTrusted(project) !== false) return;
+  say(`\n이 폴더는 아직 Claude Code가 신뢰하지 않습니다(${project}). 그 폴더의 터미널에서 claude를 한 번 실행해 'Do you trust the files in this folder?'에 Yes → /exit 하세요.`);
+  say('VS Code의 작성자 신뢰와는 따로이고, 이것이 없으면 백그라운드 역할 세션이 "Workspace not trusted"로 뜨지 않습니다.');
+}
+
 function printNewPc() {
   const f = path.join(PKG, 'NEW-PC.md');
   if (fs.existsSync(f)) say(`\n${fs.readFileSync(f, 'utf8').trim()}\n`);
@@ -228,6 +248,7 @@ function main() {
     doctorStep(project, { todos: true });
     say('\nCLAUDE.md에 아래 절을 넣으세요(자동으로 고치지 않습니다):\n');
     say(r.claudeMd.trim());
+    trustHint(project);
     say('\n다음: VS Code에서 "Developer: Reload Window"를 실행하세요.');
     return undefined;
   }
@@ -262,6 +283,7 @@ function main() {
       settingsStep(project, dep);
       store().ensureDirs(store().rootFor(project)); // 빈 폴더만 만든다(결정 파일은 쓰지 않음)
       doctorStep(project, { todos: true });
+      trustHint(project);
       if (oldExt) say('\n출처 대조 원장을 새로 시작했습니다: 이 시각 전의 결정은 신뢰합니다(확장 id 변경, K4).');
     }
     printNewPc();
@@ -282,4 +304,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { run, installedStubHash, protectedPending };
+module.exports = { run, installedStubHash, protectedPending, claudeTrusted };

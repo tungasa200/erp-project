@@ -9,6 +9,7 @@
 - Windows 10 이상, PowerShell 5.1
 - Git, Node 18 이상, VS Code(명령 팔레트 → `Shell Command: Install 'code' command in PATH`), Claude Code CLI
 - Claude Code 로그인(`claude`를 한 번 실행해 로그인)
+- Claude Code 폴더 신뢰: 운영 도구를 쓸 저장소(새 프로젝트도) 폴더의 터미널에서 `claude`를 한 번 실행해 'Do you trust the files in this folder?'에 Yes를 누르고 `/exit`. VS Code의 '작성자 신뢰'와는 따로이고, 이것이 없으면 백그라운드 역할 세션이 'Workspace not trusted'로 뜨지 않는다.
 
 ## 2. 로그인
 
