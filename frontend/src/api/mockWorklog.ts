@@ -253,6 +253,29 @@ function handleTasks(
   // 일정 배치 여부는 가짜 일정 서버(frontend2 mockSchedules)의 연결 업무로 매번 계산한다
   const linked = scheduledTaskIds()
   for (const t of state.tasks) t.hasSchedule = linked.has(t.id)
+  // 자주 하는 업무 제안(P2-04). 체험용이라 요일·시간대·2번 이상 조건 없이 같은 제목 묶음 상위 3개를 준다
+  if (method === 'GET' && path === '/api/worklog/tasks/frequent') {
+    const groups = new Map<string, Task[]>()
+    for (const t of state.tasks) {
+      if (t.deletedAt) continue
+      const key = t.title.trim().replace(/\s+/g, ' ').toLowerCase()
+      groups.set(key, [...(groups.get(key) ?? []), t])
+    }
+    const items = [...groups.values()]
+      .map((group) => {
+        const latest = group.reduce((a, b) => (a.createdAt >= b.createdAt ? a : b))
+        return {
+          title: latest.title,
+          projectId: latest.projectId,
+          tagIds: latest.tagIds,
+          latestTaskId: latest.id,
+          count: group.length,
+        }
+      })
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 3)
+    return r.json(200, { items })
+  }
   if (method === 'GET' && path === '/api/worklog/tasks') {
     const q = new URLSearchParams(url.split('?')[1] ?? '')
     const statuses = q.getAll('status')

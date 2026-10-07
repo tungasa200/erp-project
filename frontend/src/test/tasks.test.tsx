@@ -65,6 +65,7 @@ function server(
     'GET /api/worklog/projects': () => json(200, { items: PROJECTS }),
     'GET /api/worklog/tags': () => json(200, { items: TAGS }),
     'GET /api/worklog/tasks': () => json(200, { items: [], nextCursor: null }),
+    'GET /api/worklog/tasks/frequent': () => json(200, { items: [] }),
     'GET /api/worklog/schedules': () => json(200, { items: options.occurrences ?? [] }),
   }
   const fetchMock = stubFetch(handlers)
@@ -75,7 +76,8 @@ function server(
     const method = init?.method ?? 'GET'
     const body = init?.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : undefined
     const path = url.split('?')[0]
-    if (path.startsWith('/api/worklog/tasks')) {
+    // 자주 하는 업무 제안은 업무 id 경로가 아니다
+    if (path.startsWith('/api/worklog/tasks') && path !== '/api/worklog/tasks/frequent') {
       calls.push({ method, url, body })
       if (method === 'GET' && path === '/api/worklog/tasks') {
         const q = new URLSearchParams(url.split('?')[1])

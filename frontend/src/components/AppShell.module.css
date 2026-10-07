@@ -313,3 +313,9 @@
   box-shadow: var(--shadow-accent);
   cursor: pointer;
 }
+
+/* 끊긴 동안에는 기록할 수 없다(SCR-SYS-02 ③) */
+.quick:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}

@@ -52,4 +52,15 @@ describe('SCR-COM-01 ⑤ 모바일 하단 탭 (P1-X-01)', () => {
     expect(router.state.location.pathname).toBe('/')
     await waitFor(() => expect(screen.getByRole('textbox', { name: '빠른 기록' })).toHaveFocus())
   })
+
+  it('오프라인이면 가운데 +를 막는다 (SCR-SYS-02 ③)', async () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    stubFetch({ 'GET /api/users/me': () => json(200, ME) })
+    const { router } = renderApp('/tasks')
+    const tabs = await screen.findByRole('navigation', { name: '하단 탭' })
+    const quick = within(tabs).getByRole('button', { name: '빠른 기록' })
+    expect(quick).toBeDisabled()
+    await userEvent.click(quick)
+    expect(router.state.location.pathname).toBe('/tasks')
+  })
 })

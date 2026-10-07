@@ -48,6 +48,7 @@ const EMPTY_LISTS = [
   'GET /api/worklog/projects',
   'GET /api/worklog/tags',
   'GET /api/worklog/tasks',
+  'GET /api/worklog/tasks/frequent',
   'GET /api/worklog/schedules',
 ]
 

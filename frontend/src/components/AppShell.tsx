@@ -159,6 +159,7 @@ export function AppShell() {
           type="button"
           className={styles.quick}
           aria-label="빠른 기록"
+          disabled={!online}
           onClick={() => {
             const input = document.querySelector<HTMLInputElement>('[data-quick-input]')
             if (pathname === '/' && input) input.focus()
