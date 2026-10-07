@@ -1322,6 +1322,31 @@ fieldset.fieldset:disabled {
   color: var(--color-text-body);
 }
 
+/* 오프라인 일정 창: 캘린더 목록의 회차 값만 읽기 전용으로 (SCR-SYS-02 ③) */
+.offlineSummary {
+  margin: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px 16px;
+  font-size: 14px;
+}
+
+.offlineSummary dt {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-body);
+}
+
+.offlineSummary dd {
+  margin: 0;
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+
+.offlineMemo {
+  white-space: pre-wrap;
+}
+
 .segment {
   display: flex;
   flex-wrap: wrap;

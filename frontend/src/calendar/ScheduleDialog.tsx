@@ -40,6 +40,7 @@ import {
   WEEKDAY_LABELS,
   addDays,
   diffDays,
+  formatDateLong,
   formatMinutes,
   fromZoned,
   toZoned,
@@ -142,6 +143,18 @@ function formFromOccurrence(o: Occurrence, schedule: Schedule | undefined, timeZ
     memo: o.memo ?? '',
     taskId: o.taskId ?? null,
   }
+}
+
+/** 오프라인 요약의 일시: 캘린더 목록의 회차 값만으로 만든다 */
+function occurrenceWhen(o: Occurrence, timeZone: string): string {
+  if (o.allDay) {
+    const end = o.endDate && o.endDate !== o.startDate ? ` ~ ${formatDateLong(o.endDate)}` : ''
+    return `${formatDateLong(o.startDate!)}${end} · 종일`
+  }
+  const s = toZoned(o.startAt!, timeZone)
+  const e = toZoned(o.endAt!, timeZone)
+  const endDay = e.date === s.date ? '' : e.date === addDays(s.date, 1) ? '다음 날 ' : `${formatDateLong(e.date)} `
+  return `${formatDateLong(s.date)} ${formatMinutes(s.minutes)}~${endDay}${formatMinutes(e.minutes)}`
 }
 
 function recurrenceOf(f: Form): Recurrence | null {
@@ -442,11 +455,32 @@ export function ScheduleDialog({ timeZone, draft, occurrence, askScope, onDelete
       {!current ? (
         schedule.isError ? (
           <p className={styles.muted}>일정을 불러오지 못했어요. 이미 삭제됐을 수 있어요</p>
-        ) : schedule.fetchStatus === 'paused' ? (
-          // 끊긴 동안에는 조회가 멈춰(react-query paused) 스켈레톤이 끝없이 돌므로 이유를 알린다(업무 상세와 같은 문구)
-          <p className={styles.muted} role="status">
-            연결되면 일정을 불러올게요
-          </p>
+        ) : schedule.fetchStatus === 'paused' && latest ? (
+          // 끊긴 동안에는 원본 조회가 멈춘다(react-query paused). 캘린더 목록에 이미 있는 회차 값으로 열어 보기만 한다
+          // (SCR-SYS-02 ③, WY-pm 결정 2026-10-08). 반복 규칙·연결 업무는 원본에만 있어 연결되면 채운다
+          <div className={styles.fieldset}>
+            <p className={styles.muted} role="status">
+              연결이 끊겼어요. 연결되면 나머지를 불러와요
+            </p>
+            <dl className={styles.offlineSummary}>
+              <dt>제목</dt>
+              <dd>{latest.title}</dd>
+              <dt>일시</dt>
+              <dd>{occurrenceWhen(latest, timeZone)}</dd>
+              {latest.recurring && (
+                <>
+                  <dt>반복</dt>
+                  <dd>반복 일정</dd>
+                </>
+              )}
+              {latest.memo && (
+                <>
+                  <dt>메모</dt>
+                  <dd className={styles.offlineMemo}>{latest.memo}</dd>
+                </>
+              )}
+            </dl>
+          </div>
         ) : (
           <Skeleton shape="lines" count={4} />
         )

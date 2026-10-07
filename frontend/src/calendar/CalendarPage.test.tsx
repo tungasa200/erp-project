@@ -433,7 +433,7 @@ describe('캘린더', () => {
     })
   })
 
-  it('끊긴 채로 처음 연 일정은 스켈레톤 대신 연결되면 불러온다고 알린다 (qa P1-X-04)', async () => {
+  it('끊긴 채로 처음 연 일정은 캘린더에 있는 제목·시간·반복을 읽기 전용으로 보이고 나머지는 연결되면 불러온다 (SCR-SYS-02 ③)', async () => {
     stubServer()
     const user = userEvent.setup()
     renderApp('/calendar/week/2026-10-07', routes)
@@ -445,7 +445,13 @@ describe('캘린더', () => {
     try {
       await user.keyboard('{Enter}')
       const dialog = await screen.findByRole('dialog', { name: '일정 편집' })
-      expect(await within(dialog).findByText('연결되면 일정을 불러올게요')).toBeInTheDocument()
+      expect(await within(dialog).findByText('연결이 끊겼어요. 연결되면 나머지를 불러와요')).toBeInTheDocument()
+      expect(within(dialog).getByText('팀 스탠드업')).toBeInTheDocument()
+      expect(within(dialog).getByText(/10:00~11:00$/)).toBeInTheDocument()
+      expect(within(dialog).getByText('반복 일정')).toBeInTheDocument()
+      // 고칠 칸·삭제·저장은 없다(열어 보기만)
+      expect(within(dialog).queryByRole('textbox')).toBeNull()
+      expect(within(dialog).queryByRole('button', { name: '삭제' })).toBeNull()
 
       onLine.mockRestore()
       act(() => {

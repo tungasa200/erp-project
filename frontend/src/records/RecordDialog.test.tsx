@@ -228,7 +228,8 @@ describe('기록 추가·수정 (SCR-REC-01)', () => {
     expect(await within(dialog).findByRole('alert')).toHaveTextContent('종료 시각도 골라 주세요')
     expect(end).toHaveFocus()
 
-    await user.type(end, '09:00')
+    // 종료가 시작보다 이르면 다음 날로 보지만, 같으면 막는다
+    await user.type(end, '10:00')
     await user.click(within(dialog).getByRole('button', { name: '저장' }))
     expect(await within(dialog).findByRole('alert')).toHaveTextContent('종료를 시작보다 뒤로 골라 주세요')
 
@@ -245,6 +246,63 @@ describe('기록 추가·수정 (SCR-REC-01)', () => {
       endAt: '2026-10-07T02:00:00.000Z',
       durationMin: null,
     })
+  })
+
+  it('자정을 넘긴 기록: 종료가 시작보다 이르면 다음 날로 보고, 내용만 고쳐도 저장된다', async () => {
+    // 서울 23:34 ~ 다음 날 00:05 (qa rec01-midnight-cross-blocked)
+    const crossed = record({ startAt: '2026-10-07T14:34:00Z', endAt: '2026-10-07T15:05:00Z', durationMin: 31 })
+    const { sent } = server({
+      timed: true,
+      handlers: {
+        'GET /api/worklog/records/r-1': () => json(200, crossed),
+        'PATCH /api/worklog/records/r-1': () => json(200, crossed),
+      },
+    })
+    const { user, dialog } = await open({ recordId: 'r-1' })
+    expect(await within(dialog).findByLabelText('시작')).toHaveValue('23:34')
+    const end = within(dialog).getByLabelText('종료')
+    expect(end).toHaveValue('00:05')
+    expect(end).toHaveAccessibleDescription('다음 날')
+    expect(within(dialog).getByLabelText('또는 소요시간(분)')).toHaveValue(31)
+
+    await user.type(within(dialog).getByRole('textbox', { name: '한 일' }), ' 마무리')
+    await user.click(within(dialog).getByRole('button', { name: '저장' }))
+    await waitFor(() => expect(screen.getByText('바뀜')).toBeInTheDocument())
+    expect(sent.find((x) => x.key.startsWith('PATCH'))?.body).toEqual({ version: 3, content: '주간 회의 마무리' })
+  })
+
+  it('새 기록의 종료를 시작보다 이르게 고르면 다음 날 종료로 보낸다', async () => {
+    const { sent } = server({ timed: true })
+    const { user, dialog } = await open()
+    await user.type(within(dialog).getByRole('textbox', { name: '한 일' }), '야간 배포')
+    const end = within(dialog).getByLabelText('종료')
+    await user.type(within(dialog).getByLabelText('시작'), '23:00')
+    await user.type(end, '01:00')
+    expect(end).toHaveAccessibleDescription('다음 날')
+    expect(within(dialog).getByLabelText('또는 소요시간(분)')).toHaveValue(120)
+
+    await user.click(within(dialog).getByRole('button', { name: '저장' }))
+    await waitFor(() => expect(screen.getByText('바뀜')).toBeInTheDocument())
+    // 서울 10/7 23:00 ~ 10/8 01:00
+    expect(sent.find((x) => x.key === 'POST')?.body).toMatchObject({
+      workDate: '2026-10-07',
+      startAt: '2026-10-07T14:00:00.000Z',
+      endAt: '2026-10-07T16:00:00.000Z',
+      durationMin: null,
+    })
+  })
+
+  it('소요시간 칸은 서버처럼 초를 버린 분으로 보인다', async () => {
+    // 4분 53초 타이머 기록(저장값 4분)
+    server({
+      timed: true,
+      handlers: {
+        'GET /api/worklog/records/r-1': () =>
+          json(200, record({ startAt: '2026-10-07T01:00:07Z', endAt: '2026-10-07T01:05:00Z', durationMin: 4 })),
+      },
+    })
+    const { dialog } = await open({ recordId: 'r-1' })
+    expect(await within(dialog).findByLabelText('또는 소요시간(분)')).toHaveValue(4)
   })
 
   it('실행 중인 타이머는 종료 없이 고칠 수 있고, 시작은 비울 수 없다(D-101)', async () => {

@@ -6,6 +6,7 @@
 // 확인 대기 기록은 시간이 비어 있어(D-100) planned로 받은 계획 시각을 시작·종료 칸에 채워 둔다(WY-pm 결정 2026-10-07).
 // 채운 값은 기록과 다르므로 저장하면 고친 칸처럼 startAt·endAt을 함께 보낸다.
 // 24시간에서 잘린 타이머 기록(capped)은 종료가 다음 날 같은 시각이라 하루 안 칸으로 옮길 수 없다: 종료를 비우고 안내하며 연다(WY-pm 결정).
+// 종료가 시작보다 이르면 다음 날 종료로 본다(자정 넘김, 24시간 미만, WY-pm 결정 2026-10-08). 같으면 순서 오류.
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { toastForError } from '../api/errorToast'
@@ -13,7 +14,7 @@ import { ApiError } from '../api/problem'
 import { useAuth } from '../auth/useAuth'
 import { Modal } from '../calendar/Modal'
 import { TaskLinkField } from '../calendar/TaskLinkField'
-import { MINUTES_PER_DAY, formatMinutes, fromZoned, toZoned } from '../calendar/time'
+import { MINUTES_PER_DAY, addDays, formatMinutes, fromZoned, toZoned } from '../calendar/time'
 import calendar from '../calendar/calendar.module.css'
 import { Skeleton } from '../components/Skeleton'
 import { useOnline } from '../components/useOnline'
@@ -83,17 +84,21 @@ function formWithPlan(r: WorkRecord, timeZone: string, planned: Props['planned']
   if (r.startAt || !planned) return form
   const s = toZoned(planned.startAt, timeZone)
   const e = toZoned(planned.endAt, timeZone)
-  // 다음 날 0시에 끝나면 그날 23:59로, 그보다 늦게 끝나면 종료는 비워 둔다(기록은 하루 안)
-  const end = e.date === s.date ? formatMinutes(e.minutes) : e.minutes === 0 ? formatMinutes(MINUTES_PER_DAY - 1) : ''
+  // 다음 날 시작 시각 전에 끝나면 다음 날 종료로 둔다. 24시간 이상이면 종료는 비워 둔다
+  const nextDay = e.date === addDays(s.date, 1) && e.minutes < s.minutes
+  const end = e.date === s.date || nextDay ? formatMinutes(e.minutes) : ''
   return { ...form, start: formatMinutes(s.minutes), end, duration: '' }
 }
 
-/** 시작~종료(분). 둘 다 있고 순서가 맞을 때만 */
+/** 종료가 시작보다 일러 다음 날 종료로 보는지 */
+const endsNextDay = (f: Form) => !!f.start && !!f.end && toMinutes(f.end) < toMinutes(f.start)
+
+/** 시작~종료(분, 시작 날 0시부터). 둘 다 있고 같지 않을 때만. 다음 날 종료면 1440을 더한다 */
 function span(f: Form): [number, number] | null {
   if (!f.start || !f.end) return null
   const a = toMinutes(f.start)
   const b = toMinutes(f.end)
-  return b > a ? [a, b] : null
+  return b === a ? null : [a, b < a ? b + MINUTES_PER_DAY : b]
 }
 
 function validate(f: Form, timed: boolean, running: boolean): Errors {
@@ -119,7 +124,7 @@ function timeOf(f: Form, timeZone: string) {
     return {
       startAt: fromZoned(f.workDate, toMinutes(f.start), timeZone),
       // 종료가 비는 것은 실행 중인 타이머뿐이다(validate)
-      endAt: f.end ? fromZoned(f.workDate, toMinutes(f.end), timeZone) : null,
+      endAt: f.end ? fromZoned(endsNextDay(f) ? addDays(f.workDate, 1) : f.workDate, toMinutes(f.end), timeZone) : null,
       durationMin: null,
     }
   }
@@ -220,25 +225,18 @@ export function RecordDialog({ recordId, defaults, planned, capped, onClose }: P
   }
 
   // 같은 날 다른 기록과 시간이 겹치면 경고한다(저장은 된다, TIME-06)
-  const mine = current && timed ? span(current) : null
+  const mine = current && timed && span(current) ? timeOf(current, timeZone) : null
   const day = useDayRecords(current?.workDate ?? '', !!mine)
-  const clash =
-    mine && current
-      ? day.data?.find(
-          (r) =>
-            r.id !== recordId &&
-            !r.deletedAt &&
-            r.startAt &&
-            r.endAt &&
-            overlaps(
-              [
-                Date.parse(fromZoned(current.workDate, mine[0], timeZone)),
-                Date.parse(fromZoned(current.workDate, mine[1], timeZone)),
-              ],
-              [r.startAt, r.endAt],
-            ),
-        )
-      : undefined
+  const clash = mine
+    ? day.data?.find(
+        (r) =>
+          r.id !== recordId &&
+          !r.deletedAt &&
+          r.startAt &&
+          r.endAt &&
+          overlaps([Date.parse(mine.startAt!), Date.parse(mine.endAt!)], [r.startAt, r.endAt]),
+      )
+    : undefined
 
   const refresh = () => void queryClient.invalidateQueries({ queryKey: RECORDS_QUERY_KEY })
 
@@ -358,7 +356,22 @@ export function RecordDialog({ recordId, defaults, planned, capped, onClose }: P
 
   const title = recordId ? (original?.status === 'PENDING' ? '확인 대기 수정' : '기록 수정') : '기록 추가'
   const source = original?.occurrenceStart ? toZoned(original.occurrenceStart, timeZone) : null
-  const computed = current && span(current)
+  // 소요시간 칸: 저장된 시작·종료 그대로면 서버처럼 초를 버린 분, 고쳤으면 칸의 시각으로 센다
+  const stored = original && formFromRecord(original, timeZone)
+  const untouched =
+    original?.startAt && original.endAt && current?.start === stored?.start && current?.end === stored?.end
+  const computedSpan = current && span(current)
+  const computed = untouched
+    ? Math.floor((Date.parse(original.endAt!) - Date.parse(original.startAt!)) / 60_000)
+    : computedSpan && computedSpan[1] - computedSpan[0]
+  const nextDay = !!current && endsNextDay(current)
+  const endDescribedBy = [
+    nextDay && `${id}-next-day`,
+    cappedOpen && `${id}-capped`,
+    errors.timeAt === 'end' && `${id}-time-error`,
+  ]
+    .filter(Boolean)
+    .join(' ')
 
   return (
     <Modal labelledBy={`${id}-title`} onClose={() => onClose(false)}>
@@ -474,9 +487,11 @@ export function RecordDialog({ recordId, defaults, planned, capped, onClose }: P
                       {...invalid('time', 'start')}
                     />
                   </label>
-                  <label className={calendar.field}>
-                    종료
+                  {/* '다음 날'이 이름(종료)에 섞이지 않게 label 밖에 두고 설명으로 잇는다 */}
+                  <div className={calendar.field}>
+                    <label htmlFor={`${id}-end`}>종료</label>
                     <input
+                      id={`${id}-end`}
                       ref={endRef}
                       type="time"
                       step={300}
@@ -484,10 +499,15 @@ export function RecordDialog({ recordId, defaults, planned, capped, onClose }: P
                       value={current.end}
                       placeholder={running ? '진행 중' : undefined}
                       onChange={(e) => update({ end: e.target.value })}
-                      {...(cappedOpen ? { 'aria-describedby': `${id}-capped` } : {})}
                       {...invalid('time', 'end')}
+                      aria-describedby={endDescribedBy || undefined}
                     />
-                  </label>
+                    {nextDay && (
+                      <span id={`${id}-next-day`} className={calendar.muted}>
+                        다음 날
+                      </span>
+                    )}
+                  </div>
                   <label className={calendar.field}>
                     또는 소요시간(분)
                     <input
@@ -497,7 +517,7 @@ export function RecordDialog({ recordId, defaults, planned, capped, onClose }: P
                       inputMode="numeric"
                       className={calendar.input}
                       disabled={!!(current.start || current.end)}
-                      value={computed ? String(computed[1] - computed[0]) : current.duration}
+                      value={computed ? String(computed) : current.duration}
                       onChange={(e) => update({ duration: e.target.value })}
                       {...invalid('time', 'duration')}
                     />
