@@ -127,6 +127,13 @@ function projectRoot() {
 }
 
 const store = () => require('../vscode/approvalStore');
+// R4 전환 조건으로 세는 대기 카드: 출처 대조 원장이 지키는 결정 종류(git 계열·choice·permission)만.
+// todo(할 일)는 '했음' 결정이 원장 보호 대상이 아니고 전환 뒤에 처리해도 되므로 세지 않는다 — R4를 안내하는 할 일 카드 자체가 걸리던 결함(pm 결정)
+const PROTECTED_KINDS = () => new Set([...Object.keys(store().GIT_KINDS), 'choice', 'permission']);
+function protectedPending(root) {
+  const kinds = PROTECTED_KINDS();
+  return store().readState(root).pending.filter((r) => !r.broken && kinds.has(r.kind)).map((r) => r.id);
+}
 // doctor에 넘길 값: 시험용 --extensions-dir도 함께(설치한 곳과 같은 곳을 점검하게)
 const doctorOpts = (project) => ({ repoRoot: project, home: os.homedir(), ...(opt('--extensions-dir') ? { extensionsDir: opt('--extensions-dir') } : {}) });
 const extInstalled = (id) => run('code', codeArgs(['--list-extensions'])).stdout.split(/\r?\n/).some((l) => l.trim().toLowerCase() === id);
@@ -226,8 +233,8 @@ function main() {
     // R4 전환 조건: 옛 확장이 있는 PC에서 setup은 승인 대기 카드가 0일 때만(원장이 새로 시작되므로)
     const oldExt = !flag('--skip-extension') && extInstalled(OLD_EXT);
     if (project && oldExt) {
-      const pending = store().countPending(store().rootFor(project));
-      if (pending > 0) throw new Error(`승인 대기 카드가 ${pending}장 있습니다. 모두 처리한 뒤 다시 실행하세요(확장 전환 때 출처 대조 원장이 새로 시작됩니다)`);
+      const pending = protectedPending(store().rootFor(project));
+      if (pending.length) throw new Error(`결정을 기다리는 카드가 ${pending.length}장 있습니다(${pending.join(', ')}). 모두 처리한 뒤 다시 실행하세요(확장 전환 때 출처 대조 원장이 새로 시작됩니다)`);
     }
     const dep = deployStep();
     if (!flag('--skip-extension')) {
@@ -262,4 +269,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { run, installedStubHash };
+module.exports = { run, installedStubHash, protectedPending };
