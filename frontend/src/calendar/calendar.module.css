@@ -1093,6 +1093,9 @@ button.monthCell {
   position: fixed;
   width: 380px;
   max-width: calc(100vw - 32px);
+  /* 칩이 여러 줄이어도 낮은 화면 밖으로 나가지 않게 */
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
   box-sizing: border-box;
   background: var(--color-surface);
   border-radius: 22px;
@@ -1158,6 +1161,66 @@ button.monthCell {
   color: var(--color-accent-ink);
   display: flex;
   align-items: center;
+}
+
+/* 빠른 생성 ③ 해석 칩: 빠른 입력(SCR-COM-02) 칩과 같은 모양. 프로젝트 칩은 그 프로젝트 tint/ink를 인라인으로 준다 */
+.parseChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.parseChip {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  min-height: 28px;
+  max-width: 100%;
+  padding: 0 12px;
+  border-radius: 14px;
+  font-size: 12.5px;
+  font-weight: 700;
+  background: var(--color-divider);
+  color: var(--color-text-body);
+  overflow-wrap: anywhere;
+}
+
+.parseChip[data-strong] {
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+}
+
+.parseChipTag {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.parseChipTag[data-new] {
+  border-style: dashed;
+  border-color: var(--color-text-muted);
+}
+
+.parseChipBadge {
+  margin-left: 4px;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--color-text-muted);
+}
+
+/* 아직 없는 프로젝트: 눌러서 만든다(누르는 높이 32px) */
+.parseChipNew {
+  min-height: 32px;
+  border: 2px dashed var(--color-accent);
+  background: var(--color-surface);
+  color: var(--color-accent-ink);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
 }
 
 .field {
