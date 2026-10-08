@@ -197,7 +197,7 @@ describe('내보내기 (SCR-LOG-05)', () => {
     expect(saved).toEqual(['업무기록_2026-10-01_2026-10-07_김하늘.xlsx'])
   })
 
-  it('서버가 503이면 창을 닫지 않고 다시 시도하라고 알린다', async () => {
+  it('서버가 503이면 창을 닫지 않고 다시 시도하라고 알리고, 포커스는 [내려받기]로 돌아온다', async () => {
     const user = userEvent.setup()
     stubFetch({
       'GET /api/users/me': () => json(200, VERIFIED),
@@ -210,6 +210,8 @@ describe('내보내기 (SCR-LOG-05)', () => {
     await user.click(within(dialog).getByRole('button', { name: '내려받기' }))
     expect(await within(dialog).findByRole('alert')).toHaveTextContent('잠시 후 다시 시도해 주세요')
     expect(within(dialog).getByRole('button', { name: '내려받기' })).toBeEnabled()
+    // 누른 버튼이 만드는 동안 disabled라 포커스가 body로 빠지지 않게 되돌린다
+    await waitFor(() => expect(within(dialog).getByRole('button', { name: '내려받기' })).toHaveFocus())
   })
 })
 

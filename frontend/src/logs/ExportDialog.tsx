@@ -89,6 +89,9 @@ export function ExportDialog({ log, timeZone, onClose }: Props) {
   const [error, setError] = useState<string | null>(null)
   const formRef = useRef<HTMLFormElement>(null)
   const askRef = useRef<HTMLButtonElement>(null)
+  const submitRef = useRef<HTMLButtonElement>(null)
+  // 실패하면 [내려받기]로 포커스를 되돌린다. 만드는 동안 disabled라 포커스가 body로 빠지므로, 다시 켜진 뒤에 옮긴다
+  const refocusRef = useRef(false)
 
   const records = format === 'XLSX' && range === 'RECORDS'
   const rangeError = !records
@@ -113,6 +116,12 @@ export function ExportDialog({ log, timeZone, onClose }: Props) {
     if (step === 'form') formRef.current?.querySelector<HTMLInputElement>('input[name$="-format"]:checked')?.focus()
     if (step === 'ask') askRef.current?.focus()
   }, [step])
+
+  useEffect(() => {
+    if (busy || !refocusRef.current) return
+    refocusRef.current = false
+    submitRef.current?.focus()
+  }, [busy])
 
   const run = async (verified = false) => {
     if (busy) return
@@ -146,7 +155,10 @@ export function ExportDialog({ log, timeZone, onClose }: Props) {
         // 다른 곳에서 인증이 풀린 경우 등: 사용자 정보를 맞추고 인증 단계로
         void queryClient.invalidateQueries({ queryKey: ME_QUERY_KEY })
         setStep('ask')
-      } else if (e instanceof ApiError && e.status === 503) {
+        return
+      }
+      refocusRef.current = true
+      if (e instanceof ApiError && e.status === 503) {
         setError('지금은 계정 정보를 확인하지 못했어요. 잠시 후 다시 시도해 주세요')
       } else if (e instanceof ApiError && e.code === 'VALIDATION_FAILED') {
         setError(`기간을 확인해 주세요. ${MAX_DAYS}일까지 내보낼 수 있어요`)
@@ -326,7 +338,7 @@ export function ExportDialog({ log, timeZone, onClose }: Props) {
           <button type="button" className={cal.secondary} onClick={onClose}>
             취소
           </button>
-          <button type="submit" className={cal.primary} disabled={busy || rangeError !== null}>
+          <button ref={submitRef} type="submit" className={cal.primary} disabled={busy || rangeError !== null}>
             {format === 'TEXT' ? '복사' : busy ? '만드는 중' : '내려받기'}
           </button>
         </div>
