@@ -1,13 +1,13 @@
-﻿# 역할 세션을 백그라운드 Claude 세션으로 띄우고 멈추고 교대한다. WY-pm이 실행한다.
+﻿# 역할 세션을 백그라운드 Claude 세션으로 실행·멈춤·세션 교체(rotate)한다. pm 역할(wy-ops.json의 pmRole)이 실행한다.
 #   session.ps1 list                    역할 세션 목록(VS Code 세션 포함)
-#   session.ps1 health                  역할별 대화 크기(토큰·MB)·마지막 활동, 교대 권장 표시
-#   session.ps1 start <역할> [지시]     멈춘 세션이 있으면 대화를 이어서, 없으면 역할 파일로 새로 띄운다
-#                                       멈춘 세션의 대화가 교대 기준(토큰) 이상이면 이어 띄우지 않고 rotate를 권한다(-Force로 강행)
+#   session.ps1 health                  역할별 컨텍스트(토큰·MB)·마지막 활동, 세션 교체 권장 표시
+#   session.ps1 start <역할> [지시]     멈춘 세션이 있으면 대화를 이어서, 없으면 역할 파일로 새로 시작한다
+#                                       멈춘 세션의 컨텍스트가 세션 교체 기준(토큰) 이상이면 재시작하지 않고 rotate를 권한다(-Force로 강행)
 #   session.ps1 stop <역할>             멈춘다. 대화는 남아 start로 이어진다
-#   session.ps1 prep <역할>             교대 준비: 진행 중인 것만 save-session으로 저장하라고 지시한다
-#   session.ps1 rotate <역할> [경로]    교대: 이전 세션을 멈추고 역할 파일(+인수인계 경로)로 새 세션을 띄운다
+#   session.ps1 prep <역할>             세션 교체 준비: 진행 중인 것만 save-session으로 저장하라고 지시한다
+#   session.ps1 rotate <역할> [경로]    세션 교체: 이전 세션을 멈추고 역할 파일(+인수인계 경로)로 새 세션을 시작한다
 #   session.ps1 adopt <역할> <세션ID>   닫은 VS Code 세션의 대화를 백그라운드로 옮긴다
-#   session.ps1 pm-cmd [경로]           pm 교대용: 사용자가 새 터미널에 붙여 넣을 명령을 출력한다
+#   session.ps1 pm-cmd [경로]           pm 세션 교체용: 사용자가 새 터미널에 붙여 넣을 명령을 출력한다
 #   session.ps1 pin <역할>              실행 중인 그 역할 세션을 고정 목록(~/.claude/jobs/pins.json)에 넣는다. 메모리 부족 정리에서 빠진다
 #   session.ps1 unpin <역할>            고정 목록에서 뺀다. pin·unpin 모두 멈춘·없는 세션의 id를 목록에서 정리한다
 #                                       start·rotate는 고정하지 않는다. 허용 규칙 한 줄로 이 명령만 열기 위해 pm이 따로 부른다
@@ -18,12 +18,11 @@ $ErrorActionPreference = 'Continue'
 # 저장소 = 이 스크립트(.claude/skills/pm-ops/scripts/)에서 네 단계 위
 $Repo = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..')).Path
 
-# 아래는 기본값이다. 프로젝트 설정(.claude/wy-ops.json, PC별 덮어쓰기 .claude/wy-ops.local.json)이 있으면 그 값을 쓴다
-$Roles = 'WY-commit','WY-search','WY-planner','WY-design','WY-backend1','WY-backend2','WY-frontend','WY-frontend2','WY-browser','WY-qa'
-$PmRole = 'WY-pm'
-# 2026-10-06 이름 변경 전 이름. 옛 인수인계 파일을 찾을 때만 쓴다
-$OldNames = @{ 'WY-commit'='erp-commit'; 'WY-search'='erp-search'; 'WY-planner'='erp-planner'; 'WY-design'='erp-design'
-  'WY-backend1'='backend1'; 'WY-backend2'='backend2'; 'WY-frontend'='frontend'; 'WY-frontend2'='frontend2'; 'WY-browser'='browser-controller'; 'WY-qa'='qa'; 'WY-pm'='project-pm' }
+# 역할 이름은 프로젝트 설정(.claude/wy-ops.json, PC별 덮어쓰기 .claude/wy-ops.local.json)에서만 온다. 아래는 설정에 없는 값의 기본값이다
+$Roles = @()
+$PmRole = $null
+# 역할 이름을 바꾼 프로젝트의 옛 이름(handoff.oldNames). 옛 인수인계 파일을 찾을 때만 쓴다
+$OldNames = @{}
 # 교대 권장 기준: 현재 대화 토큰(마지막 응답의 input+cache_read+cache_creation). MB는 토큰을 못 읽을 때만 쓰는 호환 기준
 $RotateTokens = 150000
 $RotateMB = 5
@@ -55,6 +54,7 @@ if ($Ops) {
   if ($Ops.rotation.contextTokens) { $RotateTokens = $Ops.rotation.contextTokens }
   if ($Ops.docs.progress) { $ProgressDoc = $Ops.docs.progress }
 }
+if (-not $Roles.Count -or -not $PmRole) { throw "프로젝트 설정 $Repo\.claude\wy-ops.json에 roles·pmRole이 없습니다(install.ps1 init으로 만듭니다)" }
 # Claude Code는 대화 기록 폴더 이름을 저장소 경로의 영문·숫자 외 문자를 '-'로 바꿔 만든다(Windows는 대소문자 무시)
 $Transcripts = "$env:USERPROFILE\.claude\projects\" + ($Repo -replace '[^A-Za-z0-9]', '-')
 if ($Cmd -notin 'list','health','pm-cmd' -and $Role -notin $Roles) { throw "역할 이름이 아닙니다: $Role (예: $($Roles[-1]))" }
@@ -116,9 +116,9 @@ switch ($Cmd) {
       [pscustomobject]@{ 역할 = $r; 상태 = if ($s) { $s.state } else { '없음' }
         '대화(k토큰)' = if ($tok) { [math]::Round($tok / 1000) } else { '-' }; '대화(MB)' = $mb
         '마지막 활동' = if ($t) { $t.LastWriteTime.ToString('MM-dd HH:mm') } else { '-' }
-        권장 = if (Test-Rotate $tok $mb) { '교대' } else { '' } }
+        권장 = if (Test-Rotate $tok $mb) { '세션 교체' } else { '' } }
     }) | Format-Table -AutoSize
-    "교대 기준: 대화 $([math]::Round($RotateTokens / 1000))k 토큰(토큰을 못 읽으면 $($RotateMB)MB). 기준 미만 대기 세션은 다음 작업에 이어 쓰고, 이상이면 rotate."
+    "세션 교체 기준: 컨텍스트 $([math]::Round($RotateTokens / 1000))k 토큰(토큰을 못 읽으면 $($RotateMB)MB). 기준 미만 대기 세션은 다음 작업에 이어 쓰고, 이상이면 rotate."
   }
   'start' {
     $s = Get-Bg $Role
@@ -134,8 +134,8 @@ switch ($Cmd) {
     $t = Get-Transcript $s; $tok = Get-ContextTokens $t
     if (-not $Force -and (Test-Rotate $tok ([math]::Round($t.Length / 1MB, 1)))) {
       $size = if ($tok) { "$([math]::Round($tok / 1000))k 토큰" } else { "$([math]::Round($t.Length / 1MB, 1))MB" }
-      "$Role 의 멈춘 대화가 교대 기준 이상입니다($size). 이어 띄우지 않았습니다."
-      "새로 띄우세요: session.ps1 rotate $Role none (진행 중인 일이 있으면 인수인계 경로). 그래도 이어 띄우려면 -Force."
+      "$Role 의 멈춘 세션 컨텍스트가 세션 교체 기준 이상입니다($size). 재시작하지 않았습니다."
+      "새로 시작하세요: session.ps1 rotate $Role none (진행 중인 일이 있으면 인수인계 경로). 그래도 재시작하려면 -Force."
       break
     }
     if (-not $Prompt) { $Prompt = "[$PmRole] 세션을 다시 띄웠습니다. CLAUDE.md·$($ProgressDoc)에서 바뀐 점을 확인하고 지시를 기다리세요." }
@@ -152,10 +152,10 @@ switch ($Cmd) {
     claude stop $s.id
   }
   'prep' {
-    $msg = "[$PmRole 교대 준비] 컨텍스트가 길어져 새 세션으로 교대합니다. 지금 하던 일을 멈출 수 있는 지점까지만 마무리하고, 진행 중인 것(미커밋 파일, 반쯤 한 작업, 막힌 이유)만 /ecc:save-session 으로 저장하세요. short-id는 $Role (같은 날 두 번째면 $Role-2). 역할 설명과 끝난 일은 적지 마세요. 진행 중인 것이 하나도 없으면 저장하지 말고 '진행 중 없음'이라고만 알리세요. 끝나면 $($PmRole)에 SendMessage로 저장 경로 또는 '진행 중 없음' 한 줄."
+    $msg = "[$PmRole 세션 교체 준비] 컨텍스트가 길어져 새 세션으로 교체합니다. 지금 하던 일을 멈출 수 있는 지점까지만 마무리하고, 진행 중인 것(미커밋 파일, 반쯤 한 작업, 막힌 이유)만 /ecc:save-session 으로 저장하세요. short-id는 $Role (같은 날 두 번째면 $Role-2). 역할 설명과 끝난 일은 적지 마세요. 진행 중인 것이 하나도 없으면 저장하지 말고 '진행 중 없음'이라고만 알리세요. 끝나면 $($PmRole)에 SendMessage로 저장 경로 또는 '진행 중 없음' 한 줄."
     $s = Get-Bg $Role
     if ($s -and (Test-Running $s)) { "실행 중인 세션입니다. 이 문구를 SendMessage로 보내세요:"; $msg; break }
-    if (-not $s) { "$Role 세션이 없습니다. 교대할 필요 없이 start 하세요."; break }
+    if (-not $s) { "$Role 세션이 없습니다. 세션 교체 없이 start 하세요."; break }
     Push-Location $Repo; try { claude --bg --resume $s.sessionId --name $Role $msg } finally { Pop-Location }
   }
   'rotate' {
@@ -164,7 +164,7 @@ switch ($Cmd) {
     if ($s) { claude rm $s.id | Out-Null }   # 작업 항목만 지운다. 대화 기록 파일은 남는다
     $h = if ($Prompt -and $Prompt -ne 'none') { $Prompt } else { $null }
     Start-New $Role $h
-    "교대했습니다. 새 세션이 '시작' 또는 인계 확인을 보내면 '멈춰 있는 동안 끝난 일'을 SendMessage로 알려 주세요."
+    "세션을 교체했습니다. 새 세션이 '시작' 또는 인계 확인을 보내면 '멈춰 있는 동안 끝난 일'을 SendMessage로 알려 주세요."
   }
   'adopt' {
     if (-not $Prompt) { throw '세션ID가 필요합니다.' }

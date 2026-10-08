@@ -7,7 +7,7 @@ const os = require('os');
 const path = require('path');
 const { rmTree } = require('../lib/fsx');
 const { execFileSync } = require('child_process');
-const { deploy, rollback, versions, currentTarget } = require('../lib/deploy');
+const { deploy, deployDev, rollback, versions, currentTarget } = require('../lib/deploy');
 const stub = require('../lib/stub');
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'wy-dep-'));
@@ -111,6 +111,41 @@ try {
       Module._load = load;
       delete process.env.WY_OPS_CURRENT;
     }
+  }
+
+  // 8. 패키지가 저장소 최상위(분리된 패키지 저장소): 전체 HEAD를 설치, source에 저장소·rel '' 기록
+  {
+    const prepo = path.join(tmp, 'pkgrepo');
+    fs.mkdirSync(path.join(prepo, 'vscode', 'media'), { recursive: true });
+    const pg = (...a) => execFileSync('git', a, { cwd: prepo, encoding: 'utf8' });
+    pg('init', '-q');
+    fs.writeFileSync(path.join(prepo, 'package.json'), JSON.stringify({ name: 'wy-ops', version: '0.7.1' }));
+    fs.writeFileSync(path.join(prepo, 'vscode', 'package.json'), JSON.stringify(vpkg));
+    fs.writeFileSync(path.join(prepo, 'vscode', 'media', 'icon.svg'), '<svg/>');
+    fs.writeFileSync(path.join(prepo, 'vscode', 'extension.js'), 'exports.activate = () => {};\n');
+    fs.mkdirSync(path.join(prepo, 'test'));
+    fs.writeFileSync(path.join(prepo, 'test', 'a.test.js'), 'x');
+    pg('add', '-A');
+    pg('-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-q', '-m', 'root');
+    const dir2 = path.join(tmp, 'home2', 'wy-ops');
+    const rr = deploy({ dir: dir2, pkg: prepo });
+    assert.ok(rr.name.startsWith('0.7.1-'), rr.name);
+    const d2 = JSON.parse(fs.readFileSync(path.join(dir2, 'current', 'deployed.json'), 'utf8'));
+    assert.deepStrictEqual([d2.source.kind, path.resolve(d2.source.repo).toLowerCase(), d2.source.rel], ['head', path.resolve(prepo).toLowerCase(), '']);
+    assert.ok(fs.existsSync(path.join(dir2, 'current', 'vscode', 'extension.js')) && !fs.existsSync(path.join(dir2, 'current', 'test')), '최상위 패키지도 테스트 제외');
+
+    // 9. 개발 연결: current → 작업 사본(커밋 안 한 변경이 바로 보임), rollback으로 풀림
+    fs.writeFileSync(path.join(prepo, 'package.json'), JSON.stringify({ name: 'wy-ops', version: '0.7.2' }));
+    const dv = deployDev({ dir: dir2, pkg: prepo });
+    assert.strictEqual(path.resolve(currentTarget(dir2)).toLowerCase(), path.resolve(prepo).toLowerCase(), '절대 경로로 보임');
+    const dd = JSON.parse(fs.readFileSync(path.join(dir2, 'current', 'deployed.json'), 'utf8'));
+    assert.deepStrictEqual([dd.version, dd.dev, dd.commit, dd.stubHash], ['0.7.2', true, 'dev', dv.stubHash]);
+    assert.ok(fs.existsSync(path.join(dir2, 'current', 'stub-ext', 'package.json')), '껍데기는 작업 사본 안에');
+    assert.deepStrictEqual(versions(dir2), [rr.name], '개발 연결은 버전 폴더가 아님');
+    const back = rollback({ dir: dir2 });
+    assert.strictEqual(back.to, rr.name);
+    assert.strictEqual(currentTarget(dir2), rr.name, 'rollback으로 연결 풀림');
+    assert.ok(fs.existsSync(path.join(prepo, 'package.json')), '작업 사본은 그대로');
   }
 
   // 7. assetsOf: contributes 안의 media 경로만

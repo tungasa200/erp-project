@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // WY Ops 설치 명령 본체(OPS-10). install.ps1이 그대로 넘겨 부른다.
-//   deploy                          HEAD를 버전 폴더에 설치하고 current를 바꾼다(lib/deploy.js)
+//   deploy [--dev]                  HEAD를 버전 폴더에 설치하고 current를 바꾼다(lib/deploy.js). --dev는 current를 작업 사본에 바로 연결
 //   global   [--skip-plugins]       deploy + 껍데기 확장 + 필수 플러그인 + NEW-PC.md 체크리스트. 어느 프로젝트도 건드리지 않는다
 //   setup    [--project <폴더>]     global + 이 프로젝트 settings.local.json 병합(차이 → 확인) + 승인 폴더 + doctor + 남은 일 할 일 카드
 //   doctor   [--json]               점검(lib/doctor.js, 읽기만)
@@ -14,6 +14,8 @@
 //   gen [--project <폴더>]                 .claude/ops 원본을 고친 뒤 역할 파일·pm-ops 스킬 다시 만들기(lock도 맞춤)
 //   export [--out <zip>] [--no-settings]   개인 이전 묶음(git 밖 상태: 메모리·승인 이력·인수인계·settings.local.json)을 zip으로(lib/transfer.js)
 //   import <zip> [--dry-run] [--no-settings] 묶음 들여오기. 덮어쓸 파일이 있으면 목록을 보여 주고 확인(원래 파일은 백업), 들여온 승인은 '사용됨' 표시
+//   restore <zip> [--project <폴더>]        새 PC 한 번에: global → 프로젝트 clone(묶음의 원격·브랜치) → import(전역 설정 포함) → setup(doctor) → 남은 할 일
+// 필수 환경(Node·Git·gh·VS Code·Claude Code) 확인·설치는 install.ps1이 이 파일을 부르기 전에 한다(--yes, --skip-install).
 // 공통: --yes(확인 없이 진행), --extensions-dir <폴더>(code에 넘김, 시험용). 결정 파일(decisions/·used/)은 쓰지 않는다(OPS-10-3).
 const fs = require('fs');
 const os = require('os');
@@ -32,7 +34,7 @@ const say = (s = '') => process.stdout.write(s + '\n');
 // code·claude·gh는 Windows에서 .cmd 래퍼라 cmd.exe로 부르고, 나머지(where 등)는 바로 부른다.
 // cmd /s는 명령줄의 첫·끝 따옴표를 떼므로, 인자를 감싼 명령줄 전체를 한 번 더 "…"로 감싸고 그대로(verbatim) 넘긴다.
 // 이렇게 하지 않으면 공백·한글이 든 경로(--extensions-dir 등)가 깨진다(R5, doctor.js와 같은 방식)
-const CMD_WRAPPERS = ['code', 'claude', 'gh'];
+const CMD_WRAPPERS = ['code', 'claude', 'gh', 'npm', 'npx', 'agent-browser'];
 function run(cmd, args = []) {
   const opts = { encoding: 'utf8', windowsHide: true, timeout: 180000 };
   let r;
@@ -99,9 +101,26 @@ function prereqs() {
   if (missing.length) throw new Error(`필요한 도구가 PATH에 없습니다: ${missing.join(', ')} (NEW-PC.md의 '새 PC 전제' 참고)`);
 }
 
+// 설치 원본: 이 코드가 git 저장소 안에서 돌면(패키지 clone이나 개발 트리) 그곳, 설치본에서 돌면 deployed.json의 source
+function sourcePkg() {
+  if (run('git', ['-C', PKG, 'rev-parse', '--show-toplevel']).status === 0) return PKG;
+  try {
+    const d = JSON.parse(fs.readFileSync(path.join(PKG, 'deployed.json'), 'utf8'));
+    if (d.source && typeof d.source === 'object' && d.source.repo) return path.join(d.source.repo, d.source.rel || '');
+  } catch {
+    // 아래 오류로
+  }
+  throw new Error('설치 원본(패키지 저장소 clone)을 찾지 못했습니다. 패키지 저장소를 clone한 뒤 그 폴더의 install.ps1로 실행하세요');
+}
+
 function deployStep() {
-  const { deploy } = require('./deploy');
-  const r = deploy({});
+  const { deploy, deployDev } = require('./deploy');
+  if (flag('--dev')) {
+    const d = deployDev({ pkg: sourcePkg() });
+    say(`개발 연결: current → ${d.name} (작업 사본 v${d.version}). 고친 것이 커밋 없이 바로 쓰입니다. 풀려면 install.ps1 deploy`);
+    return d;
+  }
+  const r = deploy({ pkg: sourcePkg() });
   say(`설치본: ${path.join(r.dir, r.name)} (v${r.version}, 커밋 ${r.commit}), current → ${r.name}`);
   if (r.removed.length) say(`오래된 버전 정리: ${r.removed.join(', ')}`);
   return r;
@@ -141,28 +160,54 @@ function extensionStep(dep) {
   return true;
 }
 
-function pluginsStep() {
-  const raw = JSON.parse(fs.readFileSync(path.join(PKG, 'plugins.json'), 'utf8'));
-  const list = Array.isArray(raw) ? raw : raw.plugins || [];
-  let have = [];
-  try {
-    have = JSON.parse(run('claude', ['plugin', 'list', '--json']).stdout).map((p) => p.id || p.name);
-  } catch {
-    // 목록을 못 읽으면 설치를 시도한다(이미 있으면 claude가 알려 줌)
-  }
-  for (const p of list.filter((x) => x.required)) {
-    if (have.includes(p.id)) {
-      say(`플러그인: ${p.id} 설치됨`);
-      continue;
+// 함께 까는 도구(카드 1110, lib/extras.js): 플러그인 포함. 고른 역할에 필수인 것은 늘 켜고, 나머지는 기본 켬 목록에서 끌 수 있다.
+//   ops: 프로젝트 설정(없으면 역할 무관 = 교대(ecc)만 필수). 끌 것: --extras-off a,b 또는 질문(--yes·restore면 묻지 않음)
+//   돌려주는 off 목록은 init이 wy-ops.json의 extras.off로 남긴다
+function chooseExtras(ops, { ask: canAsk = !flag('--yes') && argv[0] !== 'restore' } = {}) {
+  const extras = require('./extras');
+  let off = opt('--extras-off') != null ? opt('--extras-off').split(',').map((s) => s.trim()).filter(Boolean) : (ops && ops.extras && ops.extras.off) || [];
+  let p = extras.plan({ ops: ops || {}, off });
+  say('함께 까는 도구:');
+  p.forEach((e, i) => say(`  ${String(i + 1).padStart(2)}. [${e.on ? 'x' : ' '}] ${e.label}${e.required ? ' (고른 역할에 필수)' : ''}${e.forcedBy ? ` (${e.forcedBy.join(', ')}에 필요)` : ''}`));
+  if (canAsk && opt('--extras-off') == null) {
+    const a = ask('끌 항목 번호(쉼표로, 필수는 못 끔, Enter = 이대로):');
+    if (a) {
+      const picked = a.split(',').map((s) => p[Number(s.trim()) - 1]).filter(Boolean);
+      for (const e of picked) if (e.required) say(`  ${e.label}은 고른 역할에 필수라 끌 수 없습니다`);
+      off = [...new Set([...off, ...picked.filter((e) => !e.required).map((e) => e.id)])];
+      p = extras.plan({ ops: ops || {}, off });
     }
-    const src = p.ref ? `${p.marketplace}#${p.ref}` : p.marketplace;
-    run('claude', ['plugin', 'marketplace', 'add', src]); // 이미 있으면 실패해도 된다
-    const r = run('claude', ['plugin', 'install', p.id, '--scope', 'user']);
-    if (r.status !== 0) throw new Error(`플러그인 설치 실패: ${p.id} — ${(r.stderr || r.stdout).trim().split('\n').pop()}`);
-    say(`플러그인: ${p.id} 설치했습니다`);
   }
-  const optional = list.filter((x) => !x.required);
-  if (optional.length) say(`선택 플러그인(필요하면 직접 설치): ${optional.map((p) => `claude plugin install ${p.id}`).join(' / ')}`);
+  return { off, plan: p };
+}
+
+function extrasStep(ops, opts = {}) {
+  if (flag('--skip-extras') || flag('--skip-plugins')) {
+    say('함께 까는 도구: 건너뜀(--skip-extras)');
+    return { off: (ops && ops.extras && ops.extras.off) || [], results: [] };
+  }
+  const extras = require('./extras');
+  const { off, plan } = opts.plan ? { off: opts.off || [], plan: opts.plan } : chooseExtras(ops, opts);
+  const results = extras.install(plan, { run });
+  for (const r of results) say(`  ${r.state === 'ok' ? '있음' : r.state === 'installed' ? '설치함' : r.state === 'skipped' ? '건너뜀' : '실패'}  ${r.id}${r.error ? ` — ${r.error}` : ''}`);
+  const failed = results.filter((r) => r.state === 'failed' || r.state === 'skipped');
+  if (failed.length) say(`설치하지 못한 것 ${failed.length}개: 위 오류를 보고 직접 설치하거나 다시 실행하세요(doctor가 알려 줍니다)`);
+  return { off, results };
+}
+
+// 고른 스택의 개발 도구(wy-ops.json tools) 중 없는 것: winget 명령이면 확인받고 설치, 아니면 안내만
+function stackToolsStep(ops) {
+  const tools = (ops && Array.isArray(ops.tools) ? ops.tools : []).filter((t) => t && /^[A-Za-z0-9._-]+$/.test(t.cmd || ''));
+  const missing = tools.filter((t) => run('where', [t.cmd]).status !== 0);
+  if (!missing.length) return say(tools.length ? `스택 개발 도구: 모두 있음(${tools.map((t) => t.label || t.cmd).join(', ')})` : '');
+  for (const t of missing) {
+    const m = /^winget install\s+(?:-e\s+)?(?:--id\s+)?([A-Za-z0-9._-]+)/.exec(t.install || '');
+    if (m && !flag('--skip-install') && confirm(`스택 도구 ${t.label || t.cmd}이 없습니다. winget으로 ${m[1]}을 설치할까요?`)) {
+      const r = run('winget', ['install', '-e', '--id', m[1], '--accept-source-agreements', '--accept-package-agreements']);
+      say(r.status === 0 ? `  설치함 ${m[1]} (새 터미널에서 PATH가 반영됩니다)` : `  설치 실패 ${m[1]}: ${String(r.stderr || r.stdout).trim().split('\n').pop()}`);
+    } else say(`  없음 ${t.label || t.cmd}: ${t.install || '설치 안내 없음'}`);
+  }
+  return undefined;
 }
 
 // 이 폴더를 Claude Code가 신뢰하는지(~/.claude.json의 projects[경로].hasTrustDialogAccepted, 읽기만).
@@ -247,6 +292,112 @@ function doctorStep(project, { todos }) {
   return results;
 }
 
+// 묶음 들여오기(import·restore 공용). 덮어쓸 파일이 있으면 확인. 들여오지 않았으면(--dry-run·거절) null
+function importStep(project, zipFile, include) {
+  const t = require('./transfer');
+  const plan = t.importState({ project, zip: zipFile, include, dryRun: true });
+  const over = plan.files.filter((f) => f.status === 'overwrite');
+  say(`들여올 파일 ${plan.files.length}개(새 ${plan.files.filter((f) => f.status === 'new').length}, 같음 ${plan.files.filter((f) => f.status === 'same').length}, 덮어씀 ${over.length})`);
+  for (const f of over) say(`  덮어씀 ${f.kind} ${f.target}`);
+  if (flag('--dry-run')) return null;
+  if (over.length && !confirm('위 파일을 덮어쓸까요? (원래 파일은 백업합니다)')) {
+    say('들여오지 않았습니다');
+    return null;
+  }
+  const r = t.importState({ project, zip: zipFile, include });
+  say(`들여왔습니다: ${r.files.filter((f) => f.status !== 'same').length}개`);
+  if (r.backupDir) say(`백업: ${r.backupDir}`);
+  if (r.markedUsed) say(`승인 이력 ${r.markedUsed}건은 '사용됨'으로 표시했습니다(이 PC에서 승인으로 다시 쓰이지 않음)`);
+  for (const s of r.skipped || []) say(`  건너뜀 ${s.kind}/${s.rel} — ${s.reason}`);
+  const plugins = r.plugins && r.plugins.enabledPlugins ? Object.keys(r.plugins.enabledPlugins).filter((k) => r.plugins.enabledPlugins[k]) : [];
+  if (plugins.length) say(`원래 PC에서 켜 둔 플러그인(참고, 필수 플러그인은 setup이 설치): ${plugins.join(', ')}`);
+  return r;
+}
+
+// global(project 없음)·setup. restore가 중간 단계로 부를 때는 quiet(NEW-PC·Reload 안내 뺌), skipExtras(함께 까는 도구는 setup 단계에서 한 번만)
+function setupStep(project, { quiet = false, skipExtras = false } = {}) {
+  prereqs();
+  // R4 전환 조건: 옛 확장이 있는 PC에서 setup은 승인 대기 카드가 0일 때만(원장이 새로 시작되므로)
+  const oldExt = !flag('--skip-extension') && extInstalled(OLD_EXT);
+  if (project && oldExt) {
+    const pending = protectedPending(store().rootFor(project));
+    if (pending.length) throw new Error(`결정을 기다리는 카드가 ${pending.length}장 있습니다(${pending.join(', ')}). 모두 처리한 뒤 다시 실행하세요(확장 전환 때 출처 대조 원장이 새로 시작됩니다)`);
+  }
+  const dep = deployStep();
+  if (!flag('--skip-extension')) {
+    if (oldExt && confirm(`옛 확장 ${OLD_EXT}를 제거하고 ${STUB_EXT}로 바꿀까요?`)) {
+      run('code', codeArgs(['--uninstall-extension', OLD_EXT]));
+      say(`확장: 옛 확장 ${OLD_EXT}를 제거했습니다`);
+    }
+    extensionStep(dep);
+  }
+  if (!skipExtras) extrasStep(project ? (require('../vscode/opsConfig').loadOpsConfig(project) || {}) : null);
+  if (project) {
+    settingsStep(project, dep);
+    store().ensureDirs(store().rootFor(project)); // 빈 폴더만 만든다(결정 파일은 쓰지 않음)
+    doctorStep(project, { todos: true });
+    trustHint(project);
+    if (oldExt) say('\n출처 대조 원장을 새로 시작했습니다: 이 시각 전의 결정은 신뢰합니다(확장 id 변경, K4).');
+  }
+  if (quiet) return;
+  printNewPc();
+  say('다음: VS Code에서 "Developer: Reload Window"를 실행하세요.');
+}
+
+// 복원 대상 폴더: --project, 없으면 원래 경로. 원래 홈 아래였으면 이 PC 홈 아래 같은 자리(사용자 이름이 달라도)
+function restoreTarget(src) {
+  if (opt('--project')) return path.resolve(opt('--project'));
+  if (!src.project) throw new Error('묶음에 원래 프로젝트 경로가 없습니다. --project <폴더>를 주세요');
+  const rel = src.home ? path.relative(src.home, src.project) : '';
+  if (rel && !rel.startsWith('..') && !path.isAbsolute(rel)) return path.join(os.homedir(), rel);
+  return path.resolve(src.project);
+}
+
+// 프로젝트 clone: 이미 git 저장소면 건너뜀, 비어 있지 않은 다른 폴더면 멈춤
+function cloneStep(project, repo) {
+  if (fs.existsSync(path.join(project, '.git'))) return say(`clone: 이미 있음(${project}), 건너뜁니다`);
+  if (fs.existsSync(project) && fs.readdirSync(project).length) throw new Error(`${project}가 비어 있지 않은데 git 저장소가 아닙니다. 다른 폴더를 --project로 주거나 정리한 뒤 다시 실행하세요`);
+  if (!repo || !repo.remote) throw new Error('묶음에 원격 저장소 주소가 없습니다. 프로젝트를 직접 clone한 뒤 restore <zip> --project <그 폴더>로 다시 실행하세요');
+  say(`clone: ${repo.remote}${repo.branch ? ` (${repo.branch})` : ''} → ${project}`);
+  const r = run('git', ['clone', ...(repo.branch ? ['-b', repo.branch] : []), repo.remote, project]);
+  if (r.status !== 0) throw new Error(`clone 실패: ${String(r.stderr || r.stdout).trim().split('\n').pop()} (GitHub 로그인이 필요하면 gh auth login 뒤 다시 실행)`);
+  return undefined;
+}
+
+// 새 PC 할 일: 공통 목록 + 묶음이 알려 준 구체 항목(다시 입력할 토큰·키), 중복 없이
+function restoreTodo(src, reenter) {
+  const out = NEW_PC_TODO.map((t) => (src.secretsDir && t.startsWith('비밀값 폴더') ? `비밀값 폴더(${src.secretsDir})를 원래 PC에서 손으로 직접 복사. 묶음에는 비밀값을 넣지 않습니다` : t));
+  for (const x of reenter || []) out.push(`다시 입력: ${x.where} ${x.key}${x.note ? ` (${x.note})` : ''}`);
+  return [...new Set(out)];
+}
+
+// restore <zip>(카드 1020): global → clone → import(전역 설정 포함) → setup(doctor 포함) → 새 PC 할 일
+function restoreCmd() {
+  const zipFile = argv[1] && !argv[1].startsWith('--') ? path.resolve(argv[1]) : null;
+  if (!zipFile) throw new Error('restore에는 묶음 파일이 필요합니다: install.ps1 restore <zip> [--project <폴더>]');
+  const m = require('./transfer').unzip(fs.readFileSync(zipFile)).get('manifest.json');
+  if (!m) throw new Error('manifest.json이 없습니다(wy-ops export로 만든 묶음이 아님)');
+  const src = JSON.parse(m.toString('utf8')).source || {};
+  const project = restoreTarget(src);
+  say('복원 순서: 1) 설치본·확장 2) 프로젝트 clone 3) 묶음 들여오기(전역 설정 포함) 4) 프로젝트 setup·doctor 5) 남은 할 일');
+  say(`  프로젝트: ${project}`);
+  say(`  원격: ${(src.repo && src.repo.remote) || '(없음)'}${src.repo && src.repo.branch ? ` (${src.repo.branch})` : ''}`);
+  say('Claude Code 창·세션을 모두 끈 상태에서 실행하세요(~/.claude.json의 MCP 설정을 병합합니다).');
+  if (!confirm('이대로 복원할까요?')) return say('복원하지 않았습니다');
+  say('\n[1/5] 설치본·확장');
+  setupStep(null, { quiet: true, skipExtras: true });
+  say('\n[2/5] 프로젝트 clone');
+  cloneStep(project, src.repo);
+  say('\n[3/5] 묶음 들여오기');
+  const r = importStep(project, zipFile, {});
+  say('\n[4/5] 프로젝트 setup');
+  setupStep(project, { quiet: true });
+  say('\n[5/5] 새 PC에서 직접 할 일(묶음으로 옮기지 않음):');
+  for (const line of restoreTodo(src, r ? r.reenter : [])) say(`  - ${line}`);
+  say('\n다음: VS Code에서 이 프로젝트 폴더를 열고 "Developer: Reload Window"를 실행하세요.');
+  return undefined;
+}
+
 function main() {
   const cmd = argv[0];
   if (cmd === 'deploy') return void deployStep();
@@ -314,10 +465,15 @@ function main() {
         }
       }
     }
-    const r = initLib.init({ project, name, prefix, stack, verify, roles, counts, areas, principles: !flag('--no-principles') });
+    // 함께 까는 도구: 고른 역할로 필수를 정하고, 끌 것을 고른다(wy-ops.json extras.off로 남음)
+    const preview = { roles: initLib.expandRoles(catalog, { prefix, only: roles && roles.length ? roles : null, counts, areas }) };
+    const chosen = flag('--skip-extras') ? null : chooseExtras(preview);
+    const r = initLib.init({ project, name, prefix, stack, verify, roles, counts, areas, principles: !flag('--no-principles'), extrasOff: chosen ? chosen.off : null });
     say(`스택: ${r.ops.stack || '(없음)'} · 역할 ${r.ops.roles.map((x) => x.name).join(', ')}`);
     for (const f of r.files) say(`  ${f.action.padEnd(9)} ${f.file}${f.action === 'modified' || f.action === 'unmanaged' ? ' (그대로 둠)' : ''}`);
     if (r.gitignoreAdded.length) say(`  .gitignore에 더함: ${r.gitignoreAdded.join(', ')}`);
+    if (chosen) extrasStep(r.ops, { plan: require('./extras').plan({ ops: r.ops }), off: chosen.off });
+    stackToolsStep(r.ops);
     settingsStep(project, { dir: toolsDir() });
     store().ensureDirs(store().rootFor(project));
     doctorStep(project, { todos: true });
@@ -329,7 +485,24 @@ function main() {
   }
   if (cmd === 'update') {
     const project = projectRoot();
-    deployStep();
+    if (!flag('--no-deploy')) {
+      // 패키지 저장소를 최신으로(빨리 감기만) → 설치 → 새 설치본의 코드로 나머지(생성 파일 갱신)를 한다
+      const src = sourcePkg();
+      const top = run('git', ['-C', src, 'rev-parse', '--show-toplevel']).stdout.trim();
+      if (!flag('--no-pull') && confirm(`패키지 저장소(${top})를 원격에서 받을까요(git pull --ff-only)?`)) {
+        const p = run('git', ['-C', top, 'pull', '--ff-only']);
+        if (p.status !== 0) throw new Error(`git pull --ff-only 실패(로컬에서 고친 것이 있으면 정리한 뒤 다시): ${(p.stderr || p.stdout).trim()}`);
+        say(p.stdout.trim() || '받았습니다');
+      }
+      const dep = deployStep();
+      const next = path.join(dep.dir, 'current', 'lib', 'install.js');
+      if (path.resolve(next).toLowerCase() !== path.resolve(__filename).toLowerCase() && fs.existsSync(next)) {
+        const rest = argv.slice(1).filter((a) => a !== '--dev');
+        const r = spawnSync(process.execPath, [next, 'update', '--no-deploy', '--project', project, ...rest.filter((a, i, all) => a !== '--project' && all[i - 1] !== '--project')], { stdio: 'inherit' });
+        process.exitCode = r.status;
+        return undefined;
+      }
+    }
     const { update, format } = require('./update');
     const version = JSON.parse(fs.readFileSync(path.join(PKG, 'package.json'), 'utf8')).version;
     say(format(update({ project, version, dryRun: flag('--dry-run') })));
@@ -351,7 +524,7 @@ function main() {
     // 이전 전 점검: 커밋 안 된 변경·푸시 안 된 커밋은 묶음에 들어가지 않는다(git으로 옮길 것)
     const pending = gitPending(project);
     for (const line of pending) say(`[주의] ${line}`);
-    say('역할 세션이 하던 일이 있으면 먼저 진행 상태를 저장하게 하세요(pm이 교대 준비를 지시 → 각 세션이 인수인계 저장).');
+    say('역할 세션이 하던 일이 있으면 먼저 진행 상태를 저장하게 하세요(pm이 세션 교체 준비를 지시 → 각 세션이 인수인계 저장).');
     say('묶음은 지금 시점의 사본입니다. 동기화가 아니므로 묶은 뒤 원래 PC에서 바뀐 것은 옮겨지지 않습니다.');
     if (pending.length && !confirm('그래도 묶을까요?')) return say('묶지 않았습니다');
     const include = flag('--no-settings') ? { settingsLocal: false } : {};
@@ -365,56 +538,18 @@ function main() {
   if (cmd === 'import') {
     const zipFile = argv[1] && !argv[1].startsWith('--') ? path.resolve(argv[1]) : null;
     if (!zipFile) throw new Error('import에는 묶음 파일이 필요합니다: install.ps1 import <zip> [--project <폴더>]');
-    const project = projectRoot();
-    const include = flag('--no-settings') ? { settingsLocal: false } : {};
-    const t = require('./transfer');
-    const plan = t.importState({ project, zip: zipFile, include, dryRun: true });
-    const over = plan.files.filter((f) => f.status === 'overwrite');
-    say(`들여올 파일 ${plan.files.length}개(새 ${plan.files.filter((f) => f.status === 'new').length}, 같음 ${plan.files.filter((f) => f.status === 'same').length}, 덮어씀 ${over.length})`);
-    for (const f of over) say(`  덮어씀 ${f.kind} ${f.target}`);
-    if (flag('--dry-run')) return undefined;
-    if (over.length && !confirm('위 파일을 덮어쓸까요? (원래 파일은 백업합니다)')) return say('들여오지 않았습니다');
-    const r = t.importState({ project, zip: zipFile, include });
-    say(`들여왔습니다: ${r.files.filter((f) => f.status !== 'same').length}개`);
-    if (r.backupDir) say(`백업: ${r.backupDir}`);
-    if (r.markedUsed) say(`승인 이력 ${r.markedUsed}건은 '사용됨'으로 표시했습니다(이 PC에서 승인으로 다시 쓰이지 않음)`);
-    for (const s of r.skipped || []) say(`  건너뜀 ${s.kind}/${s.rel} — ${s.reason}`);
-    const plugins = r.plugins && r.plugins.enabledPlugins ? Object.keys(r.plugins.enabledPlugins).filter((k) => r.plugins.enabledPlugins[k]) : [];
-    if (plugins.length) say(`원래 PC에서 켜 둔 플러그인(참고, 필수 플러그인은 setup이 설치): ${plugins.join(', ')}`);
+    const r = importStep(projectRoot(), zipFile, flag('--no-settings') ? { settingsLocal: false } : {});
+    if (!r) return undefined;
     say('\n새 PC에서 다시 할 일(묶음으로 옮기지 않음):');
     for (const t of NEW_PC_TODO) say(`  - ${t}`);
     return undefined;
   }
+  if (cmd === 'restore') return void restoreCmd();
   if (cmd === 'global' || cmd === 'setup') {
-    prereqs();
-    const project = cmd === 'setup' ? projectRoot() : null;
-    // R4 전환 조건: 옛 확장이 있는 PC에서 setup은 승인 대기 카드가 0일 때만(원장이 새로 시작되므로)
-    const oldExt = !flag('--skip-extension') && extInstalled(OLD_EXT);
-    if (project && oldExt) {
-      const pending = protectedPending(store().rootFor(project));
-      if (pending.length) throw new Error(`결정을 기다리는 카드가 ${pending.length}장 있습니다(${pending.join(', ')}). 모두 처리한 뒤 다시 실행하세요(확장 전환 때 출처 대조 원장이 새로 시작됩니다)`);
-    }
-    const dep = deployStep();
-    if (!flag('--skip-extension')) {
-      if (oldExt && confirm(`옛 확장 ${OLD_EXT}를 제거하고 ${STUB_EXT}로 바꿀까요?`)) {
-        run('code', codeArgs(['--uninstall-extension', OLD_EXT]));
-        say(`확장: 옛 확장 ${OLD_EXT}를 제거했습니다`);
-      }
-      extensionStep(dep);
-    }
-    if (!flag('--skip-plugins')) pluginsStep();
-    if (project) {
-      settingsStep(project, dep);
-      store().ensureDirs(store().rootFor(project)); // 빈 폴더만 만든다(결정 파일은 쓰지 않음)
-      doctorStep(project, { todos: true });
-      trustHint(project);
-      if (oldExt) say('\n출처 대조 원장을 새로 시작했습니다: 이 시각 전의 결정은 신뢰합니다(확장 id 변경, K4).');
-    }
-    printNewPc();
-    say('다음: VS Code에서 "Developer: Reload Window"를 실행하세요.');
+    setupStep(cmd === 'setup' ? projectRoot() : null);
     return undefined;
   }
-  say('사용법: install.ps1 deploy | global | setup | init --name <이름> --prefix <XX-> [--stack <id>] [--count …] [--area …] [--no-principles] | gen | update | doctor | rollback [버전] | cleanup-legacy | export [--out <zip>] | import <zip> [--dry-run]  [--yes] [--no-settings] [--project <폴더>] [--skip-plugins] [--skip-extension]');
+  say('사용법: install.ps1 deploy | global | setup | init --name <이름> --prefix <XX-> [--stack <id>] [--count …] [--area …] [--no-principles] | gen | update | doctor | rollback [버전] | cleanup-legacy | export [--out <zip>] | import <zip> [--dry-run] | restore <zip>  [--yes] [--no-settings] [--project <폴더>] [--skip-plugins] [--skip-extension]');
   process.exitCode = 64;
   return undefined;
 }

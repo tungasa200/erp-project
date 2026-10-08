@@ -18,7 +18,8 @@ const PLUGINS = path.join(PKG, 'plugins.json');
 const STUB_ID = 'wy-ops.wy-ops';
 const OLD_EXT_ID = 'erp-project.erp-session-dashboard';
 const GITIGNORE_LINES = ['.claude/settings.local.json', '.claude/wy-ops.local.json', '.claude/*.bak-*'];
-const INSTALL = 'powershell -ExecutionPolicy Bypass -File tools\\wy-ops\\install.ps1';
+// 고치기 안내에 쓰는 명령: 설치본의 install.ps1(프로젝트 저장소에 패키지 코드가 없어도 된다)
+const INSTALL = 'powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\\.wy-tools\\wy-ops\\current\\install.ps1"';
 
 const slash = (p) => String(p || '').replace(/\\/g, '/');
 const lower = (p) => slash(p).toLowerCase().replace(/\/+$/, '');
@@ -35,7 +36,7 @@ const exists = (p) => {
 // Windows에서 code·claude·gh는 .cmd 래퍼라 cmd.exe로 부르고, 나머지(node·git·powershell·where)는 바로 부른다.
 // cmd /s /c는 문자열의 첫·끝 따옴표를 떼므로, 명령줄 전체를 한 번 더 따옴표로 감싸고 node가 다시 이스케이프하지 않게 한다
 // (그러지 않으면 공백이 든 경로 인자가 깨진다 — R5 리허설에서 찾음). 출력만 보고 아무것도 쓰지 않는다
-const CMD_WRAPPERS = ['code', 'claude', 'gh'];
+const CMD_WRAPPERS = ['code', 'claude', 'gh', 'npm', 'npx', 'agent-browser'];
 function defaultRun(cmd, args = []) {
   const opts = { encoding: 'utf8', timeout: 20000, windowsHide: true, maxBuffer: 8 * 1024 * 1024 };
   let r;
@@ -96,6 +97,15 @@ function checkInstall(o) {
   if (!exists(cur)) return result('install', '설치본', 'fail', `${slash(cur)} 없음(패키지가 설치되지 않음)`, `${INSTALL} deploy`);
   const d = readDeployed(o);
   if (!d) return result('install', '설치본', 'fail', `${slash(cur)}/deployed.json을 읽지 못함`, `${INSTALL} deploy`);
+  if (d.dev) return result('install', '설치본', 'warn', `개발 연결 중: current → ${slash(d.source && d.source.repo)} (작업 사본 v${d.version})`, `${INSTALL} deploy (개발 연결을 풀고 커밋된 버전 설치)`);
+  // 패키지 저장소 clone에서 설치한 것: 그 clone의 HEAD와 비교(pull 뒤 deploy를 안 했으면 다름)
+  if (d.source && typeof d.source === 'object' && d.source.repo) {
+    const head = o.run('git', ['-C', d.source.repo, 'rev-parse', '--short', 'HEAD']);
+    const h = head.status === 0 ? String(head.stdout).trim() : null;
+    if (!h) return result('install', '설치본', 'warn', `${d.version} @ ${String(d.commit || '').slice(0, 7)} — 설치 원본 ${slash(d.source.repo)}을 읽지 못함`, '패키지 저장소를 다시 clone한 뒤 그 폴더의 install.ps1 deploy');
+    if (!String(d.commit || '').startsWith(h) && !h.startsWith(String(d.commit || '-'))) return result('install', '설치본', 'fail', `설치본 ${String(d.commit || '?').slice(0, 7)}이 패키지 저장소 HEAD ${h}와 다름`, `${INSTALL} deploy`);
+    return result('install', '설치본', 'ok', `${d.version} @ ${String(d.commit || '').slice(0, 7)} (원본 ${slash(d.source.repo)})`);
+  }
   const want = repoVersion(o);
   const same = (a, b) => !!a && !!b && (String(a).startsWith(b) || String(b).startsWith(a));
   const diffs = [];
@@ -224,12 +234,22 @@ function checkPlugins(o) {
   }
   if (!Array.isArray(have)) return result('plugins', '플러그인', 'fail', 'claude plugin list --json을 읽지 못함', 'claude --version으로 Claude Code CLI 설치·로그인 확인');
   const byId = new Map(have.map((p) => [p.id, p]));
+  // 함께 까는 도구 계획(extras)이 있으면 그것으로 필요 여부를 정한다: 켜짐 = 필요, 끔(extras.off) = '꺼짐'
+  const planned = extrasPlan(o);
+  const pluginOn = new Map();
+  if (planned) for (const it of planned.items.filter((x) => x.kind === 'plugin')) pluginOn.set(it.plugin, planned.plan.find((e) => e.id === it.id));
   const fails = [];
   const warns = [];
   const notes = [];
   const fixes = [];
   for (const p of want) {
     const got = byId.get(p.id);
+    const e = pluginOn.get(p.id);
+    if (e && !e.on) {
+      notes.push(`${p.id} 꺼짐(설정)`);
+      continue;
+    }
+    if (e) p.required = true;
     const install = `claude plugin marketplace add ${p.marketplace} && claude plugin install ${p.id}`;
     if (!got) {
       if (p.required) {
@@ -248,6 +268,36 @@ function checkPlugins(o) {
   if (fails.length) return result('plugins', '플러그인', 'fail', [...fails, ...warns].join(', '), fixes.join(' ; '));
   if (warns.length) return result('plugins', '플러그인', 'warn', `최소 버전보다 낮음: ${warns.join(', ')}(일은 막지 않음)`, 'claude plugin marketplace update && claude plugin update <플러그인>');
   return result('plugins', '플러그인', 'ok', notes.join(' · '));
+}
+
+// 함께 까는 도구 계획: 프로젝트 설정(역할·extras.off)으로. extras.json이 없는 패키지면 null
+function extrasPlan(o) {
+  let extras;
+  try {
+    extras = require('./extras');
+  } catch {
+    return null;
+  }
+  const { ops } = opsConfig(o);
+  const items = extras.load();
+  return { extras, items, plan: extras.plan({ ops: ops || {}, items }) };
+}
+
+// 플러그인 밖의 함께 까는 도구(npm·pipx·스킬·MCP): 끈 것은 '꺼짐'(실패 아님), 필수가 없으면 실패, 선택이 없으면 주의
+function checkExtras(o) {
+  const planned = extrasPlan(o);
+  if (!planned) return result('extras', '함께 까는 도구', 'ok', 'extras.json 없음');
+  const items = planned.items.filter((x) => x.kind !== 'plugin');
+  const st = planned.extras.check({ run: o.run, home: o.home, items, plan: planned.plan });
+  const byId = new Map(planned.plan.map((e) => [e.id, e]));
+  const label = (id) => (byId.get(id) && byId.get(id).label) || id;
+  const missing = st.filter((s) => s.state === 'missing');
+  const off = st.filter((s) => s.state === 'off').map((s) => s.id);
+  const offText = off.length ? ` · 꺼짐: ${off.join(', ')}` : '';
+  if (!missing.length) return result('extras', '함께 까는 도구', 'ok', `${st.filter((s) => s.state === 'ok').map((s) => s.id).join(', ')}${offText}`);
+  const req = missing.filter((s) => byId.get(s.id) && byId.get(s.id).required);
+  const detail = `없음: ${missing.map((s) => `${label(s.id)}${s.detail ? `(${s.detail})` : ''}`).join(', ')}${offText}`;
+  return result('extras', '함께 까는 도구', req.length ? 'fail' : 'warn', detail, `${INSTALL} setup (빠진 것을 설치) · 쓰지 않을 선택 항목은 wy-ops.json의 extras.off에 id를 적음(사용자)`);
 }
 
 function checkApprovals(o) {
@@ -288,6 +338,17 @@ function checkLock(o) {
 
 // 고른 스택의 개발 도구(wy-ops.json의 tools: [{ cmd, label, install }]). init이 스택에서 복사하고 프로젝트가 고칠 수 있다.
 // 있는지만 본다(where, 실행하지 않음). 고른 스택에만 하고, 없으면 설치 안내만 낸다(이 PC에 설치하지 않음)
+// 프로젝트가 고정한 패키지 버전(wy-ops.json의 wyOpsVersion)과 설치본 버전
+function checkVersionPin(o) {
+  const { ops } = opsConfig(o);
+  const pin = ops && ops.wyOpsVersion;
+  const d = readDeployed(o);
+  if (!pin) return result('version-pin', '패키지 버전 고정', 'ok', '고정하지 않음(wyOpsVersion 없음)');
+  if (!d) return result('version-pin', '패키지 버전 고정', 'ok', `고정 ${pin} — 설치본 없음(설치본 항목 참고)`);
+  if (d.version === pin) return result('version-pin', '패키지 버전 고정', 'ok', `${pin}`);
+  return result('version-pin', '패키지 버전 고정', 'warn', `프로젝트는 ${pin}을 쓰는데 설치본은 ${d.version}${d.dev ? '(개발 연결)' : ''}`, `패키지 저장소에서 ${pin} 태그·커밋으로 맞춰 deploy하거나, 새 버전을 쓰기로 했으면 wy-ops.json의 wyOpsVersion을 바꿈(사용자)`);
+}
+
 function checkStackTools(o) {
   const { ops } = opsConfig(o);
   const tools = ops && Array.isArray(ops.tools) ? ops.tools.filter((t) => t && /^[A-Za-z0-9._-]+$/.test(t.cmd || '')) : [];
@@ -481,8 +542,10 @@ function checkAll(opts = {}) {
     () => checkDeny(o, template),
     () => checkExtension(o),
     () => checkPlugins(o),
+    () => checkExtras(o),
     () => checkApprovals(o),
     () => checkConfig(o),
+    () => checkVersionPin(o),
     () => checkStackTools(o),
     () => checkLock(o),
     () => checkPersonalPaths(o),

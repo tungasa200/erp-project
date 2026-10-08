@@ -1,14 +1,14 @@
 # WY Ops 사용 설명서
 
-여러 Claude Code 세션이 역할을 나눠 일할 때, 사람이 할 일(승인·결정·직접 할 일)을 한곳에서 처리하고 세션 상태를 보는 도구입니다. 이 문서만 보고 다른 PC나 새 프로젝트에서 따라 할 수 있게 썼습니다.
+여러 Claude Code 세션이 역할을 나눠 일할 때, 사람이 할 일(승인·결정 요청·직접 할 일)을 한곳에서 처리하고 세션 상태를 보는 도구입니다. 이 문서만 보고 새 PC나 새 프로젝트에서 따라 할 수 있게 썼습니다.
 
 함께 보는 문서:
-- [NEW-PC.md](NEW-PC.md): 새 PC에서 사람이 직접 할 일 체크리스트(로그인, 옮길 것, 역할별 준비)
+- [README.md](README.md): 개요, 요구 환경, 빠른 시작, 역할·스택·함께 까는 도구
+- [NEW-PC.md](NEW-PC.md): 새 PC에서 사람이 직접 할 일(로그인, 옮길 것, 역할별 준비)
 - [vscode/README.md](vscode/README.md): 카드 요청 파일 형식(세션이 카드를 올릴 때 쓰는 규칙)
-- 저장소 `CLAUDE.md`: 세션 역할과 작업 규칙의 원본
-- `tools/PACKAGING-PLAN.md`(이 저장소에만 있음): 설치 구조를 정한 배경
+- 프로젝트 `CLAUDE.md`: 세션 역할과 작업 규칙의 원본(`init`이 넣을 절을 만들어 줍니다)
 
-명령은 PowerShell 기준입니다. Bash(Git Bash)에서만 되는 명령은 **[Bash]**로 표시했습니다.
+명령은 PowerShell 기준입니다. 예시의 역할 이름은 접두사 `AB-`로 만든 프로젝트를 가정합니다(`AB-pm`, `AB-commit`, `AB-qa` …). `<설치>`는 `"$env:USERPROFILE\.wy-tools\wy-ops\current\install.ps1"`의 줄임입니다.
 
 ---
 
@@ -16,21 +16,21 @@
 
 | 이름 | 하는 일 | 어디에 |
 |---|---|---|
-| 승인 센터 | 세션이 올린 카드를 처리한다(권한·결정·할 일·git) | 상태 표시줄 '승인 대기 N'을 누르면 열리는 작업창 탭. 명령 팔레트 `WY: 승인 센터 열기` |
-| 세션 현황 | 역할 세션이 지금 무엇을 하는지, 멈춘 세션 열기 | 왼쪽 활동 막대의 **WY Ops** 아이콘 → 사이드바 |
-| 활동 탭 | 세션끼리 주고받은 메시지를 작업 묶음으로 본다 | 명령 팔레트 `WY: 활동 보기`, 승인 센터에서 `g` `a` |
+| 승인 센터 | 세션이 올린 카드를 처리한다(권한 요청·결정 요청·할 일·git) | 상태 표시줄 '승인 대기 N'을 누르면 열리는 작업창 탭. 명령 팔레트 `WY: 승인 센터 열기` |
+| 세션 현황 | 역할 세션이 지금 무엇을 하는지, 종료된 세션 열기 | 왼쪽 활동 막대의 **WY Ops** 아이콘 → 사이드바 |
+| 활동 탭 | 세션끼리 주고받은 메시지를 스레드(작업 하나)로 본다 | 명령 팔레트 `WY: 활동 보기`, 승인 센터에서 `g` `a` |
 | 역할 세션 | 역할 파일(`.claude/agents/<역할>.md`)을 싣고 백그라운드에서 도는 Claude 세션 | 터미널 `claude agents`, 세션 현황 |
-| 훅 | 세션이 위험한 일을 하지 못하게 막고, 권한 확인을 카드로 바꾼다 | 프로젝트 `.claude/settings.local.json`(설치 명령이 넣음) |
+| 훅 | 세션이 위험한 일을 하지 못하게 막고, 권한 요청을 카드로 바꾼다 | 프로젝트 `.claude/settings.local.json`(설치 명령이 넣음) |
 
 훅 다섯 가지:
 
 | 훅 | 하는 일 |
 |---|---|
 | 승인 가드 | 커밋·푸시 같은 git 명령은 커밋 역할 세션이 승인 카드를 받은 뒤에만 실행. 승인 파일·설정 파일을 셸로 고치지 못하게 막음 |
-| 메시지 가드 | 꺼진 세션에 메시지를 보내려 하면 막고 다시 띄우는 법을 알려 줌 |
-| 권한 확인 | 백그라운드 세션이 확인 창을 기다리면 승인 센터에 권한 카드를 올림 |
-| 권한 거부 | 자동 판단(분류기)이 막은 명령을 할 일 카드로 올림 |
-| 세션 시작 | 세션이 어떤 역할로 떴는지 기록(역할 누락 경고에 씀) |
+| 메시지 가드 | 종료된 세션에 메시지를 보내려 하면 막고 재시작하는 법을 알려 줌 |
+| 권한 요청 | 백그라운드 세션이 권한 요청 창을 기다리면 승인 센터에 권한 요청 카드를 올림. 자동 판단(분류기)이 막은 명령은 할 일 카드로 올림 |
+| 세션 시작 | 세션이 어떤 역할로 시작했는지 기록(역할 누락 경고에 씀) |
+| 컨텍스트 크기 | 역할 세션의 컨텍스트가 기준(`rotation.notifyTokens`)을 넘으면 한 번 "세션 교체 요청"을 pm에 보내라고 알림 |
 
 여러 VS Code 창을 열면 창마다 그 폴더(프로젝트)의 카드와 세션만 보입니다. 다른 프로젝트 카드는 그 프로젝트 창에서 봅니다.
 
@@ -38,52 +38,46 @@
 
 ## 2. 설치
 
-### 2-1. 다른 PC에서 같은 프로젝트 이어 가기
+### 2-1. 이 PC에 처음 설치
 
-준비: [NEW-PC.md](NEW-PC.md) 1장의 도구(Git, Node 18+, VS Code와 `code` 명령, Claude Code 로그인)
-
-1. 저장소를 받습니다.
+1. 이 패키지 저장소를 clone합니다(경로에 공백·한글이 없는 곳 권장).
    ```powershell
-   git clone <저장소 주소> C:\projects\erp-project
-   cd C:\projects\erp-project
+   git clone <패키지 저장소 주소> C:\tools\wy-ops
    ```
-2. 이 폴더를 Claude Code가 신뢰하게 합니다(한 번만).
+2. 설치합니다.
    ```powershell
-   claude
+   powershell -ExecutionPolicy Bypass -File C:\tools\wy-ops\install.ps1 global
    ```
-   'Do you trust the files in this folder?'에 **Yes** → 준비 화면이 나오면 `/exit`. VS Code의 '작성자 신뢰'와는 따로입니다. 이것이 없으면 역할 세션이 뜨지 않습니다.
-3. 설치 명령을 실행합니다.
-   ```powershell
-   powershell -ExecutionPolicy Bypass -File tools\wy-ops\install.ps1 setup
-   ```
-   - 설치본·확장·필수 플러그인을 깔고, `settings.local.json`에 넣을 내용을 보여 줍니다. 맞으면 `y`.
-   - 끝에 점검 표가 나옵니다. **FAIL**이 있으면 그 줄의 '고치기' 명령을 실행합니다.
-   - 남은 손일(로그인 등)은 승인 센터에 할 일 카드로 올라옵니다.
-4. VS Code에서 `Developer: Reload Window`(명령 팔레트 Ctrl+Shift+P).
-5. 왼쪽에 **WY Ops** 아이콘이 보이면 끝입니다. [NEW-PC.md](NEW-PC.md)의 나머지(로그인, 비밀값 폴더, 역할별 준비)를 챙깁니다.
-
-옮기지 않는 것: 승인 대기열, 대화 기록, 인수인계 파일, 메모리. PC를 바꾸기 전에 대기 카드를 모두 처리하고, 역할 세션을 작업 경계에서 멈춥니다.
+   - 먼저 필수 환경(Node.js LTS·Git·GitHub CLI·VS Code·Claude Code)을 확인하고, 없으면 목록을 보여 준 뒤 설치합니다.
+   - 설치본을 `%USERPROFILE%\.wy-tools\wy-ops\<버전>`에 넣고 `current`가 그 버전을 가리키게 합니다.
+   - VS Code 확장(`wy-ops.wy-ops`)과 함께 까는 도구를 설치합니다.
 
 ### 2-2. 새 프로젝트에 붙이기
 
-1. 이 PC에 아직 설치한 적이 없으면, 이 저장소에서 한 번만:
+1. 프로젝트 폴더에서(먼저 `git init`):
    ```powershell
-   powershell -ExecutionPolicy Bypass -File tools\wy-ops\install.ps1 global
+   powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\.wy-tools\wy-ops\current\install.ps1" init --name <프로젝트 이름> --prefix AB-
    ```
-   (이미 `setup`을 한 PC면 건너뜁니다.)
-2. 새 프로젝트 폴더에서(먼저 `git init`):
-   ```powershell
-   powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\.wy-tools\wy-ops\current\install.ps1" init --name <프로젝트 이름> --prefix <역할 접두사, 예: AB->
-   ```
-   - 역할을 고르려면 `--roles commit,backend,qa`(커밋·pm 역할은 늘 포함).
-   - 만드는 것: `.claude/wy-ops.json`, 역할 원본·역할 파일, pm-ops 스킬, `.gitignore` 줄, `settings.local.json`.
+   - 스택(`--stack node|python|java-gradle|csharp|cpp|custom`), 역할별 수, 여러 개로 나눈 역할의 담당 영역을 묻습니다. 묻지 않고 정하려면 `--roles`, `--count backend=2,frontend=1`, `--area "AB-backend1=server/;AB-backend2=tools/"`를 씁니다.
+   - 끌 수 있는 함께 까는 도구를 고릅니다(고른 역할에 필수인 것은 못 끔).
+   - 만드는 것: `.claude/wy-ops.json`, 역할 원본(`.claude/ops/`)·역할 파일(`.claude/agents/`), pm-ops 스킬, `.gitignore` 줄, `settings.local.json`.
    - 이미 있는 파일은 덮지 않습니다.
-3. 출력 끝의 **CLAUDE.md에 넣을 절**을 복사해 그 프로젝트 `CLAUDE.md`에 붙입니다(자동으로 고치지 않습니다).
-4. 신뢰 안내가 나오면 그 폴더 터미널에서 `claude` → Yes → `/exit`.
-5. 그 폴더를 VS Code로 열고 `Developer: Reload Window`.
-6. 확인: `powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\.wy-tools\wy-ops\current\install.ps1" doctor --project .`
+2. 출력 끝의 **CLAUDE.md에 넣을 절**을 복사해 그 프로젝트 `CLAUDE.md`에 붙입니다(자동으로 고치지 않습니다). '작업 원칙' 절을 빼려면 `init`에 `--no-principles`.
+3. 신뢰 안내가 나오면 그 폴더 터미널에서 `claude` → Yes → `/exit`.
+4. 그 폴더를 VS Code로 열고 `Developer: Reload Window`.
+5. 확인: `<설치> doctor --project .`
 
 `-File` 뒤에는 `~`를 쓰지 않습니다. PowerShell이 `~`를 펼치지 않아 "does not exist"로 실패합니다. `$env:USERPROFILE`을 큰따옴표 안에 씁니다.
+
+### 2-3. 다른 PC에서 같은 프로젝트 이어 가기
+
+개인 상태까지 옮길 때: 원래 PC에서 `<설치> export --out <zip>` → 새 PC에서 패키지를 clone하고 `install.ps1 restore <zip>`. 자세한 순서는 [NEW-PC.md](NEW-PC.md) 3장.
+
+코드만 이어 갈 때:
+1. 패키지를 clone하고 `install.ps1 global`(2-1).
+2. 프로젝트를 clone하고 그 폴더에서 `claude` → 신뢰 Yes → `/exit`.
+3. 프로젝트 폴더에서 `<설치> setup`. `settings.local.json`에 넣을 내용을 보여 주면 맞을 때 `y`. 끝의 점검 표에 **FAIL**이 있으면 그 줄의 '고치기'를 실행합니다. 남은 손일은 승인 센터에 할 일 카드로 올라옵니다.
+4. `Developer: Reload Window`.
 
 ---
 
@@ -95,9 +89,9 @@
 
 | 카드 | 언제 뜨나 | 무엇을 누르나 |
 |---|---|---|
-| 권한 | 백그라운드 세션이 실행 확인을 기다릴 때 | **이번 한 번 허용** 또는 **거부**(사유 필수). 15분 안에 안 누르면 자동 거부 |
-| 결정 | 세션(주로 pm)이 방향을 물을 때 | 질문마다 선택지를 고르고 **답 보내기**. '추천' 표시, 선택지마다 대가가 적혀 있음. '기타'에 직접 써도 됨 |
-| 할 일 | 사람이 직접 해야 할 일(설정 수정, 외부 콘솔, 직접 실행) | 단계를 따라 한 뒤 **했음**. 메모에 결과를 적으면 세션이 그에 맞춰 이어 감 |
+| 권한 요청 | 백그라운드 세션이 실행 허락을 기다릴 때 | **이번 한 번 허용** 또는 **거부**(사유 필수). 15분 안에 안 누르면 자동 거부 |
+| 결정 요청 | 세션(주로 pm)이 방향을 물을 때 | 질문마다 선택지를 고르고 **응답 전송**. '추천' 표시, 선택지마다 대가가 적혀 있음. '기타'에 직접 써도 됨 |
+| 할 일 | 사람이 직접 해야 할 일(설정 수정, 외부 콘솔, 직접 실행) | 단계를 따라 한 뒤 **완료**. 메모에 결과를 적으면 세션이 그에 맞춰 이어 감 |
 | git | 커밋·푸시·병합 등 | **승인** 또는 **거부**(사유 필수). 바뀐 파일·검증 결과를 보고 판단 |
 
 카드마다 '무엇을'·'왜'·'누르면 무슨 일'이 있습니다. 이 세 칸이 빈 요청은 **형식 오류** 카드로 뜨고 처리 버튼이 없습니다.
@@ -105,19 +99,19 @@
 할 일 카드 쓰는 법:
 - 단계 목록을 눌러 체크하며 따라 합니다(진행 막대는 기억용).
 - 메모 예: '실행함', '실행 안 함 — 필요 없어 보임', 오류 메시지 붙여넣기.
-- 분류기가 막은 명령 카드는 대부분 실행하지 않아도 됩니다. 판단이 어려우면 메모에 '실행 안 함'을 적고 **했음**.
+- 분류기가 막은 명령 카드는 대부분 실행하지 않아도 됩니다. 판단이 어려우면 메모에 '실행 안 함'을 적고 **완료**.
 - 명령 블록이 두 개면 위가 PowerShell에 붙여 넣을 형태, 아래가 원래 명령(Bash)입니다(3-4 참고).
 
-거부 사유: 세션에 그대로 전달됩니다. '무엇이 문제인지 + 어떻게 하면 되는지'를 한 줄로 씁니다. 예: '테스트 결과가 없음 — 테스트를 돌린 뒤 다시 요청'.
+거부 사유는 세션에 그대로 전달됩니다. '무엇이 문제인지 + 어떻게 하면 되는지'를 한 줄로 씁니다. 예: '테스트 결과가 없음 — 테스트를 돌린 뒤 다시 요청'.
 
 단축키(승인 센터 탭에 포커스가 있을 때):
 
 | 키 | 하는 일 |
 |---|---|
 | `j` / `k` | 다음·이전 카드 |
-| `a` | 처리(승인·허용·답 보내기·했음) |
+| `a` | 처리(승인·허용·응답 전송·완료) |
 | `x` | 거부 |
-| `1`~`9` | 결정 카드의 선택지 고르기 |
+| `1`~`9` | 결정 요청 카드의 선택지 고르기 |
 | `Enter` / `Esc` | 열기 / 목록으로·취소 |
 | `w` | '왜' 펼치기 |
 | `g` `a` | 활동 탭 |
@@ -127,24 +121,24 @@
 
 | 상태 | 뜻 | 할 일 |
 |---|---|---|
-| 권한 대기 | 확인 창을 기다림. 기다리는 명령이 함께 보임 | 승인 센터의 권한 카드를 처리 |
-| 일하는 중 | 작업 중 | 없음 |
+| 권한 승인 대기 | 권한 요청 창을 기다림. 기다리는 명령이 함께 보임 | 승인 센터의 권한 요청 카드를 처리 |
+| 작업 중 | 일하는 중 | 없음 |
 | 입력 대기 | 일을 마치고 다음 지시를 기다림 | pm이 지시하면 됨 |
-| 꺼짐 | 멈춤·스스로 끝남·오류로 끝남(작은 글씨로 이유) | pm이 `session.ps1 start`로 다시 띄움 |
-| 띄우지 않음 | 역할 표에는 있지만 아직 안 띄움 | 필요할 때 띄움 |
+| 종료됨 | 멈춤·스스로 끝남·오류로 끝남(작은 글씨로 이유) | pm이 `session.ps1 start`로 재시작 |
+| 실행 안 함 | 역할 표에는 있지만 아직 시작하지 않음 | 필요할 때 시작 |
 
-- 정렬: 권한 대기 → 일하는 중 → 입력 대기 → 꺼짐 → 띄우지 않음. 꺼짐·띄우지 않음은 아래 접힌 묶음.
-- **열기**: 백그라운드 세션에 직접 들어갑니다(새 터미널에서 `claude attach`). 승인 센터로 안 되는 일(긴 대화, 직접 확인)이 있을 때만 씁니다. 들어갔다 나온 커밋 세션은 pm이 교대시킵니다.
-- 주황 '꺼진 뒤 메시지 옴': 꺼진 세션에 누가 메시지를 보내려다 막혔습니다. pm에 알려 다시 띄우게 합니다. '확인함'을 누르면 표시가 사라집니다.
-- '역할 누락' 경고: 그 세션이 역할 파일 없이 떴습니다. 커밋 세션이면 커밋이 막히므로 pm이 교대시킵니다.
+- 정렬: 권한 승인 대기 → 작업 중 → 입력 대기 → 종료됨 → 실행 안 함. 종료됨·실행 안 함은 아래 접힌 묶음.
+- **열기**: 백그라운드 세션에 직접 들어갑니다(새 터미널에서 `claude attach`). 승인 센터로 안 되는 일(긴 대화, 직접 확인)이 있을 때만 씁니다. 들어갔다 나온 커밋 역할 세션은 pm이 세션 교체(rotate)합니다.
+- 주황 '꺼진 뒤 메시지 옴': 종료된 세션에 누가 메시지를 보내려다 막혔습니다. pm에 알려 재시작하게 합니다. '확인함'을 누르면 표시가 사라집니다.
+- '역할 누락' 경고: 그 세션이 역할 파일 없이 시작했습니다. 커밋 역할 세션이면 커밋이 막히므로 pm이 세션 교체합니다.
 
 ### 3-3. 활동 탭
 
 보기 세 가지(위쪽에서 고름):
-- **묶음**(기본): 작업 하나(지시 → 보고 → 커밋 …)를 카드 한 장으로. 요약을 누르면 원문이 펼쳐집니다.
-  - **진행 중**: 최근에 움직인 순서
-  - **휴면 n**: 2시간 넘게 조용한 진행 중 묶음(접혀 있음)
-  - **완료 n**: 끝난 묶음(접혀 있음)
+- **스레드**(기본): 작업 하나(지시 → 보고 → 커밋 …)를 카드 한 장으로. 요약을 누르면 원문이 펼쳐집니다.
+  - 진행 중: 최근에 움직인 순서
+  - **유휴 n**: 2시간 넘게 조용한 진행 중 스레드(접혀 있음)
+  - **완료 n**: 끝난 스레드(접혀 있음)
 - **피드**: 세션끼리 주고받은 메시지를 최신순으로
 - **시간**(창이 넓을 때만): 세션별 가로줄에 일한 구간과 메시지 화살표. 1·3·12시간 중 고름. 화살표를 누르면 원문
 
@@ -160,26 +154,30 @@
 
 ## 4. 명령 모음
 
-설치 명령(저장소 루트에서 `tools\wy-ops\install.ps1`, 다른 프로젝트에서는 `"$env:USERPROFILE\.wy-tools\wy-ops\current\install.ps1"`):
+설치 명령(`<설치> <명령>`, 프로젝트 폴더에서):
 
 | 명령 | 언제 | 예시 |
 |---|---|---|
-| `doctor` | 뭔가 이상할 때 먼저. 읽기만 함 | `powershell -ExecutionPolicy Bypass -File tools\wy-ops\install.ps1 doctor` |
-| `update` | 저장소를 pull한 뒤 운영 도구를 새 버전으로. 사람이 고친 생성 파일은 덮지 않고 차이만 보여 줌 | `… install.ps1 update` (미리 보기: `update --dry-run`) → Reload |
-| `deploy` | 설치본만 HEAD로 갱신(보통 개발 세션이 함) | `… install.ps1 deploy` |
-| `rollback` | 새 버전에 문제가 있을 때 이전 버전으로 | `… install.ps1 rollback` → Reload |
-| `cleanup-legacy` | 옛 설치본·옛 승인 위치 정리. 목록을 보여 주고 `y`를 받은 뒤 지움 | `… install.ps1 cleanup-legacy` |
-| `setup` / `global` / `init` | 설치(2장) | — |
+| `doctor` | 뭔가 이상할 때 먼저. 읽기만 함 | `<설치> doctor` (`--json`) |
+| `update` | 운영 도구를 새 버전으로. 패키지 저장소를 pull(확인)하고 설치본을 갱신한 뒤 생성 파일을 다시 만듦. 사람이 고친 생성 파일은 덮지 않고 차이만 보여 줌 | `<설치> update` (미리 보기 `--dry-run`, pull 생략 `--no-pull`) → Reload |
+| `gen` | `.claude/ops`의 역할 원본·pm-ops 부록을 고친 뒤 역할 파일·스킬 다시 만들기 | `<설치> gen` |
+| `deploy` | 설치본만 패키지 저장소의 HEAD로 갱신. `--dev`는 작업 사본을 바로 연결(개발용) | `<설치> deploy` |
+| `rollback` | 새 버전에 문제가 있을 때 이전 버전으로 | `<설치> rollback` → Reload |
+| `export` / `import` / `restore` | 개인 상태 옮기기([NEW-PC.md](NEW-PC.md) 3장) | `<설치> export --out D:\move.zip` |
+| `global` / `setup` / `init` | 설치(2장) | — |
 
-세션 명령(pm이 주로 씀, 저장소 루트에서):
+공통 옵션: `--yes`(확인 없이 진행), `--project <폴더>`, `--skip-extension`, `--skip-extras`(함께 까는 도구 건너뜀), `--skip-install`(없는 도구를 설치하지 않고 알리기만).
+
+세션 명령(pm이 주로 씀, 프로젝트 루트에서 `.claude\skills\pm-ops\scripts\session.ps1`):
 
 | 명령 | 언제 | 예시 |
 |---|---|---|
-| `list` | 역할 세션 목록과 상태 | `.claude\skills\pm-ops\scripts\session.ps1 list` |
-| `health` | 대화 크기 확인(대화 15만 토큰 이상이면 교대 권장, `rotation.contextTokens`) | `… session.ps1 health` |
-| `start` | 역할 세션 띄우기(멈춘 세션은 이어 띄움. 대화가 교대 기준 이상이면 이어 띄우지 않고 `rotate`를 권함, `-Force`로 강행) | `… session.ps1 start WY-qa "P1 화면 검증"` |
-| `stop` | 쉬는 세션 멈추기(메모리 반납, 대화는 남음) | `… session.ps1 stop WY-qa` |
-| `rotate` | 대화가 길어진 세션을 새 세션으로 교대 | `… session.ps1 rotate WY-backend2 none` |
+| `list` | 역할 세션 목록과 상태 | `… session.ps1 list` |
+| `health` | 컨텍스트 확인(15만 토큰 이상이면 세션 교체 권장, `rotation.contextTokens`) | `… session.ps1 health` |
+| `start` | 역할 세션 시작(종료된 세션은 재시작. 컨텍스트가 세션 교체 기준 이상이면 재시작하지 않고 `rotate`를 권함, `-Force`로 강행) | `… session.ps1 start AB-qa "로그인 화면 검증"` |
+| `stop` | 쉬는 세션 멈추기(메모리 반납, 트랜스크립트는 남음) | `… session.ps1 stop AB-qa` |
+| `prep` | 세션 교체 준비: 진행 중인 것만 저장하라고 지시 | `… session.ps1 prep AB-backend1` |
+| `rotate` | 컨텍스트가 길어진 세션을 새 세션으로 교체 | `… session.ps1 rotate AB-backend1 none` |
 
 ---
 
@@ -187,26 +185,16 @@
 
 | 증상 | 원인 | 할 일 |
 |---|---|---|
-| 'Workspace not trusted'로 세션이 안 뜸 | 그 폴더를 Claude Code가 신뢰하지 않음 | 그 폴더 터미널에서 `claude` → Yes → `/exit`. VS Code 작성자 신뢰로는 안 됨 |
-| 카드가 안 뜸 | 다른 프로젝트 창을 보고 있음 / 확장이 아직 안 실림 / 훅 경로가 틀림 | 그 프로젝트 창인지 확인 → `Developer: Reload Window` → `doctor`에서 '훅 6종'·'확장' 확인 |
-| 권한 카드가 사라지고 세션이 '거부됨'을 받음 | 15분 안에 처리하지 않아 자동 거부 | 정상 동작. 필요하면 세션에 다시 하라고 지시(pm) |
+| 'Workspace not trusted'로 세션이 시작되지 않음 | 그 폴더를 Claude Code가 신뢰하지 않음 | 그 폴더 터미널에서 `claude` → Yes → `/exit`. VS Code 작성자 신뢰로는 안 됨 |
+| 카드가 안 뜸 | 다른 프로젝트 창을 보고 있음 / 확장이 아직 안 실림 / 훅 경로가 틀림 | 그 프로젝트 창인지 확인 → `Developer: Reload Window` → `doctor`에서 '훅'·'확장' 확인 |
+| 권한 요청 카드가 사라지고 세션이 '거부됨'을 받음 | 15분 안에 처리하지 않아 자동 거부 | 정상 동작. 필요하면 세션에 다시 하라고 지시(pm) |
 | '형식 오류' 카드 | 요청 파일에 필수 칸(무엇을·왜·누르면)이 빠짐 | 처리할 수 없음. 요청한 세션(카드에 이름이 있음)에 다시 올리라고 pm에 알림 |
-| WY Ops 아이콘·승인 센터가 안 뜸 | 확장이 설치본을 못 찾음 | `doctor` → '설치본'이 FAIL이면 `install.ps1 setup` → Reload. 그래도 안 되면 `install.ps1 rollback` → Reload |
-| 설치 명령이 오류 없이 바로 끝남 | (옛 버전) 경로에 한글이 있을 때 Node가 죽던 문제 | `update`로 새 버전을 받으면 고쳐져 있음. 사용자 이름이 한글인 PC도 지원 |
+| WY Ops 아이콘·승인 센터가 안 뜸 | 확장이 설치본을 못 찾음 | `doctor` → '설치본'이 FAIL이면 `<설치> setup` → Reload. 그래도 안 되면 `<설치> rollback` → Reload |
+| doctor '개발 연결 중' | `deploy --dev`로 작업 사본을 연결해 둠 | 개발 중이면 정상. 풀려면 `<설치> deploy` |
+| doctor '버전 고정' 주의 | 설치본 버전이 `wy-ops.json`의 `wyOpsVersion`과 다름 | 프로젝트가 정한 버전으로 맞추거나(`update`·`rollback`), 사용자가 `wyOpsVersion`을 고침 |
 | 공백·한글 경로 경고 | 홈·저장소 경로에 공백·한글 | 동작은 하지만 문제가 생기면 `doctor` 결과를 pm에 전달 |
 | 붙여 넣은 명령이 'unexpected token' | Bash 명령을 PowerShell에 붙여 넣음 | 3-4 참고. Git Bash에서 실행하거나 PowerShell 형태를 씀 |
-| 커밋이 'agent_type'으로 막힘 | 커밋 세션이 역할 없이 뜸(직접 들어갔다 나온 경우 등) | pm이 `session.ps1 rotate WY-commit none` |
-
-확장을 예전 방식으로 되돌려야 할 때(마지막 수단):
-1. 새 확장 제거: `code --uninstall-extension wy-ops.wy-ops`
-2. 옛 확장 다시 설치: 명령 팔레트 `Developer: Install Extension from Location…` → `%USERPROFILE%\.wy-tools\vscode-dashboard` 폴더 선택
-3. `settings.local.json`을 설치 전 백업(`.claude\settings.local.json.bak-<시각>`)으로 되돌림(훅이 옛 설치본을 다시 가리킴)
-   ```powershell
-   Copy-Item .claude\settings.local.json.bak-<시각> .claude\settings.local.json
-   ```
-4. `Developer: Reload Window`. 그 뒤 pm에 알려 원인을 찾게 합니다.
-
-`cleanup-legacy`로 옛 설치본(`.wy-tools\vscode-dashboard`)을 지운 뒤에는 이 방법을 쓸 수 없습니다. 그때는 `install.ps1 rollback`(이전 버전으로) → Reload를 씁니다.
+| 커밋이 'agent_type'으로 막힘 | 커밋 역할 세션이 역할 없이 시작함(직접 들어갔다 나온 경우 등) | pm이 `session.ps1 rotate AB-commit none` |
 
 ---
 
@@ -216,5 +204,6 @@
 - **설정 파일은 사람이 고친다.** `.claude/wy-ops.json`, `wy-ops.local.json`, `settings.local.json`은 세션이 고치지 못하게 막혀 있습니다. 바꿀 일이 있으면 할 일 카드로 오고, 사용자가 직접 고치거나 설치 명령을 실행합니다.
 - **커밋·푸시는 커밋 역할 세션만.** 다른 세션은 커밋을 요청만 합니다. 커밋·푸시도 매번 승인 카드를 거칩니다(자동 승인 없음).
 - **승인 파일은 아무도 손으로 고치지 않는다.** 승인 폴더(`~/.claude/wy-approvals/<프로젝트>/`)의 결정·사용 기록은 확장과 훅만 씁니다.
+- **비밀값은 저장소·묶음·카드에 넣지 않는다.** 비밀값 폴더(`secretsDir`)는 저장소 밖에 두고 손으로 옮깁니다.
 
-자세한 규칙은 저장소 `CLAUDE.md`의 '세션 역할'·'개발 총괄과 보고'·'커밋'·'세션 교대'를 봅니다.
+자세한 규칙은 프로젝트 `CLAUDE.md`의 '세션 역할'·'개발 총괄과 보고'·'커밋'·'세션 교체(rotate)'를 봅니다.

@@ -98,7 +98,7 @@ function loadStack(templatesDir, id, vars) {
   return JSON.parse(fillText(read(file), vars));
 }
 
-function init({ project, name, prefix, stack = null, verify = {}, roles = null, counts = {}, areas = {}, principles = true, templatesDir = path.join(PKG, 'templates'), version = null }) {
+function init({ project, name, prefix, stack = null, verify = {}, roles = null, counts = {}, areas = {}, principles = true, extrasOff = null, templatesDir = path.join(PKG, 'templates'), version = null }) {
   if (!project) throw new Error('project가 없습니다');
   if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(name || '')) throw new Error(`프로젝트 이름은 영문·숫자·._-로: ${name}`);
   if (!/^[A-Za-z0-9]{1,8}-$/.test(prefix || '')) throw new Error(`역할 접두사는 영문·숫자 1~8자 + '-'(예: AB-): ${prefix}`);
@@ -116,6 +116,9 @@ function init({ project, name, prefix, stack = null, verify = {}, roles = null, 
     planned.push({ file: '.claude/wy-ops.json', action: 'unmanaged', content: null });
   } else {
     ops = JSON.parse(fillText(read(path.join(templatesDir, 'wy-ops.json')), vars));
+    // 이 프로젝트가 쓰는 패키지 버전(doctor가 설치본과 비교). 바꿀 때는 사용자가 고친다
+    ops.wyOpsVersion = version || JSON.parse(read(path.join(PKG, 'package.json'))).version;
+    if (extrasOff) ops.extras = { off: extrasOff };
     ops.roles = expandRoles(JSON.parse(read(path.join(templatesDir, 'roles.json'))), { prefix, only: roles && roles.length ? roles : null, counts, areas });
     if (stack) {
       const st = loadStack(templatesDir, stack, vars);

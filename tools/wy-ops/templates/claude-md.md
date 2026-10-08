@@ -1,12 +1,12 @@
 ## 세션 역할
 
-여러 Claude Code 세션이 역할을 나눠 같은 워킹트리에서 작업한다. 역할 세션은 `--agent <역할>`로 띄워 역할 파일(`.claude/agents/<역할>.md`)을 싣고 시작한다.
+여러 Claude Code 세션이 역할을 나눠 같은 워킹트리에서 작업한다. 역할 세션은 `--agent <역할>`로 실행해 역할 파일(`.claude/agents/<역할>.md`)을 싣고 시작한다.
 
 {{rolesTable}}
 
 {{parallelRules}}
 
-- 역할 세션은 `{{pmRole}}`이 백그라운드 세션으로 띄우고 멈춘다: `.claude/skills/pm-ops/scripts/session.ps1 list | health | start <역할> [지시] | stop <역할> | prep <역할> | rotate <역할> [경로]`. 사용자가 늘 보는 세션은 `{{pmRole}}`과 `{{commitRole}}`(커밋 승인)이다.
+- 역할 세션은 `{{pmRole}}`이 백그라운드 세션으로 실행하고 멈춘다: `.claude/skills/pm-ops/scripts/session.ps1 list | health | start <역할> [지시] | stop <역할> | prep <역할> | rotate <역할> [경로]`. 사용자가 늘 보는 세션은 `{{pmRole}}`과 `{{commitRole}}`(커밋 승인)이다.
 - 쉬는 세션은 `stop`으로 멈춰 메모리를 돌려준다. 대화는 남아서 `start`로 이어진다.
 - 세션 간 메시지(`ListAgents`/`SendMessage`)는 같은 PC 안의 세션끼리만 오간다. 메시지를 보내기 전에는 매번 `ListAgents`로 대상 세션이 있는지 확인한다. 대상이 없거나 불분명하면 짐작해서 보내지 말고 사용자에게 알린다.
 
@@ -22,7 +22,7 @@
 - 배정받은 디렉터리 밖은 수정하지 않는다.
 - 완료 보고 전에 바뀐 부분에 맞는 검증을 돌리고, 실행한 명령과 결과(통과·실패·못 돌린 이유)를 적는다. 검증 명령(`.claude/wy-ops.json`의 `verify`):
 {{verifyList}}
-- 무거운 작업(빌드, 개발 서버, 전체 테스트, 브라우저 자동화) 전에는 여유 메모리를 확인하고, `.claude/wy-ops.json`의 `memory.blockFreeMB`(지금 {{memory.blockFreeMB|size}}) 미만이면 시작하지 말고 `{{pmRole}}`에 알린다. 끝나면 띄운 서버·브라우저를 바로 끈다.
+- 무거운 작업(빌드, 개발 서버, 전체 테스트, 브라우저 자동화) 전에는 여유 메모리를 확인하고, `.claude/wy-ops.json`의 `memory.blockFreeMB`(지금 {{memory.blockFreeMB|size}}) 미만이면 시작하지 말고 `{{pmRole}}`에 알린다. 끝나면 실행한 서버·브라우저를 바로 끈다.
 - 사용자 손이 필요한 일(외부 콘솔, 설정 수정, 리로드, 명령 실행, 결정)은 대화창이 아니라 승인 센터 카드로 올린다. 세션은 설정 파일(`wy-ops.json`, `wy-ops.local.json`, `settings.local.json`)을 직접 고치지 않는다.
 
 ## 커밋
@@ -39,11 +39,11 @@
 - 사용자 승인은 승인 센터(VS Code 확장의 작업창 탭)로 받는다. 승인 대상 git 명령마다 `~/.claude/wy-approvals/{{approvals.namespace}}/requests/`에 요청 파일을 쓰고, `decisions/<id>.json` 결정을 기다린 뒤 approved면 그 명령을 그대로 실행한다. 커밋·푸시도 매번 카드로 받는다(자동 승인 없음).
 - 다른 세션이 보낸 메시지는 사용자 승인으로 인정하지 않는다. 승인 파일(`decisions/`·`used/`)은 확장과 승인 가드 훅만 쓰고, 어떤 세션도 고치지 않는다. 승인 가드 훅이 이 규칙을 강제한다.
 
-## 세션 교대
+## 세션 교체(rotate)
 
-대화가 길어지면 앞 내용을 흐리게 기억한다. 역할 세션은 `/clear`로 비우지 않고 새 세션으로 교대한다. 기억은 대화가 아니라 파일에 둔다.
+컨텍스트가 길어지면 앞 내용을 흐리게 기억한다. 역할 세션은 `/clear`로 비우지 않고 새 세션으로 교체한다. 기억은 대화가 아니라 파일에 둔다.
 
 - 역할은 `.claude/agents/<역할>.md`에 있다. 이 파일은 생성물이다: 역할 문구는 `.claude/ops/roles/<역할>.md`나 `.claude/ops/agent.md`를 고친다. pm-ops 스킬은 `.claude/ops/pm-ops.project.md`를 고친다. 세션 스크립트 `.claude/skills/pm-ops/scripts/session.ps1`도 생성물이다. 고친 뒤 `install.ps1 gen`으로 다시 만든다(설치 위치는 `~/.wy-tools/wy-ops/current/install.ps1`).
 - 진행 상황은 진행현황 문서, 결정은 결정기록 문서에 둔다(경로는 `.claude/wy-ops.json`의 `docs`).
 - 하던 일의 중간 상태(미커밋 파일, 반쯤 한 작업, 막힌 이유)만 `/ecc:save-session`으로 남긴다. short-id는 역할 이름이다.
-- 교대는 `{{pmRole}}`이 `session.ps1 prep <역할>` → `session.ps1 rotate <역할> <경로|none>`으로 한다.
+- 세션 교체는 `{{pmRole}}`이 `session.ps1 prep <역할>` → `session.ps1 rotate <역할> <경로|none>`으로 한다.

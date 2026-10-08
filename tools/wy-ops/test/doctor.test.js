@@ -28,6 +28,8 @@ const json = (p, v) => write(p, JSON.stringify(v, null, 2));
 const HEAD = 'abc1234';
 
 // 모두 통과하는 PC 하나를 만든다
+const NON_PLUGIN = require('../lib/extras').load().filter((x) => x.kind !== 'plugin').map((x) => x.id);
+
 function makePc(name, { home: homeName = 'home' } = {}) {
   const root = path.join(base, name);
   const home = path.join(root, homeName);
@@ -43,7 +45,8 @@ function makePc(name, { home: homeName = 'home' } = {}) {
     hooks[t.event].push({ ...(t.matcher ? { matcher: t.matcher } : {}), hooks: [{ type: 'command', command: `node "${path.join(hooksDir, t.script).replace(/\\/g, '/')}"`, timeout: t.timeout }] });
   }
   json(settingsFile, { permissions: { deny: template.deny, allow: ['WebSearch'] }, hooks });
-  json(path.join(repo, '.claude', 'wy-ops.json'), { project: 'p', pmRole: 'X-pm', commitRole: 'X-commit', roles: [{ name: 'X-pm' }, { name: 'X-commit', agent: true }], approvals: { namespace: 'p' } });
+  // 플러그인 밖의 함께 까는 도구는 기본 시험에서 꺼 둔다(따로 시험)
+  json(path.join(repo, '.claude', 'wy-ops.json'), { project: 'p', pmRole: 'X-pm', commitRole: 'X-commit', roles: [{ name: 'X-pm' }, { name: 'X-commit', agent: true }], approvals: { namespace: 'p' }, extras: { off: NON_PLUGIN } });
   write(path.join(repo, '.claude', 'agents', 'X-commit.md'), '# X-commit\n경로는 ~/.claude/wy-approvals\n');
   write(path.join(repo, '.gitignore'), ['node_modules', '.claude/settings.local.json', '.claude/wy-ops.local.json', '.claude/*.bak-*'].join('\n') + '\n');
   const approvalsRoot = path.join(home, '.claude', 'wy-approvals', 'p');
@@ -76,6 +79,30 @@ function makePc(name, { home: homeName = 'home' } = {}) {
   };
   const opts = { repoRoot: repo, home, toolsDir, approvalsRoot, settingsFile, run };
   return { root, home, repo, toolsDir, hooksDir, settingsFile, approvalsRoot, stubDir, state, opts };
+}
+
+// 함께 까는 도구: 꺼짐은 실패가 아님, 필수가 없으면 실패, 선택이 없으면 주의, 끈 플러그인은 '꺼짐'
+function extrasCases() {
+  const pc = makePc('extras');
+  const cfg = path.join(pc.repo, '.claude', 'wy-ops.json');
+  const ops0 = JSON.parse(fs.readFileSync(cfg, 'utf8'));
+  let r = byId(doctor.checkAll(pc.opts)).extras;
+  assert.ok(r.level === 'ok' && r.detail.includes('꺼짐'), JSON.stringify(r));
+  // qa 역할이 있으면 agent-browser는 필수: 없으면 실패
+  json(cfg, { ...ops0, roles: [...ops0.roles, { name: 'X-qa', agent: true, group: 'qa' }], extras: { off: NON_PLUGIN.filter((id) => !/^agent-browser/.test(id)) } });
+  r = byId(doctor.checkAll(pc.opts)).extras;
+  assert.ok(r.level === 'fail' && r.detail.includes('agent-browser'), JSON.stringify(r));
+  // 역할 필수가 아니면(선택) 없을 때 주의
+  json(cfg, { ...ops0, extras: { off: NON_PLUGIN.filter((id) => !/^agent-browser/.test(id)) } });
+  assert.strictEqual(byId(doctor.checkAll(pc.opts)).extras.level, 'warn', '선택 항목 없음은 주의');
+  // 끈 선택 플러그인은 '꺼짐'(실패 아님)
+  json(cfg, { ...ops0, extras: { off: [...NON_PLUGIN, 'claude-mem'] } });
+  pc.state.plugins = pc.state.plugins.filter((p) => p.id !== 'claude-mem@thedotmack');
+  r = byId(doctor.checkAll(pc.opts)).plugins;
+  assert.ok(r.level === 'ok' && r.detail.includes('claude-mem@thedotmack 꺼짐(설정)'), JSON.stringify(r));
+  // 켜 둔(기본) 플러그인이 없으면 실패
+  json(cfg, ops0);
+  assert.strictEqual(byId(doctor.checkAll(pc.opts)).plugins.level, 'fail', '켜진 플러그인 없음은 실패');
 }
 
 const byId = (results) => Object.fromEntries(results.map((r) => [r.id, r]));
@@ -125,7 +152,7 @@ try {
     assert.ok(h.detail.includes('wy-session-start.js: 파일 없음'), '파일 없음');
     assert.ok(h.detail.includes('current 밖'), '옛 경로');
     assert.ok(h.detail.includes('PermissionDenied wy-permission.js: 없음'), '설정에 없음');
-    assert.ok(h.fix.includes('install.ps1 setup'), '고치기');
+    assert.ok(h.fix.includes('install.ps1" setup'), '고치기');
   }
 
   // 3. deny 줄 빠짐, settings 깨짐
@@ -146,7 +173,31 @@ try {
     json(path.join(pc.toolsDir, 'current', 'deployed.json'), { version: pkgVersion || '0.1.0', commit: 'zzz9999', stubHash: 'h1' });
     const r = byId(doctor.checkAll(pc.opts)).install;
     assert.strictEqual(r.level, 'fail');
-    assert.ok(r.detail.includes('HEAD abc1234') && r.fix.endsWith('install.ps1 deploy'), '커밋 다름');
+    assert.ok(r.detail.includes('HEAD abc1234') && r.fix.endsWith('install.ps1" deploy'), '커밋 다름');
+    // 패키지 저장소 clone에서 설치: 그 clone의 HEAD와 비교
+    const clone = path.join(pc.root, 'pkgclone');
+    const dep = path.join(pc.toolsDir, 'current', 'deployed.json');
+    json(dep, { version: '0.7.0', commit: 'aaa1111', stubHash: 'h1', source: { kind: 'head', repo: clone, rel: '' } });
+    const runHead = (h) => (cmd, args) => (cmd === 'git' && args[0] === '-C' && args[1] === clone ? (h ? { status: 0, stdout: `${h}\n` } : { status: 128, stdout: '' }) : pc.opts.run(cmd, args));
+    let s = byId(doctor.checkAll({ ...pc.opts, run: runHead('aaa1111') })).install;
+    assert.ok(s.level === 'ok' && s.detail.includes('pkgclone'), JSON.stringify(s));
+    s = byId(doctor.checkAll({ ...pc.opts, run: runHead('bbb2222') })).install;
+    assert.ok(s.level === 'fail' && s.detail.includes('bbb2222'), 'clone이 앞서면(pull 뒤 deploy 안 함) 실패');
+    assert.strictEqual(byId(doctor.checkAll({ ...pc.opts, run: runHead(null) })).install.level, 'warn', '원본을 못 읽으면 주의');
+    // 개발 연결 중이면 주의
+    json(dep, { version: '0.7.2', commit: 'dev', dev: true, stubHash: 'h1', source: { kind: 'dev', repo: clone, rel: '' } });
+    s = byId(doctor.checkAll(pc.opts)).install;
+    assert.ok(s.level === 'warn' && s.detail.includes('개발 연결 중'), JSON.stringify(s));
+    // 버전 고정: 프로젝트 wyOpsVersion과 설치본 버전
+    const opsFile = path.join(pc.repo, '.claude', 'wy-ops.json');
+    const ops0 = JSON.parse(fs.readFileSync(opsFile, 'utf8'));
+    assert.strictEqual(byId(doctor.checkAll(pc.opts))['version-pin'].level, 'ok', '고정 없으면 통과');
+    json(opsFile, { ...ops0, wyOpsVersion: '0.7.2' });
+    assert.strictEqual(byId(doctor.checkAll(pc.opts))['version-pin'].level, 'ok', '같으면 통과');
+    json(opsFile, { ...ops0, wyOpsVersion: '0.7.0' });
+    s = byId(doctor.checkAll(pc.opts))['version-pin'];
+    assert.ok(s.level === 'warn' && s.detail.includes('0.7.0') && s.detail.includes('0.7.2'), JSON.stringify(s));
+    json(opsFile, ops0);
     rmTree(path.join(pc.toolsDir, 'current'));
     assert.ok(byId(doctor.checkAll(pc.opts)).install.detail.includes('없음'), '설치본 없음');
   }
@@ -169,7 +220,10 @@ try {
   {
     const pc = makePc('plugins');
     pc.state.plugins = pc.state.plugins.filter((p) => !p.id.startsWith('prompts.chat'));
-    assert.strictEqual(byId(doctor.checkAll(pc.opts)).plugins.level, 'ok', '선택은 없어도 통과');
+    const pcfg = path.join(pc.repo, '.claude', 'wy-ops.json');
+    const pops = JSON.parse(fs.readFileSync(pcfg, 'utf8'));
+    json(pcfg, { ...pops, extras: { off: [...pops.extras.off, 'prompts.chat'] } });
+    assert.strictEqual(byId(doctor.checkAll(pc.opts)).plugins.level, 'ok', '끈 선택 플러그인은 없어도 통과');
     const ecc = pc.state.plugins.find((p) => p.id === 'ecc@ecc');
     for (const newer of ['9.9.9', '2.2.10', '2.3.0']) {
       ecc.version = newer;
@@ -327,6 +381,7 @@ try {
     assert.ok(/실패 \d+ · 주의 \d+ · 통과 \d+/.test(text), '요약 줄');
   }
 
+  extrasCases();
   console.log('doctor 검사 통과');
 } finally {
   rmTree(base);
