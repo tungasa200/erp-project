@@ -1,9 +1,10 @@
 openapi: 3.1.0
 info:
   title: worklog-service API
-  version: 0.4.0
+  version: 0.5.0
   description: |
     구현 전 합의용 계약. P0 범위(GET /api/worklog/me)는 구현 완료, P1-01~03 범위는 2026-10-05 확정(구현 전).
+    P3 업무일지(logs)·기간 기록 내보내기(records/export)는 2026-10-08 확정(사용자 카드 20261008-1130·1131 추천안). 파일 생성 라이브러리는 P3-01 뒤 정한다.
     P1-05·06 일정 범위(schedules)는 2026-10-06 확정.
     P2-04 자주 하는 업무 제안(GET /api/worklog/tasks/frequent)은 2026-10-07 확정.
     P2-01 업무 기록(records)은 2026-10-07 확정.
@@ -45,6 +46,22 @@ tags:
     description: 업무 기록 — P2-01 (REC-01, SCR-REC-01), 확인 대기 생성·모두 했어요는 P2-03 (REC-03, SCR-HOME-02)
   - name: timer
     description: '타이머 — P2-06 (TIME-03·10, SCR-COM-06). 실행 중 타이머는 endAt 없는 업무 기록이다'
+  - name: logs
+    description: |
+      업무일지 — P3. 도메인·확정·이력 P3-02 (LOG-05·06, SCR-LOG-04), 일간 생성기 P3-03 (LOG-01~03·15, SCR-LOG-02),
+      하루 마감·이월 P3-05 (LOG-13·14, SCR-LOG-03), 주간·월간 P3-07 (LOG-07·08·16), 목록 P3-08 (LOG-09, SCR-LOG-01),
+      홈 미리보기·이번 주 현황 P3-04 (LOG-12, SCR-HOME-01 ⑤⑦ — 이 API를 그대로 씀), 내보내기 P3-10 (EXP-01~04, AUTH-08, SCR-LOG-05·06).
+
+      공통 규칙:
+      - 일지 하나 = (사용자, 종류, 기간 시작일). 일간은 그날, 주간은 프로필 주 시작 요일(week_start)의 날, 월간은 그달 1일.
+        기간 시작일이 맞지 않으면 400(errors[].field=periodStart, code=INVALID_FORMAT).
+      - 날짜는 기록의 workDate(저장 시점 시간대, D-40)와 사용자의 현재 시간대 기준 오늘로 판단한다.
+      - 근무일(D-37): 업무 요일(work_days) 중 공휴일(shared/holidays/KR.json, D-74)이 아닌 날.
+      - 초안의 실적은 "자동" 상태로 시작한다: 저장하지 않고 읽을 때마다 원본(확정 기록·완료 업무)에서 만든다(LOG-12 실시간 미리보기).
+        사용자가 실적을 한 번 고치면 그때부터 저장된 값을 쓰고, "원본에서 다시 채우기"로 자동 상태로 되돌린다.
+        진행 현황 수치·소요시간 표는 초안에서는 늘 원본으로 계산한다.
+      - 확정하면 머리(작성자)·실적·수치·계획·이슈·소요시간 전체를 스냅샷으로 저장하고, 이후 원본이 바뀌어도 바뀌지 않는다(LOG-05).
+      - 확정한 일지는 PATCH·다시 채우기가 409(code=LOG_CONFIRMED)다. 확정 해제 후 고친다(LOG-06).
 paths:
   /api/worklog/me:
     get:
@@ -1221,6 +1238,426 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '503':
           $ref: '#/components/responses/ProfileUnavailable'
+  /api/worklog/logs:
+    get:
+      tags: [logs]
+      operationId: listLogPeriods
+      summary: '일지 목록 — 기간별 상태 (P3-08 LOG-09 SCR-LOG-01, 홈 이번 주 현황 SCR-HOME-01 ⑦)'
+      description: |
+        [from, to] 안의 기간마다 한 줄을 준다. 일지가 없는 기간도 준다(미작성·기록 없음 표시용).
+        - type=DAILY: 날마다. 홈 ⑦은 이번 주 from~to로 부르고, 오늘 뒤의 날은 화면이 "예정"으로 그린다.
+        - type=WEEKLY: from~to와 겹치는 주(주 시작 요일 기준)마다. type=MONTHLY: 겹치는 달마다.
+        상태(status):
+        - CONFIRMED / DRAFT: 저장된 일지의 상태.
+        - NOT_WRITTEN(미작성): 일지는 없고 원본이 있다. 원본 = 보관하지 않은 확정·확인 대기 기록, 또는 그 기간에 완료한 업무.
+        - NO_RECORDS(기록 없음): 일지도 원본도 없다(미래 날짜 포함).
+        unconfirmedDays는 [from, min(to, 오늘)] 중 원본이 있는데 일간 일지가 확정이 아닌 날 수다(SCR-LOG-01 ⑤ 상단 띠).
+        기간은 최대 400일. 정렬: periodStart 오름차순.
+      parameters:
+        - $ref: '#/components/parameters/LogTypeQuery'
+        - name: from
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: 기간별 상태
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, unconfirmedDays]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/LogPeriod'
+                  unconfirmedDays:
+                    type: integer
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          $ref: '#/components/responses/ProfileUnavailable'
+  /api/worklog/logs/{type}/{periodStart}:
+    get:
+      tags: [logs]
+      operationId: getLog
+      summary: '일지 보기 — 없으면 저장하지 않은 미리보기 (P3-03·07 SCR-LOG-02, 홈 오늘 일지 카드 LOG-12 SCR-HOME-01 ⑤)'
+      description: |
+        저장된 일지가 있으면 그 일지를, 없으면 원본으로 만든 미리보기(id=null, status=NOT_WRITTEN 또는 NO_RECORDS, version=0)를 준다.
+        미리보기는 저장하지 않는다(홈 카드가 기록할 때마다 다시 불러도 행이 생기지 않는다).
+        초안은 실적이 자동 상태면 읽을 때마다 원본으로 다시 만든다. 확정 일지는 스냅샷을 준다.
+        일간 생성 규칙(LOG-01·02·15, P3-03):
+        - 실적: 그날 workDate의 확정 기록(보관 제외, 실행 중 타이머 제외)을 정렬 순서대로 한 줄씩(source=RECORD).
+          그날(사용자 시간대) 완료한 업무 중 그날 기록이 없는 업무는 업무 제목으로 한 줄(source=TASK, outcome=DONE).
+        - 확인 대기 기록은 실적에서 빼고 metrics.pendingCount로만 센다(SCR-LOG-02 states).
+        - 소요시간 표(time): 시간 기록 옵션이 켜져 있을 때만, GET /records/time-summary와 같은 계산. 꺼져 있으면 null.
+        - 계획(plans)은 비어서 시작하고, 후보(planCandidates)를 칩으로 준다: 진행 중 업무, 다음 계획 기간 끝까지 마감인 미완료 업무,
+          마감이 지난 미완료 업무(보관·보류 제외, 마감순 최대 20개).
+        - 계획 제목: 일간 "다음 근무일 계획"(다음 근무일이 다음 주면 "다음 주 계획", LOG-14), 주간 "다음 주 계획", 월간 "다음 달 계획".
+        주간·월간 생성 규칙(LOG-07·08, P3-07): 기간의 날마다 확정된 일간 일지가 있으면 그 스냅샷 실적을, 없으면 그날 원본을 쓰고
+        days[]에 날마다 출처를 표시한다(미확정 일 = source RECORDS). 실적은 업무별로 묶고(업무 없는 기록은 한 줄씩), 월간은 projects[]에
+        프로젝트별 완료 업무 수·기록 수·(옵션) 소요시간을 넣는다.
+      parameters:
+        - $ref: '#/components/parameters/LogTypePath'
+        - $ref: '#/components/parameters/PeriodStart'
+      responses:
+        '200':
+          description: 일지 또는 미리보기
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkLog'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          $ref: '#/components/responses/ProfileUnavailable'
+    post:
+      tags: [logs]
+      operationId: createLog
+      summary: '초안 만들기 (SCR-LOG-01 미작성 날짜 클릭, LOG-16 주간·월간 제안 수락)'
+      description: |
+        그 기간의 초안을 만든다(실적 자동 상태, 계획·이슈 비움). 이미 있으면 만들지 않고 있는 일지를 200으로 준다(멱등, UNIQUE).
+        기간 시작일이 오늘(사용자 시간대)보다 뒤면 400(periodStart, OUT_OF_RANGE). 원본이 없어도 만들 수 있다(LOG-16 "직접 만들기").
+      parameters:
+        - $ref: '#/components/parameters/LogTypePath'
+        - $ref: '#/components/parameters/PeriodStart'
+      responses:
+        '200':
+          description: 이미 있던 일지
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkLog'
+        '201':
+          description: 만듦
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkLog'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          $ref: '#/components/responses/ProfileUnavailable'
+  /api/worklog/logs/{logId}:
+    patch:
+      tags: [logs]
+      operationId: patchLog
+      summary: '초안 고치기 — 자동 저장 (LOG-03·04, SCR-LOG-02)'
+      description: |
+        보낸 칸만 바꾼다. achievements를 보내면 실적이 자동 상태에서 벗어나 보낸 목록이 그대로 저장된다
+        (행 추가·삭제·순서 변경은 목록 전체를 보낸다, 원본 기록 끌어오기는 recordIds를 단 행을 넣어 보낸다).
+        plans·issues도 같다. 확정한 일지는 409(code=LOG_CONFIRMED).
+      parameters:
+        - $ref: '#/components/parameters/LogId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkLogPatch'
+      responses:
+        '200':
+          description: 고친 일지
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkLog'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/LogConflict'
+  /api/worklog/logs/{logId}/refill:
+    post:
+      tags: [logs]
+      operationId: refillLog
+      summary: '원본에서 다시 채우기 (LOG-04, SCR-LOG-02 — 화면이 경고창을 먼저 띄운다)'
+      description: |
+        실적을 자동 상태로 되돌린다(직접 고친 실적은 사라진다). 계획·이슈는 원본에서 오지 않으므로 그대로 둔다.
+      parameters:
+        - $ref: '#/components/parameters/LogId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VersionOnly'
+      responses:
+        '200':
+          description: 다시 채운 일지
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkLog'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/LogConflict'
+  /api/worklog/logs/{logId}/confirm:
+    post:
+      tags: [logs]
+      operationId: confirmLog
+      summary: '확정 — 스냅샷 저장 (LOG-05, P3-02)'
+      description: |
+        지금 보이는 내용 전체(머리의 작성자 이름·소속·직책 포함)를 스냅샷으로 저장하고 status=CONFIRMED, 변경 이력에 확정 한 줄(revision)을 더한다.
+        작성자 프로필이 비어 있어도 확정한다(SCR-ONB-01 "나중에" — 빈칸으로 남김). 이미 확정이면 409(LOG_CONFIRMED).
+      parameters:
+        - $ref: '#/components/parameters/LogId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VersionOnly'
+      responses:
+        '200':
+          description: 확정한 일지
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkLog'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/LogConflict'
+        '503':
+          $ref: '#/components/responses/ProfileUnavailable'
+  /api/worklog/logs/{logId}/unconfirm:
+    post:
+      tags: [logs]
+      operationId: unconfirmLog
+      summary: '확정 해제 (LOG-06, SCR-LOG-04 — 화면이 확인창을 먼저 띄운다)'
+      description: |
+        status=DRAFT로 되돌리고 마지막 확정 이력에 해제 시각을 적는다. 내용은 확정본 그대로 초안이 된다(실적은 자동 상태가 아니다).
+        원본으로 다시 만들려면 다시 채우기를 쓴다. 이미 초안이면 409(code=LOG_NOT_CONFIRMED).
+      parameters:
+        - $ref: '#/components/parameters/LogId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VersionOnly'
+      responses:
+        '200':
+          description: 초안으로 돌린 일지
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkLog'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/LogConflict'
+  /api/worklog/logs/{logId}/revisions:
+    get:
+      tags: [logs]
+      operationId: listLogRevisions
+      summary: '변경 이력 — 확정·해제 일시 (LOG-06, SCR-LOG-04 ②)'
+      description: 확정할 때마다 한 줄. 최근 것부터. 초안 편집(자동 저장)은 이력에 남기지 않는다.
+      parameters:
+        - $ref: '#/components/parameters/LogId'
+      responses:
+        '200':
+          description: 이력
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/LogRevision'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/worklog/logs/{logId}/revisions/{revisionNo}:
+    get:
+      tags: [logs]
+      operationId: getLogRevision
+      summary: '확정본 열람 (SCR-LOG-04 ②)'
+      parameters:
+        - $ref: '#/components/parameters/LogId'
+        - name: revisionNo
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200':
+          description: 그때의 확정본
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LogRevisionDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/worklog/logs/daily/{date}/close:
+    get:
+      tags: [logs]
+      operationId: getDailyClose
+      summary: '하루 마감 준비 — 2단계 이월 후보와 마감 뒤 제안 (LOG-13·14·16, SCR-LOG-03)'
+      description: |
+        1단계(확인 대기·빈 시간)는 기존 GET /records/pending·/records/gaps를 쓴다. pendingCount가 0이면 화면은 1단계를 건너뛴다.
+        이월 후보(LOG-14): 보관하지 않은 TODO·IN_PROGRESS 업무 중 ① 그날 기록이 있거나 ② 마감일이 다음 근무일 이하이거나(지난 마감 포함)
+        ③ IN_PROGRESS인 업무. 기본 전체 선택(selected=true), 마감순(없으면 뒤) → 제목.
+        nextWorkday는 date 다음 날부터 찾은 첫 근무일(비근무일 마감도 다음 근무일, LOG-13).
+        planScope: date가 주 마지막 근무일이면 NEXT_WEEK("다음 주 계획"), 아니면 NEXT_WORKDAY.
+        suggestions: 마감 뒤 이어서 제안할 주간 → 월간(LOG-16). date가 근무일이고 그 주(월)의 마지막 근무일일 때만.
+      parameters:
+        - name: date
+          in: path
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: 마감 준비 정보
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DailyClosePlan'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          $ref: '#/components/responses/ProfileUnavailable'
+    post:
+      tags: [logs]
+      operationId: closeDay
+      summary: '하루 마감 — 이월·이슈를 넣고 일간 일지 확정 (LOG-13·14, SCR-LOG-03 3단계 확정)'
+      description: |
+        한 트랜잭션으로: 그날 일간 초안이 없으면 만들고 → 선택한 업무를 계획(plans)에 더하고(이미 같은 업무가 있으면 그대로) →
+        issue가 비어 있지 않으면 이슈 칸 끝에 한 줄로 덧붙이고 → 확정한다(스냅샷·이력).
+        업무 자체(상태·마감일)는 바꾸지 않는다(이월 = 계획에 넣기). version은 일지가 없으면 0.
+        이미 확정이면 409(LOG_CONFIRMED, 화면 "확정 해제 후 다시 마감할 수 있어요"). 오늘보다 뒤 날짜는 400(date, OUT_OF_RANGE).
+        중간에 닫으면 화면은 이 요청을 보내지 않는다(1단계에서 처리한 기록은 이미 저장됨, 일지는 초안 또는 미작성 그대로).
+      parameters:
+        - name: date
+          in: path
+          required: true
+          schema:
+            type: string
+            format: date
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DailyCloseRequest'
+      responses:
+        '200':
+          description: 확정한 일간 일지와 이어서 할 제안
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DailyCloseResult'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/LogConflict'
+        '503':
+          $ref: '#/components/responses/ProfileUnavailable'
+  /api/worklog/logs/{type}/{periodStart}/export:
+    get:
+      tags: [logs]
+      operationId: exportLog
+      summary: '일지 파일 내보내기 — PDF·Word·Excel (EXP-02~04, P3-10, SCR-LOG-05)'
+      description: |
+        확정 일지는 스냅샷으로, 초안·미리보기는 지금 내용으로 만든다(초안 경고는 화면 몫, 서버는 허용).
+        서식(P3-09, docs/업무일지_서식명세.md)은 표준 업무일지: 결재란(담당·팀장·부서장, 빈칸)을 넣는다.
+        XLSX는 시트 1 일지, 시트 2 "기록"(그 일지 기간의 원본 기록 — 열·규칙은 GET /records/export와 같다). 한글 폰트를 넣는다(NFR-11). 파일 생성 라이브러리는 P3-01 검증 뒤 정한다.
+        이메일 인증(AUTH-08): 인증하지 않은 사용자는 403(code=EMAIL_NOT_VERIFIED) — 화면은 SCR-LOG-06을 띄우고 인증 뒤 같은 요청을 다시 보낸다.
+        인증 확인: worklog가 기억한 인증이 없으면 사용자 토큰으로 identity GET /api/users/me의 emailVerified를 본다
+        (프로필 즉시 조회와 같은 경로, 인증은 되돌아가지 않아 true만 기억). 확인하지 못하면 503(code=IDENTITY_UNAVAILABLE).
+        파일명: 업무일지_{기간 시작일 YYYY-MM-DD}_{이름}.{pdf|docx|xlsx}. 이름의 / \ : * ? " < > |와 제어 문자는 _로 바꾸고,
+        이름이 비어 있으면 "_{이름}"을 뺀다. 헤더(RFC 6266):
+        Content-Disposition: attachment; filename="{ASCII 대체 이름}"; filename*=UTF-8''{퍼센트 인코딩한 파일명}
+        (ASCII 대체 이름은 비ASCII 글자를 뺀 worklog_{기간 시작일}.{확장자}).
+        텍스트 복사(EXP-01)는 이 API를 쓰지 않는다: 화면이 WorkLog를 서식 있는 텍스트로 만들어 복사하고(결재란 없음, LOG-02),
+        인증 요구는 화면 안내다(AUTH-08).
+      parameters:
+        - $ref: '#/components/parameters/LogTypePath'
+        - $ref: '#/components/parameters/PeriodStart'
+        - $ref: '#/components/parameters/ExportFormat'
+      responses:
+        '200':
+          $ref: '#/components/responses/ExportFile'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/EmailNotVerified'
+        '503':
+          $ref: '#/components/responses/IdentityUnavailable'
+  /api/worklog/records/export:
+    get:
+      tags: [records]
+      operationId: exportRecords
+      summary: '기간 업무 기록 Excel (EXP-03, SCR-LOG-05 ② "기간 업무 기록")'
+      description: |
+        workDate가 [from, to](최대 400일)인 보관하지 않은 기록(세 상태 모두, 상태 열 포함)을 한 행씩. 실행 중 타이머는 뺀다.
+        열: 날짜, 내용, 업무, 프로젝트, 상태, 결과, 결과 칩, 진행률, 시작·종료·소요시간(분, 값이 있으면 — 옵션과 관계없이).
+        Excel만. 이메일 인증·헤더 규칙은 exportLog와 같고, 파일명은 업무기록_{from}_{to}_{이름}.xlsx.
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          $ref: '#/components/responses/ExportFile'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/EmailNotVerified'
+        '503':
+          $ref: '#/components/responses/IdentityUnavailable'
 
 components:
   securitySchemes:
@@ -1272,6 +1709,42 @@ components:
       schema:
         type: string
         format: uuid
+    LogId:
+      name: logId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    LogTypePath:
+      name: type
+      in: path
+      required: true
+      description: 경로에서는 소문자(daily·weekly·monthly) — 화면 경로 /logs/daily/:date와 맞춘다
+      schema:
+        type: string
+        enum: [daily, weekly, monthly]
+    LogTypeQuery:
+      name: type
+      in: query
+      required: true
+      schema:
+        $ref: '#/components/schemas/LogType'
+    PeriodStart:
+      name: periodStart
+      in: path
+      required: true
+      description: 기간 시작일. 주간은 주 시작 요일의 날, 월간은 1일 (화면 경로 /logs/monthly/:yyyy-mm은 화면이 1일로 바꾼다)
+      schema:
+        type: string
+        format: date
+    ExportFormat:
+      name: format
+      in: query
+      required: true
+      schema:
+        type: string
+        enum: [PDF, DOCX, XLSX]
   responses:
     Unauthorized:
       description: |
@@ -1315,6 +1788,47 @@ components:
         application/problem+json:
           schema:
             $ref: '#/components/schemas/Problem'
+    LogConflict:
+      description: |
+        일지 상태 충돌. code: VERSION_CONFLICT(다른 곳에서 먼저 고침 — 화면은 충돌 띠와 새로 불러오기·내 수정 복사, SCR-LOG-02),
+        LOG_CONFIRMED(확정한 일지는 고칠 수 없음, 확정 해제 후), LOG_NOT_CONFIRMED(이미 초안).
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    EmailNotVerified:
+      description: 이메일 인증 전 (code=EMAIL_NOT_VERIFIED, AUTH-08). 화면은 SCR-LOG-06으로 인증을 받고 같은 요청을 다시 보낸다.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    IdentityUnavailable:
+      description: identity에서 인증 여부를 확인하지 못함 (code=IDENTITY_UNAVAILABLE). 잠시 후 재시도.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    ExportFile:
+      description: 파일 (Content-Disposition attachment, RFC 6266 — filename과 filename*=UTF-8'' 둘 다)
+      headers:
+        Content-Disposition:
+          required: true
+          schema:
+            type: string
+          example: attachment; filename="worklog_2026-10-07.docx"; filename*=UTF-8''%EC%97%85%EB%AC%B4%EC%9D%BC%EC%A7%80_2026-10-07_%ED%99%8D%EA%B8%B8%EB%8F%99.docx
+      content:
+        application/pdf:
+          schema:
+            type: string
+            format: binary
+        application/vnd.openxmlformats-officedocument.wordprocessingml.document:
+          schema:
+            type: string
+            format: binary
+        application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+          schema:
+            type: string
+            format: binary
   schemas:
     WorklogMe:
       type: object
@@ -2266,6 +2780,444 @@ components:
             - $ref: '#/components/schemas/FrequentTask'
             - type: 'null'
 
+    LogType:
+      type: string
+      enum: [DAILY, WEEKLY, MONTHLY]
+    LogStatus:
+      type: string
+      description: NO_RECORDS 기록 없음 / NOT_WRITTEN 미작성 / DRAFT 초안 / CONFIRMED 확정 (LOG-09)
+      enum: [NO_RECORDS, NOT_WRITTEN, DRAFT, CONFIRMED]
+    LogPeriod:
+      type: object
+      description: 일지 목록 한 줄 (SCR-LOG-01, SCR-HOME-01 ⑦)
+      required: [type, periodStart, periodEnd, status, logId]
+      properties:
+        type:
+          $ref: '#/components/schemas/LogType'
+        periodStart:
+          type: string
+          format: date
+        periodEnd:
+          type: string
+          format: date
+          description: 양끝 포함
+        status:
+          $ref: '#/components/schemas/LogStatus'
+        logId:
+          type: [string, 'null']
+          format: uuid
+        workday:
+          type: boolean
+          description: DAILY만. 근무일인지 (D-37). 휴일 = false
+        holiday:
+          type: [string, 'null']
+          description: DAILY만. 공휴일 이름 (D-74), 아니면 null
+        days:
+          type: object
+          description: WEEKLY·MONTHLY만. "확정 4/5일" 표시용 (SCR-LOG-01 ③)
+          required: [workdays, confirmed]
+          properties:
+            workdays:
+              type: integer
+              description: 기간 안 근무일 수
+            confirmed:
+              type: integer
+              description: 기간 안 일간 일지가 확정인 날 수 (비근무일 확정 포함)
+    WorkLog:
+      type: object
+      description: 일지 (SCR-LOG-02). id=null이면 저장하지 않은 미리보기다.
+      required: [id, type, periodStart, periodEnd, status, version, confirmedAt, sourceChangedAfterConfirm, content, planCandidates]
+      properties:
+        id:
+          type: [string, 'null']
+          format: uuid
+        type:
+          $ref: '#/components/schemas/LogType'
+        periodStart:
+          type: string
+          format: date
+        periodEnd:
+          type: string
+          format: date
+        status:
+          $ref: '#/components/schemas/LogStatus'
+        version:
+          type: integer
+          format: int64
+          description: 미리보기는 0
+        confirmedAt:
+          type: [string, 'null']
+          format: date-time
+        sourceChangedAfterConfirm:
+          type: boolean
+          description: 확정 뒤 그 기간 원본(기록·업무)이 바뀌었으면 true — "원본이 바뀌었어요(확정 일지는 그대로)" 안내. 확정이 아니면 false
+        content:
+          $ref: '#/components/schemas/LogContent'
+        planCandidates:
+          type: array
+          description: 계획 후보 칩 (LOG-03). 확정이면 빈 배열
+          items:
+            $ref: '#/components/schemas/PlanCandidate'
+    LogContent:
+      type: object
+      description: 일지 문서 내용. 확정 스냅샷과 내보내기 파일이 이 모양을 그대로 쓴다.
+      required: [title, author, achievementsAuto, achievements, metrics, planTitle, planPeriod, plans, issues, time, days, projects]
+      properties:
+        title:
+          type: string
+          description: 예 "업무일지(일간)", "업무일지(주간)", "업무일지(월간)"
+        author:
+          type: object
+          description: 초안은 지금 프로필, 확정본은 확정 때 프로필. 빈 값은 null(문서에 빈칸)
+          required: [name, organization, position]
+          properties:
+            name:
+              type: [string, 'null']
+            organization:
+              type: [string, 'null']
+            position:
+              type: [string, 'null']
+        achievementsAuto:
+          type: boolean
+          description: true면 실적을 원본에서 만들고 있다(아직 직접 고치지 않음). 확정본은 false
+        achievements:
+          type: array
+          items:
+            $ref: '#/components/schemas/LogAchievement'
+        metrics:
+          $ref: '#/components/schemas/LogMetrics'
+        planTitle:
+          type: string
+          description: 다음 근무일 계획 / 다음 주 계획 / 다음 달 계획
+        planPeriod:
+          type: object
+          required: [start, end]
+          description: 계획 기간 (일간이면 다음 근무일 하루, 다음 주면 그 주)
+          properties:
+            start:
+              type: string
+              format: date
+            end:
+              type: string
+              format: date
+        plans:
+          type: array
+          items:
+            $ref: '#/components/schemas/LogPlan'
+        issues:
+          type: [string, 'null']
+          maxLength: 2000
+        time:
+          description: 시간 기록 옵션 켜짐일 때 소요시간 표 (TimeSummary와 같은 모양), 꺼져 있으면 null
+          oneOf:
+            - $ref: '#/components/schemas/TimeSummary'
+            - type: 'null'
+        days:
+          type: array
+          description: WEEKLY·MONTHLY만 (DAILY는 빈 배열). 날마다 출처 — 미확정 일 표시 (LOG-07, LOG-16)
+          items:
+            $ref: '#/components/schemas/LogDay'
+        projects:
+          type: array
+          description: WEEKLY·MONTHLY만. 프로젝트별 실적 (LOG-08)
+          items:
+            $ref: '#/components/schemas/LogProjectStat'
+    LogAchievement:
+      type: object
+      description: 실적 한 줄 (업무·결과·진행률, SCR-LOG-02 ②)
+      required: [id, text, result, outcome, progress, taskId, projectName, dates, recordIds, durationMin, source]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: 줄 식별자. 새 줄은 화면이 만든다(아무 UUID)
+        text:
+          type: string
+          minLength: 1
+          maxLength: 500
+        result:
+          type: [string, 'null']
+          maxLength: 200
+        outcome:
+          oneOf:
+            - $ref: '#/components/schemas/WorkRecordOutcome'
+            - type: 'null'
+        progress:
+          type: [integer, 'null']
+          minimum: 0
+          maximum: 100
+          multipleOf: 10
+        taskId:
+          type: [string, 'null']
+          format: uuid
+        projectName:
+          type: [string, 'null']
+          description: 연결 업무의 프로젝트 이름(서식 실적 "프로젝트" 열). 확정본은 그때 이름으로 고정
+        dates:
+          type: array
+          description: 이 줄의 원본 기록이 있는 날(오름차순). 주간 서식 "한 날", 월간 서식 "기록 일수"(길이). 일간은 그날 하나
+          items:
+            type: string
+            format: date
+        recordIds:
+          type: array
+          description: 원본 기록 링크 (주간·월간은 묶인 기록 전부)
+          items:
+            type: string
+            format: uuid
+        durationMin:
+          type: [integer, 'null']
+          description: 서버가 recordIds로 계산해 넣는다(PATCH로 보낸 값은 무시). 옵션 꺼짐이면 null
+        source:
+          type: string
+          description: RECORD 기록에서 / TASK 기록 없이 완료한 업무 / MANUAL 직접 쓴 줄
+          enum: [RECORD, TASK, MANUAL]
+    LogMetrics:
+      type: object
+      description: 진행 현황 자동 수치 (LOG-15). 초안은 늘 원본으로 계산
+      required: [recordCount, completedTaskCount, done, reviewRequested, inProgress, pendingCount, totalMin]
+      properties:
+        recordCount:
+          type: integer
+          description: 확정 기록 수
+        completedTaskCount:
+          type: integer
+          description: 기간 안에 완료한 업무 수
+        done:
+          type: integer
+          description: 결과 칩 "완료" 기록 수
+        reviewRequested:
+          type: integer
+        inProgress:
+          type: integer
+        pendingCount:
+          type: integer
+          description: 확인 대기 기록 수 (실적에서 뺀 개수)
+        totalMin:
+          type: [integer, 'null']
+          description: 시간 기록 옵션 켜짐일 때 확정 소요시간 합, 꺼져 있으면 null
+    LogPlan:
+      type: object
+      description: 계획 한 줄. dueDate·scheduledAt은 서버가 taskId로 채운다(PATCH로 보낸 값은 무시, 확정본은 그때 값으로 고정) — 서식 "예정" 칸
+      required: [id, text, taskId, dueDate, scheduledAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        text:
+          type: string
+          minLength: 1
+          maxLength: 200
+        taskId:
+          type: [string, 'null']
+          format: uuid
+        dueDate:
+          type: [string, 'null']
+          format: date
+          description: 연결 업무의 마감일
+        scheduledAt:
+          type: [string, 'null']
+          format: date-time
+          description: 계획 기간(planPeriod) 안에서 연결 업무의 가장 이른 시간 일정 회차 시작(취소 제외). 없으면 null
+    PlanCandidate:
+      type: object
+      required: [taskId, title, status, dueDate, progress, reason]
+      properties:
+        taskId:
+          type: string
+          format: uuid
+        title:
+          type: string
+        status:
+          $ref: '#/components/schemas/TaskStatus'
+        dueDate:
+          type: [string, 'null']
+          format: date
+        progress:
+          type: integer
+        reason:
+          type: string
+          description: OVERDUE 마감 지남 / DUE 계획 기간 안 마감 / IN_PROGRESS 진행 중
+          enum: [OVERDUE, DUE, IN_PROGRESS]
+    LogDay:
+      type: object
+      required: [date, workday, holiday, source]
+      properties:
+        date:
+          type: string
+          format: date
+        workday:
+          type: boolean
+        holiday:
+          type: [string, 'null']
+        source:
+          type: string
+          description: CONFIRMED_LOG 확정 일간 일지 / RECORDS 원본 기록(미확정 일) / NONE 원본 없음
+          enum: [CONFIRMED_LOG, RECORDS, NONE]
+    LogProjectStat:
+      type: object
+      required: [projectId, name, completedTaskCount, recordCount, minutes]
+      properties:
+        projectId:
+          type: [string, 'null']
+          format: uuid
+          description: 프로젝트 없는 업무·업무 없는 기록은 null 한 줄
+        name:
+          type: [string, 'null']
+        completedTaskCount:
+          type: integer
+        recordCount:
+          type: integer
+        minutes:
+          type: [integer, 'null']
+          description: 시간 기록 옵션 켜짐일 때만
+    WorkLogPatch:
+      type: object
+      required: [version]
+      properties:
+        version:
+          type: integer
+          format: int64
+        achievements:
+          type: array
+          maxItems: 200
+          items:
+            $ref: '#/components/schemas/LogAchievement'
+        plans:
+          type: array
+          maxItems: 50
+          items:
+            $ref: '#/components/schemas/LogPlan'
+        issues:
+          type: [string, 'null']
+          maxLength: 2000
+    VersionOnly:
+      type: object
+      required: [version]
+      properties:
+        version:
+          type: integer
+          format: int64
+    LogRevision:
+      type: object
+      required: [revisionNo, confirmedAt, unconfirmedAt]
+      properties:
+        revisionNo:
+          type: integer
+        confirmedAt:
+          type: string
+          format: date-time
+        unconfirmedAt:
+          type: [string, 'null']
+          format: date-time
+          description: 이 확정본을 해제한 시각. 지금 확정 상태면 null
+    LogRevisionDetail:
+      allOf:
+        - $ref: '#/components/schemas/LogRevision'
+        - type: object
+          required: [content]
+          properties:
+            content:
+              $ref: '#/components/schemas/LogContent'
+    DailyClosePlan:
+      type: object
+      required: [date, log, pendingCount, carryOverCandidates, nextWorkday, planScope, suggestions]
+      properties:
+        date:
+          type: string
+          format: date
+        log:
+          $ref: '#/components/schemas/LogPeriod'
+        pendingCount:
+          type: integer
+          description: 최근 7일 확인 대기 수 (GET /records/pending과 같은 범위)
+        carryOverCandidates:
+          type: array
+          items:
+            $ref: '#/components/schemas/CarryOverCandidate'
+        nextWorkday:
+          type: string
+          format: date
+        planScope:
+          type: string
+          enum: [NEXT_WORKDAY, NEXT_WEEK]
+        suggestions:
+          type: array
+          items:
+            $ref: '#/components/schemas/LogSuggestion'
+    CarryOverCandidate:
+      type: object
+      required: [taskId, title, status, dueDate, progress, projectId, selected]
+      properties:
+        taskId:
+          type: string
+          format: uuid
+        title:
+          type: string
+        status:
+          $ref: '#/components/schemas/TaskStatus'
+        dueDate:
+          type: [string, 'null']
+          format: date
+        progress:
+          type: integer
+        projectId:
+          type: [string, 'null']
+          format: uuid
+        selected:
+          type: boolean
+          description: 기본 선택 (LOG-14 — 늘 true)
+    DailyCloseRequest:
+      type: object
+      required: [version, carryOverTaskIds]
+      properties:
+        version:
+          type: integer
+          format: int64
+          description: 그날 일간 일지의 version, 없으면 0
+        carryOverTaskIds:
+          type: array
+          maxItems: 50
+          description: 계획으로 넘길 업무 (빈 배열 가능). 내 것이 아니거나 보관한 업무는 400(errors[].code=NOT_FOUND)
+          items:
+            type: string
+            format: uuid
+        issue:
+          type: [string, 'null']
+          maxLength: 500
+          description: 이슈 한 줄 (비워 둘 수 있음)
+    DailyCloseResult:
+      type: object
+      required: [log, suggestions]
+      properties:
+        log:
+          $ref: '#/components/schemas/WorkLog'
+        suggestions:
+          type: array
+          description: 주간 → 월간 순 (LOG-16). 해당 없으면 빈 배열
+          items:
+            $ref: '#/components/schemas/LogSuggestion'
+    LogSuggestion:
+      type: object
+      required: [type, periodStart, periodEnd, logStatus, unconfirmedDates]
+      properties:
+        type:
+          type: string
+          enum: [WEEKLY, MONTHLY]
+        periodStart:
+          type: string
+          format: date
+        periodEnd:
+          type: string
+          format: date
+        logStatus:
+          $ref: '#/components/schemas/LogStatus'
+        unconfirmedDates:
+          type: array
+          description: 기간 안 근무일 중 일간 일지가 확정이 아닌 날 ("미확정 일을 알려준다", LOG-16)
+          items:
+            type: string
+            format: date
     Problem:
       type: object
       description: RFC 9457 Problem Details + 확장 필드 (P0-10 공통 모듈 형식)
