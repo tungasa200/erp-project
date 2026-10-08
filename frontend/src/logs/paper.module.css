@@ -387,4 +387,30 @@
     width: auto;
     white-space: normal;
   }
+
+  /* 실적 표·포함된 날은 칸을 한 글자 폭까지 줄이지 않고 표만 가로로 민다(P3-QA-LOG-02-M1) */
+  .wide {
+    min-width: 600px;
+  }
+
+  .wide thead th,
+  .days th,
+  .days td {
+    white-space: nowrap;
+  }
+
+  .days {
+    min-width: 460px;
+  }
+}
+
+/* relative: 표 안 absolute 요소(srOnly 등)도 이 틀에서 잘리게 한다. 없으면 페이지가 표 폭만큼 넓어진다 */
+.scrollX {
+  position: relative;
+  overflow-x: auto;
+}
+
+.scrollX:focus-visible {
+  outline: 2px solid #000;
+  outline-offset: 2px;
 }

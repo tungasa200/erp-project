@@ -1,6 +1,6 @@
 // SCR-LOG-02 ② 문서 영역: 내보낼 파일과 같은 모습(docs/업무일지_서식명세.md, 화면 px = pt × 1.35).
 // 테마 색을 쓰지 않는다. 초안을 고칠 수 있을 때만(editor) 칸이 입력으로 바뀌고 줄 버튼·계획 후보 칩이 붙는다.
-import { useEffect, useId, useLayoutEffect, useRef, type ComponentProps, type ReactNode } from 'react'
+import { useEffect, useId, useLayoutEffect, useRef, useState, type ComponentProps, type ReactNode } from 'react'
 import { WEEKDAY_NAMES, isoWeekday, todayIn } from '../quickInput/dates'
 import type { LogAchievement, LogContent, LogPlan, LogType, PlanCandidate } from './api'
 import { durationLabel, progressLabel } from './api'
@@ -173,6 +173,33 @@ function profileValue(value: string | null, label: string) {
   return value || <span className={styles.blank}>[{label}]</span>
 }
 
+/**
+ * 좁은 화면(~767px)에서 표에 최소 폭을 주고 표만 가로로 민다(P3-QA-LOG-02-M1: 칸이 좁아 한 글자씩 꺾이던 문제).
+ * 실제로 넘칠 때만 키보드로 닿게 탭 순서에 넣는다
+ */
+function ScrollX({ label, children }: { label: string; children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [overflow, setOverflow] = useState(false)
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const check = () => setOverflow(el.scrollWidth > el.clientWidth + 1)
+    check()
+    const observer = new ResizeObserver(check)
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
+  return (
+    <div
+      ref={ref}
+      className={styles.scrollX}
+      {...(overflow && { tabIndex: 0, role: 'region', 'aria-label': `${label} (가로로 밀어 보기)` })}
+    >
+      {children}
+    </div>
+  )
+}
+
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className={styles.section}>
@@ -200,26 +227,28 @@ function WeekDays({ days, today }: { days: LogContent['days']; today: string }) 
       <h3 id={titleId} className={styles.srOnly}>
         포함된 날
       </h3>
-      <table className={`${styles.grid} ${styles.days}`}>
-        <thead>
-          <tr>
-            {days.map((d) => (
-              <th key={d.date} scope="col">
-                {mdw(d.date)}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            {days.map((d) => (
-              <td key={d.date} className={d.source === 'RECORDS' ? styles.strong : undefined}>
-                {label(d)}
-              </td>
-            ))}
-          </tr>
-        </tbody>
-      </table>
+      <ScrollX label="포함된 날">
+        <table className={`${styles.grid} ${styles.days}`}>
+          <thead>
+            <tr>
+              {days.map((d) => (
+                <th key={d.date} scope="col">
+                  {mdw(d.date)}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              {days.map((d) => (
+                <td key={d.date} className={d.source === 'RECORDS' ? styles.strong : undefined}>
+                  {label(d)}
+                </td>
+              ))}
+            </tr>
+          </tbody>
+        </table>
+      </ScrollX>
       {days.some((d) => d.source === 'RECORDS') && (
         <p className={styles.note}>원본 기록 = 확정 전이라 그날 기록에서 가져온 날</p>
       )}
@@ -261,7 +290,7 @@ function Achievements(props: { type: LogType; rows: LogAchievement[]; withProjec
     requestAnimationFrame(() => {
       const list = tableRef.current?.querySelectorAll<HTMLElement>('tbody tr [data-field="text"]')
       const target =
-        list?.[Math.min(i, list.length - 1)] ?? tableRef.current?.parentElement?.querySelector('[data-add]')
+        list?.[Math.min(i, list.length - 1)] ?? tableRef.current?.closest('section')?.querySelector('[data-add]')
       ;(target as HTMLElement | null | undefined)?.focus()
     })
   }
@@ -292,108 +321,110 @@ function Achievements(props: { type: LogType; rows: LogAchievement[]; withProjec
       {rows.length === 0 ? (
         <p className={styles.none}>없음</p>
       ) : (
-        <table ref={tableRef} className={styles.grid}>
-          <thead>
-            <tr>
-              <th scope="col" className={styles.no}>
-                No
-              </th>
-              {showProject && <th scope="col">프로젝트</th>}
-              <th scope="col">{type === 'DAILY' ? '업무 내용' : '업무'}</th>
-              <th scope="col">결과</th>
-              <th scope="col" className={styles.center}>
-                진행률
-              </th>
-              {type === 'WEEKLY' && (
+        <ScrollX label="실적 표">
+          <table ref={tableRef} className={`${styles.grid} ${styles.wide}`}>
+            <thead>
+              <tr>
+                <th scope="col" className={styles.no}>
+                  No
+                </th>
+                {showProject && <th scope="col">프로젝트</th>}
+                <th scope="col">{type === 'DAILY' ? '업무 내용' : '업무'}</th>
+                <th scope="col">결과</th>
                 <th scope="col" className={styles.center}>
-                  한 날
+                  진행률
                 </th>
-              )}
-              {type === 'MONTHLY' && (
-                <th scope="col" className={styles.center}>
-                  기록 일수
-                </th>
-              )}
-              {editor && (
-                <th scope="col" className={styles.rowTools}>
-                  <span className={styles.srOnly}>줄 편집</span>
-                </th>
-              )}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((a, i) => (
-              <tr key={a.id}>
-                <td className={styles.no}>{i + 1}</td>
-                {showProject && <td>{a.projectName}</td>}
-                <td>
-                  {editor ? (
-                    <CellText
-                      data-field="text"
-                      aria-label={`${i + 1}번 업무 내용`}
-                      value={a.text}
-                      maxLength={500}
-                      onValue={(text) => set(i, { text })}
-                    />
-                  ) : (
-                    a.text
-                  )}
-                </td>
-                <td>
-                  {editor ? (
-                    <CellText
-                      aria-label={`${i + 1}번 결과`}
-                      value={a.result ?? ''}
-                      maxLength={200}
-                      onValue={(result) => set(i, { result: result || null })}
-                    />
-                  ) : (
-                    a.result
-                  )}
-                </td>
-                <td className={styles.center}>{progressLabel(a)}</td>
                 {type === 'WEEKLY' && (
-                  <td className={styles.center}>{a.dates.map((d) => WEEKDAY_NAMES[isoWeekday(d) - 1]).join('·')}</td>
+                  <th scope="col" className={styles.center}>
+                    한 날
+                  </th>
                 )}
-                {type === 'MONTHLY' && <td className={styles.center}>{a.dates.length}일</td>}
+                {type === 'MONTHLY' && (
+                  <th scope="col" className={styles.center}>
+                    기록 일수
+                  </th>
+                )}
                 {editor && (
-                  <td className={styles.rowTools}>
-                    {i > 0 && (
-                      <button
-                        type="button"
-                        className={styles.tool}
-                        data-move="-1"
-                        aria-label={`${i + 1}번 위로`}
-                        onClick={() => move(i, -1)}
-                      >
-                        ↑
-                      </button>
-                    )}
-                    {i < rows.length - 1 && (
-                      <button
-                        type="button"
-                        className={styles.tool}
-                        data-move="1"
-                        aria-label={`${i + 1}번 아래로`}
-                        onClick={() => move(i, 1)}
-                      >
-                        ↓
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      className={styles.tool}
-                      aria-label={`${i + 1}번 줄 삭제`}
-                      onClick={() => remove(i)}
-                    >
-                      ×
-                    </button>
-                  </td>
+                  <th scope="col" className={styles.rowTools}>
+                    <span className={styles.srOnly}>줄 편집</span>
+                  </th>
                 )}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {rows.map((a, i) => (
+                <tr key={a.id}>
+                  <td className={styles.no}>{i + 1}</td>
+                  {showProject && <td>{a.projectName}</td>}
+                  <td>
+                    {editor ? (
+                      <CellText
+                        data-field="text"
+                        aria-label={`${i + 1}번 업무 내용`}
+                        value={a.text}
+                        maxLength={500}
+                        onValue={(text) => set(i, { text })}
+                      />
+                    ) : (
+                      a.text
+                    )}
+                  </td>
+                  <td>
+                    {editor ? (
+                      <CellText
+                        aria-label={`${i + 1}번 결과`}
+                        value={a.result ?? ''}
+                        maxLength={200}
+                        onValue={(result) => set(i, { result: result || null })}
+                      />
+                    ) : (
+                      a.result
+                    )}
+                  </td>
+                  <td className={styles.center}>{progressLabel(a)}</td>
+                  {type === 'WEEKLY' && (
+                    <td className={styles.center}>{a.dates.map((d) => WEEKDAY_NAMES[isoWeekday(d) - 1]).join('·')}</td>
+                  )}
+                  {type === 'MONTHLY' && <td className={styles.center}>{a.dates.length}일</td>}
+                  {editor && (
+                    <td className={styles.rowTools}>
+                      {i > 0 && (
+                        <button
+                          type="button"
+                          className={styles.tool}
+                          data-move="-1"
+                          aria-label={`${i + 1}번 위로`}
+                          onClick={() => move(i, -1)}
+                        >
+                          ↑
+                        </button>
+                      )}
+                      {i < rows.length - 1 && (
+                        <button
+                          type="button"
+                          className={styles.tool}
+                          data-move="1"
+                          aria-label={`${i + 1}번 아래로`}
+                          onClick={() => move(i, 1)}
+                        >
+                          ↓
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        className={styles.tool}
+                        aria-label={`${i + 1}번 줄 삭제`}
+                        onClick={() => remove(i)}
+                      >
+                        ×
+                      </button>
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </ScrollX>
       )}
       {/* 계약 최대 200줄(WorkLogPatch) */}
       {editor && rows.length < 200 && (

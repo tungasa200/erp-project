@@ -792,6 +792,37 @@
   }
 }
 
+/* SCR-LOG-01 ② 좁은 화면 달력 아래 점 범례(넓은 화면은 칸에 상태 글자가 있어 숨김) */
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 14px;
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend .cellStatus {
+  margin-top: 0;
+  flex: none;
+}
+
+@media (min-width: 768px) {
+  .legend {
+    display: none;
+  }
+}
+
 /* SCR-HOME-01 ⑤ 오늘 일지 · ⑦ 이번 주 일지 */
 .fill {
   display: flex;
@@ -850,13 +881,32 @@
   background: var(--color-accent-softer);
 }
 
+/* 요일 칸은 44px 아래로 줄이지 않는다(TC-P3-prod-HOME01-07-tap). 폭이 모자라면 간격을 줄이고, 그래도 안 되면 4칸 두 줄 */
+.weekDaysBox {
+  container-type: inline-size;
+  margin-top: 8px;
+}
+
 .weekDays {
   list-style: none;
-  margin: 8px 0 0;
+  margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-template-columns: repeat(7, minmax(var(--size-touch), 1fr));
   gap: 6px;
+}
+
+@container (width < 344px) {
+  .weekDays {
+    gap: 2px;
+  }
+}
+
+@container (width < 320px) {
+  .weekDays {
+    grid-template-columns: repeat(4, minmax(var(--size-touch), 1fr));
+    gap: 6px;
+  }
 }
 
 .weekDay {
