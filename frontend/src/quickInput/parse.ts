@@ -138,10 +138,12 @@ const POINT = String.raw`(?:(오전|오후)\s*)?(\d{1,2})(?::(\d{2})|시(?:\s*(\
 const RANGE_RE = new RegExp(String.raw`^${POINT}\s*[-–~～〜]\s*${POINT}(?=\s|$)`)
 const SINGLE_RE = new RegExp(String.raw`^${POINT}(?=\s|$)`)
 
-/** 묶음 4개로 분 단위 시각. 오후는 12를 더하고 오전 12시는 0시. 오전/오후에 13 이상은 잘못 */
+/** 묶음 4개로 분 단위 시각. 오후는 12를 더하고 오전 12시는 0시.
+ *  오후 13~23시는 24시간제를 겹쳐 쓴 것으로 보고 그대로 읽는다(O-2). 오전 13 이상은 잘못 */
 function pointMinutes(meridiem: string | undefined, h: string, colonMin?: string, korMin?: string): number | null {
   let hour = Number(h)
-  if (meridiem && hour > 12) return null
+  if (meridiem === '오전' && hour > 12) return null
+  if (meridiem === '오후' && hour > 23) return null
   if (meridiem === '오후' && hour < 12) hour += 12
   if (meridiem === '오전' && hour === 12) hour = 0
   return toMinutes(String(hour), colonMin ?? korMin)

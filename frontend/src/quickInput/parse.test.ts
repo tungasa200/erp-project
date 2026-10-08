@@ -122,8 +122,15 @@ describe('parseQuickInput', () => {
       expect(parse('9 ~10/12 회의')).toEqual({ title: '9 회의', due: '2026-10-12' })
     })
 
-    it('오전/오후에 13시 이상은 오전/오후를 제목에 남기고 시각만 읽는다', () => {
+    it('오전에 13시 이상은 오전을 제목에 남기고 시각만 읽는다', () => {
       expect(parse('오전 14시 회의')).toEqual({ title: '오전 회의', time: { start: '14:00', end: '15:00' } })
+    })
+
+    it('오후 13~23시는 24시간제를 겹쳐 쓴 것으로 보고 오후까지 시각으로 읽는다', () => {
+      expect(parse('오후 13시 회의')).toEqual({ title: '회의', time: { start: '13:00', end: '14:00' } })
+      expect(parse('오후 13:30 회의')).toEqual({ title: '회의', time: { start: '13:30', end: '14:30' } })
+      expect(parse('오후 1시-오후 15시 회의')).toEqual({ title: '회의', time: { start: '13:00', end: '15:00' } })
+      expect(parse('오후 24시 회의')).toEqual({ title: '오후 24시 회의' })
     })
 
     it('영어 to·부터~까지는 범위로 읽지 않는다', () => {
