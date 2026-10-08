@@ -11,7 +11,7 @@ import { toastForError } from '../api/errorToast'
 import { PROJECTS_QUERY_KEY, projectApi, TAGS_QUERY_KEY, tagApi, type Project } from '../projects/api'
 import { nextColor, projectColor } from '../projects/palette'
 import { shortDate, weekStartNumber } from '../quickInput/dates'
-import { parseQuickInput } from '../quickInput/parse'
+import { parseQuickInput, unreadTimeWord } from '../quickInput/parse'
 import { refreshTasks, taskApi } from '../tasks/api'
 import { NeedsProjectError, saveQuickDraft } from '../tasks/quickSave'
 import { useCreateSchedule, type ScheduleCreate } from './api'
@@ -82,6 +82,8 @@ export function QuickCreate({ target, timeZone, anchor, onClose, onDetails }: Pr
   const full = useMemo(() => parseQuickInput(text, { today, weekStart }), [text, today, weekStart])
   const kept = useMemo(() => parseForSchedule(text, { today, weekStart }), [text, today, weekStart])
   const parsed = asTask ? full : kept
+  // 시간처럼 생겼는데 읽지 못해 제목에 들어간 낱말. 빠른 입력(D-106)과 같은 안내
+  const unreadTime = unreadTimeWord(parsed.title)
   // 입력에 시간이 있으면 시간 일정, 날짜가 있으면 그 날짜로 바꾼다
   const draft: ScheduleDraft = {
     title: parsed.title,
@@ -255,7 +257,9 @@ export function QuickCreate({ target, timeZone, anchor, onClose, onDetails }: Pr
             onKeyDown={(e) => e.key === 'Enter' && e.nativeEvent.isComposing && e.preventDefault()}
             aria-invalid={!!error}
             aria-describedby={
-              [error && `${id}-error`, showChips && `${id}-chips`].filter(Boolean).join(' ') || undefined
+              [error && `${id}-error`, unreadTime && `${id}-unread`, showChips && `${id}-chips`]
+                .filter(Boolean)
+                .join(' ') || undefined
             }
           />
         </label>
@@ -308,6 +312,11 @@ export function QuickCreate({ target, timeZone, anchor, onClose, onDetails }: Pr
             )}
             {full.due && <li className={styles.parseChip}>마감 {day(full.due)}</li>}
           </ul>
+        )}
+        {unreadTime && (
+          <p id={`${id}-unread`} className={styles.muted}>
+            시간으로 읽지 못했어요: <span className={styles.unread}>{unreadTime}</span> (예: 14:00-15:00 · 오후 2시~3시)
+          </p>
         )}
         {overridden && <p className={styles.muted}>입력한 시간으로 만들어요</p>}
         {!online && (
