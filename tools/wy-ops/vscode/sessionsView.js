@@ -1,4 +1,4 @@
-// 세션 현황(사이드바 webview): 메모리·프로세스·Claude 세션 상태. 담당 WY-backend1(운영 도구 구현 계획 3.2).
+// 세션 현황(사이드바 webview): 메모리·프로세스·Claude 세션 상태. (운영 도구 구현 계획 3.2)
 // extension.js는 register(context)만 부른다.
 const vscode = require('vscode');
 const os = require('os');
@@ -242,7 +242,7 @@ async function openSession(id, name) {
   if (name && name === commitRole()) {
     const go = '열기';
     const pick = await vscode.window.showWarningMessage(
-      `${name}에 들어갑니다. 나온 뒤 이 세션이 역할(--agent) 없이 다시 뜰 수 있어, 커밋 승인을 계속 받으려면 WY-pm이 교대해야 할 수 있습니다.`,
+      `${name}에 들어갑니다. 나온 뒤 이 세션이 역할(--agent) 없이 다시 뜰 수 있어, 커밋 승인을 계속 받으려면 pm 세션이 교대해야 할 수 있습니다.`,
       { modal: true },
       go,
     );

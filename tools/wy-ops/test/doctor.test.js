@@ -189,7 +189,7 @@ try {
   {
     const pc = makePc('config');
     pc.state.genAgents = 1;
-    assert.ok(byId(doctor.checkAll(pc.opts)).config.fix.includes('gen-agents.js'), '역할 파일 다름');
+    assert.ok(byId(doctor.checkAll(pc.opts)).config.fix.includes(' gen'), '역할 파일 다름');
     pc.state.genAgents = 0;
     write(path.join(pc.repo, '.claude', 'ops', 'roles', 'X-qa.md'), `캡처는 ${pc.home.replace(/\\/g, '/')}/shots에\n`);
     const p = byId(doctor.checkAll(pc.opts))['paths-personal'];
@@ -238,6 +238,14 @@ try {
     fs.mkdirSync(elsewhere, { recursive: true });
     assert.strictEqual(byId(doctor.checkAll(pc.opts)).secrets.level, 'ok', 'local 경로에 있으면 통과');
     assert.strictEqual(byId(doctor.checkAll(pc.opts))['paths-personal'].level, 'ok', '상대 경로는 개인 경로 점검에 걸리지 않음');
+    // 선택 설정 secretsKeys: 키 이름만 확인, 값은 출력하지 않음
+    write(path.join(elsewhere, 'keys.txt'), 'API_TOKEN=값비밀1\nDB_PASSWORD: 값비밀2\n');
+    json(path.join(pc.repo, '.claude', 'wy-ops.local.json'), { secretsDir: elsewhere, secretsKeys: ['API_TOKEN', 'DB_PASSWORD'] });
+    r = byId(doctor.checkAll(pc.opts)).secrets;
+    assert.ok(r.level === 'ok' && r.detail.includes('키 2개') && !r.detail.includes('값비밀'), JSON.stringify(r));
+    json(path.join(pc.repo, '.claude', 'wy-ops.local.json'), { secretsDir: elsewhere, secretsKeys: ['API_TOKEN', 'MAIL_KEY'] });
+    r = byId(doctor.checkAll(pc.opts)).secrets;
+    assert.ok(r.level === 'warn' && r.detail.includes('MAIL_KEY') && !r.detail.includes('API_TOKEN') && !JSON.stringify(r).includes('값비밀'), JSON.stringify(r));
   }
 
   // 8-2. 확장 폴더 지정(setup --extensions-dir과 같은 값): 그 폴더의 extensions.json을 읽고 code에도 붙인다
@@ -292,6 +300,19 @@ try {
   }
 
   // 10. 실행기가 예외를 던져도 나머지 항목은 나온다, 표는 실패·주의가 먼저
+  // 스택 개발 도구: 고른 스택의 tools만, 없으면 주의 + 설치 안내
+  {
+    const pc = makePc('stacktools');
+    assert.strictEqual(byId(doctor.checkAll(pc.opts))['stack-tools'].level, 'ok', 'tools 없으면 통과');
+    const cfg = path.join(pc.repo, '.claude', 'wy-ops.json');
+    const ops = JSON.parse(fs.readFileSync(cfg, 'utf8'));
+    json(cfg, { ...ops, stack: 'java-gradle', tools: [{ cmd: 'java', label: 'JDK', install: 'winget install JDK' }, { cmd: 'node', label: 'Node.js', install: 'winget install Node' }] });
+    const run = (cmd, args) => (cmd === 'where' && args[0] === 'java' ? { status: 1, stdout: '' } : pc.opts.run(cmd, args));
+    const r = byId(doctor.checkAll({ ...pc.opts, run }))['stack-tools'];
+    assert.ok(r.level === 'warn' && r.detail.includes('JDK') && !r.detail.includes('Node.js') && r.fix.includes('winget install JDK'), JSON.stringify(r));
+    assert.strictEqual(byId(doctor.checkAll(pc.opts))['stack-tools'].level, 'ok', '다 있으면 통과');
+  }
+
   {
     const pc = makePc('throw');
     const run = (cmd, args) => {

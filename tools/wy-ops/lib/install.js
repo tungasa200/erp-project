@@ -6,10 +6,14 @@
 //   doctor   [--json]               점검(lib/doctor.js, 읽기만)
 //   rollback [<버전>]               current를 이전 버전으로
 //   cleanup-legacy                  옛 승인 위치·옛 설치본 목록 → 확인 → 지움(lib/legacy.js)
-//   init --name <이름> --prefix <XX-> [--roles a,b] [--project <폴더, 기본 현재 폴더>]
+//   init --name <이름> --prefix <XX-> [--stack <id>] [--verify-<build|test|...> <명령>] [--roles a,b] [--count backend=2,frontend=2]
+//        [--area "<역할>=<디렉터리>;…"] [--no-principles] [--project <폴더, 기본 현재 폴더>]
 //                                   새 프로젝트(OPS-10-2): 설정·역할 원본·생성 파일·.gitignore(lib/init.js) + settings 병합 + 승인 폴더 + doctor,
 //                                   CLAUDE.md에 넣을 절을 출력만 한다. 그 PC에 global(또는 setup)을 먼저 해 둔다
 //   update [--project <폴더>] [--dry-run]  deploy + 생성 파일 다시 만들기(사람이 고친 것은 덮지 않고 차이만, lib/update.js)
+//   gen [--project <폴더>]                 .claude/ops 원본을 고친 뒤 역할 파일·pm-ops 스킬 다시 만들기(lock도 맞춤)
+//   export [--out <zip>] [--no-settings]   개인 이전 묶음(git 밖 상태: 메모리·승인 이력·인수인계·settings.local.json)을 zip으로(lib/transfer.js)
+//   import <zip> [--dry-run] [--no-settings] 묶음 들여오기. 덮어쓸 파일이 있으면 목록을 보여 주고 확인(원래 파일은 백업), 들여온 승인은 '사용됨' 표시
 // 공통: --yes(확인 없이 진행), --extensions-dir <폴더>(code에 넘김, 시험용). 결정 파일(decisions/·used/)은 쓰지 않는다(OPS-10-3).
 const fs = require('fs');
 const os = require('os');
@@ -53,6 +57,41 @@ function confirm(question) {
     return false;
   }
   return /^\s*y/i.test(buf.slice(0, n).toString());
+}
+
+// 묶음이 옮기지 않는 것: 새 PC에서 사람이 다시 하는 일(import·restore 끝에 출력)
+const NEW_PC_TODO = [
+  'Claude Code 로그인(claude 실행 후 /login)',
+  'GitHub 로그인(gh auth login)',
+  '외부 콘솔(배포·호스팅 등) 로그인. 전용 Chrome 프로필은 옮기지 않으므로 새로 로그인합니다',
+  'MCP 서버 토큰 다시 입력',
+  '비밀값 폴더(.claude/wy-ops.json의 secretsDir, 정했을 때만)를 손으로 직접 복사. 묶음에는 비밀값을 넣지 않습니다',
+  'install.ps1 doctor로 남은 항목 확인',
+];
+
+// 커밋 안 된 변경·푸시 안 된 커밋(어느 브랜치든). git 저장소가 아니면 빈 목록
+function gitPending(project) {
+  const git = (args) => spawnSync('git', ['-C', project, ...args], { encoding: 'utf8', windowsHide: true });
+  if (git(['rev-parse', '--is-inside-work-tree']).status !== 0) return [];
+  const out = [];
+  const changed = String(git(['status', '--porcelain']).stdout || '').split(/\r?\n/).filter(Boolean).length;
+  if (changed) out.push(`커밋 안 된 변경 ${changed}개 — 묶음에 들어가지 않습니다. 커밋·푸시하거나 따로 옮기세요`);
+  const ahead = String(git(['log', '--branches', '--not', '--remotes', '--oneline']).stdout || '').split(/\r?\n/).filter(Boolean).length;
+  if (ahead) out.push(`푸시 안 된 커밋 ${ahead}개 — 새 PC에서 clone하면 없습니다. 먼저 푸시하세요`);
+  return out;
+}
+
+// 한 줄 입력(입력이 없거나 읽을 수 없으면 빈 문자열)
+function ask(question) {
+  process.stdout.write(`${question} `);
+  const buf = Buffer.alloc(1024);
+  let n = 0;
+  try {
+    n = fs.readSync(0, buf, 0, buf.length, null);
+  } catch {
+    return '';
+  }
+  return buf.slice(0, n).toString().split(/\r?\n/)[0].trim();
 }
 
 function prereqs() {
@@ -240,13 +279,49 @@ function main() {
     const { toolsDir } = require('./deploy');
     const current = path.join(toolsDir(), 'current');
     if (!fs.existsSync(path.join(current, 'deployed.json'))) throw new Error(`이 PC에 패키지가 없습니다(${current}). 먼저 이 저장소에서 install.ps1 global을 실행하세요`);
-    const r = require('./init').init({ project, name, prefix, roles: opt('--roles') ? opt('--roles').split(',').map((s) => s.trim()).filter(Boolean) : null });
+    const initLib = require('./init');
+    const { VERIFY_KEYS } = require('../gen-agents');
+    const stacks = initLib.listStacks();
+    let stack = opt('--stack');
+    if (!stack) {
+      say('기술 스택을 고르세요(개발 도구 점검과 검증 명령이 정해집니다):');
+      stacks.forEach((s, i) => say(`  ${i + 1}. ${s.id} — ${s.label}`));
+      const a = ask(`번호 또는 이름 [${stacks.findIndex((s) => s.id === 'custom') + 1}]:`);
+      stack = stacks[Number(a) - 1] ? stacks[Number(a) - 1].id : a || 'custom';
+    }
+    // 검증 명령 덮어쓰기: --verify-<키> "<명령>". 직접 입력(custom)이면 빠진 것을 묻는다(--yes면 묻지 않고 비워 둠)
+    const verify = {};
+    for (const [k, label] of VERIFY_KEYS) {
+      if (opt(`--verify-${k}`) != null) verify[k] = opt(`--verify-${k}`);
+      else if (stack === 'custom' && !flag('--yes')) verify[k] = ask(`  ${label} 명령(없으면 Enter):`);
+    }
+    // 역할 구성: --roles <그룹,…>(고르기), --count backend=2,frontend=2(같은 역할 여러 세션), --area "<역할>=<영역>;…"(담당 디렉터리)
+    // 직접 주지 않았으면 여러 개로 나눌 수 있는 역할의 수와 영역을 묻는다(--yes면 기본값: 영역은 pm이 배정)
+    const catalog = JSON.parse(fs.readFileSync(path.join(PKG, 'templates', 'roles.json'), 'utf8'));
+    const roles = opt('--roles') ? opt('--roles').split(',').map((s) => s.trim()).filter(Boolean) : null;
+    const pairs = (text, sep) => Object.fromEntries(String(text || '').split(sep).map((s) => s.split('=').map((x) => x.trim())).filter(([k, v]) => k && v != null));
+    const counts = Object.fromEntries(Object.entries(pairs(opt('--count'), ',')).map(([k, v]) => [k, Number(v)]));
+    const areas = pairs(opt('--area'), ';');
+    if (!flag('--yes') && opt('--count') == null && opt('--area') == null) {
+      say('같은 역할을 여러 세션으로 나눠 병렬로 일할 수 있습니다(0이면 빼기).');
+      for (const g of catalog.groups.filter((x) => x.multi && (!roles || roles.includes(x.id)))) {
+        const a = ask(`  ${g.id} 세션 수 [${g.count}]:`);
+        if (a) counts[g.id] = Number(a);
+        const n = counts[g.id] == null ? g.count : counts[g.id];
+        for (let i = 1; n > 1 && i <= n; i++) {
+          const v = ask(`    ${prefix}${g.id}${i} 담당 영역(디렉터리, 없으면 Enter = pm이 배정):`);
+          if (v) areas[`${prefix}${g.id}${i}`] = v;
+        }
+      }
+    }
+    const r = initLib.init({ project, name, prefix, stack, verify, roles, counts, areas, principles: !flag('--no-principles') });
+    say(`스택: ${r.ops.stack || '(없음)'} · 역할 ${r.ops.roles.map((x) => x.name).join(', ')}`);
     for (const f of r.files) say(`  ${f.action.padEnd(9)} ${f.file}${f.action === 'modified' || f.action === 'unmanaged' ? ' (그대로 둠)' : ''}`);
     if (r.gitignoreAdded.length) say(`  .gitignore에 더함: ${r.gitignoreAdded.join(', ')}`);
     settingsStep(project, { dir: toolsDir() });
     store().ensureDirs(store().rootFor(project));
     doctorStep(project, { todos: true });
-    say('\nCLAUDE.md에 아래 절을 넣으세요(자동으로 고치지 않습니다):\n');
+    say(`\nCLAUDE.md에 아래 절을 넣으세요(자동으로 고치지 않습니다. 같은 내용: .claude/ops/CLAUDE.part.md${flag('--no-principles') ? '' : ', 작업 원칙 절은 빼도 됩니다'}):\n`);
     say(r.claudeMd.trim());
     trustHint(project);
     say('\n다음: VS Code에서 "Developer: Reload Window"를 실행하세요.');
@@ -259,6 +334,55 @@ function main() {
     const version = JSON.parse(fs.readFileSync(path.join(PKG, 'package.json'), 'utf8')).version;
     say(format(update({ project, version, dryRun: flag('--dry-run') })));
     say('다음: VS Code에서 "Developer: Reload Window"를 실행하세요.');
+    return undefined;
+  }
+  if (cmd === 'gen') {
+    // 역할 파일·pm-ops 스킬 다시 만들기(.claude/ops 원본을 고친 뒤). 생성기가 lock도 함께 맞춘다
+    const project = projectRoot();
+    for (const script of ['gen-agents.js', 'gen-skill.js']) {
+      const g = spawnSync(process.execPath, [path.join(PKG, script), '--root', project], { encoding: 'utf8' });
+      process.stdout.write(g.stdout || '');
+      if (g.status !== 0) throw new Error(`${script} 실패: ${(g.stderr || '').trim()}`);
+    }
+    return undefined;
+  }
+  if (cmd === 'export') {
+    const project = projectRoot();
+    // 이전 전 점검: 커밋 안 된 변경·푸시 안 된 커밋은 묶음에 들어가지 않는다(git으로 옮길 것)
+    const pending = gitPending(project);
+    for (const line of pending) say(`[주의] ${line}`);
+    say('역할 세션이 하던 일이 있으면 먼저 진행 상태를 저장하게 하세요(pm이 교대 준비를 지시 → 각 세션이 인수인계 저장).');
+    say('묶음은 지금 시점의 사본입니다. 동기화가 아니므로 묶은 뒤 원래 PC에서 바뀐 것은 옮겨지지 않습니다.');
+    if (pending.length && !confirm('그래도 묶을까요?')) return say('묶지 않았습니다');
+    const include = flag('--no-settings') ? { settingsLocal: false } : {};
+    const r = require('./transfer').exportState({ project, out: opt('--out') ? path.resolve(opt('--out')) : undefined, include });
+    say(`개인 이전 묶음: ${r.file} (파일 ${r.files.length}개)`);
+    for (const s of r.skipped || []) say(`  뺌 ${s.kind}/${s.rel} — ${s.reason}`);
+    say('\n개인 USB나 드라이브로만 옮기고, 옮긴 뒤 지우세요.');
+    say('비밀값 검사는 이름표가 붙은 토큰·키 모양만 잡습니다. 이름표 없는 비밀값(비밀번호만 적힌 줄 등)은 메모리에 적지 마세요.');
+    return undefined;
+  }
+  if (cmd === 'import') {
+    const zipFile = argv[1] && !argv[1].startsWith('--') ? path.resolve(argv[1]) : null;
+    if (!zipFile) throw new Error('import에는 묶음 파일이 필요합니다: install.ps1 import <zip> [--project <폴더>]');
+    const project = projectRoot();
+    const include = flag('--no-settings') ? { settingsLocal: false } : {};
+    const t = require('./transfer');
+    const plan = t.importState({ project, zip: zipFile, include, dryRun: true });
+    const over = plan.files.filter((f) => f.status === 'overwrite');
+    say(`들여올 파일 ${plan.files.length}개(새 ${plan.files.filter((f) => f.status === 'new').length}, 같음 ${plan.files.filter((f) => f.status === 'same').length}, 덮어씀 ${over.length})`);
+    for (const f of over) say(`  덮어씀 ${f.kind} ${f.target}`);
+    if (flag('--dry-run')) return undefined;
+    if (over.length && !confirm('위 파일을 덮어쓸까요? (원래 파일은 백업합니다)')) return say('들여오지 않았습니다');
+    const r = t.importState({ project, zip: zipFile, include });
+    say(`들여왔습니다: ${r.files.filter((f) => f.status !== 'same').length}개`);
+    if (r.backupDir) say(`백업: ${r.backupDir}`);
+    if (r.markedUsed) say(`승인 이력 ${r.markedUsed}건은 '사용됨'으로 표시했습니다(이 PC에서 승인으로 다시 쓰이지 않음)`);
+    for (const s of r.skipped || []) say(`  건너뜀 ${s.kind}/${s.rel} — ${s.reason}`);
+    const plugins = r.plugins && r.plugins.enabledPlugins ? Object.keys(r.plugins.enabledPlugins).filter((k) => r.plugins.enabledPlugins[k]) : [];
+    if (plugins.length) say(`원래 PC에서 켜 둔 플러그인(참고, 필수 플러그인은 setup이 설치): ${plugins.join(', ')}`);
+    say('\n새 PC에서 다시 할 일(묶음으로 옮기지 않음):');
+    for (const t of NEW_PC_TODO) say(`  - ${t}`);
     return undefined;
   }
   if (cmd === 'global' || cmd === 'setup') {
@@ -290,7 +414,7 @@ function main() {
     say('다음: VS Code에서 "Developer: Reload Window"를 실행하세요.');
     return undefined;
   }
-  say('사용법: install.ps1 deploy | global | setup | init --name <이름> --prefix <XX-> | update | doctor | rollback [버전] | cleanup-legacy  [--yes] [--project <폴더>] [--skip-plugins] [--skip-extension]');
+  say('사용법: install.ps1 deploy | global | setup | init --name <이름> --prefix <XX-> [--stack <id>] [--count …] [--area …] [--no-principles] | gen | update | doctor | rollback [버전] | cleanup-legacy | export [--out <zip>] | import <zip> [--dry-run]  [--yes] [--no-settings] [--project <폴더>] [--skip-plugins] [--skip-extension]');
   process.exitCode = 64;
   return undefined;
 }

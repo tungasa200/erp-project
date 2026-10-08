@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-// WY 승인 가드(PreToolUse 훅, Bash·PowerShell). 초안 — 적용은 사용자 설정에서 한다.
+// wy-ops 승인 가드(PreToolUse 훅, Bash·PowerShell). 초안 — 적용은 사용자 설정에서 한다.
 // - 잠금 대상 git 명령: commit·push·강제 푸시·브랜치 생성/삭제·merge(gh pr merge)·reset·rebase·태그 삭제. 모두 승인 센터의 승인 결정이 있어야 한다.
-// - 잠금 대상은 WY-commit(agent_type)만 실행한다. agent_type이 없는 세션도 거부한다.
+// - 잠금 대상은 프로젝트 설정의 커밋 역할(wy-ops.json commitRole, agent_type)만 실행한다. agent_type이 없는 세션도, 설정이 없으면 모두 거부한다.
 // - 승인 한 건은 한 번만 쓴다(used/<id>.json).
 // - 승인 폴더는 훅 입력의 cwd가 속한 프로젝트의 것(~/.claude/wy-approvals/<namespace>, 설정이 없으면 바탕 폴더).
 // - 승인 파일(decisions/·decisions.log·used/·sessions/·message-blocks.log), 설치본(~/.wy-tools), 프로젝트 설정(.claude/wy-ops.json·wy-ops.local.json·settings.local.json)에
@@ -16,7 +16,6 @@ const { loadOpsConfig } = require('../opsConfig');
 
 // 기본값. 훅 입력의 cwd에서 프로젝트 설정(.claude/wy-ops.json)을 찾으면 commitRole·approvals.ttlMinutes를 쓴다
 const DEFAULT_TTL_MINUTES = 60; // 결정 후 이 시간 안에만 쓸 수 있다
-const DEFAULT_COMMIT_SESSION = 'WY-commit';
 const GIT_OPTS_WITH_VALUE = new Set(['-C', '-c', '--git-dir', '--work-tree', '--namespace', '--exec-path']);
 // 보호 경로(소문자, / 구분자로 바꾼 명령에 대고 찾는다). 승인 파일은 바탕 폴더 바로 아래와 <namespace> 하위 모두
 const PROTECTED = [
@@ -131,7 +130,7 @@ const mentionsProtected = (t) => {
 const UNKNOWN_TARGET = /[$`%]/;
 // 디렉터리 이동. 보호 경로(또는 알 수 없는 값)로 들어가면 이후 상대 경로 쓰기가 보호 경로에 쓰는 것이 된다
 const CHDIR = new Set(['cd', 'pushd', 'chdir', 'set-location', 'sl', 'push-location', 'popd', 'pop-location']);
-// 이동 대상이 명령에 안 보이는 이동(popd·Pop-Location, cd -·Set-Location -): 이전 상태에 기대므로 알 수 없는 곳으로 본다(WY-commit 제안)
+// 이동 대상이 명령에 안 보이는 이동(popd·Pop-Location, cd -·Set-Location -): 이전 상태에 기대므로 알 수 없는 곳으로 본다(커밋 세션 제안)
 const HIDDEN_CHDIR = new Set(['popd', 'pop-location']);
 
 function leadingTokens(seg) {
@@ -150,7 +149,7 @@ const normDir = (a) => path.posix.normalize(a.replace(/\\/g, '/')).replace(/(.)\
 // 보호 폴더·파일의 이름(경로 없이). 이것만 나와도 알 수 없는 대상으로의 쓰기는 막는다
 const SOFT_NAMES = /wy-approvals|\.wy-tools|wy-ops(?:\.local)?\.json|settings\.local\.json/;
 
-// 와일드카드(* ? [)가 든 경로는 실제로 펼쳐서 판단한다(cd ~/.cl*/wy-a*/… 같은 우회, WY-commit 검증에서 찾음)
+// 와일드카드(* ? [)가 든 경로는 실제로 펼쳐서 판단한다(cd ~/.cl*/wy-a*/… 같은 우회, 커밋 세션 검증에서 찾음)
 const GLOB = /[*?[]/;
 
 // 경로 한 조각의 와일드카드를 정규식으로. [ ]는 짝이 맞으면 글자 집합, 아니면 글자. 만들 수 없으면 null
@@ -298,9 +297,9 @@ function writesApprovalFiles(command, cwd) {
   // 보호 폴더로 cd 등을 했으면 그 뒤의 모든 쓰기(상대 경로)를 보호 경로 쓰기로 본다
   const moved = movesIntoProtected(command, cwd);
   // 와일드카드 인자를 펼쳐 보호 경로에 닿으면 보호 경로가 언급된 것으로 본다(인터프리터에 인자로 넘기는 우회 포함)
-  // 셸 특수 변수($? $# $$ $! $@ $* $0~9)는 경로가 아니다. ?·*를 와일드카드로, $를 알 수 없는 대상으로 보던 오탐(echo "exit=$?", WY-pm 보고)
+  // 셸 특수 변수($? $# $$ $! $@ $* $0~9)는 경로가 아니다. ?·*를 와일드카드로, $를 알 수 없는 대상으로 보던 오탐(echo "exit=$?", pm 보고)
   const scan = command.replace(/\$[?#$!@*0-9]/g, '');
-  // 값을 알 수 없는 토큰(${PIPESTATUS[0]}, 따옴표 안 CSS의 /* */·% 등)은 '보호 경로 언급'으로 치지 않는다(WY-backend1 보고 5·4번).
+  // 값을 알 수 없는 토큰(${PIPESTATUS[0]}, 따옴표 안 CSS의 /* */·% 등)은 '보호 경로 언급'으로 치지 않는다(보고 5·4번).
   // 그런 토큰이 쓰기 프로그램·리다이렉트의 대상이면 아래에서 그대로 막고, 인터프리터 인자이면 그 조각만 민감하게 본다
   const unknownGlob = (a) => GLOB.test(a) && UNKNOWN_TARGET.test(a);
   const mentioned = mentionsProtected(command) || (GLOB.test(scan) && tokens(scan).some((a) => GLOB.test(a) && !UNKNOWN_TARGET.test(a) && riskyTarget(a, cwd)));
@@ -379,14 +378,17 @@ function evaluate(input, rootOverride) {
   if (writesApprovalFiles(command, input.cwd || process.cwd())) {
     return {
       decision: 'deny',
-      reason: '승인 파일(~/.claude/wy-approvals 아래 decisions·decisions.log·used·sessions·message-blocks.log), 설치본(~/.wy-tools), 프로젝트 설정(.claude/wy-ops.json·wy-ops.local.json·settings.local.json)에는 셸 명령으로 쓸 수 없습니다. 읽기(cat·ls·tail·test)는 됩니다. 설정 변경은 내용을 WY-pm에 보내 사용자가 고치게 하세요.',
+      reason: '승인 파일(~/.claude/wy-approvals 아래 decisions·decisions.log·used·sessions·message-blocks.log), 설치본(~/.wy-tools), 프로젝트 설정(.claude/wy-ops.json·wy-ops.local.json·settings.local.json)에는 셸 명령으로 쓸 수 없습니다. 읽기(cat·ls·tail·test)는 됩니다. 설정 변경은 내용을 pm 세션에 보내 사용자가 고치게 하세요.',
     };
   }
   const root = rootOverride || store.rootFor(input.cwd || process.cwd());
   const guarded = segments(command).map((s) => ({ segment: s, kind: classify(s) })).filter((g) => g.kind);
   if (!guarded.length) return null;
   const ops = loadOpsConfig(input.cwd || process.cwd());
-  const COMMIT_SESSION = (ops && typeof ops.commitRole === 'string' && ops.commitRole) || DEFAULT_COMMIT_SESSION;
+  const COMMIT_SESSION = ops && typeof ops.commitRole === 'string' && ops.commitRole;
+  if (!COMMIT_SESSION) {
+    return { decision: 'deny', reason: `'${store.KINDS[guarded[0].kind]}' 명령은 커밋 역할만 실행합니다. 이 프로젝트의 .claude/wy-ops.json에 commitRole이 없습니다(install.ps1 init으로 만듭니다).` };
+  }
   const ttlMinutes = Number(ops && ops.approvals && ops.approvals.ttlMinutes);
   const ttlMs = (ttlMinutes > 0 ? ttlMinutes : DEFAULT_TTL_MINUTES) * 60 * 1000;
   if (input.agent_type !== COMMIT_SESSION) {
@@ -410,7 +412,7 @@ function evaluate(input, rootOverride) {
 }
 
 // 이 훅이 실제로 받은 agent_type을 세션 등록 기록(sessions/<sessionId>.json)에 덧쓴다(agentTypeSeen·seenAt).
-// SessionStart 훅은 fork로 이어 띄운 세션의 agent_type을 받지 못해 null을 남긴다(2026-10-07 WY-commit 역할 누락 오탐).
+// SessionStart 훅은 fork로 이어 띄운 세션의 agent_type을 받지 못해 null을 남긴다(커밋 역할 누락 오탐).
 // 도구를 한 번 쓴 뒤에는 여기 남은 값이 역할 판정의 근거가 된다. 값이 바뀔 때만 쓴다
 function noteAgentType(input, root) {
   const id = String(input.session_id || '');

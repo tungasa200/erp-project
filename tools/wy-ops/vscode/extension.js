@@ -1,7 +1,7 @@
-// WY 운영 도구 확장의 진입점. 각 화면 모듈을 등록만 한다(공용 연결 파일, 담당 WY-backend2).
-//   sessionsView  세션 현황 사이드바(WY-backend1)
-//   approvalCenter 승인 센터 탭·상태 표시줄(WY-backend2)
-//   activityView  활동 탭(WY-backend3)
+// wy-ops 확장의 진입점. 각 화면 모듈을 등록만 한다(공용 연결 파일).
+//   sessionsView  세션 현황 사이드바
+//   approvalCenter 승인 센터 탭·상태 표시줄
+//   activityView  활동 탭
 const vscode = require('vscode');
 const sessionsView = require('./sessionsView');
 const { ApprovalCenter } = require('./approvalCenter');

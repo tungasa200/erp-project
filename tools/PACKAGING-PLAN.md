@@ -13,11 +13,11 @@
 | R5 다른 PC 리허설 | 완료 | WY-backend1. 영문 경로 통과 뒤 한글·공백 경로 결함 2건(rmSync·cpSync 비정상 종료, cmd 인자 따옴표) → 0879dc3·eae4783·cf8de84·c29f7fb로 고친 뒤 재시험 통과 |
 | R6 새 프로젝트 | 완료 | C:\projects\ops-sandbox에 init → doctor 14개 ok, 결정 카드 answered, git 커밋 카드 approved → 시험 저장소 커밋 생성(가드가 그 프로젝트 승인 폴더·커밋 역할만 인정), 두 프로젝트 대기열이 섞이지 않음. 시험 폴더·세션 정리 |
 | R7 업데이트·되돌리기 | 완료 | WY-backend1 시험 + 사용자 update → Reload, doctor 14개 ok(설치본 0.6.0 @ c29f7fb). lock 파일 .claude/wy-ops.lock.json은 커밋 대상(PC마다 같은 해시) |
-| (P4 이후) 별도 저장소 분리 | 대기 | 사용자 결정(U-06) |
+| R8~R11 범용화·저장소 분리 | R8·R9 구현함, R10 다음 | 사용자 결정 카드 20261009-0930(분리를 P4 뒤에서 지금으로 앞당김, U-06 변경). 10장 |
 
 사용자 결정(2026-10-07, OPS-10):
-- 개발 위치: 이 저장소 `tools/`에서 계속 개발한다. P4 이후 최종 마무리 뒤에 별도 저장소로 분리한다(U-06).
-- 메모리 폴더: 옮기지 않는다. 기준은 CLAUDE.md·docs다(U-07).
+- 개발 위치: 이 저장소 `tools/`에서 계속 개발한다. 별도 저장소 분리는 P4 이후에서 **지금(P3 종료 뒤)으로 바뀌었다**(U-06, D-91 → D-127~D-130, 10장).
+- 메모리 폴더: 기준은 CLAUDE.md·docs다. 처음에는 옮기지 않기로 했으나(U-07), **개인 이전 묶음(export/import zip)으로 옮길 수 있게 바뀌었다**(D-127~D-130, WY-backend3 몫).
 - 사용자 전역 설정(`~/.claude/CLAUDE.md`, 사용자 스킬): 패키지에 넣지 않고 체크리스트로 안내한다(U-09).
 - 지원 OS: Windows만 지원한다(U-10).
 
@@ -153,7 +153,7 @@ OPS-10-2(새 프로젝트): 그 PC에 패키지가 없으면 먼저 이 저장�
 | R5 OPS-10-1 리허설 | 다른 경로에 두 번째 clone(`C:\projects\wy-pc2`)을 만들고, 임시 홈(`USERPROFILE`)과 임시 Claude 설정 폴더(`CLAUDE_CONFIG_DIR`)를 지정해 setup을 **플러그인까지** 돌린다 | 없음(시험) | 명령 2개 + Reload 수준으로 끝남. doctor 통과. 필수 플러그인 2개가 임시 설정 폴더에 실제로 설치되고 doctor가 버전을 확인함(설치 경로 검증). 생성된 settings에 이 PC 홈 경로가 없고 임시 홈 경로만 있음. 커밋 파일에 개인 경로 없음. 훅 5종을 임시 홈 경로에서 견본 입력으로 직접 실행: 가드 거부, 메시지 가드, 세션 시작이 임시 승인 폴더에 등록 기록을 씀, 권한 훅이 모르는 세션에 바로 null. 남은 일 할 일 카드 파일이 임시 승인 폴더에 생김 | 없음. **실제 다른 PC 확인을 권장**(아래) |
 | R6 OPS-10-2 새 프로젝트 | `C:\projects\ops-sandbox`(git init)에서 init → doctor → 역할 세션 하나 → 결정 카드 1회 + git 승인 카드 1회 | 시험 프로젝트만 | 10-2 수용 기준 전부: 파일 생성, 기존 CLAUDE.md·settings 키를 덮지 않음(미리 넣어 둔 값으로 확인), 두 프로젝트의 대기열·세션 현황·활동 보기가 섞이지 않음 | **카드 2장 처리**, init 중 차이 확인 y |
 | R7 OPS-10-3 업데이트·되돌리기 | update가 lock 해시로 사람이 고친 생성 파일을 지키는지, rollback으로 이전 버전이 도는지 확인한다. README(설치·업데이트·옮기지 않는 것·PC 옮기기 전 할 일)를 정리한다 | `tools/wy-ops/README.md`, `lib/lock.js` | 생성 파일 하나를 손으로 고친 뒤 update → 덮지 않고 차이만 보임. rollback → doctor가 이전 버전을 보고하고 카드 1회 왕복 | Reload 1회 |
-| (P4 이후) 저장소 분리 | `tools/wy-ops/`를 별도 저장소로 옮긴다(`git subtree split`으로 이력 보존). setup의 설치 원본만 바뀐다 | — | 이 계획 범위 밖 | — |
+| 저장소 분리 | 10장 R10으로 대체(이력 없이 새로 시작, subtree split 안 폐기) | — | — | — |
 
 R5에서 카드 왕복과 역할 세션을 하지 않는 이유와 남는 위험(WY-planner 대조 2):
 - 임시 홈에서는 Claude Code 로그인 정보가 없어 세션을 띄울 수 없다. 그래서 카드 4종 왕복과 `--agent` 역할 세션은 R4(실제 홈, 같은 setup 경로)에서 확인하고, R5는 그 PC에서만 달라지는 부분을 확인한다. 달라지는 부분은 홈 경로로 계산한 훅 경로, 훅 실행, 승인 폴더·등록 기록 위치, 플러그인 설치다.
@@ -167,7 +167,7 @@ R5에서 카드 왕복과 역할 세션을 하지 않는 이유와 남는 위험
 
 - 로그인: Claude Code(전제), GitHub(`gh auth status`로 확인), 외부 콘솔(Railway·Vercel, WY-browser 몫)
 - 사용자 전역 설정(U-09 결정): `~/.claude/CLAUDE.md`, 사용자 스킬(`~/.claude/skills/`), VS Code 사용자 설정. 필요하면 사용자가 직접 옮긴다
-- 메모리 폴더(U-07 결정): 옮기지 않는다. 경로가 다른 PC에서는 폴더 이름도 달라서 새로 쌓인다
+- 메모리 폴더: 개인 이전 묶음(export/import zip)으로 옮긴다(U-07 변경, D-127~D-130). 경로가 다른 PC에서는 폴더 이름이 달라지므로 import가 새 이름으로 넣는다
 - 비밀값 폴더(`C:\projects\worklog-secret\`): 사용자가 안전한 방법으로 직접 옮긴다
 - 역할별 외부 준비(U-14, pm 결정): agent-browser(npm 전역), WY-browser 전용 Chrome 프로필·CDP 9222, 외부 로그인, 비밀값 위치. 목록은 패키지 안 `tools/wy-ops/NEW-PC.md` 한 파일에 둔다
 - 선택 플러그인(K2): claude-mem, prompts.chat
@@ -209,3 +209,182 @@ R4~R6에서 확인한 것(2026-10-07):
 | K4 | 확장 id 변경(D5) 시점 | **A. R4 이 PC 전환 때 함께**(껍데기 설치와 한 번에). 대가: 승인 센터의 VS Code 저장 상태(출처 대조 원장·확인함·접힘)가 한 번 초기화된다. **B. 바꾸지 않는다**(`erp-project.erp-session-dashboard` 유지). 대가: 다른 프로젝트에서도 'ERP' 이름이 보이고, 나중에 바꾸면 그때 같은 초기화가 생긴다 | A |
 
 pm 결정(구현 세부, 2026-10-07): U-12 `.gitignore`에 `.claude/settings.local.json`·`.claude/*.bak-*`(R3, init·doctor 포함), U-13 cleanup-legacy(목록 확인 뒤 삭제), U-14 `NEW-PC.md`(setup·global이 출력), allow 1줄은 병합하지 않음, R4는 대기 카드 0일 때만 하고 원장 새로 시작을 알림, 가드의 대상 안 보이는 이동(cd -·popd)은 알 수 없음(4760134로 반영).
+
+## 10. R8~R11 범용화와 저장소 분리 (2026-10-09 계획)
+
+이 장은 사용자 결정 카드 20261009-0930(2026-10-09)과 pm 결정을 따른다.
+
+사용자 결정:
+- (1) 패키지 main에는 범용 파일만 둔다. WY-worklog 설정은 erp-project `.claude/`에 그대로 둔다.
+- git 밖 개인 상태는 export/import 로컬 zip으로 옮긴다. 이 몫은 WY-backend3다.
+- (2) 기술 스택만 대응한다. 화면과 문서는 한국어를 유지한다.
+- (3) Windows만 지원한다.
+- (4) 이름은 `wy-ops`를 유지한다.
+
+pm 결정:
+- 새 저장소는 기존 git 이력 없이 새로 시작한다. 이 결정으로 5장의 `git subtree split` 안은 폐기한다.
+- 비밀값은 넣지 않는다.
+- 원격은 `https://github.com/tungasa200/agentTeamPackage.git`(공개)이다.
+
+### 10.1 원칙
+
+- 패키지 코드는 프로젝트별 이름을 모른다. 이름은 모두 프로젝트의 `.claude/wy-ops.json` 값에서 온다. 키는 `rolePrefix`·`pmRole`·`commitRole`·`roles`·`handoff.oldNames`다.
+- 설정이 없을 때 쓰는 기본값도 특정 프로젝트 이름이 아니다.
+- erp-project는 범용 패키지를 설치해 쓰는 프로젝트 중 하나가 된다. WY 전용 내용은 erp-project의 `.claude/ops/`·`.claude/wy-ops.json`·`docs/`에만 둔다.
+- 개발은 R8·R9까지 지금처럼 `tools/wy-ops`에서 한다. R10에서 새 저장소로 옮기고, 그 뒤 개발은 새 저장소에서 한다.
+- 이 PC의 설치본(`~/.wy-tools/wy-ops/current`)은 R11 전환 전까지 바꾸지 않는다.
+- 시험은 모두 임시 설치 폴더(`WY_TOOLS_DIR`)와 임시 확장 폴더(`--extensions-dir`)에서 한다.
+
+### 10.2 단계
+
+#### R8 범용화 (K1)
+
+ERP·WY 하드코딩을 설정값으로 바꾼다.
+
+| 대상 | 바꾸는 방법 |
+|---|---|
+| `templates/pm-ops/scripts/session.ps1`의 `$Roles`·`$PmRole`·`$OldNames` | wy-ops.json의 `roles`(agent:true인 역할만), `pmRole`, `handoff.oldNames`에서 읽는다. 기본값은 빈 목록이고, 설정이 없으면 "wy-ops.json 없음"으로 멈춘다. 1행 주석의 `WY-pm`도 일반 표현으로 바꾼다 |
+| `templates/pm-ops/SKILL.md` 93행의 WY-planner 일화 | 일반 문장으로 바꾼다 |
+| `vscode/package.json` | `name` erp-session-dashboard → `wy-ops-core`, `publisher` → `wy-ops`. `version`은 패키지 `package.json`과 같은 값으로 맞춘다 |
+| 화면 `media/activity.js`·`approvals.js`, `sessionActivity.js`(`stripTag` 포함)의 `^WY-` 접두어 처리 | 확장이 웹뷰에 넘기는 설정의 `rolePrefix`를 쓴다 |
+| 커밋 세션 기본값 `WY-commit`(`hooks/wy-approval-guard.js:19`, `approvalCenter.js:103`) | 설정의 `commitRole`을 쓴다. 설정이 없으면 기본값 없이 잠금 대상 명령을 거부하고, 사유에 "wy-ops.json의 commitRole 없음"을 적는다 |
+| `wy-message-guard.js`의 안내 문구 `WY-pm` | 설정의 `pmRole`을 쓴다 |
+| 코드 주석의 담당 세션 이름(`WY-backend1` 등) | 담당 이름을 지우고 내용만 남긴다 |
+| `NEW-PC.md`·`MANUAL.md`·`vscode/README.md` | 범용 안내로 바꾼다. ERP 전용 내용은 erp-project `docs/운영도구_설치.md`(새 파일)로 옮긴다. 옮기는 내용: 비밀값 폴더 위치, WY-browser 전용 Chrome·CDP 9222, Railway·Vercel 로그인, 역할 이름 |
+
+`OLD_EXT`(`erp-project.erp-session-dashboard`) 마이그레이션 코드는 남긴다. 이 PC 전환 확인용이고 다른 PC에는 영향이 없다. 주석에 "옛 확장 id 정리용"이라고 적는다.
+
+회귀 테스트 `test/generic.test.js`를 새로 만든다.
+- 패키지 파일(테스트와 OLD_EXT 줄 제외)에 `WY-`·`erp`·`worklog`가 없는지 검사한다.
+- 접두어가 다른 설정(`AB-`)으로 가드·session.ps1 역할 목록·화면 접두어 처리가 동작하는지 확인한다.
+
+#### R9 스택 대응 (K2) — 구현함(2026-10-09)
+
+스택(`templates/stacks/<id>.json`, 키 `id`·`label`·`tools`·`verify`·`notes`):
+- `node`, `java-gradle`, `custom`(WY-backend2), `python`, `csharp`, `cpp`(WY-backend3). C#은 dotnet build/test/format, C++는 CMake·ctest 기본이고 `--verify-<키>`로 바꾼다.
+- 고른 스택에만 적용한다(카드 1010). 다른 스택의 도구는 확인하지 않는다.
+- `verify`는 6키(`setup`·`build`·`test`·`typecheck`·`lint`·`format`)이고, 해당 없으면 null이다. `custom`은 질문이나 `--verify-<키>`로 받는다.
+- `tools`(`[{ cmd, label, install }]`)는 init이 wy-ops.json의 `tools`로 복사한다. doctor(`stack-tools`)는 `where`로 있는지만 보고, 없으면 설치 안내를 주의로 낸다. 이 PC에는 설치하지 않는다.
+- `notes`는 3줄 이하다. 역할 파일의 '검증 명령' 절과 CLAUDE.md 절에 목록으로 들어간다.
+
+역할 구성(카드 1040): 스택이 아니라 공통 `templates/roles.json`에 둔다.
+- 기본 구성: commit, pm, planner, backend×2, frontend×2, qa, design, browser. search는 넣지 않는다.
+- 여러 세션으로 나눌 수 있는 역할(`multi`)은 backend·frontend·qa이고, 최대 4개다.
+- 이름 규칙: 1개면 `<접두사>backend`, 2개 이상이면 `<접두사>backend1`, `<접두사>backend2`…다. 1번이 같은 역할의 공용 파일을 맡는다.
+- init 옵션: `--roles <그룹,…>`(commit·pm은 늘 포함), `--count backend=2,frontend=2`(0이면 빼기), `--area "<역할>=<디렉터리>;…"`. 주지 않으면 수와 영역을 묻고, `--yes`면 기본값을 쓴다. 영역을 정하지 않으면 pm이 배정한다.
+- 나눈 역할의 원본 끝에 '담당 영역' 절(내 영역, 같은 역할의 다른 세션, 공용 파일 요청처)을 붙인다. CLAUDE.md 절에는 역할 표(영역 포함)와 병렬 규칙 줄을 넣는다.
+- 새 역할 템플릿: `roles/design.md`, `roles/browser.md`.
+
+CLAUDE.md 절(`templates/claude-md.md`)은 설정에서 만든다.
+- 들어가는 것: 역할 표, 병렬 규칙, 작업 원칙, pmRole·commitRole, 승인 폴더(`approvals.namespace`), 메모리 기준, 검증 명령.
+- 작업 원칙(`templates/principles.md`, 카드 1040)은 사용자 전역 지침 5개(가정 명시, 단순함, 필요한 곳만, 완료 전 검증, 한 가지 알려 주기)를 범용 문구로 다듬은 것이다. 기본으로 넣고 `--no-principles`로 끈다.
+- init은 CLAUDE.md를 직접 고치지 않는다. 넣을 절을 출력하고 `.claude/ops/CLAUDE.part.md`로도 남긴다.
+
+명령:
+- `install.ps1 gen`: 생성기 두 개를 돌리고 lock도 맞춘다. 이 명령은 R10에서 R9로 당겼다. 문서·doctor 안내도 `install.ps1 gen`으로 바꿨다.
+- `export`·`import`: `lib/transfer.js`(WY-backend3)를 연결했다.
+  - export는 시작 전에 커밋 안 된 변경·푸시 안 된 커밋을 경고하고 확인을 받는다. 역할 세션의 진행 상태 저장도 안내하고, "묶음은 한 시점 사본이며 동기화가 아니다"를 한 줄로 알린다.
+  - import 끝에는 새 PC에서 다시 할 일을 출력한다: Claude·GitHub 로그인, 외부 콘솔 로그인(전용 Chrome 프로필은 옮기지 않음), MCP 토큰, 비밀값 폴더 직접 복사, doctor.
+
+doctor 추가 점검:
+- `stack-tools`
+- `secrets`: 선택 설정 `secretsKeys`가 있으면 비밀값 폴더의 텍스트 파일에서 `KEY=`/`KEY:` 줄의 키 이름만 확인한다. 값은 출력하지 않는다. `secretsDir`는 범용에서 선택 설정이다(카드 1030).
+
+검증:
+- 기존 테스트 26개(`test/` 12 + `vscode/test` 14)가 모두 통과하는지 확인한다.
+- 스택별 init 테스트를 추가한다.
+- 저장소 밖 `C:\projects\ops-sandbox2`에서 `git init`을 하고 python 스택으로 init한다. 이때 임시 `WY_TOOLS_DIR`·`WY_APPROVALS_DIR`·`--extensions-dir`을 쓴다. 그 뒤 doctor가 모두 ok인지 본다. java-gradle로 한 번 더 확인한다. 끝나면 폴더를 정리한다.
+- 결과(2026-10-09): 두 스택 모두 설치본 1건만 fail이고 나머지는 ok다(역할 10개, 스택 도구, lock 11개, 훅, 확장, 플러그인). 설치본 fail은 deploy가 커밋된 HEAD(0.6.0)를 설치하고 작업 트리는 0.7.0이어서 생긴다. R10에서 패키지 clone이나 `--dev`로 설치하면 없어진다.
+
+#### R10 분리 (K3)
+
+새 저장소:
+- `C:\projects\agentTeamPackage`에 원격을 clone한다. erp-project 저장소 밖이다.
+- 레이아웃은 패키지 루트 = 지금의 `tools/wy-ops`다. 테스트도 함께 넣는다.
+- 추가하는 파일은 `README.md`(한국어, 설치·업데이트·명령 요약)와 `.gitignore`다. LICENSE는 만들지 않는다(카드 0940, 라이선스 없음).
+
+deploy 설치 원본을 바꾼다. 지금은 "프로젝트 저장소 HEAD의 하위 폴더"에서 설치한다. 이것을 "패키지 저장소 clone의 HEAD"로 바꾼다.
+- `lib/deploy.js`는 패키지 폴더 자체가 git 최상위인 경우(rel이 빈 값)를 지원한다.
+- `deployed.json`에 clone 경로(`source`)를 남긴다.
+- doctor의 설치본 비교 기준도 프로젝트 HEAD가 아니라 `source` clone의 HEAD와 `package.json`으로 바꾼다.
+- `update`는 `git -C <source> pull --ff-only`를 묻고 진행한다. 그 뒤 deploy와 생성 파일 갱신을 한다.
+- 개발 연결(카드 1010): `install.ps1 deploy --dev`는 이 PC의 `current`를 `C:\projects\agentTeamPackage` 작업 사본에 연결한다. 연결 중이면 doctor가 '개발 연결 중'으로 주의를 낸다.
+- 버전 고정(카드 0940): 프로젝트 wy-ops.json에 쓰는 패키지 버전을 적는다. doctor는 설치본 버전이 다르면 주의를 낸다. erp-project는 설치본만 쓴다.
+
+명령 진입점을 바꾼다.
+- `install.ps1 gen`은 R9에서 들어갔다. doctor 안내의 `INSTALL`(지금은 `tools\wy-ops\install.ps1`)을 설치본 경로로 바꾼다.
+- 설치본 경로는 `~/.wy-tools/wy-ops/current/install.ps1`이다. 프로젝트 저장소에 패키지 코드가 없어도 동작해야 한다.
+
+필수 환경과 함께 까는 도구(카드 1110):
+- `install.ps1`이 시작할 때 Node LTS, Git, GitHub CLI, Claude Code, VS Code가 있는지 PowerShell에서 확인한다. Node가 없으면 lib를 돌릴 수 없어서 PowerShell에서 처리한다.
+- 빠진 것은 목록을 보여 주고 한 번 확인받은 뒤 winget으로 설치한다. `--yes`와 설치 생략 옵션을 둔다.
+- init 뒤에는 고른 스택의 `tools`도 같은 방식으로 설치를 제안한다.
+- 함께 까는 것:
+  - agent-browser: npm 전역 설치, 브라우저 내려받기, MCP 등록
+  - claude-mem·prompts.chat: required로 올린다
+  - 전역 스킬 agent-reach·find-skills·graphify: 출처에서 설치하고, 남의 코드는 복사하지 않는다
+  - headroom MCP: pipx로 headroom-ai, Python·pipx가 없으면 함께 설치
+  - learned·synced 개인 스킬은 범용에서 빼고 이전 묶음으로만 옮긴다
+- 고른 역할에 필수인 것은 늘 설치한다: design→impeccable, browser·qa→agent-browser, 세션 교대→ecc. 나머지는 기본 체크 목록으로 보여 주고 끌 수 있게 한다(wy-ops.json의 `extras.off`). doctor는 끈 항목을 '꺼짐'으로 표시하고 실패로 보지 않는다.
+- 나눔: manifest `extras.json`·`lib/extras.js`·출처 조사·테스트는 WY-backend3가 맡는다. PowerShell 사전 점검과 init·install·doctor 연결은 WY-backend2가 맡는다. 출처를 못 찾은 것은 pm에 [결정 요청]으로 올린다.
+- 시험: 이 PC에서는 '이미 있음' 경로만 실제로 돌린다. 설치 경로는 명령을 가짜로 바꾼 테스트로 확인하고, 실제로 지우거나 다시 설치하지 않는다.
+
+복원 명령 하나(카드 1020): `install.ps1 restore <묶음.zip>`은 아래 순서로 실행한다.
+1. global(패키지·플러그인)
+2. 저장소 clone(원격·브랜치는 묶음 manifest `source.repo`에서 읽고, 이미 있으면 건너뜀)
+3. import(전역 설정 포함, `include.global` 기본 켬, MCP는 서버별 병합·토큰은 자리표시)
+4. setup
+5. doctor
+6. 새 PC 할 일 출력(`reenter` 구체 항목 + 공통 목록, 겹치는 안내는 한 번만, `~/.claude.json` 병합은 Claude Code를 끈 상태가 안전하다는 한 줄 포함)
+- 복제본은 함께 까는 도구를 이 PC 구성 그대로 모두 켠다.
+- 범용 설치는 지금처럼 install과 init으로 한다.
+- 시험은 다른 사용자 이름의 임시 홈 폴더에서 하고, 실제 홈에서는 돌리지 않는다.
+- 비밀값은 묶음에 넣지 않고 손으로 복사한다(카드 1030, D-130 유지).
+
+export/import(WY-backend3):
+- WY-backend3가 `lib/transfer.js`를 만든다.
+- install.js 디스패처의 `export`·`import` 명령 연결은 WY-backend2가 한다.
+- 접점은 `exportState({ project, out })`, `importState({ project, zip })`이고, 반환값은 `{ files, skipped }`다. 시작 전에 WY-backend3와 맞춘다.
+
+커밋과 푸시:
+- 새 저장소의 커밋·푸시는 WY-commit이 승인 카드로 한다.
+- 승인 가드는 cwd의 wy-ops.json으로 승인 폴더를 고른다. 그래서 WY-commit이 erp-project에서 `git -C C:\projects\agentTeamPackage …`로 실행해 erp-project 승인 센터 카드로 받는다. 가드가 `-C` 대상을 막지 않는지는 R10 시작 때 시험 카드 1장으로 확인한다.
+- 첫 푸시 전에 pm에 보고한다.
+- 푸시 전 점검(필수, 결과를 pm 보고에 붙인다):
+  - 문자열 검사: 비밀값, 개인 경로(홈 폴더), 이메일, 'erp'·'worklog'·'WY-' 하드코딩
+  - `ecc:opensource-sanitizer` 에이전트 점검
+  - `generic.test.js`
+
+#### R11 erp-project 전환
+
+1. pm에 알린다. 승인 대기 카드가 0인 시점에 사용자가 `C:\projects\agentTeamPackage\install.ps1 setup --project C:\projects\erp-project`를 실행하고 Reload한다.
+2. 훅 경로는 `current` 그대로라 바뀌지 않는다. 설치본 원본만 새 clone으로 바뀐다.
+3. doctor가 모두 ok인지 확인한다. 결정 카드와 git 카드를 1회씩 왕복한다.
+4. erp-project 문서를 바꾼다. CLAUDE.md, `.claude/ops/`, pm-ops 부록의 `node tools/wy-ops/…` 경로를 `install.ps1 gen` 등으로 바꾼다. 문구는 WY-pm 몫이고 원본 고치기는 WY-backend2가 한다.
+5. erp-project `tools/wy-ops`는 K5 확인 직후에 지운다(카드 0940). K5 확인은 세 가지다: 이 PC 전환, doctor 모두 ok, 다른 스택 시험 통과. 그때까지는 읽기 전용으로 두고 고치지 않는다. 지우는 커밋에 `tools/PACKAGING-PLAN.md`의 이동 위치도 함께 정한다.
+6. 사용자 손이 필요한 단계는 WY-backend2가 절차와 확인 방법을 pm에 보고하고, pm이 할 일 카드로 만든다.
+
+### 10.3 버전
+
+- 개발 중에는 `0.7.x`를 쓰고, 공개 첫 버전은 `1.0.0`이다(pm 결정).
+- VS Code에 설치되는 껍데기 확장 id `wy-ops.wy-ops`는 바꾸지 않는다. 이 id는 `lib/stub.js`의 `ID`에서만 정해진다. 내부 `vscode/package.json`의 name·publisher는 설치본에서 불러오는 코드에만 쓰이고, 설치 id에는 영향이 없다(확인함).
+- README와 문서는 한국어로 쓴다.
+- 패키지 `package.json`과 `vscode/package.json`의 버전은 같게 두고, `generic.test.js`가 같은지 검사한다.
+
+### 10.4 위험
+
+| 위험 | 대응 |
+|---|---|
+| 가드의 기본 커밋 역할이 없어지면, 설정 없는 프로젝트에서 git 잠금 명령이 모두 거부된다 | setup·init이 늘 wy-ops.json을 만든다. doctor가 commitRole 없음을 fail로 보고한다 |
+| 화면의 접두어 처리를 바꾸면 이 PC 화면 표시가 달라질 수 있다 | 활동·승인 테스트에 `WY-` 설정의 기대값을 그대로 두고 확인한다 |
+| R10 뒤 두 곳(tools/wy-ops, 새 저장소)에서 고치면 갈라진다 | R10 이후 `tools/wy-ops`는 고치지 않는다. WY-backend3의 transfer.js도 R10 전에 tools/wy-ops에 들어오거나, R10 뒤 새 저장소로 간다(시점은 pm 조율) |
+| 공개 저장소에 개인 정보가 섞인다 | 새로 시작하는 이력이다. 푸시 전 점검으로 홈 경로·이메일·비밀값 패턴이 0건인지 확인한다 |
+
+### 10.5 작업량
+
+| 단계 | 작업량 |
+|---|---|
+| R8 | 1일 |
+| R9 | 1일(스택 6종·역할 구성·작업 원칙·export 점검 포함, 구현함) |
+| R10 | 2~2.5일: 분리·deploy `--dev`·버전 고정 0.5~1일 + 사전 점검·함께 까는 도구 연결 0.5~1일(카드 1110, extras 본체는 WY-backend3) + restore 0.5일(카드 1020) |
+| R11 | 0.5일(사용자 setup 1회·Reload·카드 2장) |

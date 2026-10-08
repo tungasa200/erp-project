@@ -31,6 +31,7 @@
   let lastJson = '';
   let kinds = {};
   let routineKinds = [];
+  let rolePrefix = ''; // 역할 이름의 프로젝트 접두어(wy-ops.json rolePrefix, 확장이 state로 넘김)
   const ui = { view: 'inbox', filter: 'all', sel: null, rejecting: null, memo: null, files: false, keysFull: false, alertsOpen: false };
   const ALERTS_SHOWN = 2;
   const drafts = new Map(); // id → { answers, note, reason, ticks }
@@ -120,7 +121,8 @@
     return 'normal';
   }
   function initials(name) {
-    const base = String(name || '').replace(/^WY-/i, '').replace(/^세션\s+/, '');
+    const raw = String(name || '');
+    const base = (rolePrefix && raw.toLowerCase().startsWith(rolePrefix.toLowerCase()) ? raw.slice(rolePrefix.length) : raw).replace(/^세션\s+/, '');
     const m = base.match(/^([A-Za-z])[A-Za-z]*?(\d+)$/);
     if (m) return (m[1] + m[2]).toUpperCase();
     return (base.replace(/[^A-Za-z0-9가-힣]/g, '').slice(0, 2) || '?').toUpperCase();
@@ -1151,6 +1153,7 @@
       state = msg.state;
       kinds = state.kinds || {};
       routineKinds = state.routineKinds || [];
+      rolePrefix = state.rolePrefix || '';
       const ids = new Set(state.pending.map((r) => r.id));
       const added = prev ? state.pending.filter((r) => !prev.has(r.id)) : [];
       added.forEach((r) => fresh.add(r.id));

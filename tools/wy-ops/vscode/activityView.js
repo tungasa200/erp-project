@@ -1,4 +1,4 @@
-// 활동 탭(작업창 webview): 세션 간 메시지 피드·세션 상태·결함 흐름 묶음(OPS-09). 담당 WY-backend3(운영 도구 구현 계획 3.3).
+// 활동 탭(작업창 webview): 세션 간 메시지 피드·세션 상태·결함 흐름 묶음(OPS-09). (운영 도구 구현 계획 3.3)
 // extension.js는 register(context)만 부른다. 데이터는 sessionActivity.js(대화 기록)와 세션 상태(claude agents).
 const vscode = require('vscode');
 const fs = require('fs');
@@ -17,7 +17,7 @@ const DORMANT_MS = 2 * 60 * 60 * 1000; // 진행 중 묶음이 이만큼 조용�
 const LANE_HOURS = 12; // 시간 보기가 고를 수 있는 가장 긴 범위
 const LANE_STEP = 30000;
 
-// 세션 상태: WY-backend1의 agentsReader.readSessionStatus(계획 2.2)가 생기면 그것을, 없으면 claude agents를 직접 읽는다
+// 세션 상태: agentsReader.readSessionStatus(계획 2.2)가 생기면 그것을, 없으면 claude agents를 직접 읽는다
 function statusReader() {
   try {
     const { readSessionStatus } = require('./agentsReader');
@@ -52,7 +52,7 @@ function readAgentsFallback() {
   });
 }
 
-// 이름마다 한 줄: 살아 있는 것 우선, 그다음 최신 startedAt(WY-backend1·2와 합의)
+// 이름마다 한 줄: 살아 있는 것 우선, 그다음 최신 startedAt
 function latestByName(list) {
   const out = new Map();
   for (const s of list) {
@@ -152,7 +152,7 @@ class ActivityView {
     const text = JSON.stringify(state); // 바뀐 것이 있을 때만 보낸다(now는 보낼 때 붙인다)
     if (text === this.lastSent) return;
     this.lastSent = text;
-    this.post({ type: 'state', state: { ...state, now: Date.now() } });
+    this.post({ type: 'state', state: { ...state, now: Date.now(), rolePrefix: (this.ops && this.ops.rolePrefix) || '' } });
   }
 
   buildState() {

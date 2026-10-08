@@ -206,7 +206,7 @@ function writeDecision(id, req, body, root) {
   const out = {
     id,
     kind: req.kind,
-    session: req.session, // 결정을 전해 받을 세션. 멈춰 있으면 WY-pm이 깨워 전달한다
+    session: req.session, // 결정을 전해 받을 세션. 멈춰 있으면 pm 세션이 깨워 전달한다
     relatedSessions: req.relatedSessions,
     ...body,
     by: 'user',

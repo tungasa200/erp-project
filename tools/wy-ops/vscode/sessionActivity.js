@@ -1,5 +1,5 @@
 // 세션 활동 읽기(OPS-09): 세션 대화 기록(~/.claude/projects/<프로젝트>/*.jsonl)에서 세션 간 메시지와
-// 세션별 마지막 동작을 읽고, 메시지를 작업 ID·응답 관계로 묶는다. 담당 WY-backend3(운영 도구 구현 계획 3.3).
+// 세션별 마지막 동작을 읽고, 메시지를 작업 ID·응답 관계로 묶는다. (운영 도구 구현 계획 3.3)
 //
 // 대화 기록은 Claude Code의 내부 형식이다(공개 계약 아님). 모르는 형식은 건너뛰고 unreadable로 센다.
 //   받은 메시지  type:"user", origin:{kind:"peer", name, msg_id, body}
@@ -19,12 +19,12 @@ const BAND_GAP = 90 * 1000; // 줄 사이가 이보다 짧으면 계속 일한 �
 const MAX_BANDS = 500; // 기록 하나에 남기는 구간 수
 const RECENT = 3 * 60 * 60 * 1000; // 이 안에 쓴 기록은 처음에 끝부분을 4배(1MB) 읽는다
 
-// 저장소 경로 → 대화 기록 폴더 이름(영숫자 외 문자를 '-'로): C:\projects\erp-project → C--projects-erp-project
+// 저장소 경로 → 대화 기록 폴더 이름(영숫자 외 문자를 '-'로): C:\projects\my-app → C--projects-my-app
 function transcriptDir(repoRoot, home = os.homedir()) {
   return path.join(home, '.claude', 'projects', path.resolve(repoRoot).replace(/[^A-Za-z0-9]/g, '-'));
 }
 
-// "WY-pm [363ba2]" → "WY-pm"
+// "XX-pm [363ba2]" → "XX-pm"
 const bareName = (to) => String(to || '').replace(/\s*\[[^\]]*\]\s*$/, '').trim();
 
 const firstLine = (text) => (String(text || '').split(/\r?\n/).find((l) => l.trim()) || '').trim();
@@ -316,7 +316,7 @@ function bundleState(stages) {
   return 'run';
 }
 
-const stripTag = (t) => String(t).replace(/^\s*(\[[^\]]+\]\s*)+/, '').replace(/^WY-\S+\s*(지시|알림)?\s*:\s*/, '').trim();
+const stripTag = (t) => String(t).replace(/^\s*(\[[^\]]+\]\s*)+/, '').replace(/^[A-Za-z][A-Za-z0-9]*-[A-Za-z0-9]+\s*(지시|알림)?\s*:\s*/, '').trim();
 
 // feed(시간순) → 묶음(최근에 움직인 것 먼저)
 function bundle(feed) {

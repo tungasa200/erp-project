@@ -1,4 +1,4 @@
-// 세션 상태 읽기(운영 도구 구현 계획 2.2, 담당 WY-backend1): claude agents 목록에 권한 요청 파일과 세션 등록 기록을 붙여
+// 세션 상태 읽기(운영 도구 구현 계획 2.2): claude agents 목록에 권한 요청 파일과 세션 등록 기록을 붙여
 // 화면이 바로 쓸 수 있는 상태(view)로 바꾼다. vscode에 의존하지 않아 훅(B2)·활동 탭(B3)·테스트에서도 쓴다.
 //   readSessionStatus({ root, ops }) → [{ name, id, sessionId, kind, state, status, waitingFor, view, offReason, pending, roleMissing,
 //                                         startedAt, alive, offMessages, contextTokens, rotate }]

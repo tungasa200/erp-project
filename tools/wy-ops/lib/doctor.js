@@ -283,7 +283,19 @@ function checkLock(o) {
   const d = lock.drift(o.repoRoot);
   if (!d.length) return result('lock', '생성 파일 lock', 'ok', `생성물 ${Object.keys(lock.readLock(o.repoRoot).files).filter((k) => /^\.claude\/(agents|skills)\//.test(k)).length}개가 lock과 같음`);
   const list = d.map((x) => `${x.file}(${x.state === 'missing' ? '없음' : '다름'})`).join(', ');
-  return result('lock', '생성 파일 lock', 'warn', `lock과 다른 생성물: ${list}. 생성물을 직접 고쳤다면 원본(.claude/ops/·템플릿)을 고친 뒤 다시 생성하세요`, 'node tools/wy-ops/gen-agents.js 와 node tools/wy-ops/gen-skill.js (원본에서 다시 만들면 lock도 맞춰짐)');
+  return result('lock', '생성 파일 lock', 'warn', `lock과 다른 생성물: ${list}. 생성물을 직접 고쳤다면 원본(.claude/ops/·템플릿)을 고친 뒤 다시 생성하세요`, `${INSTALL} gen (원본에서 다시 만들면 lock도 맞춰짐)`);
+}
+
+// 고른 스택의 개발 도구(wy-ops.json의 tools: [{ cmd, label, install }]). init이 스택에서 복사하고 프로젝트가 고칠 수 있다.
+// 있는지만 본다(where, 실행하지 않음). 고른 스택에만 하고, 없으면 설치 안내만 낸다(이 PC에 설치하지 않음)
+function checkStackTools(o) {
+  const { ops } = opsConfig(o);
+  const tools = ops && Array.isArray(ops.tools) ? ops.tools.filter((t) => t && /^[A-Za-z0-9._-]+$/.test(t.cmd || '')) : [];
+  if (!tools.length) return result('stack-tools', '스택 개발 도구', 'ok', ops && ops.stack ? `${ops.stack}: 확인할 도구 없음` : '스택 도구 목록 없음');
+  const missing = tools.filter((t) => o.run('where', [t.cmd]).status !== 0);
+  const names = (list) => list.map((t) => t.label || t.cmd).join(', ');
+  if (!missing.length) return result('stack-tools', '스택 개발 도구', 'ok', `${ops.stack || '프로젝트'}: ${names(tools)}`);
+  return result('stack-tools', '스택 개발 도구', 'warn', `${ops.stack || '프로젝트'}: 없음 — ${names(missing)}`, missing.map((t) => `${t.label || t.cmd}: ${t.install || '설치 안내 없음'}`).join(' · '));
 }
 
 function checkConfig(o) {
@@ -302,7 +314,7 @@ function checkConfig(o) {
   const gen = o.run('node', [path.join(PKG, 'gen-agents.js'), '--check', '--root', o.repoRoot]);
   if (gen.status !== 0) {
     const why = String(gen.stdout).trim().split(/\r?\n/).slice(0, 2).join(' ');
-    return result('config', '설정', 'fail', `역할 파일(.claude/agents)이 원본과 다름${why ? `: ${why}` : ''}`, 'node tools/wy-ops/gen-agents.js');
+    return result('config', '설정', 'fail', `역할 파일(.claude/agents)이 원본과 다름${why ? `: ${why}` : ''}`, `${INSTALL} gen`);
   }
   return result('config', '설정', 'ok', `${ops.project} · 역할 ${roles.length}개 · namespace ${ns}`);
 }
@@ -367,7 +379,7 @@ function checkLedger(o) {
 }
 
 // 비밀값 폴더는 있는지만 본다. 내용은 읽지 않는다. wy-ops.json secretsDir(없으면 점검하지 않음):
-// 커밋되는 파일에 PC 절대 경로를 넣지 않도록 저장소 루트 기준 상대 경로를 쓰고(예 ../worklog-secret), 배치가 다른 PC는 wy-ops.local.json으로 덮어쓴다
+// 커밋되는 파일에 PC 절대 경로를 넣지 않도록 저장소 루트 기준 상대 경로를 쓰고(예 ../my-secrets), 배치가 다른 PC는 wy-ops.local.json으로 덮어쓴다
 function secretsPath(o, value) {
   const v = String(value);
   if (/^~(?=$|[\\/])/.test(v)) return path.join(o.home, v.slice(1));
@@ -378,7 +390,24 @@ function checkSecrets(o) {
   const { ops } = opsConfig(o);
   const dir = ops && ops.secretsDir ? secretsPath(o, ops.secretsDir) : null;
   if (!dir) return result('secrets', '비밀값 폴더', 'ok', 'wy-ops.json에 secretsDir가 없어 확인하지 않음');
-  if (exists(dir)) return result('secrets', '비밀값 폴더', 'ok', `${slash(dir)} 있음(내용은 읽지 않음)`);
+  if (exists(dir)) {
+    // 선택 설정 secretsKeys: 폴더 안 텍스트 파일에 'KEY=' 또는 'KEY:'로 시작하는 줄이 있는지만 본다. 값은 담아 두거나 출력하지 않는다
+    const keys = Array.isArray(ops.secretsKeys) ? ops.secretsKeys.filter((k) => typeof k === 'string' && /^[A-Za-z0-9_.-]+$/.test(k)) : [];
+    if (!keys.length) return result('secrets', '비밀값 폴더', 'ok', `${slash(dir)} 있음(내용은 읽지 않음)`);
+    const found = new Set();
+    for (const f of fs.readdirSync(dir)) {
+      const file = path.join(dir, f);
+      const st = fs.statSync(file);
+      if (!st.isFile() || st.size > 1024 * 1024) continue;
+      for (const line of fs.readFileSync(file, 'utf8').split(/\r?\n/)) {
+        const m = /^\s*([A-Za-z0-9_.-]+)\s*[=:]/.exec(line);
+        if (m && keys.includes(m[1])) found.add(m[1]);
+      }
+    }
+    const missing = keys.filter((k) => !found.has(k));
+    if (!missing.length) return result('secrets', '비밀값 폴더', 'ok', `${slash(dir)} 있음 · 키 ${keys.length}개 이름 확인(값은 출력하지 않음)`);
+    return result('secrets', '비밀값 폴더', 'warn', `${slash(dir)}에 없는 키: ${missing.join(', ')}`, '원래 PC의 비밀값 파일을 손으로 다시 복사(값은 저장소·묶음에 넣지 않음)');
+  }
   return result('secrets', '비밀값 폴더', 'warn', `${slash(dir)} 없음`, 'NEW-PC.md 비밀값 항목', {
     key: 'secrets',
     title: '비밀값 폴더 옮기기',
@@ -454,6 +483,7 @@ function checkAll(opts = {}) {
     () => checkPlugins(o),
     () => checkApprovals(o),
     () => checkConfig(o),
+    () => checkStackTools(o),
     () => checkLock(o),
     () => checkPersonalPaths(o),
     () => checkGitignore(o),

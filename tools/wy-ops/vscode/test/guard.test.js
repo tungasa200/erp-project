@@ -11,7 +11,7 @@ const ok = (c, m) => { if (!c) { fail++; console.log('FAIL ' + m); } };
 const proj = fs.mkdtempSync(path.join(os.tmpdir(), 'wy-guard-proj-'));
 // 와일드카드 검사용: 프로젝트 안에 보호 파일과 승인 폴더 모양을 만든다
 fs.mkdirSync(path.join(proj, '.claude'), { recursive: true });
-fs.writeFileSync(path.join(proj, '.claude', 'wy-ops.json'), '{}');
+fs.writeFileSync(path.join(proj, '.claude', 'wy-ops.json'), JSON.stringify({ commitRole: 'AB-commit' })); // 접두어가 WY-가 아닌 설정(범용화 회귀)
 fs.mkdirSync(path.join(proj, 'h', '.claude', 'wy-approvals', 'erp-project', 'decisions'), { recursive: true });
 fs.mkdirSync(path.join(proj, 'src'), { recursive: true });
 fs.writeFileSync(path.join(proj, 'src', 'a.log'), '');
@@ -184,7 +184,17 @@ const allow = [
   'Set-Location ~/.claude/wy-approvals/erp-project/decisions; Get-Content x.json',
 ];
 for (const c of deny) { const e = ev(c); ok(e && e.decision === 'deny', 'should deny: ' + c); }
-for (const c of allow) { const e = ev(c); ok(e === null || (c.startsWith('git commit') && e.reason.includes('WY-commit')), 'should allow: ' + c + ' → ' + JSON.stringify(e)); }
+// 설정에 commitRole이 없으면 기본 이름 없이 잠금 대상은 모두 거부(커밋 역할 이름으로 띄운 세션도)
+{
+  const bare = fs.mkdtempSync(path.join(os.tmpdir(), 'wy-guard-bare-'));
+  fs.mkdirSync(path.join(bare, '.claude'), { recursive: true });
+  fs.writeFileSync(path.join(bare, '.claude', 'wy-ops.json'), '{}');
+  const e = evaluate({ tool_name: 'Bash', tool_input: { command: 'git commit -m x' }, agent_type: 'WY-commit', cwd: bare, session_id: 's' });
+  ok(e && e.decision === 'deny' && e.reason.includes('commitRole이 없습니다'), 'commitRole 없음 → 거부: ' + JSON.stringify(e));
+  const e2 = evaluate({ tool_name: 'Bash', tool_input: { command: 'git commit -m x' }, agent_type: 'AB-qa', cwd: proj, session_id: 's' });
+  ok(e2 && e2.decision === 'deny' && e2.reason.includes('AB-commit'), '다른 역할 → 설정의 커밋 역할 안내');
+}
+for (const c of allow) { const e = ev(c); ok(e === null || (c.startsWith('git commit') && e.reason.includes('AB-commit')), 'should allow: ' + c + ' → ' + JSON.stringify(e)); }
 
 // cwd가 .claude 안일 때: 상대 경로·cd ..로 보호 파일에 닿으면 막고, 그 폴더 안 다른 파일은 통과
 const jobs = path.join(proj, '.claude', 'jobs');

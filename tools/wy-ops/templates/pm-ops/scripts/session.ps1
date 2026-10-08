@@ -1,4 +1,4 @@
-﻿# 역할 세션을 백그라운드 Claude 세션으로 띄우고 멈추고 교대한다. WY-pm이 실행한다.
+﻿# 역할 세션을 백그라운드 Claude 세션으로 띄우고 멈추고 교대한다. pm 역할(wy-ops.json의 pmRole)이 실행한다.
 #   session.ps1 list                    역할 세션 목록(VS Code 세션 포함)
 #   session.ps1 health                  역할별 대화 크기(토큰·MB)·마지막 활동, 교대 권장 표시
 #   session.ps1 start <역할> [지시]     멈춘 세션이 있으면 대화를 이어서, 없으면 역할 파일로 새로 띄운다
@@ -18,12 +18,11 @@ $ErrorActionPreference = 'Continue'
 # 저장소 = 이 스크립트(.claude/skills/pm-ops/scripts/)에서 네 단계 위
 $Repo = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..')).Path
 
-# 아래는 기본값이다. 프로젝트 설정(.claude/wy-ops.json, PC별 덮어쓰기 .claude/wy-ops.local.json)이 있으면 그 값을 쓴다
-$Roles = 'WY-commit','WY-search','WY-planner','WY-design','WY-backend1','WY-backend2','WY-frontend','WY-frontend2','WY-browser','WY-qa'
-$PmRole = 'WY-pm'
-# 2026-10-06 이름 변경 전 이름. 옛 인수인계 파일을 찾을 때만 쓴다
-$OldNames = @{ 'WY-commit'='erp-commit'; 'WY-search'='erp-search'; 'WY-planner'='erp-planner'; 'WY-design'='erp-design'
-  'WY-backend1'='backend1'; 'WY-backend2'='backend2'; 'WY-frontend'='frontend'; 'WY-frontend2'='frontend2'; 'WY-browser'='browser-controller'; 'WY-qa'='qa'; 'WY-pm'='project-pm' }
+# 역할 이름은 프로젝트 설정(.claude/wy-ops.json, PC별 덮어쓰기 .claude/wy-ops.local.json)에서만 온다. 아래는 설정에 없는 값의 기본값이다
+$Roles = @()
+$PmRole = $null
+# 역할 이름을 바꾼 프로젝트의 옛 이름(handoff.oldNames). 옛 인수인계 파일을 찾을 때만 쓴다
+$OldNames = @{}
 # 교대 권장 기준: 현재 대화 토큰(마지막 응답의 input+cache_read+cache_creation). MB는 토큰을 못 읽을 때만 쓰는 호환 기준
 $RotateTokens = 150000
 $RotateMB = 5
@@ -55,6 +54,7 @@ if ($Ops) {
   if ($Ops.rotation.contextTokens) { $RotateTokens = $Ops.rotation.contextTokens }
   if ($Ops.docs.progress) { $ProgressDoc = $Ops.docs.progress }
 }
+if (-not $Roles.Count -or -not $PmRole) { throw "프로젝트 설정 $Repo\.claude\wy-ops.json에 roles·pmRole이 없습니다(install.ps1 init으로 만듭니다)" }
 # Claude Code는 대화 기록 폴더 이름을 저장소 경로의 영문·숫자 외 문자를 '-'로 바꿔 만든다(Windows는 대소문자 무시)
 $Transcripts = "$env:USERPROFILE\.claude\projects\" + ($Repo -replace '[^A-Za-z0-9]', '-')
 if ($Cmd -notin 'list','health','pm-cmd' -and $Role -notin $Roles) { throw "역할 이름이 아닙니다: $Role (예: $($Roles[-1]))" }

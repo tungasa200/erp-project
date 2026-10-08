@@ -13,10 +13,10 @@ const { readAgents, isReachable } = require('../agentsReader');
 const LOG_NAME = 'message-blocks.log';
 const LOG_MAX_BYTES = 1024 * 1024;
 
-// "WY-qa [3fa9c1]" → "WY-qa"
+// "XX-qa [3fa9c1]" → "XX-qa"
 const nameOf = (to) => String(to || '').replace(/\s*\[[^\]]*\]\s*$/, '').trim();
 
-function check(list, to) {
+function check(list, to, pmRole = null) {
   const name = nameOf(to);
   if (!name || name === 'main') return null;
   const same = (list || []).filter((s) => s && s.name === name);
@@ -25,7 +25,7 @@ function check(list, to) {
   const state = latest.state || '끝남';
   return {
     decision: 'deny',
-    reason: `대상 세션 ${name}이 대기 중 종료됨(${state}) — 메시지가 전달되지 않습니다. WY-pm에 알리거나 session.ps1 start ${name}으로 다시 띄우세요.`,
+    reason: `대상 세션 ${name}이 대기 중 종료됨(${state}) — 메시지가 전달되지 않습니다. ${pmRole || 'pm 세션'}에 알리거나 session.ps1 start ${name}으로 다시 띄우세요.`,
     to: name,
     toSessionId: latest.sessionId || null,
     toState: latest.state || null,
@@ -64,7 +64,14 @@ if (require.main === module) {
     try {
       const input = JSON.parse(raw);
       const list = await readAgents();
-      const result = check(list, input.tool_input && input.tool_input.to);
+      let pmRole = null;
+      try {
+        const ops = require('../opsConfig').loadOpsConfig(input.cwd || process.cwd());
+        pmRole = ops && ops.pmRole;
+      } catch {
+        // 설정을 못 읽으면 일반 문구
+      }
+      const result = check(list, input.tool_input && input.tool_input.to, pmRole);
       if (result) {
         try {
           const store = require('../approvalStore');

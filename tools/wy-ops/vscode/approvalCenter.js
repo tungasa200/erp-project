@@ -13,7 +13,7 @@ const OPEN_COMMAND = 'wyApprovals.open';
 const POLL = 15000; // 파일 감시가 놓친 변경을 잡는 느린 주기
 const ROLE_POLL = 30000; // 커밋 세션 역할 확인 주기(claude agents)
 
-// 세션 상태 읽기(WY-backend1 agentsReader). 아직 없으면 역할 경고를 건너뛴다
+// 세션 상태 읽기(agentsReader). 아직 없으면 역할 경고를 건너뛴다
 function sessionStatusReader() {
   try {
     const m = require('./agentsReader');
@@ -100,8 +100,8 @@ class ApprovalCenter {
   // 커밋 세션 역할 누락(OPS-06 2): 커밋 세션 이름인데 --agent 없이 뜬 세션
   async checkRoles() {
     const read = sessionStatusReader();
-    const commitRole = (this.ops && this.ops.commitRole) || 'WY-commit';
-    if (!read) return;
+    const commitRole = this.ops && this.ops.commitRole;
+    if (!read || !commitRole) return;
     try {
       const rows = await read({ root: this.root, ops: this.ops });
       // 권한·할 일 카드에 '세션 끝남'을 붙이는 데 쓴다. 목록에서 끝났다고 확인된 세션만(목록에 없는 세션은 모름으로 둔다)
@@ -156,7 +156,7 @@ class ApprovalCenter {
     }
     this.state = state;
     this.renderStatus();
-    this.post({ type: 'state', state: { ...state, kinds: store.KINDS, routineKinds: store.ROUTINE_KINDS } });
+    this.post({ type: 'state', state: { ...state, kinds: store.KINDS, routineKinds: store.ROUTINE_KINDS, rolePrefix: (this.ops && this.ops.rolePrefix) || '' } });
   }
 
   // 프로젝트 폴더로 옮긴 뒤 옛 바탕 폴더에 요청이 남아 있으면 알린다(그 요청은 이 탭에 보이지 않는다)

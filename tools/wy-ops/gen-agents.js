@@ -6,7 +6,7 @@
 //   <저장소>/.claude/wy-ops.json         roles(agent:false는 건너뜀), pmRole, commitRole, docs, memory …
 //   <저장소>/.claude/ops/agent.md        프로젝트 템플릿(없으면 tools/wy-ops/templates/agent.md)
 //   <저장소>/.claude/ops/roles/<역할>.md  역할 원본: frontmatter(description + 추가 줄) + '이 역할의 작업 방식' 본문
-// 자리표시자: {{name}} {{description}} {{frontmatter}} {{body}}와 설정 경로({{pmRole}}, {{docs.progress}} …).
+// 자리표시자: {{name}} {{description}} {{frontmatter}} {{body}} {{verifyList}}(verify·stackNotes에서 만든 목록)와 설정 경로({{pmRole}}, {{docs.progress}} …).
 //   {{경로|size}}는 MB 값을 1024의 배수면 'nGB', 아니면 'nMB'로 쓴다. 모르는 자리표시자는 오류로 멈춘다.
 const fs = require('fs');
 const path = require('path');
@@ -41,6 +41,16 @@ function readRole(file) {
   };
 }
 
+// 검증 명령(wy-ops.json verify: setup·build·test·typecheck·lint·format, 해당 없으면 null)과 스택 메모(stackNotes) → 목록 줄
+const VERIFY_KEYS = [['setup', '준비(처음 한 번·의존성 바뀔 때)'], ['build', '빌드'], ['test', '테스트'], ['typecheck', '타입 검사'], ['lint', '린트'], ['format', '형식 검사']];
+function verifyList(ops) {
+  const v = (ops && ops.verify) || {};
+  const lines = VERIFY_KEYS.filter(([k]) => typeof v[k] === 'string' && v[k].trim()).map(([k, label]) => `- ${label}: \`${v[k].trim()}\``);
+  if (!lines.length) lines.push('- (아직 정하지 않았다. `.claude/wy-ops.json`의 `verify`에 setup·build·test·typecheck·lint·format 명령을 적는다)');
+  for (const n of Array.isArray(ops && ops.stackNotes) ? ops.stackNotes : []) if (typeof n === 'string' && n.trim()) lines.push(`- ${n.trim()}`);
+  return lines.join('\n');
+}
+
 const size = (mb) => (Number(mb) % 1024 === 0 ? `${Number(mb) / 1024}GB` : `${Number(mb)}MB`);
 
 function fill(template, values, where) {
@@ -63,7 +73,7 @@ function generate(root) {
     const roleFile = path.join(root, '.claude', 'ops', 'roles', `${r.name}.md`);
     if (!fs.existsSync(roleFile)) throw new Error(`역할 원본이 없습니다: ${roleFile}`);
     const role = readRole(roleFile);
-    return { name: r.name, text: fill(template, { ...ops, ...role, name: r.name }, templateFile) };
+    return { name: r.name, text: fill(template, { ...ops, verifyList: verifyList(ops), ...role, name: r.name }, templateFile) };
   });
 }
 
@@ -118,4 +128,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { generate, readRole, fill, size };
+module.exports = { generate, readRole, fill, size, verifyList, VERIFY_KEYS };

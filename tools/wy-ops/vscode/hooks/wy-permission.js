@@ -81,7 +81,7 @@ function markUsed(p, id, body) {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // 백그라운드 세션만 카드로 받는다. 대화형 세션은 사용자가 터미널 확인 창에 바로 답하므로,
-// 15분 기다리면 오히려 확인 창이 늦어진다(WY-pm 결정 2026-10-07). 세션 종류를 모르면 마찬가지로 평소 흐름.
+// 15분 기다리면 오히려 확인 창이 늦어진다(pm 결정 2026-10-07). 세션 종류를 모르면 마찬가지로 평소 흐름.
 // null을 돌려주면 결정 없이 끝난다 → 확인 창.
 async function onPermissionRequest(input, root) {
   const session = sessionOf(input.session_id);

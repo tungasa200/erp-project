@@ -19,16 +19,22 @@
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
   const ico = (id, cls = 'i') => `<svg class="${cls}" aria-hidden="true"><use href="#${id}"/></svg>`;
 
+  // 역할 이름의 프로젝트 접두어(wy-ops.json rolePrefix, 확장이 state로 넘김)를 뗀다
+  const unprefix = (name) => {
+    const p = (state && state.rolePrefix) || '';
+    const s = String(name || '');
+    return p && s.toLowerCase().startsWith(p.toLowerCase()) ? s.slice(p.length) : s;
+  };
   // 역할 이름 → 아바타 글자
   const SHORT = { pm: 'PM', commit: 'CM', qa: 'QA', search: 'SR', planner: 'PL', design: 'DS', browser: 'BR', frontend: 'FE', frontend2: 'F2', backend1: 'B1', backend2: 'B2', backend3: 'B3' };
   function initials(name) {
     if (!name || name === '(알 수 없음)') return '?';
-    const n = String(name).replace(/^WY-/, '');
+    const n = unprefix(name);
     if (SHORT[n]) return SHORT[n];
     const m = n.match(/^([A-Za-z])[A-Za-z]*?(\d+)$/);
     return m ? (m[1] + m[2]).toUpperCase() : n.slice(0, 2).toUpperCase();
   }
-  const short = (name) => String(name || '').replace(/^WY-/, '');
+  const short = (name) => unprefix(name);
 
   // 네 가지 상태와 순서(권한 대기 > 일하는 중 > 입력 대기 > 꺼짐). 꺼진 이유는 작은 글씨로
   const VIEW = {

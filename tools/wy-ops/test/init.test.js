@@ -27,6 +27,11 @@ try {
     rotation: { transcriptMB: 5 }, memory: { warnFreeMB: 1024, blockFreeMB: 500 },
     approvals: { namespace: '{{project}}', ttlMinutes: 60 }, docs: { progress: 'docs/진행현황.md', decisions: 'docs/결정기록.md' },
   }));
+  put(T, 'roles.json', JSON.stringify({ groups: [
+    { id: 'commit', summary: '커밋 전담', template: 'commit', count: 1, fixed: true },
+    { id: 'pm', summary: '총괄', agent: false, count: 1, fixed: true },
+    { id: 'qa', summary: '테스트', template: 'qa', count: 1, multi: true },
+  ] }));
   put(T, 'roles/commit.md', '---\ndescription: 커밋 전담({{project}}).\n---\n- {{prefix}}pm에 보고한다.\n');
   put(T, 'roles/qa.md', '---\ndescription: 테스트.\n---\n- 코드를 고치지 않는다.\n');
   put(T, 'pm-ops.project.md', '## 프로젝트 부록 — {{project}}\n- 여기에 이 프로젝트 규칙\n');

@@ -37,9 +37,9 @@ try {
 
   // 4. 사람이 생성물을 직접 고친 것만 어긋남, 지운 것은 missing
   fs.appendFileSync(path.join(P, '.claude', 'agents', 'LG-commit.md'), '손으로 고침\n');
-  fs.unlinkSync(path.join(P, '.claude', 'agents', 'LG-backend.md'));
+  fs.unlinkSync(path.join(P, '.claude', 'agents', 'LG-backend1.md'));
   assert.deepStrictEqual(lock.drift(P).sort((a, b) => a.file.localeCompare(b.file)), [
-    { file: '.claude/agents/LG-backend.md', state: 'missing' },
+    { file: '.claude/agents/LG-backend1.md', state: 'missing' },
     { file: '.claude/agents/LG-commit.md', state: 'changed' },
   ]);
 
