@@ -364,7 +364,7 @@ describe('하루 마감 (SCR-LOG-03)', () => {
     expect(screen.getByText(/확인 대기 기록이 2건 있어요/)).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: '그대로 다음' }))
     await waitFor(() => expect(screen.getByRole('heading', { name: '하루 마감 2/3' })).toHaveFocus())
-    expect(screen.getByText(/다음 주 계획/)).toBeInTheDocument()
+    expect(screen.getByText('넘긴 일은 다음 주 계획에 들어가요. 업무의 마감일은 바뀌지 않아요.')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: '이전' }))
     await waitFor(() => expect(screen.getByRole('heading', { name: '하루 마감 1/3' })).toHaveFocus())
   })

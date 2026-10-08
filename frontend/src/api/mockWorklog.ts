@@ -795,6 +795,7 @@ function handleGapsAndSummary(
       })),
       tasks: sum((x) => x.taskId ?? null).map(([taskId, minutes]) => ({
         taskId,
+        title: state.tasks.find((t) => t.id === taskId)?.title ?? null,
         projectId: projectOf(taskId),
         minutes,
       })),

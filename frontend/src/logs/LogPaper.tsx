@@ -1,8 +1,8 @@
 // SCR-LOG-02 ② 문서 영역: 내보낼 파일과 같은 모습(docs/업무일지_서식명세.md, 화면 px = pt × 1.35).
 // 테마 색을 쓰지 않는다. 초안을 고칠 수 있을 때만(editor) 칸이 입력으로 바뀌고 줄 버튼·계획 후보 칩이 붙는다.
-import { useRef, type ReactNode } from 'react'
+import { useId, useRef, type ReactNode } from 'react'
 import { toZoned, formatMinutes } from '../calendar/time'
-import { WEEKDAY_NAMES, isoWeekday } from '../quickInput/dates'
+import { WEEKDAY_NAMES, isoWeekday, todayIn } from '../quickInput/dates'
 import type { LogAchievement, LogContent, LogPlan, LogType, PlanCandidate } from './api'
 import { durationLabel, progressLabel } from './api'
 import { periodText, stamp } from './format'
@@ -80,7 +80,7 @@ export function LogPaper(props: Props) {
         </tbody>
       </table>
 
-      {type === 'WEEKLY' && <WeekDays days={c.days} />}
+      {type === 'WEEKLY' && <WeekDays days={c.days} today={todayIn(props.timeZone)} />}
       {type === 'MONTHLY' && <MonthDays days={c.days} />}
 
       <Section title={SECTION[type]}>
@@ -89,7 +89,7 @@ export function LogPaper(props: Props) {
       </Section>
 
       <Section title="진행 현황">
-        <p className={styles.body}>{metricsLine(c)}</p>
+        <p className={styles.body}>{metricsLine(type, c)}</p>
         {type === 'MONTHLY' && c.projects.length > 0 && <ProjectStats content={c} />}
       </Section>
 
@@ -138,9 +138,10 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   )
 }
 
-function metricsLine(c: LogContent): string {
+function metricsLine(type: LogType, c: LogContent): string {
   const m = c.metrics
-  if (c.days.length > 0 && c.projects.length > 0) {
+  // 서식명세 2.5: 월간만 "완료 업무·기록", 일간·주간은 결과별 건수
+  if (type === 'MONTHLY') {
     const parts = [
       m.completedTaskCount && `완료 업무 ${m.completedTaskCount}건`,
       m.recordCount && `기록 ${m.recordCount}건`,
@@ -159,12 +160,24 @@ function metricsLine(c: LogContent): string {
   return `${parts.join(' · ')}${names.length > 0 ? ` (${names.join(', ')}${extra})` : ''}`
 }
 
-function WeekDays({ days }: { days: LogContent['days'] }) {
+// 서식명세 2.3: 구분 제목은 보이지 않고(표 이름으로만), 오늘 이후 날의 '기록 없음'은 빈칸
+function WeekDays({ days, today }: { days: LogContent['days']; today: string }) {
   const label = (d: LogContent['days'][number]) =>
-    d.source === 'CONFIRMED_LOG' ? '확정' : d.source === 'RECORDS' ? '원본 기록' : d.workday ? '기록 없음' : '휴일'
+    d.source === 'CONFIRMED_LOG'
+      ? '확정'
+      : d.source === 'RECORDS'
+        ? '원본 기록'
+        : !d.workday
+          ? '휴일'
+          : d.date > today
+            ? ''
+            : '기록 없음'
+  const titleId = useId()
   return (
-    <section className={styles.section}>
-      <h3 className={styles.sectionTitle}>포함된 날</h3>
+    <section className={styles.section} aria-labelledby={titleId}>
+      <h3 id={titleId} className={styles.srOnly}>
+        포함된 날
+      </h3>
       <table className={`${styles.grid} ${styles.days}`}>
         <thead>
           <tr>
@@ -558,8 +571,6 @@ function TimeTable({
   projectName?: (id: string | null) => string | null
 }) {
   const time = content.time!
-  const title = (taskId: string | null) =>
-    (taskId && content.achievements.find((a) => a.taskId === taskId)?.text) || (taskId ? '' : '업무 없음')
   const share = (min: number) => (time.totalMin > 0 ? `${Math.round((min / time.totalMin) * 100)}%` : '')
   return (
     <table className={styles.grid}>
@@ -579,7 +590,7 @@ function TimeTable({
         {time.tasks.map((t) => (
           <tr key={`${t.taskId}-${t.projectId}`}>
             <td>{projectName?.(t.projectId) ?? ''}</td>
-            <td>{title(t.taskId)}</td>
+            <td>{t.taskId ? t.title : '업무 없음'}</td>
             <td className={styles.center}>{durationLabel(t.minutes)}</td>
             <td className={styles.center}>{share(t.minutes)}</td>
           </tr>

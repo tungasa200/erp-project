@@ -74,7 +74,7 @@ function periodLog(type: 'WEEKLY' | 'MONTHLY', start: string, end: string, conte
 }
 
 describe('주간·월간 일지 문서 (SCR-LOG-02, P3-07)', () => {
-  it('주간: 포함된 날 7칸에 출처(확정·원본 기록·기록 없음·휴일)와 안내 줄, 실적 표에 한 날', async () => {
+  it('주간: 포함된 날 7칸에 출처(확정·원본 기록·기록 없음·휴일, 오늘 이후는 빈칸)와 안내 줄, 실적 표에 한 날, 진행 현황은 결과별 건수', async () => {
     const days = [
       day('2026-10-05', 'CONFIRMED_LOG'),
       day('2026-10-06', 'NONE'),
@@ -87,7 +87,14 @@ describe('주간·월간 일지 문서 (SCR-LOG-02, P3-07)', () => {
     stubFetch({
       'GET /api/users/me': () => json(200, ME),
       'GET /api/worklog/logs/weekly/2026-10-05': () =>
-        json(200, periodLog('WEEKLY', '2026-10-05', '2026-10-11', { days })),
+        json(
+          200,
+          periodLog('WEEKLY', '2026-10-05', '2026-10-11', {
+            days,
+            // 서버는 주간에도 projects를 채운다. 진행 현황 판별은 형식(type)으로
+            projects: [{ projectId: 'p-1', name: '결제 개편', completedTaskCount: 1, recordCount: 2, minutes: null }],
+          }),
+        ),
     })
     renderApp('/logs/weekly/2026-10-05')
 
@@ -96,11 +103,14 @@ describe('주간·월간 일지 문서 (SCR-LOG-02, P3-07)', () => {
     const cells = within(table)
       .getAllByRole('cell')
       .map((c) => c.textContent)
-    expect(cells).toEqual(['확정', '기록 없음', '원본 기록', '기록 없음', '기록 없음', '휴일', '휴일'])
+    // 오늘은 10/7(수): 10/8·10/9의 '기록 없음'은 빈칸
+    expect(cells).toEqual(['확정', '기록 없음', '원본 기록', '', '', '휴일', '휴일'])
     expect(screen.getByText('원본 기록 = 확정 전이라 그날 기록에서 가져온 날')).toBeInTheDocument()
 
     expect(screen.getByRole('columnheader', { name: '한 날' })).toBeInTheDocument()
     expect(screen.getByRole('row', { name: /견적서 작성/ })).toHaveTextContent('월·수')
+    expect(screen.getByText('완료 1건')).toBeInTheDocument()
+    expect(screen.queryByText(/완료 업무/)).not.toBeInTheDocument()
     // 주간은 프로젝트별 실적 표가 없다(월간만)
     expect(screen.queryByRole('columnheader', { name: '비중' })).not.toBeInTheDocument()
   })
@@ -152,5 +162,35 @@ describe('주간·월간 일지 문서 (SCR-LOG-02, P3-07)', () => {
     expect(screen.getByRole('row', { name: /합계/ })).toHaveTextContent('합계15')
     // 시간 기록 옵션이 꺼져 있으면(minutes null) 소요시간·비중 칸이 없다
     expect(screen.queryByRole('columnheader', { name: '비중' })).not.toBeInTheDocument()
+  })
+})
+
+describe('소요시간 표 (SCR-LOG-02, 카드 20261008-1910)', () => {
+  it('업무 칸은 실적 문장이 아니라 업무 제목, 업무 없는 기록은 "업무 없음"', async () => {
+    const log = periodLog('WEEKLY', '2026-10-05', '2026-10-11', {
+      time: {
+        from: '2026-10-05',
+        to: '2026-10-11',
+        totalMin: 90,
+        recordCount: 3,
+        projects: [],
+        tasks: [
+          { taskId: 't-1', title: '견적서 보내기', projectId: null, minutes: 60 },
+          { taskId: null, title: null, projectId: null, minutes: 30 },
+        ],
+      },
+    })
+    stubFetch({
+      'GET /api/users/me': () => json(200, ME),
+      'GET /api/worklog/logs/weekly/2026-10-05': () => json(200, log),
+    })
+    renderApp('/logs/weekly/2026-10-05')
+
+    const heading = await screen.findByRole('heading', { name: '소요시간' })
+    const table = within(heading.closest('section')!).getByRole('table')
+    // 실적 줄 문장은 '견적서 작성'이지만 소요시간 표는 업무 제목
+    expect(within(table).getByRole('row', { name: /견적서 보내기/ })).toHaveTextContent('67%')
+    expect(within(table).getByRole('row', { name: /업무 없음/ })).toHaveTextContent('33%')
+    expect(within(table).queryByText('견적서 작성')).not.toBeInTheDocument()
   })
 })

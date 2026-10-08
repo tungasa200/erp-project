@@ -235,7 +235,7 @@ export function DayClose({ date, today, timeZone, onClose }: Props) {
             <h3 className={styles.stepTitle}>
               {planName} <span className={styles.muted}>({periodText('DAILY', d.nextWorkday, d.nextWorkday)}부터)</span>
             </h3>
-            <p className={styles.muted}>넘긴 일은 다음 근무일 계획에 들어가요. 업무의 마감일은 바뀌지 않아요.</p>
+            <p className={styles.muted}>넘긴 일은 {planName}에 들어가요. 업무의 마감일은 바뀌지 않아요.</p>
             {d.carryOverCandidates.length === 0 ? (
               <p className={styles.dialogBody}>넘길 업무가 없어요.</p>
             ) : (
