@@ -6,7 +6,7 @@ import type { components } from '../api/generated/worklog'
 import { durationText } from '../home/gaps'
 import type { WorkRecord } from '../records/api'
 import type { Occurrence } from './api'
-import { formatMinutes, toZoned } from './time'
+import { formatMinutes, todayIn, toZoned } from './time'
 
 /** 기록의 시간: 시작~종료, 실행 중이면 "시작~ 진행 중", 시작이 없으면 소요시간. 아무것도 없으면 null */
 export function recordTimeText(r: WorkRecord, timeZone: string): string | null {
@@ -33,6 +33,23 @@ export function recordOf(records: WorkRecord[], o: Pick<Occurrence, 'scheduleId'
 /** 기록에 이어진 회차(확인 대기 수정 창에 계획 시각을 채우는 데 쓴다) */
 export function occurrenceOf(occurrences: Occurrence[], r: WorkRecord) {
   return r.scheduleId && r.occurrenceStart ? occurrences.find((o) => sameOccurrence(r, o)) : undefined
+}
+
+/**
+ * 계획 회차가 끝났는지. 확인 대기는 끝난 회차만 보인다(D-31, 홈 오늘 타임라인 planEntries와 같은 기준).
+ * 종일은 마지막 날이 지나야 끝난다. 회차를 모르면(보이는 기간 밖·7일 넘음) 끝난 것으로 본다
+ */
+export function planEnded(
+  plan: Pick<Occurrence, 'allDay' | 'endAt' | 'startDate' | 'endDate'> | undefined,
+  now: number,
+  timeZone: string,
+): boolean {
+  if (!plan) return true
+  if (plan.allDay) {
+    const last = plan.endDate ?? plan.startDate
+    return !last || last < todayIn(timeZone, now)
+  }
+  return !plan.endAt || Date.parse(plan.endAt) <= now
 }
 
 /** 시간 일정이면 확인 대기 수정 창에 채울 계획 시각(RecordDialog planned). 회차를 그대로 넘긴다 */
