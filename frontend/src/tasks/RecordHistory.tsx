@@ -90,7 +90,7 @@ export function RecordHistory({ taskId }: { taskId: string }) {
                   aria-haspopup="dialog"
                   onClick={() => setEditing(r.id)}
                 >
-                  <span className={own.date}>{shortDate(r.workDate)}</span>
+                  <span className={own.date}>{shortDate(r.workDate, today)}</span>
                   <span className={own.body}>
                     <span className={own.content} title={r.content.length > 80 ? r.content : undefined}>
                       {r.content}

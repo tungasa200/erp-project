@@ -39,7 +39,7 @@ export function dueLabel(due: string | null | undefined, today: string): string 
   if (!due) return '—'
   if (due === today) return '오늘'
   if (due === addDays(today, 1)) return '내일'
-  return shortDate(due)
+  return shortDate(due, today)
 }
 
 export type GroupBy = 'due' | 'project' | 'status'

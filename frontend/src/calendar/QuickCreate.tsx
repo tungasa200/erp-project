@@ -110,7 +110,7 @@ export function QuickCreate({ target, timeZone, anchor, onClose, onDetails }: Pr
   const project = full.project ? projects.data?.find((p) => sameName(p.name, full.project!)) : undefined
   // 목록을 아직 못 받았으면 새 프로젝트로 단정하지 않는다
   const missingProject = full.project && projects.data && !project ? full.project : null
-  const day = (date: string) => (date === today ? '오늘' : shortDate(date))
+  const day = (date: string) => (date === today ? '오늘' : shortDate(date, today))
   const showChips = asTask && Boolean(full.project || full.tags?.length || full.priority || full.due)
 
   const inputRef = useRef<HTMLInputElement>(null)

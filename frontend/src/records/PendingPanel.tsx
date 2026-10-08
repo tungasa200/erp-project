@@ -278,7 +278,7 @@ function groupByDate(items: PendingRecord[]): [string, PendingRecord[]][] {
 }
 
 function dayLabel(date: string, today: string) {
-  if (date === today) return `오늘 · ${shortDate(date)}`
-  if (date === addDays(today, -1)) return `어제 · ${shortDate(date)}`
-  return shortDate(date)
+  if (date === today) return `오늘 · ${shortDate(date, today)}`
+  if (date === addDays(today, -1)) return `어제 · ${shortDate(date, today)}`
+  return shortDate(date, today)
 }

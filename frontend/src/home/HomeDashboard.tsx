@@ -116,7 +116,7 @@ export function HomeDashboard({ empty }: { empty: ReactNode }) {
           label="이번 주 완료"
           value={cardValue(doneThisWeek, `${doneThisWeek.items.length}${more(doneThisWeek)}`)}
           // 기간 문구는 데이터와 상관없어 불러오는 중에도 그대로 둔다
-          sub={`${shortDate(weekFirst)}부터`}
+          sub={`${shortDate(weekFirst, today)}부터`}
         />
       </ul>
 
@@ -455,7 +455,7 @@ function Upcoming({ days, byDate, today, timeZone, isLive, loading, failed, onRe
                   <span className={styles.dayNumber}>{Number(e.date.slice(8))}</span>
                 </span>
                 <span className={styles.upcomingText}>
-                  <span className={styles.srOnly}>{shortDate(e.date)} </span>
+                  <span className={styles.srOnly}>{shortDate(e.date, today)} </span>
                   <span className={styles.upcomingTitle} title={e.kind === 'holiday' ? e.title : e.occurrence.title}>
                     {e.kind === 'holiday' ? e.title : e.occurrence.title}
                   </span>
@@ -479,7 +479,7 @@ function Upcoming({ days, byDate, today, timeZone, isLive, loading, failed, onRe
 
 /** 그날 기준 시간. 날을 넘는 일정은 그날 안쪽만 (캘린더 목록 보기와 같은 규칙) */
 function timeText(o: Occurrence, date: string, timeZone: string) {
-  if (o.allDay) return o.startDate === o.endDate ? '종일' : `종일 · ${shortDate(o.endDate!)}까지`
+  if (o.allDay) return o.startDate === o.endDate ? '종일' : `종일 · ${shortDate(o.endDate!, todayIn(timeZone))}까지`
   const s = toZoned(o.startAt!, timeZone)
   const e = toZoned(o.endAt!, timeZone)
   const start = s.date === date ? formatMinutes(s.minutes) : '00:00'

@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { api } from '../api'
 import type { components } from '../api/generated/worklog'
 import { formatMinutes, toZoned } from '../calendar/time'
-import { shortDate } from '../quickInput/dates'
+import { shortDate, todayIn } from '../quickInput/dates'
 
 type Schemas = components['schemas']
 export type PendingRecord = Schemas['PendingRecord']
@@ -38,11 +38,14 @@ export function plannedOf(plan: Pick<PendingPlan, 'allDay' | 'startAt' | 'endAt'
 /** 계획 시간(확인 대기 기록의 시간 칸은 비어 있다, D-100). 날을 넘으면 끝 날짜를 붙인다 */
 export function planTime(plan: Omit<PendingPlan, 'title'>, timeZone: string): string {
   if (plan.allDay) {
-    return !plan.endDate || plan.endDate === plan.startDate ? '종일' : `종일 · ${shortDate(plan.endDate)}까지`
+    return !plan.endDate || plan.endDate === plan.startDate
+      ? '종일'
+      : `종일 · ${shortDate(plan.endDate, todayIn(timeZone))}까지`
   }
   if (!plan.startAt || !plan.endAt) return ''
   const s = toZoned(plan.startAt, timeZone)
   const e = toZoned(plan.endAt, timeZone)
-  const end = e.date === s.date ? formatMinutes(e.minutes) : `${shortDate(e.date)} ${formatMinutes(e.minutes)}`
+  const end =
+    e.date === s.date ? formatMinutes(e.minutes) : `${shortDate(e.date, todayIn(timeZone))} ${formatMinutes(e.minutes)}`
   return `${formatMinutes(s.minutes)} – ${end}`
 }

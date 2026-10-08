@@ -257,7 +257,7 @@ export function CommandPalette({ onClose, onQuickAdd, timer }: Props) {
                   <span className={styles.icon} aria-hidden="true">
                     ▦
                   </span>
-                  <span className={styles.label}>{shortDate(jumpDate)} 캘린더 보기</span>
+                  <span className={styles.label}>{shortDate(jumpDate, today)} 캘린더 보기</span>
                 </Command.Item>
               </Command.Group>
             )}

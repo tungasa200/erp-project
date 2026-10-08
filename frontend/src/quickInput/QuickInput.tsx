@@ -57,14 +57,14 @@ function dueOptions(today: string, current: string) {
     .filter(([, date], i) => picks.findIndex(([, d]) => d === date) === i)
     .map(([label, date]) => ({
       label,
-      detail: shortDate(date),
+      detail: shortDate(date, today),
       value: `~${monthDay(date)}`,
       current: date === current,
     }))
 }
 
 function chipsOf(draft: QuickDraft, spans: QuickSpans, today: string, projects?: Project[], tags?: Tag[]): Chip[] {
-  const day = (date: string) => (date === today ? '오늘' : shortDate(date))
+  const day = (date: string) => (date === today ? '오늘' : shortDate(date, today))
   const chips: Chip[] = []
   if (draft.schedule && spans.time) {
     const { date, start, end } = draft.schedule
