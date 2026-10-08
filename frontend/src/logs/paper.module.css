@@ -10,6 +10,8 @@
   font-family: Pretendard, 'Pretendard Variable', var(--font-sans);
   font-size: 13.5px;
   line-height: 1.4;
+  /* 한글 낱말("10월", "7일")을 중간에서 끊지 않는다. 칸보다 긴 낱말은 칸마다 둔 overflow-wrap: anywhere가 끊는다 */
+  word-break: keep-all;
   box-shadow: 0 2px 14px rgba(26, 28, 43, 0.12);
   border-radius: 4px;
 }
@@ -157,6 +159,11 @@
 .days th {
   font-size: 12px;
   text-align: center;
+}
+
+/* 월간 진행 현황: "완료 업무 n건" 줄 아래 4pt */
+.stats {
+  margin-top: 5px;
 }
 
 .strong {

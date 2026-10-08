@@ -521,8 +521,15 @@ function ProjectStats({ content }: { content: LogContent }) {
   const timed = rows.some((p) => p.minutes != null)
   const totalMin = rows.reduce((s, p) => s + (p.minutes ?? 0), 0)
   const share = (min: number | null) => (totalMin > 0 && min != null ? `${Math.round((min / totalMin) * 100)}%` : '')
+  // 서식명세 2.5 칸 폭(mm, 본문 174): 시간 기록이 꺼지면 프로젝트 칸이 소요시간·비중 폭을 가진다
+  const cols = timed ? [60, 30, 30, 34, 20] : [114, 30, 30]
   return (
-    <table className={styles.grid}>
+    <table className={`${styles.grid} ${styles.stats}`}>
+      <colgroup>
+        {cols.map((mm, i) => (
+          <col key={i} style={{ width: `${((mm / 174) * 100).toFixed(1)}%` }} />
+        ))}
+      </colgroup>
       <thead>
         <tr>
           <th scope="col">프로젝트</th>

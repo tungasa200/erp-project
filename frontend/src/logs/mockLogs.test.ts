@@ -79,6 +79,21 @@ describe('가짜 일지 서버', () => {
     ])
   })
 
+  it('계획 후보 사유는 서버와 같다: 오늘보다 이른 마감은 마감 지남, 계획 기간 안 마감이 진행 중보다 먼저', async () => {
+    const open = (id: string, dueDate: string | null) => ({ ...task(id, null, null), dueDate })
+    const ctx = context({
+      records: [],
+      tasks: [open('지난', '2026-10-07'), open('다음 주', '2026-10-15'), open('진행', null)],
+    } as unknown as Partial<LogsMockContext>)
+    // 주간 10/5: 계획 기간은 10/12~18, 오늘은 10/8
+    const week = await call('GET', '/api/worklog/logs/weekly/2026-10-05', ctx)
+    expect(week.body.planCandidates.map((c: { taskId: string; reason: string }) => [c.taskId, c.reason])).toEqual([
+      ['지난', 'OVERDUE'],
+      ['다음 주', 'DUE'],
+      ['진행', 'IN_PROGRESS'],
+    ])
+  })
+
   it('하루 마감: 계획 50줄을 넘거나 이슈가 2000자를 넘으면 400이고 일지는 그대로', async () => {
     const plans = Array.from({ length: 50 }, (_, i) => ({
       id: `p-${i}`,

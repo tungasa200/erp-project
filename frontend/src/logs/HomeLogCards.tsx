@@ -103,7 +103,7 @@ export function WeekLogStatus({ today, weekFirst }: { today: string; weekFirst: 
         <h2 id="home-log-week" className={home.panelTitle}>
           이번 주 일지
         </h2>
-        <Link to={logHref('WEEKLY', weekFirst)} className={styles.textLink}>
+        <Link to={logHref('WEEKLY', weekFirst)} className={styles.headLink}>
           주간 일지
         </Link>
       </div>

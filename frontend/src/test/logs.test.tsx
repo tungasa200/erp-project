@@ -299,6 +299,11 @@ describe('일지 목록 (SCR-LOG-01)', () => {
               periodEnd: '2026-10-11',
               days: { confirmed: 1, workdays: 5 },
             }),
+            period('2026-10-12', 'NO_RECORDS', {
+              type: 'WEEKLY',
+              periodEnd: '2026-10-18',
+              days: { confirmed: 0, workdays: 5 },
+            }),
           ],
           unconfirmedDays: 0,
         })
@@ -307,6 +312,8 @@ describe('일지 목록 (SCR-LOG-01)', () => {
     const { router } = renderApp('/logs?view=weekly')
 
     expect(await screen.findByText('확정 1/5일')).toBeInTheDocument()
+    // 앞으로 올 주는 상태 배지처럼 확정 일수도 숨긴다
+    expect(screen.queryByText('확정 0/5일')).not.toBeInTheDocument()
     expect(screen.queryByText(/확정 안 된 날/)).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: '주간' })).toHaveAttribute('aria-current', 'page')
     await user.click(screen.getByRole('button', { name: '이전' }))

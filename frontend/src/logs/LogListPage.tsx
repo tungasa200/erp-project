@@ -181,6 +181,7 @@ function DayGrid({
           const cls = [
             styles.cell,
             off && styles.cellOff,
+            p.holiday && styles.cellHoliday,
             p.periodStart === today && styles.cellToday,
             styles[`cell${p.status}`],
           ]
@@ -238,7 +239,7 @@ function PeriodRows({ items, today }: { items: LogPeriod[]; today: string }) {
               {!(future && p.status === 'NO_RECORDS') && (
                 <span className={`${styles.badge} ${styles[`badge${p.status}`]}`}>{STATUS_LABEL[p.status]}</span>
               )}
-              {p.days && (
+              {p.days && !future && (
                 <span className={styles.muted}>
                   확정 {p.days.confirmed}/{p.days.workdays}일
                 </span>

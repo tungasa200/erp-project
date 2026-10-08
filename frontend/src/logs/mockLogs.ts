@@ -188,18 +188,19 @@ function planPeriodOf(ctx: LogsMockContext, type: LogType, start: string, end: s
   return { title: '다음 달 계획', period: { start: s, end: monthEnd(s) } }
 }
 
-function candidatesOf(ctx: LogsMockContext, start: string, planEnd: string, plans: LogPlan[]): PlanCandidate[] {
+// 서버 LogBuilder.candidates와 같은 규칙: 마감이 오늘보다 이르면 '마감 지남', 계획 기간 끝까지 마감이면 '마감', 그 밖에 진행 중
+function candidatesOf(ctx: LogsMockContext, planEnd: string, plans: LogPlan[]): PlanCandidate[] {
   const taken = new Set(plans.map((p) => p.taskId))
   return ctx.tasks
     .filter((t) => !t.deletedAt && t.status !== 'DONE' && t.status !== 'ON_HOLD' && !taken.has(t.id))
     .map((t) => {
       const reason =
-        t.dueDate && t.dueDate < start
+        t.dueDate && t.dueDate < ctx.today
           ? ('OVERDUE' as const)
-          : t.status === 'IN_PROGRESS'
-            ? ('IN_PROGRESS' as const)
-            : t.dueDate && t.dueDate <= planEnd
-              ? ('DUE' as const)
+          : t.dueDate && t.dueDate <= planEnd
+            ? ('DUE' as const)
+            : t.status === 'IN_PROGRESS'
+              ? ('IN_PROGRESS' as const)
               : null
       return (
         reason && {
@@ -275,7 +276,7 @@ function build(ctx: LogsMockContext, type: LogType, start: string, stored: Store
     version: stored?.version ?? 0,
     confirmedAt: null,
     sourceChangedAfterConfirm: false,
-    planCandidates: candidatesOf(ctx, start, period.end, plans),
+    planCandidates: candidatesOf(ctx, period.end, plans),
     content: {
       title: TITLES[type],
       author: ctx.author,
