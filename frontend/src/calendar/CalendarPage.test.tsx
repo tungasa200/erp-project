@@ -43,6 +43,13 @@ function stubServer() {
       return handleScheduleMock(method, url, body, { json, problem })!
     }
     if (url === '/api/users/me') return json(200, ME)
+    // 시간 기록 옵션(timed)과 일 보기 실제 열(SCR-CAL-02 ④)이 받는 빈 시간·합계
+    if (url === '/api/worklog/me')
+      return json(200, { userId: 'u-1', settings: { timeTrackingEnabled: timed, version: 0 } })
+    if (url === '/api/worklog/timer') return json(200, { running: null })
+    if (url.startsWith('/api/worklog/records/gaps?')) return json(200, { items: gaps })
+    if (url.startsWith('/api/worklog/records/time-summary?'))
+      return json(200, { from: '', to: '', totalMin, recordCount: 0, projects: [], tasks: [] })
     // 일 보기 "이날의 기록"·일정 상세 ⑥이 받는 그날 기록과 기록 한 건
     if (url.startsWith('/api/worklog/records?')) return json(200, { items: records })
     const one = /^\/api\/worklog\/records\/([^/?]+)$/.exec(url)
@@ -112,10 +119,16 @@ const workRecord = (id: string, over: Record<string, unknown>) => ({
   ...over,
 })
 let records: ReturnType<typeof workRecord>[] = []
+let timed = false
+let gaps: Record<string, unknown>[] = []
+let totalMin = 0
 
 beforeEach(() => {
   localStorage.setItem('worklog.mock.schedules', JSON.stringify([standup]))
   records = []
+  timed = false
+  gaps = []
+  totalMin = 0
 })
 
 // matchMedia 등 테스트에서 바꾼 전역을 다음 테스트로 넘기지 않는다
@@ -684,5 +697,98 @@ describe('캘린더', () => {
     await waitFor(() =>
       expect(screen.getAllByRole('button', { name: /^팀 스탠드업, 10:00–11:00, 반복$/ })[0]).toHaveFocus(),
     )
+  })
+
+  describe('일 보기 계획/실제 두 열 (SCR-CAL-02 ④, D-105)', () => {
+    // 2026-10-07 서울 13:00–14:30 확정 기록, 15:00–16:00 빈 시간
+    const timedRecord = () =>
+      workRecord('r-quote', {
+        content: '견적서 작성',
+        startAt: '2026-10-07T04:00:00.000Z',
+        endAt: '2026-10-07T05:30:00.000Z',
+        durationMin: 90,
+      })
+    const gap = {
+      startAt: '2026-10-07T06:00:00.000Z',
+      endAt: '2026-10-07T07:00:00.000Z',
+      minutes: 60,
+      previous: null,
+      plan: null,
+      frequent: null,
+    }
+
+    it('옵션이 켜지면 실제 열에 시간 기록·빈 시간·합계를 그리고, 기록을 누르면 기록 창, 빈 시간을 누르면 메우기 창', async () => {
+      stubServer()
+      timed = true
+      records = [timedRecord()]
+      gaps = [gap]
+      totalMin = 90
+      const user = userEvent.setup()
+      renderApp('/calendar/day/2026-10-07', routes)
+      const column = await screen.findByRole('group', { name: '실제, 1시간 30분' })
+      expect(screen.getByText('계획')).toBeInTheDocument()
+      // 계획 열의 일정 블록은 그대로 있다
+      expect(await screen.findByRole('button', { name: /^팀 스탠드업, 10:00–11:00/ })).toBeInTheDocument()
+
+      const block = await within(column).findByRole('button', { name: '견적서 작성, 13:00–14:30' })
+      await user.click(block)
+      const dialog = await screen.findByRole('dialog', { name: '기록 수정' })
+      await user.keyboard('{Escape}')
+      expect(dialog).not.toBeInTheDocument()
+      await waitFor(() =>
+        expect(within(column).getByRole('button', { name: '견적서 작성, 13:00–14:30' })).toHaveFocus(),
+      )
+
+      await user.click(within(column).getByRole('button', { name: /^빈 시간 15:00–16:00, 1시간/ }))
+      expect(await screen.findByRole('dialog', { name: '빈 시간 메우기' })).toBeInTheDocument()
+    })
+
+    it('끊기면 빈 시간 채우기는 꺼지고 기록은 그대로 보인다', async () => {
+      stubServer()
+      timed = true
+      records = [timedRecord()]
+      gaps = [gap]
+      renderApp('/calendar/day/2026-10-07', routes)
+      const column = await screen.findByRole('group', { name: '실제' })
+      const gapButton = await within(column).findByRole('button', { name: /^빈 시간 15:00–16:00/ })
+      const onLine = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+      act(() => {
+        window.dispatchEvent(new Event('offline'))
+      })
+      await waitFor(() => expect(gapButton).toBeDisabled())
+      expect(gapButton).toHaveAccessibleName(/연결되면 채울 수 있어요/)
+      expect(within(column).getByRole('button', { name: '견적서 작성, 13:00–14:30' })).toBeEnabled()
+      onLine.mockRestore()
+      // react-query의 연결 상태는 전역이라 다음 테스트를 위해 다시 연결한다
+      act(() => {
+        window.dispatchEvent(new Event('online'))
+      })
+    })
+
+    it('기록이 없으면 실제 열에 안내한다', async () => {
+      stubServer()
+      timed = true
+      renderApp('/calendar/day/2026-10-07', routes)
+      const column = await screen.findByRole('group', { name: '실제' })
+      expect(await within(column).findByText('시간을 남긴 기록이 없어요')).toBeInTheDocument()
+    })
+
+    it('주 보기에는 실제 열이 없다', async () => {
+      stubServer()
+      timed = true
+      renderApp('/calendar/week/2026-10-07', routes)
+      await screen.findByRole('heading', { name: '2026년 10월 5일 – 11일' })
+      expect(screen.queryByRole('group', { name: /^실제/ })).not.toBeInTheDocument()
+    })
+
+    it('옵션이 꺼져 있으면 일 보기는 한 열이다', async () => {
+      stubServer()
+      records = [timedRecord()]
+      renderApp('/calendar/day/2026-10-07', routes)
+      await screen.findByRole('region', { name: '이날의 기록' })
+      await screen.findByRole('button', { name: /^팀 스탠드업, 10:00–11:00/ })
+      expect(screen.queryByRole('group', { name: /^실제/ })).not.toBeInTheDocument()
+      expect(screen.queryByText('계획')).not.toBeInTheDocument()
+    })
   })
 })
