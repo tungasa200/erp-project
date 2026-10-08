@@ -1,0 +1,34 @@
+plugins {
+	id 'java'
+	id 'application'
+	id 'io.spring.dependency-management' version '1.1.7'
+}
+java { toolchain { languageVersion = JavaLanguageVersion.of(21) } }
+repositories { mavenCentral() }
+dependencyManagement { imports { mavenBom 'org.springframework.boot:spring-boot-dependencies:4.0.8' } }
+
+configurations {
+	poi; openpdf; pdfbox; ohtp
+	implementation.extendsFrom poi, openpdf, pdfbox, ohtp
+}
+dependencies {
+	poi 'org.apache.poi:poi-ooxml:5.5.1'
+	openpdf 'com.github.librepdf:openpdf:3.0.5'
+	pdfbox 'org.apache.pdfbox:pdfbox:3.0.8'
+	ohtp 'io.github.openhtmltopdf:openhtmltopdf-pdfbox:1.1.93'
+}
+application { mainClass = 'exp.Main' }
+tasks.named('run') { jvmArgs '-Xmx256m', '-Djava.awt.headless=true'; workingDir = projectDir }
+
+// 후보별 런타임 의존성 크기
+tasks.register('depSizes') {
+	doLast {
+		['poi', 'openpdf', 'pdfbox', 'ohtp'].each { c ->
+			def files = configurations.getByName(c).resolve()
+			long total = files.sum { it.length() } ?: 0
+			println "== ${c}: ${files.size()} jars, ${String.format('%.1f', total / 1048576.0)} MB"
+			files.sort { -it.length() }.each { println String.format('   %7.2f MB  %s', it.length() / 1048576.0, it.name) }
+		}
+	}
+}
+tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8' }
