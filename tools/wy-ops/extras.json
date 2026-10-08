@@ -36,7 +36,7 @@
       "source": "https://github.com/Panniantong/agent-reach",
       "needs": ["pipx"],
       "check": [{ "path": "~/.claude/skills/agent-reach/SKILL.md" }],
-      "install": [["py", "-3", "-m", "pipx", "install", "https://github.com/Panniantong/agent-reach/archive/main.zip"], ["~/.local/bin/agent-reach.exe", "skill", "--install"]],
+      "install": [["py", "-3", "-m", "pipx", "install", "https://github.com/Panniantong/agent-reach/archive/94f06c1969dfc1834001269d79d3ad0972d9dee6.zip"], ["~/.local/bin/agent-reach.exe", "skill", "--install"]],
       "requiredFor": [], "default": true
     },
     {
