@@ -137,6 +137,7 @@ class WorkLogApiTest {
 			.andExpect(jsonPath("$.content.achievements[2].outcome").value("DONE"))
 			.andExpect(jsonPath("$.content.metrics.recordCount").value(2))
 			.andExpect(jsonPath("$.content.metrics.completedTaskCount").value(1))
+			.andExpect(jsonPath("$.content.metrics.done").value(1))
 			.andExpect(jsonPath("$.content.metrics.inProgress").value(1))
 			.andExpect(jsonPath("$.content.metrics.pendingCount").value(1))
 			.andExpect(jsonPath("$.content.metrics.totalMin").value(nullValue()))

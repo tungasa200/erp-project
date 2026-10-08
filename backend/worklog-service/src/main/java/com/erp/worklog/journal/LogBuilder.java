@@ -358,8 +358,18 @@ class LogBuilder {
 		if (c.timeTracking() && total == null) {
 			total = 0;
 		}
-		return new Metrics(records.size(), done.size(), doneCount, review, inProgress,
+		return new Metrics(records.size(), done.size(), doneCount + doneWithoutRecord(records, done), review, inProgress,
 				sources.pendingCount(c.ownerId(), start, end), total);
+	}
+
+	/**
+	 * 진행 현황 '완료'에 더할, 완료한 날 그 업무의 기록이 없는 업무 수 — 자동 실적의 업무 제목 줄(source=TASK)과 같은 규칙.
+	 * 그날 '완료' 기록이 있는 업무는 기록으로 이미 셌으므로 한 번만 센다.
+	 */
+	static int doneWithoutRecord(List<Rec> records, List<DoneTask> done) {
+		Set<String> recorded = new HashSet<>();
+		records.stream().filter(r -> r.taskId() != null).forEach(r -> recorded.add(r.taskId() + "@" + r.workDate()));
+		return (int) done.stream().filter(t -> !recorded.contains(t.id() + "@" + t.date())).count();
 	}
 
 	private TimeSummaryView time(Context c, LocalDate start, LocalDate end) {
