@@ -85,7 +85,7 @@ function LogView({ type, start }: { type: LogType; start: string }) {
     if (error instanceof ApiError && error.code === 'LOG_CONFIRMED') showToast('이미 확정된 일지예요')
     else if (error instanceof ApiError && error.code === 'LOG_NOT_CONFIRMED') showToast('이미 초안이에요')
     else if (error instanceof ApiError && error.code === 'VERSION_CONFLICT')
-      showToast('다른 곳에서 먼저 고쳤어요. 새로 불러왔어요')
+      showToast('다른 곳에서 먼저 수정돼서 새로 불러왔어요. 다시 해 주세요')
     else showToast('저장하지 못했어요. 잠시 후 다시 시도해 주세요', { traceId: (error as ApiError)?.traceId })
     void refreshLogs(queryClient)
   }
@@ -209,7 +209,7 @@ function LogView({ type, start }: { type: LogType; start: string }) {
 
       {editor.state === 'conflict' && (
         <div className={styles.conflict} role="alert">
-          <span>다른 곳에서 이 일지를 먼저 고쳤어요. 새로 불러오면 여기서 고친 내용은 사라져요.</span>
+          <span>다른 곳에서 먼저 수정됐어요. 이 변경은 저장되지 않았어요</span>
           <span className={styles.conflictTools}>
             <button type="button" className={styles.secondary} onClick={() => void copyEdits(view, showToast)}>
               내 수정 내용 복사
@@ -279,7 +279,7 @@ function LogView({ type, start }: { type: LogType; start: string }) {
       {dialog === 'unconfirm' && log && (
         <ConfirmDialog
           title="확정을 해제할까요?"
-          body="이미 제출한 일지와 달라질 수 있어요. 확정본 내용이 그대로 초안이 되고, 원본 기록을 다시 반영하려면 '원본에서 다시 채우기'를 쓰세요."
+          body="이미 제출한 일지와 달라질 수 있어요. 확정본 내용이 그대로 초안이 되고, 원본 기록을 다시 반영하려면 ‘원본에서 다시 채우기’를 쓰세요."
           action="확정 해제"
           busy={busy}
           onCancel={() => setDialog(null)}

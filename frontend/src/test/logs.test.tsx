@@ -115,6 +115,23 @@ describe('일지 상세 (SCR-LOG-02)', () => {
     expect(screen.getByRole('button', { name: '원본에서 다시 채우기' })).toBeInTheDocument()
   })
 
+  it('다른 곳에서 먼저 고쳤으면(409) 충돌 띠(화면정의서 2.5)와 내 수정 내용 복사·새로 불러오기', async () => {
+    const user = userEvent.setup()
+    stubFetch({
+      'GET /api/users/me': me,
+      [LOG_URL]: () => json(200, workLog()),
+      'PATCH /api/worklog/logs/log-1': () => problem(409, 'VERSION_CONFLICT'),
+    })
+    renderApp('/logs/daily/2026-10-07')
+
+    const result = await screen.findByRole('textbox', { name: '1번 결과' })
+    await user.type(result, '추가')
+    const banner = await screen.findByRole('alert', {}, { timeout: 3000 })
+    expect(banner).toHaveTextContent('다른 곳에서 먼저 수정됐어요. 이 변경은 저장되지 않았어요')
+    expect(within(banner).getByRole('button', { name: '내 수정 내용 복사' })).toBeInTheDocument()
+    expect(within(banner).getByRole('button', { name: '새로 불러오기' })).toBeInTheDocument()
+  })
+
   it('고정 초안 다시 채우기: 취소에 먼저 포커스, Esc로 닫고 버튼으로 복귀, 확인하면 토스트', async () => {
     const user = userEvent.setup()
     const refill = vi.fn(() => json(200, workLog({ version: 3 })))
@@ -162,7 +179,7 @@ describe('일지 상세 (SCR-LOG-02)', () => {
     await user.click(screen.getByRole('button', { name: '확정 해제' }))
     const dialog = screen.getByRole('alertdialog', { name: '확정을 해제할까요?' })
     expect(dialog).toHaveTextContent(
-      "확정본 내용이 그대로 초안이 되고, 원본 기록을 다시 반영하려면 '원본에서 다시 채우기'를 쓰세요.",
+      '확정본 내용이 그대로 초안이 되고, 원본 기록을 다시 반영하려면 ‘원본에서 다시 채우기’를 쓰세요.',
     )
     await user.click(within(dialog).getByRole('button', { name: '확정 해제' }))
     expect(await screen.findByText('확정을 해제했어요. 초안으로 고칠 수 있어요')).toBeInTheDocument()
