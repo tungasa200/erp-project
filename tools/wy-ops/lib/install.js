@@ -161,7 +161,7 @@ function extensionStep(dep) {
 }
 
 // 함께 까는 도구(카드 1110, lib/extras.js): 플러그인 포함. 고른 역할에 필수인 것은 늘 켜고, 나머지는 기본 켬 목록에서 끌 수 있다.
-//   ops: 프로젝트 설정(없으면 역할 무관 = 교대(ecc)만 필수). 끌 것: --extras-off a,b 또는 질문(--yes·restore면 묻지 않음)
+//   ops: 프로젝트 설정(없으면 역할 무관 = 세션 교체(ecc)만 필수). 끌 것: --extras-off a,b 또는 질문(--yes·restore면 묻지 않음)
 //   돌려주는 off 목록은 init이 wy-ops.json의 extras.off로 남긴다
 function chooseExtras(ops, { ask: canAsk = !flag('--yes') && argv[0] !== 'restore' } = {}) {
   const extras = require('./extras');
