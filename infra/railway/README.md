@@ -29,6 +29,15 @@ Railway 프로젝트 WY-ERP(싱가포르)에 백엔드 3개와 PostgreSQL, Verce
 | 리전·인스턴스 | 싱가포르, 1개 |
 | 공개 도메인 | `api-gateway`에만 만든다 (대상 포트 8080). identity·worklog는 만들지 않는다 |
 
+**기존 서비스의 빌드 문맥 바꾸기** (2026-10-08, `backend/` 문맥 → 저장소 루트, D-74): 루트 문맥 커밋을 배포 브랜치에 병합하기 **전에** 3서비스 모두 콘솔에서 바꾼다.
+
+1. Root Directory를 비운다(`/backend` 지움).
+2. Dockerfile 경로에 `/backend/Dockerfile`을 넣는다(Root Directory를 비우면 기본값이 `/Dockerfile`로 바뀐다).
+3. Watch Paths를 `/backend/**`, `/shared/**`로 바꾼다.
+4. 루트 문맥 커밋을 병합한다 → 3서비스가 새로 빌드·배포되고 헬스체크를 통과하는지 본다.
+
+1~3 사이에 옛 커밋으로 자동 빌드가 돌면 `./gradlew` 없음으로 실패한다. 빌드 단계 실패라 Deploy 전에 멈추고 기존 배포는 그대로 돈다(중단 없음). 병합 뒤 빌드부터 정상이다.
+
 ### 서비스별 변수
 
 출처: 입력 = 콘솔에 직접 입력, 참조 = Railway 참조 변수.
