@@ -365,6 +365,27 @@ try {
     const r = byId(doctor.checkAll({ ...pc.opts, run }))['stack-tools'];
     assert.ok(r.level === 'warn' && r.detail.includes('JDK') && !r.detail.includes('Node.js') && r.fix.includes('winget install JDK'), JSON.stringify(r));
     assert.strictEqual(byId(doctor.checkAll(pc.opts))['stack-tools'].level, 'ok', '다 있으면 통과');
+    // WindowsApps에만 있는 스토어 별칭: --version이 실패하면 없음, 성공하면 있음
+    json(cfg, { ...ops, stack: 'python', tools: [{ cmd: 'python', label: 'Python', install: 'winget install Python' }] });
+    const alias = 'C:\\Users\\me\\AppData\\Local\\Microsoft\\WindowsApps\\python.exe';
+    const store = (ver) => (cmd, args) => (cmd === 'where' && args[0] === 'python' ? { status: 0, stdout: `${alias}\r\n` } : cmd === alias ? { status: ver, stdout: '' } : pc.opts.run(cmd, args));
+    assert.strictEqual(byId(doctor.checkAll({ ...pc.opts, run: store(9009) }))['stack-tools'].level, 'warn', '설치 안 된 스토어 별칭은 없음');
+    assert.strictEqual(byId(doctor.checkAll({ ...pc.opts, run: store(0) }))['stack-tools'].level, 'ok', '스토어 설치본(--version 성공)은 있음');
+    // anyOf: 여럿 중 하나만 있으면 통과, 모두 없으면 주의
+    json(cfg, { ...ops, stack: 'cpp', tools: [{ anyOf: ['cl', 'clang', 'g++'], label: 'C++ 컴파일러', install: 'LLVM 설치' }] });
+    const only = (have) => (cmd, args) => (cmd === 'where' && ['cl', 'clang', 'g++'].includes(args[0]) ? { status: args[0] === have ? 0 : 1, stdout: have ? `C:\\x\\${have}.exe\n` : '' } : pc.opts.run(cmd, args));
+    assert.strictEqual(byId(doctor.checkAll({ ...pc.opts, run: only('g++') }))['stack-tools'].level, 'ok', 'g++만 있어도 통과');
+    const none = byId(doctor.checkAll({ ...pc.opts, run: only(null) }))['stack-tools'];
+    assert.ok(none.level === 'warn' && none.detail.includes('C++ 컴파일러') && none.fix.includes('LLVM 설치'), JSON.stringify(none));
+    json(cfg, ops);
+  }
+
+  // 고치기 안내의 install.ps1 경로는 실제 설치본 위치를 따른다(WY_TOOLS_DIR 등)
+  {
+    const pc = makePc('toolsdir');
+    const toolsDir = path.join(pc.root, 'custom-tools', 'wy-ops');
+    const fixes = doctor.checkAll({ ...pc.opts, toolsDir }).map((r) => r.fix).filter((f) => f && f.includes('install.ps1'));
+    assert.ok(fixes.length && fixes.every((f) => f.includes(path.join(toolsDir, 'current', 'install.ps1')) && !f.includes('$env:USERPROFILE')), fixes.join('\n'));
   }
 
   {

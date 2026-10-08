@@ -7,6 +7,7 @@ const path = require('path');
 const { rmTree } = require('../lib/fsx');
 const { init, listStacks, loadStack } = require('../lib/init');
 const { VERIFY_KEYS } = require('../gen-agents');
+const { toolCmds } = require('../lib/doctor');
 
 const T = path.join(__dirname, '..', 'templates');
 const KEYS = VERIFY_KEYS.map(([k]) => k);
@@ -25,7 +26,7 @@ for (const { id } of stacks) {
   assert.deepStrictEqual(Object.keys(s.verify).sort(), [...KEYS].sort(), `${id}: verify 키`);
   for (const k of KEYS) assert.ok(s.verify[k] === null || (typeof s.verify[k] === 'string' && s.verify[k].trim()), `${id}.verify.${k}`);
   assert.deepStrictEqual(Object.keys(s).filter((k) => !['id', 'label', 'tools', 'verify', 'notes'].includes(k)), [], `${id}: 모르는 키(역할은 roles.json)`);
-  assert.ok(Array.isArray(s.tools) && s.tools.every((t) => /^[A-Za-z0-9._-]+$/.test(t.cmd) && t.label && t.install), `${id}: tools [{cmd,label,install}]`);
+  assert.ok(Array.isArray(s.tools) && s.tools.every((t) => toolCmds(t) && t.label && t.install), `${id}: tools [{cmd|anyOf,label,install}]`);
   assert.ok(!s.notes || (Array.isArray(s.notes) && s.notes.length <= 3), `${id}: notes 3줄 이하`);
 }
 assert.throws(() => loadStack(T, 'nope', {}), /스택이 없습니다: nope .*node/);

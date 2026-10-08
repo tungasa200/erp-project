@@ -23,7 +23,7 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 
 const PKG = path.resolve(__dirname, '..');
-const OLD_EXT = 'erp-project.erp-session-dashboard';
+const OLD_EXT = 'erp-project.erp-session-dashboard'; // 옛 확장 id 정리용(패키지화 전 설치본에서 바꿀 때)
 const STUB_EXT = 'wy-ops.wy-ops';
 
 const argv = process.argv.slice(2);
@@ -98,7 +98,7 @@ function ask(question) {
 
 function prereqs() {
   const missing = ['git', 'node', 'code', 'claude'].filter((c) => run('where', [c]).status !== 0);
-  if (missing.length) throw new Error(`필요한 도구가 PATH에 없습니다: ${missing.join(', ')} (NEW-PC.md의 '새 PC 전제' 참고)`);
+  if (missing.length) throw new Error(`필요한 도구가 PATH에 없습니다: ${missing.join(', ')} (NEW-PC.md의 '1. 설치 전에' 참고)`);
 }
 
 // 설치 원본: 이 코드가 git 저장소 안에서 돌면(패키지 clone이나 개발 트리) 그곳, 설치본에서 돌면 deployed.json의 source
@@ -197,8 +197,8 @@ function extrasStep(ops, opts = {}) {
 
 // 고른 스택의 개발 도구(wy-ops.json tools) 중 없는 것: winget 명령이면 확인받고 설치, 아니면 안내만
 function stackToolsStep(ops) {
-  const tools = (ops && Array.isArray(ops.tools) ? ops.tools : []).filter((t) => t && /^[A-Za-z0-9._-]+$/.test(t.cmd || ''));
-  const missing = tools.filter((t) => run('where', [t.cmd]).status !== 0);
+  const tools = (ops && Array.isArray(ops.tools) ? ops.tools : []).filter(require('./doctor').toolCmds);
+  const missing = tools.filter((t) => !require('./doctor').stackToolFound(run, t));
   if (!missing.length) return say(tools.length ? `스택 개발 도구: 모두 있음(${tools.map((t) => t.label || t.cmd).join(', ')})` : '');
   for (const t of missing) {
     const m = /^winget install\s+(?:-e\s+)?(?:--id\s+)?([A-Za-z0-9._-]+)/.exec(t.install || '');

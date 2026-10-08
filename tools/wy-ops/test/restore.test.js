@@ -9,7 +9,6 @@ const { spawnSync } = require('child_process');
 const { rmTree } = require('../lib/fsx');
 const { projectKey } = require('../lib/transfer');
 
-const INSTALL = path.join(__dirname, '..', 'lib', 'install.js');
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'wy-restore-'));
 const put = (f, text) => {
   fs.mkdirSync(path.dirname(f), { recursive: true });
@@ -20,6 +19,9 @@ const git = (cwd, args) => {
   assert.strictEqual(r.status, 0, `git ${args.join(' ')}: ${r.stderr}`);
   return r.stdout.trim();
 };
+// restore의 global은 설치 원본(git 저장소) HEAD를 배포한다. 사본(git archive)에서도 돌도록 패키지 작업 사본을 임시 저장소로 커밋해 그 install.js를 쓴다
+const pkgRepo = path.join(tmp, 'pkg');
+const INSTALL = path.join(pkgRepo, 'lib', 'install.js');
 const cli = (home, args, input = '') => {
   const env = { ...process.env, USERPROFILE: home, HOME: home, WY_TOOLS_DIR: path.join(tmp, 'tools') };
   delete env.WY_APPROVALS_DIR;
@@ -28,6 +30,10 @@ const cli = (home, args, input = '') => {
 };
 
 try {
+  fs.cpSync(path.join(__dirname, '..'), pkgRepo, { recursive: true, filter: (src) => !/[\\/](node_modules|\.git)$/.test(src) });
+  git(pkgRepo, ['init', '-q']);
+  git(pkgRepo, ['add', '-A']);
+  git(pkgRepo, ['commit', '-q', '-m', 'pkg']);
   const homeA = path.join(tmp, 'olduser');
   const homeB = path.join(tmp, 'newuser');
   // 원격 역할의 저장소(브랜치 demo-branch)와, 원래 PC에서 홈 아래에 clone한 프로젝트

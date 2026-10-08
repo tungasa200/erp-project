@@ -16,7 +16,7 @@ const PKG = path.join(__dirname, '..');
 const TEMPLATE = path.join(PKG, 'templates', 'settings.hooks.json');
 const PLUGINS = path.join(PKG, 'plugins.json');
 const STUB_ID = 'wy-ops.wy-ops';
-const OLD_EXT_ID = 'erp-project.erp-session-dashboard';
+const OLD_EXT_ID = 'erp-project.erp-session-dashboard'; // 옛 확장 id 정리용(패키지화 전 설치본 경고)
 const GITIGNORE_LINES = ['.claude/settings.local.json', '.claude/wy-ops.local.json', '.claude/*.bak-*'];
 // 고치기 안내에 쓰는 명령: 설치본의 install.ps1(프로젝트 저장소에 패키지 코드가 없어도 된다)
 const INSTALL = 'powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\\.wy-tools\\wy-ops\\current\\install.ps1"';
@@ -349,11 +349,30 @@ function checkVersionPin(o) {
   return result('version-pin', '패키지 버전 고정', 'warn', `프로젝트는 ${pin}을 쓰는데 설치본은 ${d.version}${d.dev ? '(개발 연결)' : ''}`, `패키지 저장소에서 ${pin} 태그·커밋으로 맞춰 deploy하거나, 새 버전을 쓰기로 했으면 wy-ops.json의 wyOpsVersion을 바꿈(사용자)`);
 }
 
+// where로 찾되, WindowsApps에만 있으면(설치 안 된 스토어 별칭 python.exe 등일 수 있음) --version이 성공해야 있음으로 본다
+function toolFound(run, cmd) {
+  const w = run('where', [cmd]);
+  if (w.status !== 0) return false;
+  const hits = String(w.stdout || '').split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
+  if (!hits.length || hits.some((p) => !/[\\/]WindowsApps[\\/]/i.test(p))) return true;
+  return hits.some((p) => run(p, ['--version']).status === 0);
+}
+
+// 스택 도구 항목의 명령: cmd 하나, 또는 anyOf(여럿 중 하나만 있으면 됨, 예: C++ 컴파일러 cl·clang·g++). 이름이 이상하면 null(건너뜀)
+function toolCmds(t) {
+  const list = t && (Array.isArray(t.anyOf) ? t.anyOf : [t.cmd]);
+  return list && list.length && list.every((c) => /^[A-Za-z0-9._+-]+$/.test(c || '')) ? list : null;
+}
+
+function stackToolFound(run, t) {
+  return toolCmds(t).some((c) => toolFound(run, c));
+}
+
 function checkStackTools(o) {
   const { ops } = opsConfig(o);
-  const tools = ops && Array.isArray(ops.tools) ? ops.tools.filter((t) => t && /^[A-Za-z0-9._-]+$/.test(t.cmd || '')) : [];
+  const tools = ops && Array.isArray(ops.tools) ? ops.tools.filter(toolCmds) : [];
   if (!tools.length) return result('stack-tools', '스택 개발 도구', 'ok', ops && ops.stack ? `${ops.stack}: 확인할 도구 없음` : '스택 도구 목록 없음');
-  const missing = tools.filter((t) => o.run('where', [t.cmd]).status !== 0);
+  const missing = tools.filter((t) => !stackToolFound(o.run, t));
   const names = (list) => list.map((t) => t.label || t.cmd).join(', ');
   if (!missing.length) return result('stack-tools', '스택 개발 도구', 'ok', `${ops.stack || '프로젝트'}: ${names(tools)}`);
   return result('stack-tools', '스택 개발 도구', 'warn', `${ops.stack || '프로젝트'}: 없음 — ${names(missing)}`, missing.map((t) => `${t.label || t.cmd}: ${t.install || '설치 안내 없음'}`).join(' · '));
@@ -555,10 +574,14 @@ function checkAll(opts = {}) {
     () => checkGithub(o),
     () => checkPathWarnings(o, template),
   ];
+  // 고치기 안내의 install.ps1 경로는 실제 설치본 위치(WY_TOOLS_DIR 등)를 따른다
+  const install = `powershell -ExecutionPolicy Bypass -File "${path.join(o.toolsDir, 'current', 'install.ps1')}"`;
+  const custom = path.resolve(o.toolsDir) !== path.join(os.homedir(), '.wy-tools', 'wy-ops');
   // 한 항목이 예외로 죽어도 나머지는 본다
   return checks.map((c, i) => {
     try {
-      return c();
+      const r = c();
+      return custom && r && r.fix ? { ...r, fix: r.fix.split(INSTALL).join(install) } : r;
     } catch (err) {
       return result(`check-${i}`, '점검 오류', 'fail', String(err && err.message ? err.message : err), '');
     }
@@ -600,4 +623,4 @@ function main(argv = process.argv.slice(2)) {
 
 if (require.main === module) process.exitCode = main();
 
-module.exports = { checkAll, format, defaults, defaultRun, STUB_ID, OLD_EXT_ID, GITIGNORE_LINES };
+module.exports = { checkAll, format, defaults, defaultRun, toolCmds, stackToolFound, STUB_ID, OLD_EXT_ID, GITIGNORE_LINES };
