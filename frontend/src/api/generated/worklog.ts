@@ -4,6 +4,62 @@
  */
 
 export interface paths {
+    "/api/worklog/logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 일지 목록 — 기간별 상태 (P3-08 LOG-09 SCR-LOG-01, 홈 이번 주 현황 SCR-HOME-01 ⑦)
+         * @description [from, to] 안의 기간마다 한 줄을 준다. 일지가 없는 기간도 준다.
+         *     type=DAILY: 날마다. WEEKLY: 겹치는 주(주 시작 요일 기준)마다. MONTHLY: 겹치는 달마다.
+         *     status: CONFIRMED·DRAFT는 저장된 일지, NOT_WRITTEN은 일지 없이 원본(보관하지 않은 확정·확인 대기 기록, 그 기간 완료 업무)이 있음,
+         *     NO_RECORDS는 일지도 원본도 없음(미래 포함). unconfirmedDays는 [from, min(to, 오늘)] 중 원본이 있는데 일간 일지가 확정이 아닌 날 수.
+         *     기간은 최대 400일(넘으면 400 to OUT_OF_RANGE, to < from이면 400 to INVALID_ORDER). periodStart 오름차순.
+         */
+        get: operations["listLogPeriods"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/worklog/logs/daily/{date}/close": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 하루 마감 준비 — 2단계 이월 후보와 마감 뒤 제안 (LOG-13·14·16, SCR-LOG-03)
+         * @description 1단계(확인 대기·빈 시간)는 GET /records/pending·/records/gaps를 쓴다. pendingCount가 0이면 화면은 1단계를 건너뛴다.
+         *     이월 후보(LOG-14): 보관하지 않은 TODO·IN_PROGRESS 업무 중 ① 그날 확정 기록이 있거나 ② 마감일이 다음 근무일 이하이거나(지난 마감 포함)
+         *     ③ IN_PROGRESS인 업무. 늘 selected=true, 마감순(없으면 뒤) → 제목.
+         *     nextWorkday는 date 다음 날부터 찾은 첫 근무일(LOG-13). planScope: 다음 근무일이 다음 주면 NEXT_WEEK, 아니면 NEXT_WORKDAY.
+         *     suggestions: date가 근무일이고 그 주·그 달의 마지막 근무일일 때만, 주간 → 월간(LOG-16).
+         */
+        get: operations["getDailyClose"];
+        put?: never;
+        /**
+         * 하루 마감 — 이월·이슈를 넣고 일간 일지 확정 (LOG-13·14, SCR-LOG-03 3단계)
+         * @description 한 트랜잭션으로: 그날 일간 초안이 없으면 만들고 → 선택한 업무를 계획에 더하고(같은 업무가 이미 있으면 그대로) →
+         *     issue가 비어 있지 않으면 이슈 칸 끝에 한 줄로 덧붙이고 → 확정한다(스냅샷·이력). 업무 자체는 바꾸지 않는다.
+         *     version은 일지가 없으면 0. 이미 확정이면 409(LOG_CONFIRMED), version이 다르면 409(VERSION_CONFLICT).
+         *     오늘보다 뒤 날짜는 400(date, OUT_OF_RANGE). 내 것이 아니거나 보관한 업무는 400(carryOverTaskIds, NOT_FOUND).
+         *     계획이 50개를 넘으면 400(carryOverTaskIds, TOO_MANY), 이슈가 2000자를 넘으면 400(issue, TOO_LONG).
+         */
+        post: operations["closeDay"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/worklog/logs/{logId}": {
         parameters: {
             query?: never;
@@ -735,9 +791,56 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        CarryOverCandidate: {
+            /** Format: date */
+            dueDate: string | null;
+            /** Format: int32 */
+            progress: number;
+            /** Format: uuid */
+            projectId: string | null;
+            /** @description 기본 선택 (LOG-14 — 늘 true) */
+            selected: boolean;
+            /** @enum {string} */
+            status: "TODO" | "IN_PROGRESS" | "DONE" | "ON_HOLD";
+            /** Format: uuid */
+            taskId: string;
+            title: string;
+        };
         ConfirmPendingRequest: {
             /** @description 확정할 확인 대기 기록 (화면에 보인 것) */
             ids: string[];
+        };
+        DailyClosePlan: {
+            carryOverCandidates: components["schemas"]["CarryOverCandidate"][];
+            /** Format: date */
+            date: string;
+            log: components["schemas"]["LogPeriod"];
+            /** Format: date */
+            nextWorkday: string;
+            /**
+             * Format: int32
+             * @description 최근 7일 확인 대기 수 (GET /records/pending과 같은 범위)
+             */
+            pendingCount: number;
+            /** @enum {string} */
+            planScope: "NEXT_WORKDAY" | "NEXT_WEEK";
+            suggestions: components["schemas"]["LogSuggestion"][];
+        };
+        DailyCloseRequest: {
+            /** @description 계획으로 넘길 업무 (빈 배열 가능). 내 것이 아니거나 보관한 업무는 400(NOT_FOUND) */
+            carryOverTaskIds: string[];
+            /** @description 이슈 한 줄 (비워 둘 수 있음) */
+            issue?: string | null;
+            /**
+             * Format: int64
+             * @description 그날 일간 일지의 version, 없으면 0
+             */
+            version: number;
+        };
+        DailyCloseResult: {
+            log: components["schemas"]["WorkLog"];
+            /** @description 주간 → 월간 순 (LOG-16). 해당 없으면 빈 배열 */
+            suggestions: components["schemas"]["LogSuggestion"][];
         };
         FrequentTask: {
             /**
@@ -864,6 +967,49 @@ export interface components {
              */
             totalMin: number | null;
         };
+        /** @description 일지 목록 한 줄 (SCR-LOG-01, SCR-HOME-01 ⑦) */
+        LogPeriod: {
+            /** @description WEEKLY·MONTHLY만 */
+            days?: components["schemas"]["LogPeriodDays"];
+            /** @description DAILY만. 공휴일 이름 (D-74), 아니면 null */
+            holiday?: string | null;
+            /** Format: uuid */
+            logId: string | null;
+            /**
+             * Format: date
+             * @description 양끝 포함
+             */
+            periodEnd: string;
+            /** Format: date */
+            periodStart: string;
+            /** @enum {string} */
+            status: "NO_RECORDS" | "NOT_WRITTEN" | "DRAFT" | "CONFIRMED";
+            /** @enum {string} */
+            type: "DAILY" | "WEEKLY" | "MONTHLY";
+            /** @description DAILY만. 근무일인지 (D-37). 휴일 = false */
+            workday?: boolean | null;
+        };
+        /** @description WEEKLY·MONTHLY만. "확정 4/5일" 표시용 (SCR-LOG-01 ③) */
+        LogPeriodDays: {
+            /**
+             * Format: int32
+             * @description 기간 안 일간 일지가 확정인 날 수 (비근무일 확정 포함)
+             */
+            confirmed: number;
+            /**
+             * Format: int32
+             * @description 기간 안 근무일 수
+             */
+            workdays: number;
+        };
+        LogPeriodList: {
+            items: components["schemas"]["LogPeriod"][];
+            /**
+             * Format: int32
+             * @description [from, min(to, 오늘)] 중 원본이 있는데 일간 일지가 확정이 아닌 날 수 (SCR-LOG-01 ⑤)
+             */
+            unconfirmedDays: number;
+        };
         /** @description 계획 한 줄. dueDate·scheduledAt은 서버가 taskId로 채운다(PATCH로 보낸 값은 무시, 확정본은 그때 값으로 고정) — 서식 "예정" 칸 */
         LogPlan: {
             /**
@@ -932,6 +1078,18 @@ export interface components {
         LogRevisionList: {
             /** @description 최근 것부터 */
             items: components["schemas"]["LogRevision"][];
+        };
+        LogSuggestion: {
+            /** @enum {string} */
+            logStatus: "NO_RECORDS" | "NOT_WRITTEN" | "DRAFT" | "CONFIRMED";
+            /** Format: date */
+            periodEnd: string;
+            /** Format: date */
+            periodStart: string;
+            /** @enum {string} */
+            type: "WEEKLY" | "MONTHLY";
+            /** @description 기간 안 근무일 중 일간 일지가 확정이 아닌 날 (LOG-16) */
+            unconfirmedDates: string[];
         };
         /**
          * @description 캘린더에 그리는 일정 회차 하나. 반복이 없는 일정도 회차 하나로 준다.
@@ -1735,6 +1893,144 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    listLogPeriods: {
+        parameters: {
+            query: {
+                type: "DAILY" | "WEEKLY" | "MONTHLY";
+                from: string;
+                to: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 기간별 상태 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogPeriodList"];
+                };
+            };
+            /** @description 값 형식 오류 (code=VALIDATION_FAILED) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description identity 조회 실패 (code=PROFILE_UNAVAILABLE) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getDailyClose: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                date: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 마감 준비 정보 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DailyClosePlan"];
+                };
+            };
+            /** @description 값 형식 오류 (code=VALIDATION_FAILED) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description identity 조회 실패 (code=PROFILE_UNAVAILABLE) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    closeDay: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                date: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DailyCloseRequest"];
+            };
+        };
+        responses: {
+            /** @description 확정한 일간 일지와 이어서 할 제안 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DailyCloseResult"];
+                };
+            };
+            /** @description 값 형식 오류 (code=VALIDATION_FAILED) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description 일지 상태 충돌 (code=LOG_CONFIRMED 또는 VERSION_CONFLICT) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description identity 조회 실패 (code=PROFILE_UNAVAILABLE) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     patchLog: {
         parameters: {
             query?: never;
