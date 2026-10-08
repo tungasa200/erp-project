@@ -77,6 +77,8 @@ export function stubFetch(handlers: Record<string, Handler>) {
           version: 0,
         },
       })
+    // 일지 목록(SCR-LOG-01). 등록하지 않았으면 빈 목록으로 답한다
+    if (key.split('?')[0] === 'GET /api/worklog/logs') return json(200, { items: [], unconfirmedDays: 0 })
     // 옵션이 켜지면 앱 셸 타이머 미니 플레이어가 실행 중인 타이머를 묻는다. 등록하지 않았으면 없음으로 답한다
     if (key === 'GET /api/worklog/timer') return json(200, { running: null })
     // 옵션이 켜진 홈 타임라인의 오늘 합계(SCR-HOME-01 ③). 등록하지 않았으면 0분

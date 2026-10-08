@@ -3,6 +3,7 @@
 // 예전 저장본에 tasks가 없으면 예시 업무를 채워 넣는다.
 import type { Occurrence } from '../calendar/api'
 import { handleScheduleMock, scheduledTaskIds } from '../calendar/mockSchedules'
+import { handleLogsMock, type LogsMockContext, type StoredLog } from '../logs/mockLogs'
 import type { Project, Tag } from '../projects/api'
 import type { WorkRecord } from '../records/api'
 import type { PendingRecord } from '../records/pending'
@@ -15,6 +16,11 @@ interface MockSettings {
   timeTrackingEnabled: boolean
   workHoursStart?: string
   workHoursEnd?: string
+  /** 일지 머리·근무일(P3). 없으면 빈 작성자, 월~금 */
+  author?: LogsMockContext['author']
+  workDays?: number
+  /** 주 시작 요일(월=1 … 일=7). 없으면 월요일 */
+  weekStart?: number
 }
 
 interface WorklogState {
@@ -25,6 +31,8 @@ interface WorklogState {
   records?: WorkRecord[]
   /** 확인 대기 예시를 한 번 만들었는지(P2-03). 처리한 뒤 다시 생기지 않게 */
   pendingSeeded?: boolean
+  /** 업무일지(P3). 예전 저장본에는 없다 */
+  logs?: StoredLog[]
 }
 
 /** 확인 대기 기록은 계획(회차) 값을 붙여 둔다. 진짜 서버는 일정에서 읽지만 mock은 일정과 따로 논다 */
@@ -368,6 +376,25 @@ export function handleWorklog(
 
   const timer = handleTimer(method, path, body, state, r, settings.timeTrackingEnabled)
   if (timer) return timer
+
+  const logs = handleLogsMock(
+    method,
+    url,
+    body,
+    {
+      records: (state.records ??= []),
+      tasks: state.tasks,
+      projects: state.projects,
+      logs: (state.logs ??= []),
+      today: seoulToday(),
+      author: settings.author ?? { name: null, organization: null, position: null },
+      workDays: settings.workDays ?? 31,
+      weekStart: settings.weekStart ?? 1,
+      save: () => save(state),
+    },
+    r,
+  )
+  if (logs) return logs
 
   const tagMatch = /^\/api\/worklog\/tags\/([^/]+)$/.exec(path)
   if (tagMatch) {

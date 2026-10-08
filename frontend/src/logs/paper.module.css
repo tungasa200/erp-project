@@ -1,0 +1,367 @@
+/* 일지 문서 영역 (docs/업무일지_서식명세.md): 화면 px = pt × 1.35, 검정·회색만. 테마 색을 쓰지 않는다 */
+.paper {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 794px;
+  margin: 0 auto;
+  padding: 68px 68px 40px;
+  background: #fff;
+  color: #000;
+  font-family: Pretendard, 'Pretendard Variable', var(--font-sans);
+  font-size: 13.5px;
+  line-height: 1.4;
+  box-shadow: 0 2px 14px rgba(26, 28, 43, 0.12);
+  border-radius: 4px;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.docTitle {
+  margin: 0;
+  font-size: 27px;
+  font-weight: 700;
+  letter-spacing: 8px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.draftMark {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0;
+  border: 1.35px solid #000;
+  padding: 1px 6px;
+}
+
+.sign {
+  border-collapse: collapse;
+  flex: none;
+}
+
+.sign th,
+.sign td {
+  border: 1px solid #000;
+  width: 76px;
+  text-align: center;
+}
+
+.sign th {
+  height: 23px;
+  font-size: 12px;
+  font-weight: 700;
+  background: #f2f2f2;
+}
+
+.sign td {
+  height: 61px;
+}
+
+.info,
+.grid {
+  width: 100%;
+  border-collapse: collapse;
+  border-top: 2px solid #000;
+  border-bottom: 1px solid #000;
+}
+
+.info {
+  margin-top: 23px;
+  table-layout: fixed;
+}
+
+.info th,
+.info td {
+  padding: 6px 8px;
+  text-align: left;
+  border-bottom: 0.7px solid #bfbfbf;
+  border-right: 0.7px solid #bfbfbf;
+  overflow-wrap: anywhere;
+}
+
+.info tr:last-child th,
+.info tr:last-child td {
+  border-bottom: 0;
+}
+
+.info td:last-child {
+  border-right: 0;
+}
+
+.info th {
+  width: 76px;
+  font-size: 13px;
+  font-weight: 700;
+  background: #f2f2f2;
+}
+
+.section {
+  margin-top: 26px;
+}
+
+.sectionTitle {
+  margin: 0 0 8px;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.grid th,
+.grid td {
+  padding: 6px 8px;
+  text-align: left;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+
+.grid thead th {
+  font-size: 13px;
+  font-weight: 700;
+  background: #f2f2f2;
+  text-align: center;
+  border-bottom: 1px solid #000;
+}
+
+.grid tbody td {
+  border-bottom: 0.7px solid #bfbfbf;
+}
+
+.grid tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.no {
+  width: 38px;
+  text-align: center !important;
+}
+
+.center {
+  text-align: center !important;
+  white-space: nowrap;
+}
+
+.planWhen {
+  width: 166px;
+  white-space: nowrap;
+}
+
+.days td,
+.days th {
+  font-size: 12px;
+  text-align: center;
+}
+
+.strong {
+  font-weight: 700;
+}
+
+.total td {
+  font-weight: 700;
+  border-top: 1px solid #000;
+}
+
+.body {
+  margin: 0;
+}
+
+.aux {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: #404040;
+}
+
+.note {
+  margin: 4px 0 0;
+  font-size: 11px;
+  color: #595959;
+}
+
+.none {
+  margin: 0;
+  color: #595959;
+}
+
+.blank {
+  color: #a6a6a6;
+}
+
+.issueBox {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 76px;
+  padding: 8px;
+  border-top: 2px solid #000;
+  border-bottom: 1px solid #000;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.issueInput {
+  display: block;
+  border-left: 0;
+  border-right: 0;
+  font: inherit;
+  color: inherit;
+  background: #fafafa;
+  resize: vertical;
+}
+
+.foot {
+  margin-top: 40px;
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #595959;
+}
+
+/* 편집 칸: 종이 위에서 조용히, 포커스는 분명히 */
+.cellInput {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 32px;
+  padding: 4px 6px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: #fafafa;
+  font: inherit;
+  color: inherit;
+}
+
+.cellInput:hover {
+  border-color: #d9d9d9;
+}
+
+.cellInput:focus-visible,
+.issueInput:focus-visible {
+  outline: 2px solid #000;
+  outline-offset: 1px;
+}
+
+.rowTools {
+  width: 1%;
+  white-space: nowrap;
+  text-align: right !important;
+}
+
+.tool {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #404040;
+  font: inherit;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+/* 누르는 영역 44px (--size-touch) */
+.tool::after {
+  content: '';
+  position: absolute;
+  inset: -8px;
+}
+
+.tool:hover {
+  background: #f2f2f2;
+}
+
+.tool:focus-visible,
+.addRow:focus-visible,
+.chip:focus-visible {
+  outline: 2px solid #000;
+  outline-offset: 1px;
+}
+
+.addRow {
+  min-height: var(--size-touch, 44px);
+  margin-top: 4px;
+  padding: 0 10px;
+  border: 1px dashed #bfbfbf;
+  border-radius: 6px;
+  background: transparent;
+  color: #404040;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.planTools {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.chips {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chip {
+  min-height: var(--size-touch, 44px);
+  padding: 0 12px;
+  border: 1px solid #bfbfbf;
+  border-radius: 999px;
+  background: #fff;
+  color: #000;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.chip:hover {
+  background: #f2f2f2;
+}
+
+.chipReason {
+  font-size: 12px;
+  color: #595959;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+@media (max-width: 767px) {
+  .paper {
+    padding: 24px 16px;
+  }
+
+  .head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .docTitle {
+    font-size: 22px;
+    letter-spacing: 4px;
+  }
+
+  .info th {
+    width: 52px;
+  }
+
+  .planWhen {
+    width: auto;
+    white-space: normal;
+  }
+}

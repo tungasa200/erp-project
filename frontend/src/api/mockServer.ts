@@ -7,6 +7,7 @@
 import { EMAIL_PATTERN, passwordViolations } from '../auth/passwordRules'
 import { handleScheduleMock } from '../calendar/mockSchedules'
 import { checkCode, codeStatus, issueCode } from './mockCodes'
+import { weekStartNumber } from '../quickInput/dates'
 import { handleWorklog } from './mockWorklog'
 import type { FieldError, Problem } from './problem'
 import type { Me, ProfileUpdateRequest, WorklogSettings } from './types'
@@ -311,10 +312,22 @@ export const mockFetch: typeof fetch = async (input, init) => {
     }
     // 일정(P1-05·06)은 캘린더 쪽 mock이 맡는다 (frontend2)
     const saved = state.accounts[state.session.email]?.settings
+    const profile = me(
+      state.session.email,
+      state.accounts[state.session.email]?.id ?? '',
+      state.accounts[state.session.email]?.profile,
+    )
     const settings = {
       timeTrackingEnabled: saved?.timeTrackingEnabled ?? false,
       workHoursStart: saved?.workHoursStart ?? '09:00',
       workHoursEnd: saved?.workHoursEnd ?? '18:00',
+      author: {
+        name: profile.name ?? null,
+        organization: profile.organization ?? null,
+        position: profile.position ?? null,
+      },
+      workDays: profile.workDays,
+      weekStart: weekStartNumber(profile.weekStart),
     }
     const handled =
       handleScheduleMock(method, path, body, respond) ?? handleWorklog(method, path, body, respond, settings)
