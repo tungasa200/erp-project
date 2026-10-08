@@ -465,6 +465,15 @@ describe('하루 마감 (SCR-LOG-03)', () => {
     expect(sent).toEqual({ carryOverTaskIds: ['t-2'], issue: '거래처 회신 지연', version: 4 })
     expect(screen.getByText('확정 안 된 날: 10/5')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: '주간 일지 열기' })).toHaveAttribute('href', '/logs/weekly/2026-10-05')
+
+    // 제목에 포커스가 있을 때 Shift+Tab도 창 안 마지막 자리로(body로 빠지지 않게)
+    await user.keyboard('{Shift>}{Tab}{/Shift}')
+    const dialog = screen.getByRole('dialog')
+    const tabbable = Array.from(dialog.querySelectorAll<HTMLElement>('a[href], button:not(:disabled)'))
+    const last = tabbable.find(
+      (el) => !tabbable.some((o) => el.compareDocumentPosition(o) & Node.DOCUMENT_POSITION_FOLLOWING),
+    )
+    expect(last).toHaveFocus()
   })
 
   it('확인 대기가 있으면 3단계, [이전]으로 돌아오면 제목에 포커스', async () => {

@@ -14,7 +14,7 @@ import { verificationApi } from '../verification/api'
 import { EmailVerificationDialog } from '../verification/EmailVerificationDialog'
 import { logApi, type ExportFormat, type LogContent, type LogStatus, type LogType } from './api'
 import { periodText } from './format'
-import { logToText } from './logText'
+import { logToText, useProgressTitles } from './logText'
 import styles from './exportDialog.module.css'
 import logStyles from './logs.module.css'
 
@@ -73,6 +73,7 @@ export function ExportDialog({ log, timeZone, onClose }: Props) {
   const { user } = useAuth()
   const queryClient = useQueryClient()
   const { showToast } = useToast()
+  const titles = useProgressTitles(log.type, log.content)
   // 인증 창에서 돌아올 때 포커스가 body로 빠지면 다시 열린 모달이 엉뚱한 자리를 기억하므로, 연 버튼을 따로 기억해 먼저 돌려 둔다
   const [origin] = useState(() => document.activeElement as HTMLElement | null)
   const backToForm = () => {
@@ -132,7 +133,7 @@ export function ExportDialog({ log, timeZone, onClose }: Props) {
     setError(null)
     if (format === 'TEXT') {
       try {
-        await navigator.clipboard.writeText(logToText({ ...log, draft: log.status !== 'CONFIRMED', timeZone }))
+        await navigator.clipboard.writeText(logToText({ ...log, draft: log.status !== 'CONFIRMED', timeZone, titles }))
       } catch {
         setError('복사하지 못했어요. 브라우저가 클립보드 사용을 막았는지 확인해 주세요')
         return

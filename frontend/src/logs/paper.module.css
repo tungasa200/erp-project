@@ -177,6 +177,8 @@
 
 .body {
   margin: 0;
+  /* 진행 현황 괄호의 업무 제목은 띄어쓰기 없이 길 수 있다(keep-all이라 안 끊기면 390에서 넘친다) */
+  overflow-wrap: anywhere;
 }
 
 .aux {
