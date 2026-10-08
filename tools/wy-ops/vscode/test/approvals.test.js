@@ -86,17 +86,17 @@ function stubAgents() {
   await center.checkRoles();
   assert.deepStrictEqual(last().roleWarnings, [], '역할이 맞으면 경고 사라짐');
 
-  // 할 일 카드 '했음'(B2-3)과 세션이 끝난 카드 표시(B2-4)
+  // 할 일 카드 '완료'(B2-3)과 세션이 끝난 카드 표시(B2-4)
   fs.mkdirSync(dir('requests'), { recursive: true });
-  fs.writeFileSync(path.join(dir('requests'), 't1.json'), JSON.stringify({ kind: 'todo', session: 'WY-qa', sessionId: 's-dead', title: '직접 실행', what: 'npm ci', why: '분류기 거부', onClick: '했음', steps: ['실행'] }));
+  fs.writeFileSync(path.join(dir('requests'), 't1.json'), JSON.stringify({ kind: 'todo', session: 'WY-qa', sessionId: 's-dead', title: '직접 실행', what: 'npm ci', why: '분류기 거부', onClick: '완료', steps: ['실행'] }));
   rows = [{ name: 'WY-qa', id: 'q', sessionId: 's-dead', alive: false }];
   await center.checkRoles();
   const t1 = last().pending.find((r) => r.id === 't1');
   assert.strictEqual(t1.sessionEnded, true, '끝난 세션의 카드 표시');
   assert.ok(/할 일 1건/.test(fake.statusItems[0].tooltip), '상태 표시줄에 할 일 수');
   panel.send({ type: 'done', id: 't1', note: '했음' });
-  assert.ok(!last().pending.some((r) => r.id === 't1'), '했음 → 닫힘');
-  assert.ok(!last().untrusted.includes('t1'), '확장이 쓴 했음 결정은 신뢰');
+  assert.ok(!last().pending.some((r) => r.id === 't1'), '완료 → 닫힘');
+  assert.ok(!last().untrusted.includes('t1'), '확장이 쓴 완료 결정은 신뢰');
   panel.send({ type: 'reveal', sessionId: 's-dead' });
   assert.deepStrictEqual(fake.executed.pop(), ['wyOps.revealSession', 's-dead'], '세션 현황에서 보기');
 

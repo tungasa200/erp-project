@@ -24,7 +24,7 @@
     permission: '이 명령을 이번 한 번만 실행하고 세션이 이어 갑니다. 영구 허용 규칙은 만들지 않습니다.',
     choice: '고른 답이 요청한 세션에 전달되고, 세션이 그대로 이어 갑니다.',
     git: '요청한 세션이 이 명령을 그대로 한 번 실행합니다.',
-    todo: '요청한 세션이 "했음"을 받아 다음 단계로 넘어갑니다.',
+    todo: '요청한 세션이 "완료"를 받아 다음 단계로 넘어갑니다.',
   };
 
   let state = null;
@@ -367,19 +367,15 @@
     return bar;
   }
 
+  // 모두 처리했을 때도 카드가 있을 때와 같은 2단: 왼쪽 목록은 비워 두고 오른쪽 내용 칸에 체크·문구·활동 버튼만 둔다
   function emptyState() {
-    const box = el('div', 'empty');
+    const col = el('div', 'detail-col empty');
     const inner = el('div', 'empty-in');
-    const art = ico('i-done-art', 'empty-art');
-    inner.append(art, el('h2', null, '모두 처리했습니다'), el('p', null, '사용자 손이 필요한 일이 생기면 여기에 쌓이고, 처리하기 전까지 사라지지 않습니다.'));
-    if (state.root) inner.append(el('p', 'path', state.root + '\\requests'));
     const sum = button('sum', '세션 활동 보기', () => vscode.postMessage({ type: 'openActivity' }), { icon: 'i-activity', id: 'empty-activity' });
     sum.append(ico('i-arrow', 'i-s'));
-    const keys = el('div', 'keys');
-    keys.append(el('kbd', null, '?'), document.createTextNode(' 단축키'));
-    inner.append(sum, keys);
-    box.append(inner);
-    return box;
+    inner.append(ico('i-done-art', 'empty-art'), el('h2', null, '모두 처리했습니다'), sum);
+    col.append(inner);
+    return col;
   }
 
   /* ── 상세 ── */
@@ -831,7 +827,7 @@
 
     if (ui.memo === r.id) {
       const cancel = button('btn secondary', '닫기', () => cancelPanel(r), { kbd: 'Esc', id: 'memo-close-' + r.id });
-      const go = button('btn primary', k === 'todo' ? '했음' : '답 보내기', () => primary(r), { icon: 'i-check', id: 'memo-send-' + r.id });
+      const go = button('btn primary', k === 'todo' ? '완료' : '답 보내기', () => primary(r), { icon: 'i-check', id: 'memo-send-' + r.id });
       go.setAttribute('aria-disabled', String(waiting));
       return textPanel('memo', 'note-' + r.id, '메모', '(선택) — 요청한 세션에 함께 전달', d.note, (v) => (d.note = v), [cancel, go]);
     }
@@ -854,7 +850,7 @@
         focusAfter = 'note-' + r.id;
         render();
       }, { id: 'memo-' + r.id });
-      const ok = button('btn primary', k === 'todo' ? '했음' : '답 보내기', () => primary(r), { icon: 'i-check', kbd: 'a', id: 'approve-' + r.id });
+      const ok = button('btn primary', k === 'todo' ? '완료' : '답 보내기', () => primary(r), { icon: 'i-check', kbd: 'a', id: 'approve-' + r.id });
       ok.setAttribute('aria-disabled', String(waiting));
       btns.append(memo, ok);
     } else {
@@ -954,7 +950,7 @@
   const DECISION = {
     approved: ['i-check', '승인', 'var(--ok)'],
     answered: ['i-check', '답함', 'var(--k-choice)'],
-    done: ['i-check', '했음', 'var(--k-todo)'],
+    done: ['i-check', '완료', 'var(--k-todo)'],
     rejected: ['i-x', '거부', 'var(--err)'],
     expired: ['i-clock', '시간 초과', 'var(--warn)'],
   };
@@ -1042,7 +1038,7 @@
     if (ui.view === 'hist') {
       view.append(hist());
     } else if (!pending().length) {
-      view.append(emptyState());
+      view.append(el('div', 'list-col'), emptyState());
     } else {
       const lc = el('div', 'list-col');
       const f = filters();
@@ -1052,6 +1048,7 @@
     }
     parts.push(view);
     app.classList.toggle('has-sel', ui.view === 'inbox' && !!ui.sel);
+    app.classList.toggle('all-done', ui.view === 'inbox' && !pending().length);
     app.replaceChildren(...parts);
     whyOpen.forEach((id) => {
       const d = $(id);
@@ -1158,7 +1155,7 @@
       const added = prev ? state.pending.filter((r) => !prev.has(r.id)) : [];
       added.forEach((r) => fresh.add(r.id));
       const decided = [...busy].filter((id) => !ids.has(id)).map((id) => (state.recent || []).find((d) => d.id === id)).filter(Boolean);
-      const word = (d) => ({ approved: '승인했습니다', rejected: '거부했습니다', answered: '답을 보냈습니다', done: '했음을 알렸습니다' }[d.decision] || '처리했습니다');
+      const word = (d) => ({ approved: '승인했습니다', rejected: '거부했습니다', answered: '답을 보냈습니다', done: '완료를 알렸습니다' }[d.decision] || '처리했습니다');
       const left = state.pending.length ? `. 남은 요청 ${state.pending.length}건` : '. 남은 요청이 없습니다';
       if (decided.length) announce(decided.map(word).join(', ') + left);
       else if (added.length) announce(`새 요청 ${added.length}건: ${added.map(titleOf).join(', ')}`);

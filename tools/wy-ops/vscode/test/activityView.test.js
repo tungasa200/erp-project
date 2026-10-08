@@ -210,3 +210,12 @@ test('열린 폴더가 없으면 오류 상태를 보낸다', () => {
 
 // 승인 폴더와 검사마다 만든 대화 기록 폴더를 모든 검사가 끝나면(실패해도) 지운다
 test.after(() => [process.env.WY_APPROVALS_DIR, ...made].forEach((d) => fs.rmSync(d, { recursive: true, force: true })));
+
+test("보기 이름은 '스레드'(화면 문구에 '묶음'이 남지 않음)", () => {
+  const html = fs.readFileSync(path.join(EXT, 'media', 'activity.html'), 'utf8');
+  assert.match(html, /data-mode="threads"[^>]*>스레드</, '탭 버튼');
+  // 주석을 뺀 문자열 안에 '묶음'이 없어야 한다(aria·빈 상태·범례)
+  const js = fs.readFileSync(path.join(EXT, 'media', 'activity.js'), 'utf8').replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
+  assert.ok(!/묶음/.test(js) && !/>[^<]*묶음/.test(html), "화면 문구에 '묶음' 없음");
+  assert.ok(js.includes('진행 중인 스레드가 없습니다.') && js.includes('진행 중인 스레드</span>'), '빈 상태·범례');
+});

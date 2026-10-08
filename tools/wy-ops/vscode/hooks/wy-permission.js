@@ -143,7 +143,7 @@ function onPermissionDenied(input, root) {
   const who = sessionName || `세션 ${String(input.session_id || '').slice(0, 8)}`;
   const shell = input.tool_name === 'Bash' ? 'bash' : input.tool_name === 'PowerShell' ? 'powershell' : null;
   const ps = shell === 'bash' ? bashForPowerShell(command) : null;
-  const advice = "대부분은 실행하지 않아도 됩니다. 판단이 어려우면 실행하지 말고 메모에 '실행 안 함'이라고 적어 '했음'으로 닫으세요.";
+  const advice = "대부분은 실행하지 않아도 됩니다. 판단이 어려우면 실행하지 말고 메모에 '실행 안 함'이라고 적어 '완료'로 닫으세요.";
   const where =
     shell === 'bash'
       ? `Bash 명령입니다. PowerShell에서는 그대로 실행되지 않습니다. Git Bash 창에 붙여 넣거나${ps ? ', 아래 "PowerShell에 붙여 넣을 형태"를 PowerShell에 붙여 넣으세요' : ' Git Bash 창에서만 실행하세요(PowerShell 형태를 만들 수 없는 명령)'}.`
@@ -158,12 +158,12 @@ function onPermissionDenied(input, root) {
     title: `${who}: 분류기가 막은 ${shell === 'bash' ? 'Bash' : shell === 'powershell' ? 'PowerShell' : input.tool_name} 명령`,
     what: `${advice} ${where}`, // 명령은 command 칸으로 따로 보인다(화면이 what의 줄바꿈을 살리지 않아 명령이 붙어 두 번 보이던 것)
     why: `${advice} ${plainReason(input.reason)}. 훅으로 뒤집지 않으므로 사람이 실행할지 정합니다.`,
-    onClick: "했음: 직접 실행했거나 실행하지 않기로 했음을 세션에 알립니다(메모에 '실행함'·'실행 안 함'을 적으면 세션이 그에 맞춰 이어 갑니다).",
+    onClick: "완료:직접 실행했거나 실행하지 않기로 했음을 세션에 알립니다(메모에 '실행함'·'실행 안 함'을 적으면 세션이 그에 맞춰 이어 갑니다).",
     tool: input.tool_name || null,
     shell,
     command,
     ...(ps ? { commandPowerShell: ps } : {}),
-    steps: [advice, where, '실행했다면 결과(출력·오류)를 메모에 적고 \'했음\'을 누릅니다.'],
+    steps: [advice, where, '실행했다면 결과(출력·오류)를 메모에 적고 \'완료\'를 누릅니다.'],
     check: shell === 'bash' ? '명령이 오류 없이 끝나면 됩니다. "unexpected token" 같은 문법 오류는 PowerShell에 Bash 명령을 붙여 넣은 경우입니다.' : '명령이 오류 없이 끝나면 됩니다.',
   });
 }

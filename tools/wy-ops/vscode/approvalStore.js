@@ -34,7 +34,7 @@ const GIT_KINDS = {
   'tag-delete': '태그 삭제',
 };
 const ROUTINE_KINDS = ['commit', 'push'];
-// permission: 권한 카드(PermissionRequest 훅), todo: 사람이 직접 할 일(PermissionDenied 훅 등, '했음'으로 닫는다)
+// permission: 권한 카드(PermissionRequest 훅), todo: 사람이 직접 할 일(PermissionDenied 훅 등, '완료'로 닫는다)
 const KINDS = { ...GIT_KINDS, choice: '결정', permission: '권한', todo: '할 일' };
 const LIMITS = { questions: 4, optionsMin: 2, optionsMax: 4, text: 2000 };
 const REQUIRED = ['what', 'why', 'onClick'];
@@ -236,7 +236,7 @@ function decide(id, decision, { reason = '', root = ROOT } = {}) {
   if (decision === 'rejected' && !String(reason).trim()) throw new Error('거부 사유가 필요함');
   const req = loadPending(id, root);
   if (req.kind === 'choice') throw new Error('결정 요청은 선택지로 답해야 함');
-  if (req.kind === 'todo') throw new Error("할 일은 '했음'으로 닫아야 함");
+  if (req.kind === 'todo') throw new Error("할 일은 '완료'로 닫아야 함");
   if (req.kind === 'permission' && permissionClosed(paths(root), req)) throw new Error('기한이 지나 이미 거부된 권한 요청');
   return writeDecision(id, req, { decision, reason: text(reason).trim(), command: normalize(req.command) }, root);
 }
@@ -259,7 +259,7 @@ function answer(id, answers, { note = '', root = ROOT } = {}) {
   return writeDecision(id, req, { decision: 'answered', answers: out, note: text(note).trim() }, root);
 }
 
-// 할 일 카드를 닫는다('했음'). 세션은 결정 파일의 decision: 'done'을 보고 이어 간다(B2-3)
+// 할 일 카드를 닫는다('완료'). 세션은 결정 파일의 decision: 'done'을 보고 이어 간다(B2-3)
 function markDone(id, { note = '', root = ROOT } = {}) {
   const req = loadPending(id, root);
   if (req.kind !== 'todo') throw new Error('할 일 카드가 아님');

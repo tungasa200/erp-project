@@ -1,5 +1,5 @@
 // 활동 탭 렌더링. 상태는 activityView.js가 postMessage({type:'state'})로 보낸다.
-// 보기: 묶음(세션 칩 줄 + 단계 사슬 카드, 기본) / 피드(시간순 메시지) / 시간(넓은 화면의 세션별 레인). 요약을 누르면 원문이 펼쳐진다.
+// 보기: 스레드(세션 칩 줄 + 단계 사슬 카드, 기본) / 피드(시간순 메시지) / 시간(넓은 화면의 세션별 레인). 요약을 누르면 원문이 펼쳐진다.
 (() => {
   const vscode = acquireVsCodeApi();
   const saved = vscode.getState() || {};
@@ -154,14 +154,14 @@
   // 진행 중 묶음은 위(최근에 움직인 순). 그 아래 '휴면 n'(2시간 넘게 조용한 진행 중), 맨 아래 '완료 n'.
   // 두 묶음 모두 기본 접힘이고 접힘 상태는 webview에 기억한다. 휴면·완료 판정은 확장(activityView.js)이 한다
   const GROUPS = {
-    dormant: { label: '휴면', icon: 'i-clock', aria: '2시간 넘게 움직임이 없는 묶음', key: 'dormantOpen' },
-    done: { label: '완료', icon: 'i-check', aria: '완료된 묶음', key: 'doneOpen' },
+    dormant: { label: '휴면', icon: 'i-clock', aria: '2시간 넘게 움직임이 없는 스레드', key: 'dormantOpen' },
+    done: { label: '완료', icon: 'i-check', aria: '완료된 스레드', key: 'doneOpen' },
   };
 
   function renderThreads() {
     if (!state.bundles.length) return empty('아직 세션 간 메시지가 없습니다', `최근 ${state.windowHours}시간 안에 세션이 SendMessage로 주고받은 메시지가 여기에 묶여 보입니다.`);
     const running = state.bundles.filter((b) => !b.done && !b.dormant);
-    const top = running.length ? `<div class="threads">${cards(running)}</div>` : '<p class="none">진행 중인 묶음이 없습니다.</p>';
+    const top = running.length ? `<div class="threads">${cards(running)}</div>` : '<p class="none">진행 중인 스레드가 없습니다.</p>';
     return top + group('dormant', state.bundles.filter((b) => b.dormant)) + group('done', state.bundles.filter((b) => b.done));
   }
 
@@ -349,7 +349,7 @@
     const markers = Object.keys(STAGE).map((k) => `<marker id="mk-${k}" class="c-${k}" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path class="mk" d="M0 0 10 5 0 10Z"/></marker>`).join('');
     const nowLine = `<line class="now-line" x1="${X1}" y1="${TOP - 10}" x2="${X1}" y2="${H}"/><rect class="now-pill" x="${X1 - 19}" y="${TOP - 26}" width="38" height="16" rx="8"/><text class="now-t" x="${X1}" y="${TOP - 14}" text-anchor="middle">지금</text>`;
     const legend = [['band', '일한 구간'], ['tail-permission', '권한 대기'], ['tail-input', '입력 대기'], ['tail-offwarn', '꺼진 뒤 메시지 옴']]
-      .map(([c, t]) => `<span><i class="lg ${c}"></i>${t}</span>`).join('') + `<span><i class="lg box-lg"></i>진행 중인 묶음</span><span><i class="lg unread"></i>읽지 않은 앞부분</span>`;
+      .map(([c, t]) => `<span><i class="lg ${c}"></i>${t}</span>`).join('') + `<span><i class="lg box-lg"></i>진행 중인 스레드</span><span><i class="lg unread"></i>읽지 않은 앞부분</span>`;
 
     const selRow = ui.timeSel && state.messages[ui.timeSel] ? `<ul class="feed sel-msg">${msgRow(ui.timeSel, stageOf.get(ui.timeSel) || 'order')}</ul>` : `<p class="hint">화살표를 누르면 그 메시지의 원문이 여기에 펼쳐집니다.</p>`;
     return `<div class="lanes"><svg viewBox="0 0 ${X1 + 30} ${H}" role="group" aria-label="${esc(`최근 ${ui.range}시간 세션별 활동, 메시지 ${msgs.length}개`)}"><defs>${markers}</defs>${ticks.join('')}${boxes}${lanes}${arrows}${nowLine}</svg></div>

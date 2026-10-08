@@ -142,7 +142,7 @@ const waitFor = async (f) => { for (let i = 0; i < 100 && !f(); i++) await new P
   assert.ok(st.pending.find((r) => r.id === tid).steps.length, '할 일 단계');
 
   // 승인 센터 쪽 결정 함수: 권한은 decide, 할 일은 markDone만
-  assert.throws(() => store.decide(tid, 'approved', { root }), /했음/);
+  assert.throws(() => store.decide(tid, 'approved', { root }), /완료/);
   assert.throws(() => store.markDone(id5, { root }), /할 일 카드가 아님/);
   store.decide(id5, 'approved', { root });
   assert.deepStrictEqual(await run5, { behavior: 'allow' });

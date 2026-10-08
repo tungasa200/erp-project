@@ -122,14 +122,14 @@ function screenBehavior(jsdom) {
   assert.ok(s.id('announce').textContent.startsWith('답을 보냈습니다'), '처리 알림');
   assert.ok(s.txt('.who-row .mc').length && s.txt('.row .mc').includes('PM 결정'), 'PM 결정 칩');
 
-  // 할 일: 단계 체크, 확인 방법, 세션 끝남, 했음
+  // 할 일: 단계 체크, 확인 방법, 세션 끝남, 완료
   s.send({ type: 'select', id: 't1' });
   assert.ok(s.txt('.who-row .mc').some((t) => t.startsWith('세션 끝남')), '세션 끝남 표시');
   assert.ok(s.txt('.blk-h').includes('확인 방법'), '확인 방법');
   s.id('tick-t1-0').click();
   assert.strictEqual(s.id('tick-t1-0').getAttribute('aria-checked'), 'true', '단계 체크');
   s.key('a');
-  assert.ok(s.posted.some((m) => m.type === 'done' && m.id === 't1'), '했음');
+  assert.ok(s.posted.some((m) => m.type === 'done' && m.id === 't1'), '완료');
 
   // 형식 오류: 처리 버튼 없음
   s.send({ type: 'select', id: 'b1' });
@@ -139,13 +139,24 @@ function screenBehavior(jsdom) {
   s.key('k');
   assert.strictEqual(s.id('dt-title').textContent, '할 일', 'k 이동');
   s.id('tab-hist').click();
-  assert.ok(s.txt('.hist .how').some((t) => t.includes('했음 · 메모: 메모')), '처리됨');
+  assert.ok(s.txt('.hist .how').some((t) => t.includes('완료 · 메모: 메모')), '처리됨');
   s.key('g');
   s.key('a');
   assert.ok(s.posted.some((m) => m.type === 'openActivity'), 'g a 활동 탭');
   s.send({ type: 'state', state: { ...STATE, pending: [], untrusted: [], roleWarnings: [] } });
   s.id('tab-inbox').click();
   assert.deepStrictEqual(s.txt('.empty h2'), ['모두 처리했습니다'], '빈 상태');
+  // 모두 처리: 카드가 있을 때와 같은 2단(빈 목록 + 내용 칸), 내용 칸에는 체크·문구·활동 버튼만
+  const body = s.id('view');
+  assert.deepStrictEqual([...body.children].map((c) => c.className), ['list-col', 'detail-col empty'], '2단 유지');
+  assert.strictEqual(body.querySelector('.list-col').children.length, 0, '목록은 비움');
+  assert.deepStrictEqual([...body.querySelector('.empty-in').children].map((c) => c.tagName.toLowerCase() + (c.id ? '#' + c.id : '')), ['svg', 'h2', 'button#empty-activity'], '체크·문구·버튼만');
+  assert.ok(!body.querySelector('.empty p, .empty .keys'), '설명 문구 없음');
+  assert.ok(s.id('app').classList.contains('all-done'), '좁은 폭에서 내용 칸을 보이는 표시');
+  s.id('empty-activity').click();
+  assert.strictEqual(s.posted.filter((m) => m.type === 'openActivity').length, 2, '세션 활동 보기');
+  s.send({ type: 'state', state: STATE });
+  assert.ok(!s.id('app').classList.contains('all-done'), '카드가 오면 all-done 해제');
 
   // 다른 화면에서 카드 열기: 상태보다 먼저 와도 기다렸다 고른다
   const s2 = screen(jsdom, 400);
