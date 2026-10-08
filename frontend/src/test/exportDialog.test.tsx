@@ -3,6 +3,7 @@ import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fileNameOf } from '../api/client'
+import type { LogAchievement } from '../logs/api'
 import { json, ME, problem, renderApp, stubFetch } from './renderApp'
 
 // 서울 2026-10-07(수) 12:00
@@ -57,7 +58,7 @@ const draft = (status: 'DRAFT' | 'CONFIRMED' = 'DRAFT') => ({
         dates: ['2026-10-07'],
         durationMin: null,
       },
-    ],
+    ] as LogAchievement[],
     plans: [
       { id: 'p-1', taskId: null, text: '스프린트 리뷰 발표', dueDate: null, scheduledAt: '2026-10-08T01:00:00Z' },
     ],
@@ -130,6 +131,7 @@ describe('내보내기 (SCR-LOG-05)', () => {
     stubFetch({
       'GET /api/users/me': () => json(200, VERIFIED),
       'GET /api/worklog/logs/daily/2026-10-07': () => json(200, draft()),
+      'GET /api/worklog/tasks/t-1': () => json(200, { id: 't-1', title: '결제 API 설계' }),
     })
     renderApp('/logs/daily/2026-10-07')
 
@@ -156,6 +158,54 @@ describe('내보내기 (SCR-LOG-05)', () => {
         '한빛상사 견적 회신 지연',
       ].join('\n'),
     )
+  })
+
+  it('진행 현황 괄호는 업무명(지금 제목)으로, 같은 업무는 마지막 줄 진행률로 한 번, 업무 없는 줄은 실적 문구(서식명세 2.5)', async () => {
+    const user = userEvent.setup()
+    const log = draft()
+    const line = log.content.achievements[0]
+    log.content.achievements = [
+      { ...line, text: '엔드포인트 설계', progress: 70 },
+      { ...line, id: 'a-2', taskId: null, text: '회의록 정리', result: null, progress: null, recordIds: ['r-2'] },
+      { ...line, id: 'a-3', text: '스키마 검토', result: null, progress: 80, recordIds: ['r-3'] },
+    ]
+    log.content.metrics = { ...log.content.metrics, recordCount: 3, inProgress: 3 }
+    stubFetch({
+      'GET /api/users/me': () => json(200, VERIFIED),
+      'GET /api/worklog/logs/daily/2026-10-07': () => json(200, log),
+      'GET /api/worklog/tasks/t-1': () => json(200, { id: 't-1', title: '결제 API 구축' }),
+    })
+    renderApp('/logs/daily/2026-10-07')
+
+    // 문서 영역과 텍스트 복사가 같은 줄을 쓴다
+    const progress = '진행 중 3건 (회의록 정리, 결제 API 구축 80%)'
+    expect(await screen.findByText(progress)).toBeInTheDocument()
+    const { dialog } = await openExport(user)
+    await user.click(within(dialog).getByRole('radio', { name: /텍스트 복사/ }))
+    await user.click(within(dialog).getByRole('button', { name: '복사' }))
+    expect(await screen.findByText('일지를 복사했어요')).toBeInTheDocument()
+    expect((await navigator.clipboard.readText()).split('\n')).toContain(progress)
+  })
+
+  it('처음 포커스가 고른 라디오여도 Shift+Tab은 창 밖으로 나가지 않고 마지막 자리로, 라디오 묶음은 한 자리', async () => {
+    const user = userEvent.setup()
+    stubFetch({
+      'GET /api/users/me': () => json(200, VERIFIED),
+      'GET /api/worklog/logs/daily/2026-10-07': () => json(200, draft()),
+    })
+    renderApp('/logs/daily/2026-10-07')
+
+    const { dialog } = await openExport(user)
+    const pdf = within(dialog).getByRole('radio', { name: /PDF/ })
+    await waitFor(() => expect(pdf).toHaveFocus())
+    await user.keyboard('{Shift>}{Tab}{/Shift}')
+    const submit = within(dialog).getByRole('button', { name: '내려받기' })
+    expect(submit).toHaveFocus()
+    // 마지막에서 Tab이면 처음(고른 라디오 하나)으로. 앞의 '텍스트 복사' 라디오에 멈추지 않는다
+    await user.tab()
+    expect(pdf).toHaveFocus()
+    await user.tab({ shift: true })
+    expect(submit).toHaveFocus()
   })
 
   it('Excel 기간 업무 기록: 기간이 틀리면 받지 않고 이유를 보이고, 맞추면 그 기간으로 받는다', async () => {

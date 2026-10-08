@@ -5,7 +5,7 @@ import { WEEKDAY_NAMES, isoWeekday, todayIn } from '../quickInput/dates'
 import type { LogAchievement, LogContent, LogPlan, LogType, PlanCandidate } from './api'
 import { durationLabel, progressLabel } from './api'
 import { periodText, stamp } from './format'
-import { SECTION, md, mdw, metricsLine, planWhen } from './logText'
+import { SECTION, md, mdw, metricsLine, planWhen, useProgressTitles } from './logText'
 import styles from './paper.module.css'
 
 export interface PaperEditor {
@@ -36,6 +36,7 @@ export function LogPaper(props: Props) {
   const c = content
   const withProject = c.achievements.some((a) => a.projectName)
   const pending = c.metrics.pendingCount
+  const titles = useProgressTitles(type, c)
   return (
     <article className={styles.paper} aria-label="일지 문서">
       <header className={styles.head}>
@@ -85,7 +86,7 @@ export function LogPaper(props: Props) {
       </Section>
 
       <Section title="진행 현황">
-        <p className={styles.body}>{metricsLine(type, c)}</p>
+        <p className={styles.body}>{metricsLine(type, c, titles)}</p>
         {type === 'MONTHLY' && c.projects.length > 0 && <ProjectStats content={c} />}
       </Section>
 

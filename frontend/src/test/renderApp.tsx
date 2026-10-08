@@ -125,6 +125,9 @@ export function stubFetch(handlers: Record<string, Handler>) {
     // 옵션이 켜진 홈 타임라인의 오늘 합계(SCR-HOME-01 ③). 등록하지 않았으면 0분
     if (key.split('?')[0] === 'GET /api/worklog/records/time-summary')
       return json(200, { from: '', to: '', totalMin: 0, recordCount: 0, projects: [], tasks: [] })
+    // 일지 진행 현황 괄호가 업무 제목을 묻는다(업무 상세). 등록하지 않았으면 없음으로 답해 실적 줄 문구를 쓴다
+    if (/^GET \/api\/worklog\/tasks\/[^/?]+$/.test(key) && key !== 'GET /api/worklog/tasks/frequent')
+      return problem(404, 'NOT_FOUND')
     return problem(401, 'UNAUTHENTICATED')
   })
   vi.stubGlobal('fetch', fetchMock)
