@@ -35,7 +35,7 @@ class LogPdfTest {
 				null, days, List.of());
 		WorkLogView log = new WorkLogView(null, "WEEKLY", mon, mon.plusDays(6), "DRAFT", 0, null, false, c, List.of());
 
-		byte[] pdf = LogPdf.write(LogDocument.of(log, ZoneId.of("Asia/Seoul"), mon.plusDays(6), Map.of()), "t");
+		byte[] pdf = LogPdf.write(LogDocument.of(log, ZoneId.of("Asia/Seoul"), mon.plusDays(6), Map.of(), Map.of()), "t");
 
 		String text = new PdfTextExtractor(new PdfReader(pdf)).getTextFromPage(1);
 		// 주간 표 프로젝트 칸(22mm): 기본 규칙이면 "고객관리 시 / 스템개편"으로 갈린다

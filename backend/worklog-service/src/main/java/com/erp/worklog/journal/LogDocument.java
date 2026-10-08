@@ -15,6 +15,7 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -51,8 +52,12 @@ record LogDocument(LogType type, String title, boolean draft, String footerLeft,
 	private static final String[] WEEKDAY = { "월", "화", "수", "목", "금", "토", "일" };
 	private static final DateTimeFormatter FOOTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
-	/** today: 주간 표에서 오늘 뒤 날은 빈칸. projectNames: 프로젝트 id → 이름 (소요시간 표용, 업무 제목은 일지 값). */
-	static LogDocument of(WorkLogView log, ZoneId zone, LocalDate today, Map<UUID, String> projectNames) {
+	/**
+	 * today: 주간 표에서 오늘 뒤 날은 빈칸. projectNames: 프로젝트 id → 이름 (소요시간 표용, 업무 제목은 일지 값).
+	 * taskTitles: 업무 id → 지금 업무 제목 (진행 현황 괄호용, 없으면 실적 줄 문구).
+	 */
+	static LogDocument of(WorkLogView log, ZoneId zone, LocalDate today, Map<UUID, String> projectNames,
+			Map<UUID, String> taskTitles) {
 		Content c = log.content();
 		LogType type = LogType.valueOf(log.type());
 		String title = switch (type) {
@@ -75,7 +80,7 @@ record LogDocument(LogType type, String title, boolean draft, String footerLeft,
 			sections.add(monthDays(c.days()));
 		}
 		sections.add(achievements(type, c));
-		sections.add(progress(type, c));
+		sections.add(progress(type, c, taskTitles));
 		sections.add(plans(c.planTitle(), c.plans(), zone));
 		sections.add(new Section(Kind.BOX, "이슈 및 특이사항", null, null, null, c.issues() == null ? "" : c.issues(), null));
 		if (c.time() != null) {
@@ -181,7 +186,7 @@ record LogDocument(LogType type, String title, boolean draft, String footerLeft,
 				null, null);
 	}
 
-	private static Section progress(LogType type, Content c) {
+	private static Section progress(LogType type, Content c, Map<UUID, String> taskTitles) {
 		Metrics m = c.metrics();
 		List<String> parts = new ArrayList<>();
 		if (type == LogType.MONTHLY) {
@@ -204,8 +209,16 @@ record LogDocument(LogType type, String title, boolean draft, String footerLeft,
 			parts.add("검토 요청 " + m.reviewRequested() + "건");
 		}
 		String line = parts.isEmpty() ? NONE : String.join(" · ", parts);
-		List<String> going = c.achievements().stream().filter(a -> "IN_PROGRESS".equals(a.outcome()))
-			.map(a -> a.text() + (a.progress() == null ? "" : " " + a.progress() + "%")).toList();
+		// 괄호는 업무명과 진행률 (서식 명세 2.5): 같은 업무의 줄이 여럿이면 마지막 줄의 진행률로 한 번만
+		Map<Object, String> byTask = new LinkedHashMap<>();
+		for (Achievement a : c.achievements()) {
+			if ("IN_PROGRESS".equals(a.outcome())) {
+				String name = a.taskId() == null ? a.text() : taskTitles.getOrDefault(a.taskId(), a.text());
+				byTask.remove(a.taskId() == null ? a : a.taskId());
+				byTask.put(a.taskId() == null ? a : a.taskId(), name + (a.progress() == null ? "" : " " + a.progress() + "%"));
+			}
+		}
+		List<String> going = List.copyOf(byTask.values());
 		if (!going.isEmpty() && !parts.isEmpty()) {
 			String list = String.join(", ", going.subList(0, Math.min(3, going.size())));
 			line += " (" + list + (going.size() > 3 ? " 외 " + (going.size() - 3) + "건" : "") + ")";
@@ -273,7 +286,8 @@ record LogDocument(LogType type, String title, boolean draft, String footerLeft,
 	private static Section time(TimeSummaryView time, Map<UUID, String> projectNames) {
 		List<List<String>> rows = new ArrayList<>();
 		for (TaskMinutes t : time.tasks()) {
-			String project = t.projectId() == null ? "프로젝트 없음" : projectNames.getOrDefault(t.projectId(), "");
+			// 프로젝트 없는 업무는 빈칸 (화면과 같음, pm 결정 2026-10-08 — "프로젝트 없음"은 월간 프로젝트 표 2.5만)
+			String project = t.projectId() == null ? "" : projectNames.getOrDefault(t.projectId(), "");
 			String task = t.taskId() == null ? "업무 없음" : t.title() == null ? "" : t.title();
 			rows.add(List.of(project, task, minutes(t.minutes()), share(t.minutes(), time.totalMin())));
 		}

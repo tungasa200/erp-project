@@ -10,6 +10,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.openpdf.text.pdf.PdfReader;
+import org.openpdf.text.pdf.parser.PdfTextExtractor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -155,6 +156,20 @@ class LogExportApiTest {
 				assertThat(log.getRow(0).getCell(0).getStringCellValue()).contains("업무일지");
 			}
 		}
+	}
+
+	@Test
+	void 확정본_파일명은_지금_이름_본문_작성자는_스냅샷_PDF_제목은_파일명_진행_현황_괄호는_업무명() throws Exception {
+		when(identity.emailVerified(any())).thenReturn(true);
+		profile("김<새>이름");
+
+		byte[] pdf = export("daily/2026-10-06", "PDF", MediaType.APPLICATION_PDF_VALUE, "worklog_2026-10-06.pdf",
+				"업무일지_2026-10-06_김_새_이름.pdf");
+		PdfReader reader = new PdfReader(pdf);
+		assertThat(reader.getInfo()).containsEntry("Title", "업무일지_2026-10-06_김_새_이름").containsEntry("Author", "홍/길:동");
+		String text = new PdfTextExtractor(reader).getTextFromPage(1);
+		reader.close();
+		assertThat(text).contains("진행 중 1건 (API 30%)").doesNotContain("(설계");
 	}
 
 	@Test
