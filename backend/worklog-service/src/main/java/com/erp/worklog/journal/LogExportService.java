@@ -1,6 +1,7 @@
 package com.erp.worklog.journal;
 
 import com.erp.common.error.FieldErrorDetail;
+import com.erp.worklog.journal.LogViews.Achievement;
 import com.erp.worklog.journal.LogViews.WorkLogView;
 import com.erp.worklog.user.Profile;
 import com.erp.worklog.workrecord.TimeViews.TaskMinutes;
@@ -12,9 +13,11 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -69,15 +72,20 @@ class LogExportService {
 			projectNames = sources.projectNames(ownerId, log.content().time().tasks().stream()
 				.map(TaskMinutes::projectId).filter(Objects::nonNull).collect(Collectors.toSet()));
 		}
-		LogDocument d = LogDocument.of(log, zone, LocalDate.ofInstant(clock.instant(), zone), projectNames);
+		Set<UUID> goingTasks = log.content().achievements().stream().filter(a -> "IN_PROGRESS".equals(a.outcome()))
+			.map(Achievement::taskId).filter(Objects::nonNull).collect(Collectors.toSet());
+		Map<UUID, String> taskTitles = new HashMap<>();
+		sources.tasks(ownerId, goingTasks).forEach((id, t) -> taskTitles.put(id, t.title()));
+		LogDocument d = LogDocument.of(log, zone, LocalDate.ofInstant(clock.instant(), zone), projectNames, taskTitles);
 		String start = log.periodStart().toString();
-		String name = "업무일지_" + start + suffix(d.author()) + "." + f.ext;
+		// 파일명은 지금 프로필 이름(SCR-LOG-05 ④), 문서 본문 작성자는 확정 스냅샷 그대로
+		String base = "업무일지_" + start + suffix(p.name());
 		byte[] body = switch (f) {
-			case PDF -> LogPdf.write(d, d.title());
+			case PDF -> LogPdf.write(d, base);
 			case DOCX -> LogDocx.write(d);
 			case XLSX -> LogXlsx.write(d, records.find(ownerId, log.periodStart(), log.periodEnd()), zone);
 		};
-		return new ExportFile(body, f.mediaType, disposition("worklog_" + start + "." + f.ext, name));
+		return new ExportFile(body, f.mediaType, disposition("worklog_" + start + "." + f.ext, base + "." + f.ext));
 	}
 
 	/** 기간 업무 기록 Excel (GET /records/export). */
@@ -101,12 +109,12 @@ class LogExportService {
 		}
 	}
 
-	/** 파일명의 "_{이름}": / \ : * ? " < > |와 제어 문자는 _로, 비어 있으면 뺀다. */
+	/** 파일명의 "_{이름}": / \ : * ? " < > |와 제어 문자(U+0000~001F)는 _로, 비어 있으면 뺀다 — 화면 미리보기(ExportDialog safeName)와 같은 규칙. */
 	static String suffix(String name) {
 		if (name == null || name.isBlank()) {
 			return "";
 		}
-		return "_" + name.strip().replaceAll("[/\\\\:*?\"<>|\\p{Cntrl}]", "_");
+		return "_" + name.strip().replaceAll("[/\\\\:*?\"<>|\\x00-\\x1F]", "_");
 	}
 
 	static String disposition(String ascii, String name) {

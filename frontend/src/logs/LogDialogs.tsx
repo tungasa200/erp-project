@@ -1,7 +1,7 @@
 // SCR-LOG-02 다시 채우기 확인창, SCR-LOG-04 ① 확정 해제 확인창·② 변경 이력 (UX-03 확인창 예외).
 // 확인창은 [취소]가 먼저 오고 처음 포커스도 [취소]다(되돌릴 수 없는 동작).
 import { useQuery } from '@tanstack/react-query'
-import { useId, useState } from 'react'
+import { useId, useLayoutEffect, useRef, useState } from 'react'
 import { Modal } from '../calendar/Modal'
 import cal from '../calendar/calendar.module.css'
 import { Skeleton } from '../components/Skeleton'
@@ -50,6 +50,19 @@ export function RevisionsDialog({ log, timeZone, onClose }: { log: WorkLog; time
     queryFn: () => logApi.revision(log.id!, open!),
     enabled: open != null,
   })
+  // 누른 줄·[← 이력 목록]이 사라지므로 전환할 때 포커스를 창 안 짝으로 옮긴다(P3-QA-LOG-04-K1).
+  // layout effect라야 앱의 포커스 안전망이 body를 보고 화면 제목으로 보내기 전에 잡는다
+  const backRef = useRef<HTMLButtonElement>(null)
+  const listRef = useRef<HTMLUListElement>(null)
+  const lastOpened = useRef<number | null>(null)
+  useLayoutEffect(() => {
+    if (open != null) {
+      lastOpened.current = open
+      backRef.current?.focus()
+    } else if (lastOpened.current != null) {
+      listRef.current?.querySelector<HTMLElement>(`[data-revision="${lastOpened.current}"]`)?.focus()
+    }
+  }, [open])
   return (
     <Modal labelledBy={`${id}-t`} onClose={onClose}>
       <div className={cal.dialogHead}>
@@ -66,10 +79,15 @@ export function RevisionsDialog({ log, timeZone, onClose }: { log: WorkLog; time
         ) : list.data.items.length === 0 ? (
           <p className={styles.muted}>아직 확정한 적이 없어요. 확정할 때마다 한 줄씩 남아요.</p>
         ) : (
-          <ul className={styles.revisions}>
+          <ul ref={listRef} className={styles.revisions}>
             {list.data.items.map((r) => (
               <li key={r.revisionNo}>
-                <button type="button" className={styles.revision} onClick={() => setOpen(r.revisionNo)}>
+                <button
+                  type="button"
+                  className={styles.revision}
+                  data-revision={r.revisionNo}
+                  onClick={() => setOpen(r.revisionNo)}
+                >
                   <span className={styles.revisionNo}>{r.revisionNo}번째 확정</span>
                   <span>확정 {stamp(r.confirmedAt, timeZone)}</span>
                   <span className={styles.muted}>
@@ -82,7 +100,7 @@ export function RevisionsDialog({ log, timeZone, onClose }: { log: WorkLog; time
         )
       ) : (
         <>
-          <button type="button" className={cal.secondary} onClick={() => setOpen(null)}>
+          <button ref={backRef} type="button" className={cal.secondary} onClick={() => setOpen(null)}>
             ← 이력 목록
           </button>
           {detail.isPending ? (

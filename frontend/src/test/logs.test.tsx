@@ -115,6 +115,23 @@ describe('일지 상세 (SCR-LOG-02)', () => {
     expect(screen.getByRole('button', { name: '원본에서 다시 채우기' })).toBeInTheDocument()
   })
 
+  it('다른 곳에서 먼저 고쳤으면(409) 충돌 띠(화면정의서 2.5)와 내 수정 내용 복사·새로 불러오기', async () => {
+    const user = userEvent.setup()
+    stubFetch({
+      'GET /api/users/me': me,
+      [LOG_URL]: () => json(200, workLog()),
+      'PATCH /api/worklog/logs/log-1': () => problem(409, 'VERSION_CONFLICT'),
+    })
+    renderApp('/logs/daily/2026-10-07')
+
+    const result = await screen.findByRole('textbox', { name: '1번 결과' })
+    await user.type(result, '추가')
+    const banner = await screen.findByRole('alert', {}, { timeout: 3000 })
+    expect(banner).toHaveTextContent('다른 곳에서 먼저 수정됐어요. 이 변경은 저장되지 않았어요')
+    expect(within(banner).getByRole('button', { name: '내 수정 내용 복사' })).toBeInTheDocument()
+    expect(within(banner).getByRole('button', { name: '새로 불러오기' })).toBeInTheDocument()
+  })
+
   it('고정 초안 다시 채우기: 취소에 먼저 포커스, Esc로 닫고 버튼으로 복귀, 확인하면 토스트', async () => {
     const user = userEvent.setup()
     const refill = vi.fn(() => json(200, workLog({ version: 3 })))
@@ -162,12 +179,52 @@ describe('일지 상세 (SCR-LOG-02)', () => {
     await user.click(screen.getByRole('button', { name: '확정 해제' }))
     const dialog = screen.getByRole('alertdialog', { name: '확정을 해제할까요?' })
     expect(dialog).toHaveTextContent(
-      "확정본 내용이 그대로 초안이 되고, 원본 기록을 다시 반영하려면 '원본에서 다시 채우기'를 쓰세요.",
+      '확정본 내용이 그대로 초안이 되고, 원본 기록을 다시 반영하려면 ‘원본에서 다시 채우기’를 쓰세요.',
     )
     await user.click(within(dialog).getByRole('button', { name: '확정 해제' }))
     expect(await screen.findByText('확정을 해제했어요. 초안으로 고칠 수 있어요')).toBeInTheDocument()
     expect(screen.getByText('실적 고정')).toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: '1번 결과' })).toBeInTheDocument()
+  })
+
+  it('변경 이력: Tab은 창 안을 돌고 배경은 inert, 확정본↔목록 전환 때 포커스가 창 안 짝으로 간다(P3-QA-LOG-04-K1)', async () => {
+    const user = userEvent.setup()
+    const confirmed = workLog({ status: 'CONFIRMED', version: 1, confirmedAt: '2026-10-07T09:00:00Z' })
+    stubFetch({
+      'GET /api/users/me': me,
+      [LOG_URL]: () => json(200, confirmed),
+      'GET /api/worklog/logs/log-1/revisions': () =>
+        json(200, { items: [{ revisionNo: 1, confirmedAt: '2026-10-07T09:00:00Z', unconfirmedAt: null }] }),
+      'GET /api/worklog/logs/log-1/revisions/1': () =>
+        json(200, { revisionNo: 1, confirmedAt: '2026-10-07T09:00:00Z', content: confirmed.content }),
+    })
+    renderApp('/logs/daily/2026-10-07')
+
+    const open = await screen.findByRole('button', { name: '변경 이력' })
+    await user.click(open)
+    const dialog = screen.getByRole('dialog', { name: '변경 이력' })
+    expect(screen.getByRole('heading', { level: 1 }).closest('[inert]')).not.toBeNull()
+    const row = await within(dialog).findByRole('button', { name: /1번째 확정/ })
+    const close = within(dialog).getByRole('button', { name: '닫기' })
+    expect(close).toHaveFocus()
+    await user.tab()
+    expect(row).toHaveFocus()
+    await user.tab()
+    expect(close).toHaveFocus()
+    await user.tab({ shift: true })
+    expect(row).toHaveFocus()
+
+    await user.keyboard('{Enter}')
+    expect(screen.getByRole('dialog', { name: '1번째 확정본' })).toBeInTheDocument()
+    const back = within(dialog).getByRole('button', { name: '← 이력 목록' })
+    expect(back).toHaveFocus()
+    await user.keyboard('{Enter}')
+    expect(within(dialog).getByRole('button', { name: /1번째 확정/ })).toHaveFocus()
+
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(document.querySelector('[inert]')).toBeNull()
+    await waitFor(() => expect(open).toHaveFocus())
   })
 
   it('미리보기(id 없음)를 고치면 초안을 만든 뒤 저장한다', async () => {
@@ -278,6 +335,14 @@ describe('일지 목록 (SCR-LOG-01)', () => {
     expect(await screen.findByText('확정 안 된 날 1일')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /10월 6일.*확정/ })).toHaveAttribute('href', '/logs/daily/2026-10-06')
     expect(screen.getByText('개천절')).toBeInTheDocument()
+    // 좁은 화면 점 범례(넓은 화면은 CSS로 숨김): 글자만 읽히고 점은 aria-hidden
+    const legend = screen.getByText('미작성', { selector: 'li' }).parentElement!
+    expect(
+      within(legend)
+        .getAllByRole('listitem')
+        .map((li) => li.textContent),
+    ).toEqual(['확정', '초안', '미작성', '기록 없음'])
+    expect(legend.querySelectorAll('[aria-hidden="true"]')).toHaveLength(4)
 
     const draft = screen.getByRole('button', { name: /10월 7일.*미작성 — 초안 만들기/ })
     draft.focus()

@@ -507,6 +507,7 @@ function Calendar({ view, date, today, timeZone, weekStart }: CalendarProps) {
               date={date}
               timeZone={timeZone}
               occurrences={query.data ?? []}
+              now={now}
               editable={online}
               onOpen={openRecord}
               onAdd={() => setRecordOpen({ workDate: date })}

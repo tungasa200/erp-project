@@ -216,9 +216,25 @@ function DayGrid({
           )
         })}
       </ul>
+      {/* 좁은 화면에서만: 칸이 점만 보이므로 점 모양 범례 한 줄(pm 결정, 목업 LOG-01m 버전 33). 점은 칸 점과 같은 규칙 */}
+      <ul className={styles.legend}>
+        {LEGEND.map(([status, text]) => (
+          <li key={status} className={styles[`cell${status}`]}>
+            <span className={styles.cellStatus} aria-hidden="true" />
+            {text}
+          </li>
+        ))}
+      </ul>
     </div>
   )
 }
+
+const LEGEND = [
+  ['CONFIRMED', '확정'],
+  ['DRAFT', '초안'],
+  ['NOT_WRITTEN', '미작성'],
+  ['NO_RECORDS', '기록 없음'],
+] as const
 
 function PeriodRows({ items, today }: { items: LogPeriod[]; today: string }) {
   const { open, opening } = useOpenPeriod()

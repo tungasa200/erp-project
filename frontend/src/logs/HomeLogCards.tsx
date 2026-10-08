@@ -117,33 +117,35 @@ export function WeekLogStatus({ today, weekFirst }: { today: string; weekFirst: 
           </button>
         </p>
       ) : (
-        <ul className={styles.weekDays}>
-          {days.data.items.map((p) => {
-            const label = dayLabel(p, today)
-            const weekday = WEEKDAY_NAMES[isoWeekday(p.periodStart) - 1]
-            const cls = [
-              styles.weekDay,
-              p.workday === false && styles.cellOff,
-              p.periodStart === today && styles.cellToday,
-              styles[`cell${p.status}`],
-            ]
-              .filter(Boolean)
-              .join(' ')
-            return (
-              <li key={p.periodStart}>
-                <Link
-                  to={logHref('DAILY', p.periodStart)}
-                  className={cls}
-                  aria-label={`${Number(p.periodStart.slice(5, 7))}월 ${Number(p.periodStart.slice(8))}일 ${weekday}요일 ${label}`}
-                  aria-current={p.periodStart === today ? 'date' : undefined}
-                >
-                  <span className={styles.dayNo}>{weekday}</span>
-                  <span className={styles.cellStatus}>{label}</span>
-                </Link>
-              </li>
-            )
-          })}
-        </ul>
+        <div className={styles.weekDaysBox}>
+          <ul className={styles.weekDays}>
+            {days.data.items.map((p) => {
+              const label = dayLabel(p, today)
+              const weekday = WEEKDAY_NAMES[isoWeekday(p.periodStart) - 1]
+              const cls = [
+                styles.weekDay,
+                p.workday === false && styles.cellOff,
+                p.periodStart === today && styles.cellToday,
+                styles[`cell${p.status}`],
+              ]
+                .filter(Boolean)
+                .join(' ')
+              return (
+                <li key={p.periodStart}>
+                  <Link
+                    to={logHref('DAILY', p.periodStart)}
+                    className={cls}
+                    aria-label={`${Number(p.periodStart.slice(5, 7))}월 ${Number(p.periodStart.slice(8))}일 ${weekday}요일 ${label}`}
+                    aria-current={p.periodStart === today ? 'date' : undefined}
+                  >
+                    <span className={styles.dayNo}>{weekday}</span>
+                    <span className={styles.cellStatus}>{label}</span>
+                  </Link>
+                </li>
+              )
+            })}
+          </ul>
+        </div>
       )}
     </section>
   )

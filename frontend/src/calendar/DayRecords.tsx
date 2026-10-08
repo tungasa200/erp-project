@@ -1,6 +1,7 @@
 // SCR-CAL-02 ③ 일 보기 "이날의 기록": 시간 없는 기록을 포함한 그날 기록 전체(세 상태)와 기록 추가.
 // 시간이 없는 기록은 그리드에 나타나지 않아 이 목록이 지난 기록을 고치는 기본 장소다. 누르면 SCR-REC-01.
 // 시간은 시간 기록 옵션이 켜졌을 때만 적는다(옵션은 화면 표시만 바꾼다, TIME-09).
+// 끝나기 전 회차의 확인 대기(타이머를 1분 미만으로 버리면 서버가 PENDING으로 되돌림)는 홈 ③처럼 없는 것으로 본다(D-31).
 // 확인 대기 기록은 시간이 비어 있어(D-100) 옵션과 관계없이 계획 시간을 적는다(홈 확인 대기 목록과 같게). 확인 대기 목록의 plan, 없으면(7일 넘음) 그날 회차.
 import { useId } from 'react'
 import { Skeleton } from '../components/Skeleton'
@@ -9,7 +10,7 @@ import { planTime, usePendingRecords } from '../records/pending'
 import { useTimeTracking } from '../settings/useWorklogSettings'
 import { RecordStatusTag } from './RecordStatusTag'
 import type { Occurrence } from './api'
-import { occurrenceOf, recordTimeText, useRecordsOnDate } from './recordStatus'
+import { occurrenceOf, planEnded, recordTimeText, useRecordsOnDate } from './recordStatus'
 import styles from './records.module.css'
 
 interface Props {
@@ -17,20 +18,24 @@ interface Props {
   timeZone: string
   /** 보이는 기간의 회차(확인 대기 행의 계획 시간) */
   occurrences: Occurrence[]
+  /** 지금 시각(ms). 끝나기 전 회차의 확인 대기를 가린다 */
+  now: number
   editable: boolean
   onOpen: (record: WorkRecord) => void
   onAdd: () => void
 }
 
-export function DayRecords({ date, timeZone, occurrences, editable, onOpen, onAdd }: Props) {
+export function DayRecords({ date, timeZone, occurrences, now, editable, onOpen, onAdd }: Props) {
   const id = useId()
   const timed = useTimeTracking()
   const records = useRecordsOnDate(date)
-  const items = records.data ?? []
-  const pending = usePendingRecords(items.some((r) => r.status === 'PENDING'))
+  const all = records.data ?? []
+  const pending = usePendingRecords(all.some((r) => r.status === 'PENDING'))
+  const planOf = (r: WorkRecord) => pending.data?.find((p) => p.id === r.id)?.plan ?? occurrenceOf(occurrences, r)
+  const items = all.filter((r) => r.status !== 'PENDING' || planEnded(planOf(r), now, timeZone))
   const planText = (r: WorkRecord) => {
     if (r.status !== 'PENDING' || r.startAt) return null
-    const plan = pending.data?.find((p) => p.id === r.id)?.plan ?? occurrenceOf(occurrences, r)
+    const plan = planOf(r)
     return plan ? planTime(plan, timeZone) || null : null
   }
 

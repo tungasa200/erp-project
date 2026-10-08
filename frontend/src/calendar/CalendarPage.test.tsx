@@ -671,6 +671,29 @@ describe('캘린더', () => {
     expect(within(add).getByLabelText('날짜')).toHaveValue('2026-10-07')
   })
 
+  it('일 보기 "이날의 기록": 끝나기 전 회차의 확인 대기는 홈 ③처럼 보이지 않는다 (D-31)', async () => {
+    // 2026-10-07 서울 10:30 — 스탠드업(10:00–11:00)이 아직 진행 중. 타이머를 1분 미만으로 버리면 서버가 PENDING을 준다
+    vi.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-10-07T01:30:00.000Z'))
+    stubServer()
+    records = [
+      workRecord('r-plan', {
+        status: 'PENDING',
+        content: '팀 스탠드업',
+        scheduleId: standup.id,
+        occurrenceStart: standup.startAt,
+      }),
+      workRecord('r-note', { content: '견적 메일 회신' }),
+    ]
+    try {
+      renderApp('/calendar/day/2026-10-07', routes)
+      const panel = await screen.findByRole('region', { name: '이날의 기록' })
+      await within(panel).findByRole('button', { name: /견적 메일 회신/ })
+      expect(within(panel).queryByRole('button', { name: /팀 스탠드업/ })).not.toBeInTheDocument()
+    } finally {
+      vi.restoreAllMocks()
+    }
+  })
+
   it('일정 상세 ⑥ [기록 보기]는 일정 창을 닫고 그 회차의 기록 창을 연다 (SCR-CAL-07)', async () => {
     stubServer()
     records = [
