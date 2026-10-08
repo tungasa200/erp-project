@@ -29,6 +29,7 @@ function install({ workspace = null } = {}) {
     messages: [],
     opened: [],
     subscriptions: [],
+    settings: { 'wyOps.approvals.sound': false },
   };
 
   const makeWebview = (posts) => ({
@@ -62,7 +63,11 @@ function install({ workspace = null } = {}) {
     StatusBarAlignment: { Left: 1, Right: 2 },
     ThemeColor: function (id) { this.id = id; },
     env: { openExternal: (u) => fake.opened.push(u.fsPath) },
-    workspace: { workspaceFolders: workspace ? [{ uri: { fsPath: workspace } }] : undefined },
+    workspace: {
+      workspaceFolders: workspace ? [{ uri: { fsPath: workspace } }] : undefined,
+      // 설정은 fake.settings('섹션.키')에서. 테스트 중 소리는 기본으로 끈다
+      getConfiguration: (section) => ({ get: (k, d) => { const key = section ? `${section}.${k}` : k; return key in fake.settings ? fake.settings[key] : d; } }),
+    },
     window: {
       registerWebviewViewProvider: (id, p) => { fake.viewProviders[id] = p; return { dispose() {} }; },
       registerWebviewPanelSerializer: (type, s) => { fake.serializers[type] = s; return { dispose() {} }; },

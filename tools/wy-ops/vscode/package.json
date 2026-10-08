@@ -58,6 +58,16 @@
         "icon": "$(pulse)"
       }
     ],
+    "configuration": {
+      "title": "WY Ops",
+      "properties": {
+        "wyOps.approvals.sound": {
+          "type": "boolean",
+          "default": true,
+          "description": "WY 승인 센터에 새 카드가 들어오면 소리로 알립니다(여러 장이 한꺼번에 와도 한 번)."
+        }
+      }
+    },
     "menus": {
       "view/title": [
         {
