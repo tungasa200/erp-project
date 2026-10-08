@@ -250,13 +250,21 @@ function build(ctx: LogsMockContext, type: LogType, start: string, stored: Store
   const status: LogStatus = stored ? 'DRAFT' : generated.length > 0 || pendingCount > 0 ? 'NOT_WRITTEN' : 'NO_RECORDS'
   const projectStats =
     type === 'MONTHLY'
-      ? [...new Set(records.map((r) => projectName(ctx, r.taskId ?? null)))].map((name) => ({
-          projectId: ctx.projects.find((p) => p.name === name)?.id ?? null,
-          name,
-          completedTaskCount: completed.filter((t) => projectName(ctx, t.id) === name).length,
-          recordCount: records.filter((r) => projectName(ctx, r.taskId ?? null) === name).length,
-          minutes: null,
-        }))
+      ? // 서버처럼 기록과 완료한 업무 모두에서 프로젝트를 모은다. 이름순, '프로젝트 없음'은 끝
+        [
+          ...new Set([
+            ...records.map((r) => projectName(ctx, r.taskId ?? null)),
+            ...completed.map((t) => projectName(ctx, t.id)),
+          ]),
+        ]
+          .sort((a, b) => (a == null ? 1 : b == null ? -1 : a.localeCompare(b)))
+          .map((name) => ({
+            projectId: ctx.projects.find((p) => p.name === name)?.id ?? null,
+            name,
+            completedTaskCount: completed.filter((t) => projectName(ctx, t.id) === name).length,
+            recordCount: records.filter((r) => projectName(ctx, r.taskId ?? null) === name).length,
+            minutes: null,
+          }))
       : []
   return {
     id: stored?.id ?? null,
@@ -276,7 +284,12 @@ function build(ctx: LogsMockContext, type: LogType, start: string, stored: Store
       metrics: {
         completedTaskCount: completed.length,
         recordCount: records.length,
-        done: records.filter((r) => r.outcome === 'DONE').length,
+        // 서버 규칙(d8ecdea): '완료' 기록 수 + 완료한 날 그 업무의 기록이 없는 업무 수
+        done:
+          records.filter((r) => r.outcome === 'DONE').length +
+          days
+            .flatMap((d) => completedOn(ctx, d).map((t) => ({ t, d })))
+            .filter(({ t, d }) => !dayRecords(ctx, d).some((r) => r.taskId === t.id)).length,
         inProgress: records.filter((r) => r.outcome === 'IN_PROGRESS').length,
         reviewRequested: records.filter((r) => r.outcome === 'REVIEW_REQUESTED').length,
         pendingCount,
@@ -440,17 +453,25 @@ export function handleLogsMock(
     if (method === 'POST') {
       if (stored?.status === 'CONFIRMED') return r.problem(409, 'LOG_CONFIRMED')
       if ((stored?.version ?? 0) !== body.version) return r.problem(409, 'VERSION_CONFLICT')
+      const ids = (body.carryOverTaskIds as string[]) ?? []
+      const plans = stored?.plans ?? []
+      if (ids.some((taskId) => !ctx.tasks.some((t) => t.id === taskId && !t.deletedAt)))
+        return r.problem(400, 'VALIDATION_FAILED', { errors: [{ field: 'carryOverTaskIds', code: 'NOT_FOUND' }] })
+      // 서버와 같은 상한: 계획 50줄, 이슈 2000자(덧붙인 뒤 기준). 어기면 아무것도 바꾸지 않는다
+      if (plans.length + new Set(ids.filter((id) => !plans.some((p) => p.taskId === id))).size > 50)
+        return r.problem(400, 'VALIDATION_FAILED', { errors: [{ field: 'carryOverTaskIds', code: 'TOO_MANY' }] })
+      const issue = typeof body.issue === 'string' ? body.issue.trim() : ''
+      const issues = issue ? (stored?.issues ? `${stored.issues}\n${issue}` : issue) : (stored?.issues ?? null)
+      if ((issues?.length ?? 0) > 2000)
+        return r.problem(400, 'VALIDATION_FAILED', { errors: [{ field: 'issue', code: 'TOO_LONG' }] })
       const log = stored ?? newLog('DAILY', date)
       if (!stored) ctx.logs.push(log)
-      for (const taskId of (body.carryOverTaskIds as string[]) ?? []) {
-        const task = ctx.tasks.find((t) => t.id === taskId && !t.deletedAt)
-        if (!task)
-          return r.problem(400, 'VALIDATION_FAILED', { errors: [{ field: 'carryOverTaskIds', code: 'NOT_FOUND' }] })
+      for (const taskId of ids) {
+        const task = ctx.tasks.find((t) => t.id === taskId)!
         if (!log.plans.some((p) => p.taskId === taskId))
           log.plans.push({ id: uid(), taskId, text: task.title, dueDate: null, scheduledAt: null })
       }
-      const issue = typeof body.issue === 'string' ? body.issue.trim() : ''
-      if (issue) log.issues = log.issues ? `${log.issues}\n${issue}` : issue
+      log.issues = issues
       confirm(ctx, log)
       ctx.save()
       return r.json(200, { log: out(log), suggestions: suggestionsAfter(ctx, date) })
