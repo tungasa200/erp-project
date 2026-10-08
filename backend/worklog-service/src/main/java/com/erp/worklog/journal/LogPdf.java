@@ -12,8 +12,11 @@ import org.openpdf.text.PageSize;
 import org.openpdf.text.Paragraph;
 import org.openpdf.text.Phrase;
 import org.openpdf.text.Rectangle;
+import org.openpdf.text.SplitCharacter;
 import org.openpdf.text.pdf.BaseFont;
 import org.openpdf.text.pdf.ColumnText;
+import org.openpdf.text.pdf.DefaultSplitCharacter;
+import org.openpdf.text.pdf.PdfChunk;
 import org.openpdf.text.pdf.PdfContentByte;
 import org.openpdf.text.pdf.PdfPCell;
 import org.openpdf.text.pdf.PdfPTable;
@@ -40,6 +43,18 @@ final class LogPdf {
 	private static final Color SUB = new Color(0x40, 0x40, 0x40);
 	private static final Color GRAY = new Color(0x59, 0x59, 0x59);
 	private static final char MISSING = '□';
+
+	/**
+	 * 띄어쓰기에서만 줄을 바꾼다(화면의 word-break: keep-all). OpenPDF 기본은 한글 음절·'-' 사이 어디서나 끊어 좁은 칸에서
+	 * "고객관리 시 / 스템개편"처럼 낱말이 갈린다. 칸보다 긴 낱말은 끊을 곳이 없으면 OpenPDF가 칸 끝에서 자른다.
+	 */
+	private static final SplitCharacter KEEP_ALL = new DefaultSplitCharacter() {
+		@Override
+		public boolean isSplitCharacter(int start, int current, int end, char[] cc, PdfChunk[] ck) {
+			char c = getCurrentCharacter(current, cc, ck);
+			return c <= ' ' || (c >= '\u2002' && c <= '\u200b');
+		}
+	};
 
 	private static final byte[] REGULAR = font("Pretendard-Regular.ttf");
 	private static final byte[] BOLD = font("Pretendard-Bold.ttf");
@@ -306,16 +321,22 @@ final class LogPdf {
 				out = String.valueOf(MISSING);
 			}
 			if (f != runFont && !run.isEmpty()) {
-				p.add(new Chunk(run.toString(), runFont));
+				p.add(chunk(run.toString(), runFont));
 				run.setLength(0);
 			}
 			runFont = f;
 			run.append(out);
 		}
 		if (!run.isEmpty()) {
-			p.add(new Chunk(run.toString(), runFont));
+			p.add(chunk(run.toString(), runFont));
 		}
 		return p;
+	}
+
+	private static Chunk chunk(String s, Font f) {
+		Chunk c = new Chunk(s, f);
+		c.setSplitCharacter(KEEP_ALL);
+		return c;
 	}
 
 	static float mm(float mm) {
