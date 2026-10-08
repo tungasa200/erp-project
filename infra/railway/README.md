@@ -19,10 +19,11 @@ Railway 프로젝트 WY-ERP(싱가포르)에 백엔드 3개와 PostgreSQL, Verce
 |---|---|
 | 서비스 이름 | `api-gateway`, `identity-service`, `worklog-service` (private 도메인이 이 이름을 쓴다) |
 | Source | GitHub `tungasa200/erp-project`, 배포 브랜치 |
-| Root Directory | `/backend` |
+| Root Directory | 비운다(저장소 루트). worklog가 `shared/holidays/KR.json`을 jar에 넣으므로 빌드 문맥이 루트여야 한다(D-74). 보내는 파일은 루트 [.dockerignore](../../.dockerignore)가 `backend/`·`shared/`로 줄인다 |
+| Watch Paths | `/backend/**`, `/shared/**` (프론트·문서만 바뀐 커밋으로 백엔드가 다시 배포되지 않게) |
 | Config File (Config as Code) | 비운다. Railway가 폐지 중이라 새 서비스에는 적용되지 않는다. 아래 네 항목을 콘솔에서 직접 설정한다 |
 | Builder | Dockerfile |
-| Dockerfile 경로 | `/backend/Dockerfile` (콘솔은 저장소 기준 절대경로로 받고, Root Directory를 정하면 이 값이 기본으로 표시된다) |
+| Dockerfile 경로 | `/backend/Dockerfile` (콘솔은 저장소 기준 절대경로로 받는다. Root Directory를 비우면 기본값이 `/Dockerfile`로 바뀌므로 이 값을 직접 넣는다) |
 | Healthcheck | Path `/actuator/health/readiness`, Timeout 120초 (경로를 저장해야 Timeout 칸이 나타난다) |
 | Restart Policy | On Failure, 최대 10회 |
 | 리전·인스턴스 | 싱가포르, 1개 |
