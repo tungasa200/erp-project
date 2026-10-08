@@ -53,3 +53,11 @@ try {
 } finally {
   fs.rmSync(root, { recursive: true, force: true });
 }
+
+// 자리표시자 필터: |indent는 줄마다 두 칸 들여 써서 하위 목록으로 만든다(빈 줄은 그대로), |size는 MB → GB/MB
+{
+  const { fill } = require('./gen-agents');
+  assert.strictEqual(fill('- 검증:\n{{v|indent}}\n- 다음', { v: '- a\n\n- b' }, 't'), '- 검증:\n  - a\n\n  - b\n- 다음');
+  assert.strictEqual(fill('{{m|size}}·{{n|size}}', { m: 1024, n: 500 }, 't'), '1GB·500MB');
+  console.log('gen-agents 필터 검사 통과');
+}

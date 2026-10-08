@@ -7,7 +7,8 @@
 //   <저장소>/.claude/ops/agent.md        프로젝트 템플릿(없으면 tools/wy-ops/templates/agent.md)
 //   <저장소>/.claude/ops/roles/<역할>.md  역할 원본: frontmatter(description + 추가 줄) + '이 역할의 작업 방식' 본문
 // 자리표시자: {{name}} {{description}} {{frontmatter}} {{body}} {{verifyList}}(verify·stackNotes에서 만든 목록)와 설정 경로({{pmRole}}, {{docs.progress}} …).
-//   {{경로|size}}는 MB 값을 1024의 배수면 'nGB', 아니면 'nMB'로 쓴다. 모르는 자리표시자는 오류로 멈춘다.
+//   {{경로|size}}는 MB 값을 1024의 배수면 'nGB', 아니면 'nMB'로 쓴다. {{경로|indent}}는 줄마다 두 칸 들여 써서 앞 글머리의 하위 목록으로 만든다.
+//   모르는 자리표시자는 오류로 멈춘다.
 const fs = require('fs');
 const path = require('path');
 const { loadOpsConfig, findProjectRoot } = require('./vscode/opsConfig');
@@ -54,10 +55,12 @@ function verifyList(ops) {
 const size = (mb) => (Number(mb) % 1024 === 0 ? `${Number(mb) / 1024}GB` : `${Number(mb)}MB`);
 
 function fill(template, values, where) {
-  return template.replace(/\{\{([\w.]+)(\|size)?\}\}/g, (all, key, filter) => {
+  return template.replace(/\{\{([\w.]+)(?:\|(size|indent))?\}\}/g, (all, key, filter) => {
     const v = key.split('.').reduce((o, k) => (o == null ? undefined : o[k]), values);
     if (v === undefined || v === null || typeof v === 'object') throw new Error(`${where}: 자리표시자 ${all}의 값이 없습니다`);
-    return filter ? size(v) : String(v);
+    if (filter === 'size') return size(v);
+    if (filter === 'indent') return String(v).replace(/^(?=.)/gm, '  ');
+    return String(v);
   });
 }
 

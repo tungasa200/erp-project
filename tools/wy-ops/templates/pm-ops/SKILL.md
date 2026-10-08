@@ -37,7 +37,7 @@ description: {{project}}의 {{pmRole}}(개발 총괄) 세션이 반복하는 운
 - **pm이 정하고 즉시 알린다:** 정한 순간 사용자 보고에 "**[pm 결정]** 무엇을, 왜" 한 줄. 알리지 않고 정하지 않는다. 판단이 애매하면 카드로 올린다. 승인된 순서(커밋 뒤 배포 등)는 세션끼리 바로 잇게 하고 결과만 받는다. 해당: 이미 정해진 문서·결정을 구현하는 데 필요한 작은 추가, 문서에 단계가 적혀 있는 것, 디자인 세부(디자인 담당 기준을 따름), 운영 절차.
 - 결정 근거가 되는 사실은 해당 세션에 먼저 확인하고, 틀렸으면 사용자에게 정정한다.
 
-choice 요청에는 카드 필수 칸 what(무엇을)·why(왜)·onClick(누르면 무슨 일)을 넣고, 선택지마다 cost(그 선택의 대가)를 넣는다(B2-2 형식). 빠지면 형식 오류 카드가 된다. 사용자에게 올릴 때는 **WY 승인 센터의 choice 요청**(`~/.claude/wy-approvals/{{approvals.namespace}}/requests/`, 형식은 wy-ops 승인 센터 README)으로 올리고 `~/.claude/wy-approvals/{{approvals.namespace}}/decisions.log`를 감시해 결과를 받는다. 사용자가 터미널에서 대화 중이어도 마찬가지다. `AskUserQuestion`은 승인 센터를 쓸 수 없을 때만 쓴다. 추천안을 첫 번째에 "(추천)"으로, 각 선택지의 대가를 한 줄로 쓴다. 관련 질문은 최대 4개까지 한 번에 묶는다.
+choice 요청에는 카드 필수 칸 what(무엇을)·why(왜)·onClick(누르면 무슨 일)을 넣고, 선택지마다 cost(그 선택의 대가)를 넣는다. 빠지면 형식 오류 카드가 된다. 사용자에게 올릴 때는 **WY 승인 센터의 choice 요청**(`~/.claude/wy-approvals/{{approvals.namespace}}/requests/`, 형식은 wy-ops 승인 센터 README)으로 올리고 `~/.claude/wy-approvals/{{approvals.namespace}}/decisions.log`를 감시해 결과를 받는다. 사용자가 터미널에서 대화 중이어도 마찬가지다. `AskUserQuestion`은 승인 센터를 쓸 수 없을 때만 쓴다. 추천안을 첫 번째에 "(추천)"으로, 각 선택지의 대가를 한 줄로 쓴다. 관련 질문은 최대 4개까지 한 번에 묶는다.
 
 결정이 나면 같은 턴에:
 - 요청한 세션에 회신(무엇으로 정해졌는지, 남은 가정 승인 여부)

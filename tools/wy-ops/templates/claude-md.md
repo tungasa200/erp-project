@@ -21,7 +21,7 @@
 - 보고 형식: `[완료]` 작업·바뀐 파일·실행한 검증 명령과 결과 / `[결정 요청]` 배경·선택지와 트레이드오프·추천안·막히는 작업 / `[차단]` 멈춘 이유·필요한 것.
 - 배정받은 디렉터리 밖은 수정하지 않는다.
 - 완료 보고 전에 바뀐 부분에 맞는 검증을 돌리고, 실행한 명령과 결과(통과·실패·못 돌린 이유)를 적는다. 검증 명령(`.claude/wy-ops.json`의 `verify`):
-{{verifyList}}
+{{verifyList|indent}}
 - 무거운 작업(빌드, 개발 서버, 전체 테스트, 브라우저 자동화) 전에는 여유 메모리를 확인하고, `.claude/wy-ops.json`의 `memory.blockFreeMB`(지금 {{memory.blockFreeMB|size}}) 미만이면 시작하지 말고 `{{pmRole}}`에 알린다. 끝나면 실행한 서버·브라우저를 바로 끈다.
 - 사용자 손이 필요한 일(외부 콘솔, 설정 수정, 리로드, 명령 실행, 결정)은 대화창이 아니라 승인 센터 카드로 올린다. 세션은 설정 파일(`wy-ops.json`, `wy-ops.local.json`, `settings.local.json`)을 직접 고치지 않는다.
 
@@ -43,7 +43,7 @@
 
 컨텍스트가 길어지면 앞 내용을 흐리게 기억한다. 역할 세션은 `/clear`로 비우지 않고 새 세션으로 교체한다. 기억은 대화가 아니라 파일에 둔다.
 
-- 역할은 `.claude/agents/<역할>.md`에 있다. 이 파일은 생성물이다: 역할 문구는 `.claude/ops/roles/<역할>.md`나 `.claude/ops/agent.md`를 고친다. pm-ops 스킬은 `.claude/ops/pm-ops.project.md`를 고친다. 세션 스크립트 `.claude/skills/pm-ops/scripts/session.ps1`도 생성물이다. 고친 뒤 `install.ps1 gen`으로 다시 만든다(설치 위치는 `~/.wy-tools/wy-ops/current/install.ps1`).
+- 역할은 `.claude/agents/<역할>.md`에 있다. 이 파일은 생성물이다: 역할 문구는 `.claude/ops/roles/<역할>.md`를 고친다(모든 역할에 들어가는 공통 문구를 바꾸려면 `.claude/ops/agent.md`를 만든다. 없으면 패키지 기본 템플릿을 쓴다). pm-ops 스킬은 `.claude/ops/pm-ops.project.md`를 고친다. 세션 스크립트 `.claude/skills/pm-ops/scripts/session.ps1`도 생성물이다. 고친 뒤 `install.ps1 gen`으로 다시 만든다(설치 위치는 `~/.wy-tools/wy-ops/current/install.ps1`).
 - 진행 상황은 진행현황 문서, 결정은 결정기록 문서에 둔다(경로는 `.claude/wy-ops.json`의 `docs`).
 - 하던 일의 중간 상태(미커밋 파일, 반쯤 한 작업, 막힌 이유)만 `/ecc:save-session`으로 남긴다. short-id는 역할 이름이다.
 - 세션 교체는 `{{pmRole}}`이 `session.ps1 prep <역할>` → `session.ps1 rotate <역할> <경로|none>`으로 한다.
