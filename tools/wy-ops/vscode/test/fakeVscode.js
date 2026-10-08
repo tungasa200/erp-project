@@ -9,12 +9,24 @@ const path = require('path');
 const fs = require('fs');
 
 const EXT = path.resolve(__dirname, '..');
-// 저장소 루트(.git이 있는 곳). 확장 폴더 깊이가 바뀌어도(tools/wy-ops/vscode) 테스트가 같은 곳을 본다
+// 시험용 프로젝트 루트: 임시 폴더에 .claude/wy-ops.json을 만든다(패키지가 어느 저장소에 있든 같은 설정으로 돈다)
 const REPO = (() => {
-  for (let d = EXT; ; d = path.dirname(d)) {
-    if (fs.existsSync(path.join(d, '.git'))) return d;
-    if (path.dirname(d) === d) return path.resolve(EXT, '..', '..', '..');
-  }
+  const dir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'wy-fake-repo-'));
+  const names = ['commit', 'search', 'planner', 'design', 'pm', 'backend1', 'backend2', 'backend3', 'frontend', 'frontend2', 'browser', 'qa', 'qa2'];
+  fs.mkdirSync(path.join(dir, '.claude'));
+  fs.writeFileSync(path.join(dir, '.claude', 'wy-ops.json'), JSON.stringify({
+    schema: 1,
+    project: 'fake-project',
+    rolePrefix: 'WY-',
+    pmRole: 'WY-pm',
+    commitRole: 'WY-commit',
+    roles: names.map((n) => ({ name: `WY-${n}`, summary: n, agent: n !== 'pm' })),
+    rotation: { transcriptMB: 2 },
+    memory: { warnFreeMB: 1024, blockFreeMB: 500 },
+    approvals: { namespace: 'fake-project', ttlMinutes: 60 },
+  }));
+  process.on('exit', () => fs.rmSync(dir, { recursive: true, force: true }));
+  return dir;
 })();
 
 function install({ workspace = null } = {}) {
