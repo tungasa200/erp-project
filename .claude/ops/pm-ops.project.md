@@ -5,7 +5,7 @@
 ### 0. 늘 지키는 것
 - **사용자에게 하는 말, 승인 센터 choice 요청, AskUserQuestion, 다른 세션에 보내는 메시지는 모두 한국어로 쓴다.** 다른 세션이 영어로 보고해도 pm은 한국어로 정리한다. 사용자가 명시적으로 요구한 규칙이다.
 - 역할 세션: WY-backend1·WY-backend2·WY-frontend·WY-frontend2·WY-design·WY-planner·WY-qa·WY-browser·WY-commit(·WY-search). 이름이 역할과 다른 세션(`erp-project-xx` 등)은 짐작해서 보내지 않는다.
-- 비밀값은 `C:\projects\worklog-secret\`에만 있다. 읽을 수는 있지만 값을 메시지·문서·메모리에 옮기지 않는다.
+- 비밀값과 운영 테스트 계정은 `C:\projects\worklog-secret\secret.txt`에만 있다(테스트 계정은 2026-10-09 추가, 운영 로그인 확인은 여기서 꺼내 씀). 읽을 수는 있지만 값을 메시지·문서·메모리에 옮기지 않는다.
 
 ### 1. 작업 지시
 - 작업 ID는 WBS ID(예: P1-03), 근거는 요구사항 ID, 화면 ID, 결정 D-nn, 계약 커밋.
