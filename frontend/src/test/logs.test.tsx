@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { LogPeriod, WorkLog } from '../logs/api'
 import { DayClose } from '../logs/DayClose'
 import { TodayLogCard, WeekLogStatus } from '../logs/HomeLogCards'
-import { json, ME, renderApp, stubFetch } from './renderApp'
+import { json, ME, problem, renderApp, stubFetch } from './renderApp'
 
 // 서울 2026-10-07(수) 12:00
 beforeEach(() => {
@@ -75,6 +75,8 @@ function workLog(extra: Partial<WorkLog> = {}, content: Partial<WorkLog['content
 }
 
 const LOG_URL = 'GET /api/worklog/logs/daily/2026-10-07'
+// 400 VALIDATION_FAILED 한 칸
+const problemJson = (field: string, code: string) => problem(400, 'VALIDATION_FAILED', { errors: [{ field, code }] })
 
 describe('일지 상세 (SCR-LOG-02)', () => {
   it('자동 초안: 알약 "실적 자동", 다시 채우기 없음. 실적을 처음 고치면 고정으로 바뀌고 한 번 알린다', async () => {
@@ -187,6 +189,48 @@ describe('일지 상세 (SCR-LOG-02)', () => {
 
     await user.type(await screen.findByRole('textbox', { name: '이슈 및 특이사항' }), '회의 연기')
     await waitFor(() => expect(calls).toEqual(['create', 'patch']), { timeout: 3000 })
+  })
+
+  it('[실적에 넣기]를 누르면 다음 기록의 버튼으로, 마지막이면 추가된 실적 줄로 포커스가 간다', async () => {
+    const user = userEvent.setup()
+    const record = (id: string, content: string) => ({
+      id,
+      content,
+      workDate: '2026-10-07',
+      status: 'CONFIRMED',
+      result: null,
+      outcome: null,
+      progress: null,
+      taskId: null,
+      projectId: null,
+    })
+    stubFetch({
+      'GET /api/users/me': me,
+      [LOG_URL]: () => json(200, workLog()),
+      'GET /api/worklog/records': () =>
+        json(200, { items: [record('r-2', '회의 준비'), record('r-3', '자료 정리')], nextCursor: null }),
+      'PATCH /api/worklog/logs/log-1': (init) =>
+        json(200, workLog({ version: 1 }, { achievementsAuto: false, ...JSON.parse(String(init?.body)) })),
+    })
+    renderApp('/logs/daily/2026-10-07')
+
+    await user.click(await screen.findByRole('button', { name: '회의 준비 실적에 넣기' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: '자료 정리 실적에 넣기' })).toHaveFocus())
+    await user.keyboard('{Enter}')
+    await waitFor(() => expect(screen.getByRole('textbox', { name: '3번 업무 내용' })).toHaveFocus())
+    expect(screen.getByRole('textbox', { name: '3번 업무 내용' })).toHaveValue('자료 정리')
+  })
+
+  it('편집 칸은 줄바꿈되는 여러 줄 칸이고, Enter·붙여 넣은 줄바꿈은 넣지 않는다', async () => {
+    const user = userEvent.setup()
+    stubFetch({ 'GET /api/users/me': me, [LOG_URL]: () => json(200, workLog()) })
+    renderApp('/logs/daily/2026-10-07')
+
+    const text = await screen.findByRole('textbox', { name: '1번 업무 내용' })
+    expect(text.tagName).toBe('TEXTAREA')
+    await user.type(text, '{Enter}추가')
+    await user.paste('\n붙임')
+    expect(text).toHaveValue('견적서 작성추가 붙임')
   })
 
   it('잘못된 주소는 찾을 수 없다고 알리고 목록 링크를 준다', async () => {
@@ -368,6 +412,100 @@ describe('하루 마감 (SCR-LOG-03)', () => {
     expect(screen.getByText('넘긴 일은 다음 주 계획에 들어가요. 업무의 마감일은 바뀌지 않아요.')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: '이전' }))
     await waitFor(() => expect(screen.getByRole('heading', { name: '하루 마감 1/3' })).toHaveFocus())
+  })
+
+  it('계획 50줄 상한: 남은 칸만큼만 기본 선택·더 고를 수 없고 안내, 서버 400은 이유를 알린다', async () => {
+    const user = userEvent.setup()
+    const plans = Array.from({ length: 49 }, (_, i) => ({
+      id: `p-${i}`,
+      taskId: null,
+      text: `계획 ${i}`,
+      dueDate: null,
+      scheduledAt: null,
+    }))
+    let reply = () => problemJson('carryOverTaskIds', 'TOO_MANY')
+    stubFetch({
+      'GET /api/users/me': me,
+      'GET /api/worklog/logs/daily/2026-10-07/close': () => json(200, plan()),
+      [LOG_URL]: () => json(200, workLog({}, { plans, issues: 'ㄱ'.repeat(1700) })),
+      'POST /api/worklog/logs/daily/2026-10-07/close': () => reply(),
+    })
+    renderApp('/', closeRoutes())
+
+    const first = await screen.findByRole('checkbox', { name: /견적서 보내기/ })
+    const second = screen.getByRole('checkbox', { name: /회의록 정리/ })
+    expect(first).toBeChecked()
+    expect(second).not.toBeChecked()
+    expect(second).toBeDisabled()
+    expect(screen.getByRole('group', { name: '계획으로 넘길 업무' })).toHaveAccessibleDescription(
+      '계획은 50줄까지라 1개까지 고를 수 있어요. (1/1)',
+    )
+    await user.click(first)
+    expect(second).toBeEnabled()
+
+    await user.click(screen.getByRole('button', { name: '다음' }))
+    // 기존 이슈 1700자 + 줄바꿈 → 299자까지
+    const issue = await screen.findByRole('textbox', { name: /이슈 및 특이사항/ })
+    expect(issue).toHaveAttribute('maxLength', '299')
+    expect(issue).toHaveAccessibleDescription('일지의 이슈 칸이 2000자까지라 299자까지 남길 수 있어요.')
+
+    await user.click(screen.getByRole('button', { name: '마감하고 확정' }))
+    expect(await screen.findByText('계획은 50줄까지예요. 넘길 업무를 줄여 주세요')).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByRole('heading', { name: '하루 마감 1/2' })).toHaveFocus())
+
+    reply = () => problemJson('issue', 'TOO_LONG')
+    await user.click(screen.getByRole('button', { name: '다음' }))
+    await user.click(await screen.findByRole('button', { name: '마감하고 확정' }))
+    expect(await screen.findByText('이슈 및 특이사항은 모두 2000자까지예요. 이슈를 줄여 주세요')).toBeInTheDocument()
+  })
+
+  it('확인 대기 패널을 닫고 돌아오면 [확인 대기 처리] 버튼으로 포커스가 돌아온다', async () => {
+    const user = userEvent.setup()
+    stubFetch({
+      'GET /api/users/me': me,
+      'GET /api/worklog/logs/daily/2026-10-07/close': () => json(200, plan({ pendingCount: 1 })),
+      [LOG_URL]: () => json(200, workLog()),
+      'GET /api/worklog/records/pending': () =>
+        json(200, {
+          items: [
+            {
+              id: 'p-1',
+              status: 'PENDING',
+              workDate: '2026-10-07',
+              content: '주간 회의',
+              taskId: null,
+              projectId: null,
+              tagIds: [],
+              scheduleId: 's-1',
+              occurrenceStart: '2026-10-07T00:00:00Z',
+              result: null,
+              outcome: null,
+              progress: null,
+              startAt: null,
+              endAt: null,
+              durationMin: null,
+              deletedAt: null,
+              createdAt: '2026-10-07T00:00:00Z',
+              updatedAt: '2026-10-07T00:00:00Z',
+              version: 0,
+              plan: {
+                title: '주간 회의',
+                allDay: false,
+                startAt: '2026-10-07T00:00:00Z',
+                endAt: '2026-10-07T01:00:00Z',
+                startDate: null,
+                endDate: null,
+              },
+            },
+          ],
+        }),
+    })
+    renderApp('/', closeRoutes())
+
+    await user.click(await screen.findByRole('button', { name: '확인 대기 처리' }))
+    expect(await screen.findByText('주간 회의')).toBeInTheDocument()
+    await user.keyboard('{Escape}')
+    await waitFor(() => expect(screen.getByRole('button', { name: '확인 대기 처리' })).toHaveFocus())
   })
 
   it('이미 확정한 날은 해제 후 다시 마감하라고 알린다, Esc로 닫는다', async () => {

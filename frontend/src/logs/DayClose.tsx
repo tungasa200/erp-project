@@ -21,6 +21,10 @@ import styles from './logs.module.css'
 
 type Step = 'pending' | 'carry' | 'issue'
 
+/** 계약 상한: 계획 50줄, 이슈 칸 2000자(마감 이슈는 기존 이슈 끝에 한 줄로 붙음) */
+const PLAN_MAX = 50
+const ISSUES_MAX = 2000
+
 const md = (date: string) => `${Number(date.slice(5, 7))}/${Number(date.slice(8))}`
 
 interface Props {
@@ -28,6 +32,10 @@ interface Props {
   today: string
   timeZone: string
   onClose: () => void
+}
+
+function fieldCode(error: unknown, field: string) {
+  return error instanceof ApiError ? error.problem?.errors?.find((e) => e.field === field)?.code : undefined
 }
 
 export function DayClose({ date, today, timeZone, onClose }: Props) {
@@ -50,9 +58,13 @@ export function DayClose({ date, today, timeZone, onClose }: Props) {
 
   const data = plan.data
   // 처음 받은 값으로 단계 수·기본 선택을 정한다(1단계에서 다 처리해도 "1/3"이 "1/2"로 바뀌지 않게). 렌더 중 한 번 맞춤
-  if (data && hadPending == null) {
+  // 기본 선택은 계획 남은 칸까지만(계획 50줄, 이미 계획에 있는 업무는 칸을 쓰지 않음)
+  if (data && log.data && hadPending == null) {
     setHadPending(data.pendingCount > 0)
-    setSelected(new Set(data.carryOverCandidates.filter((c) => c.selected).map((c) => c.taskId)))
+    const inPlan = new Set(log.data.content.plans.map((p) => p.taskId))
+    let room = PLAN_MAX - log.data.content.plans.length
+    const pick = data.carryOverCandidates.filter((c) => c.selected && (inPlan.has(c.taskId) || room-- > 0))
+    setSelected(new Set(pick.map((c) => c.taskId)))
   }
 
   const steps: Step[] = hadPending ? ['pending', 'carry', 'issue'] : ['carry', 'issue']
@@ -73,6 +85,14 @@ export function DayClose({ date, today, timeZone, onClose }: Props) {
     moved.current = true
     setStep(next)
   }
+  // 확인 대기 패널을 닫고 돌아오면(다 처리하지 않았을 때) 그 패널을 연 1단계 버튼으로. Modal이 첫 버튼에 맞춘 뒤에 돈다
+  const backFromPending = useRef(false)
+  const pendingButtonRef = useRef<HTMLButtonElement>(null)
+  useEffect(() => {
+    if (pendingOpen || !backFromPending.current) return
+    backFromPending.current = false
+    pendingButtonRef.current?.focus()
+  }, [pendingOpen])
 
   const dayName = date === today ? '오늘' : `${Number(date.slice(5, 7))}월 ${Number(date.slice(8))}일`
   const titleId = `${id}-t`
@@ -86,6 +106,7 @@ export function DayClose({ date, today, timeZone, onClose }: Props) {
           setPendingOpen(false)
           void plan.refetch()
           if (emptied) go('carry')
+          else backFromPending.current = true
         }}
       />
     )
@@ -99,7 +120,9 @@ export function DayClose({ date, today, timeZone, onClose }: Props) {
       <ProfilePrompt
         user={user}
         logKey={`DAILY-${date}`}
-        today={today}
+        type="DAILY"
+        start={date}
+        end={date}
         onDone={() => {
           setAskProfile(false)
           void submit(true)
@@ -128,6 +151,14 @@ export function DayClose({ date, today, timeZone, onClose }: Props) {
         void log.refetch()
       } else if (error instanceof ApiError && error.code === 'LOG_CONFIRMED') {
         void plan.refetch()
+      } else if (fieldCode(error, 'carryOverTaskIds') === 'TOO_MANY') {
+        // 다른 곳에서 계획을 늘렸을 때. 새 일지로 남은 칸을 다시 보여 준다
+        showToast(`계획은 ${PLAN_MAX}줄까지예요. 넘길 업무를 줄여 주세요`)
+        void log.refetch()
+        go('carry')
+      } else if (fieldCode(error, 'issue') === 'TOO_LONG') {
+        showToast(`이슈 및 특이사항은 모두 ${ISSUES_MAX}자까지예요. 이슈를 줄여 주세요`)
+        void log.refetch()
       } else {
         showToast('마감하지 못했어요. 잠시 후 다시 시도해 주세요', { traceId: (error as ApiError)?.traceId })
       }
@@ -232,6 +263,13 @@ export function DayClose({ date, today, timeZone, onClose }: Props) {
       (c) => selected.has(c.taskId) && !content.plans.some((p) => p.taskId === c.taskId),
     )
     const planName = d.planScope === 'NEXT_WEEK' ? '다음 주 계획' : '다음 근무일 계획'
+    const room = Math.max(0, PLAN_MAX - content.plans.length)
+    const over = picked.length - room
+    const full = picked.length >= room
+    const newCount = d.carryOverCandidates.filter((c) => !content.plans.some((p) => p.taskId === c.taskId)).length
+    // 마감 이슈는 기존 이슈 끝에 줄을 바꿔 붙는다
+    const issueRoom = Math.max(0, ISSUES_MAX - (content.issues ? content.issues.length + 1 : 0))
+    const capId = `${id}-cap`
     const back = index > 0 && (
       <button type="button" className={cal.secondary} onClick={() => go(steps[index - 1])}>
         이전
@@ -249,7 +287,12 @@ export function DayClose({ date, today, timeZone, onClose }: Props) {
             </p>
             <div className={cal.actions}>
               {d.pendingCount > 0 && (
-                <button type="button" className={cal.secondary} onClick={() => setPendingOpen(true)}>
+                <button
+                  ref={pendingButtonRef}
+                  type="button"
+                  className={cal.secondary}
+                  onClick={() => setPendingOpen(true)}
+                >
                   확인 대기 처리
                 </button>
               )}
@@ -265,16 +308,27 @@ export function DayClose({ date, today, timeZone, onClose }: Props) {
               {planName} <span className={styles.muted}>({periodText('DAILY', d.nextWorkday, d.nextWorkday)}부터)</span>
             </h3>
             <p className={styles.muted}>넘긴 일은 {planName}에 들어가요. 업무의 마감일은 바뀌지 않아요.</p>
+            {newCount > room && (
+              <p id={capId} className={over > 0 ? styles.capOver : styles.capNote} aria-live="polite">
+                {room === 0
+                  ? `${planName}이 ${PLAN_MAX}줄로 가득 찼어요. 일지에서 계획을 지운 뒤 넘길 수 있어요.`
+                  : over > 0
+                    ? `계획은 ${PLAN_MAX}줄까지예요. ${room}개까지 고를 수 있어요. ${over}개를 빼 주세요.`
+                    : `계획은 ${PLAN_MAX}줄까지라 ${room}개까지 고를 수 있어요. (${picked.length}/${room})`}
+              </p>
+            )}
             {d.carryOverCandidates.length === 0 ? (
               <p className={styles.dialogBody}>넘길 업무가 없어요.</p>
             ) : (
-              <fieldset className={styles.carry}>
+              <fieldset className={styles.carry} aria-describedby={newCount > room ? capId : undefined}>
                 <legend className={styles.srOnly}>계획으로 넘길 업무</legend>
                 {d.carryOverCandidates.map((c) => (
                   <label key={c.taskId} className={cal.check}>
                     <input
                       type="checkbox"
                       checked={selected.has(c.taskId)}
+                      // 남은 칸을 다 쓰면 아직 안 고른 업무는 고를 수 없다(이미 계획에 있는 업무는 칸을 쓰지 않음)
+                      disabled={full && !selected.has(c.taskId) && !content.plans.some((p) => p.taskId === c.taskId)}
                       onChange={(e) => {
                         const next = new Set(selected)
                         if (e.target.checked) next.add(c.taskId)
@@ -293,7 +347,7 @@ export function DayClose({ date, today, timeZone, onClose }: Props) {
             )}
             <div className={cal.actions}>
               {back}
-              <button type="button" className={cal.primary} onClick={() => go('issue')}>
+              <button type="button" className={cal.primary} disabled={over > 0} onClick={() => go('issue')}>
                 다음
               </button>
             </div>
@@ -306,11 +360,20 @@ export function DayClose({ date, today, timeZone, onClose }: Props) {
               <input
                 className={cal.input}
                 value={issue}
-                maxLength={500}
+                maxLength={Math.min(500, issueRoom)}
+                disabled={issueRoom === 0}
+                aria-describedby={issueRoom < 500 ? `${id}-issue` : undefined}
                 onChange={(e) => setIssue(e.target.value)}
                 placeholder="한 줄로 남겨 두세요"
               />
             </label>
+            {issueRoom < 500 && (
+              <p id={`${id}-issue`} className={styles.capNote}>
+                {issueRoom === 0
+                  ? `일지의 이슈 칸이 ${ISSUES_MAX}자로 가득 찼어요. 일지에서 줄인 뒤 남길 수 있어요.`
+                  : `일지의 이슈 칸이 ${ISSUES_MAX}자까지라 ${issueRoom}자까지 남길 수 있어요.`}
+              </p>
+            )}
             <section className={styles.mini} aria-label="일지 미리보기">
               <p className={styles.miniHead}>{periodText('DAILY', date, date)} 업무일지</p>
               {content.achievements.length === 0 ? (

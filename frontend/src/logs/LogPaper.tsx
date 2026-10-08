@@ -1,6 +1,6 @@
 // SCR-LOG-02 ② 문서 영역: 내보낼 파일과 같은 모습(docs/업무일지_서식명세.md, 화면 px = pt × 1.35).
 // 테마 색을 쓰지 않는다. 초안을 고칠 수 있을 때만(editor) 칸이 입력으로 바뀌고 줄 버튼·계획 후보 칩이 붙는다.
-import { useId, useRef, type ReactNode } from 'react'
+import { useEffect, useId, useLayoutEffect, useRef, type ComponentProps, type ReactNode } from 'react'
 import { WEEKDAY_NAMES, isoWeekday, todayIn } from '../quickInput/dates'
 import type { LogAchievement, LogContent, LogPlan, LogType, PlanCandidate } from './api'
 import { durationLabel, progressLabel } from './api'
@@ -118,6 +118,54 @@ export function LogPaper(props: Props) {
         <span>worklog</span>
       </footer>
     </article>
+  )
+}
+
+function fit(el: HTMLTextAreaElement | null) {
+  if (!el) return
+  el.style.height = 'auto'
+  el.style.height = `${el.scrollHeight + 2}px`
+}
+
+/**
+ * 표 칸 편집: 긴 글이 칸 안에서 줄바꿈되고 높이가 내용에 맞는다(서식명세 2.4, 말줄임 없음).
+ * 한 줄 값이라 Enter·붙여 넣은 줄바꿈은 넣지 않는다
+ */
+function CellText({
+  value,
+  onValue,
+  ...rest
+}: { value: string; onValue: (next: string) => void } & Omit<ComponentProps<'textarea'>, 'value' | 'onChange'> & {
+    'data-field'?: string
+    'data-plan'?: boolean
+  }) {
+  const ref = useRef<HTMLTextAreaElement>(null)
+  useLayoutEffect(() => fit(ref.current), [value])
+  // 칸 폭이 바뀌면(창 크기·다른 칸 내용) 줄 수가 달라지므로 다시 맞춘다. 높이만 바뀐 알림은 같은 값이 나와 멈춘다
+  useEffect(() => {
+    const el = ref.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    let width = el.clientWidth
+    const observer = new ResizeObserver(() => {
+      if (el.clientWidth === width) return
+      width = el.clientWidth
+      fit(el)
+    })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
+  return (
+    <textarea
+      {...rest}
+      ref={ref}
+      rows={1}
+      className={styles.cellInput}
+      value={value}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' && !e.nativeEvent.isComposing) e.preventDefault()
+      }}
+      onChange={(e) => onValue(e.target.value.replace(/\r?\n/g, ' '))}
+    />
   )
 }
 
@@ -280,13 +328,12 @@ function Achievements(props: { type: LogType; rows: LogAchievement[]; withProjec
                 {showProject && <td>{a.projectName}</td>}
                 <td>
                   {editor ? (
-                    <input
-                      className={styles.cellInput}
+                    <CellText
                       data-field="text"
                       aria-label={`${i + 1}번 업무 내용`}
                       value={a.text}
                       maxLength={500}
-                      onChange={(e) => set(i, { text: e.target.value })}
+                      onValue={(text) => set(i, { text })}
                     />
                   ) : (
                     a.text
@@ -294,12 +341,11 @@ function Achievements(props: { type: LogType; rows: LogAchievement[]; withProjec
                 </td>
                 <td>
                   {editor ? (
-                    <input
-                      className={styles.cellInput}
+                    <CellText
                       aria-label={`${i + 1}번 결과`}
                       value={a.result ?? ''}
                       maxLength={200}
-                      onChange={(e) => set(i, { result: e.target.value || null })}
+                      onValue={(result) => set(i, { result: result || null })}
                     />
                   ) : (
                     a.result
@@ -412,15 +458,12 @@ function Plans({ plans, editor, timeZone }: { plans: LogPlan[]; editor?: PaperEd
                 <td className={styles.no}>{i + 1}</td>
                 <td>
                   {editor ? (
-                    <input
-                      className={styles.cellInput}
+                    <CellText
                       data-plan
                       aria-label={`계획 ${i + 1}`}
                       value={p.text}
                       maxLength={200}
-                      onChange={(e) =>
-                        editor.onPlans(plans.map((x, j) => (j === i ? { ...x, text: e.target.value } : x)))
-                      }
+                      onValue={(text) => editor.onPlans(plans.map((x, j) => (j === i ? { ...x, text } : x)))}
                     />
                   ) : (
                     p.text

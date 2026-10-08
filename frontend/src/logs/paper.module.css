@@ -134,9 +134,13 @@
   border-bottom: 0;
 }
 
+/* No 10mm. 세 자리(100~200줄)도 한 줄에 들도록 좌우 여백을 줄인다 */
 .no {
   width: 38px;
+  padding-left: 2px !important;
+  padding-right: 2px !important;
   text-align: center !important;
+  white-space: nowrap;
 }
 
 .center {
@@ -229,6 +233,11 @@
   background: #fafafa;
   font: inherit;
   color: inherit;
+  /* textarea: 칸 안에서 줄바꿈, 높이는 내용에 맞춤(LogPaper CellText) */
+  display: block;
+  resize: none;
+  overflow: hidden;
+  overflow-wrap: anywhere;
 }
 
 .cellInput:hover {
@@ -339,6 +348,13 @@
   overflow: hidden;
   clip: rect(0 0 0 0);
   white-space: nowrap;
+}
+
+/* 넓은 화면은 표 머리를 한 줄로('프로젝트' 등). 좁은 화면은 칸이 모자라 줄바꿈을 허용한다 */
+@media (min-width: 768px) {
+  .grid thead th {
+    white-space: nowrap;
+  }
 }
 
 @media (max-width: 767px) {

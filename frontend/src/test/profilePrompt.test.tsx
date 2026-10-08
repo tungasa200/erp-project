@@ -99,9 +99,10 @@ describe('일지 화면 첫 진입 (SCR-ONB-01)', () => {
     })
     const { router } = renderApp('/logs/daily/2026-10-06')
 
-    await user.click(
-      within(await screen.findByRole('dialog', { name: PROMPT })).getByRole('button', { name: '나중에' }),
-    )
+    const first = await screen.findByRole('dialog', { name: PROMPT })
+    // 미리보기 일자는 오늘(10/7)이 아니라 열린 일지의 날짜
+    expect(first).toHaveTextContent('2026년 10월 6일 (화)')
+    await user.click(within(first).getByRole('button', { name: '나중에' }))
     expect(screen.queryByRole('dialog', { name: PROMPT })).not.toBeInTheDocument()
 
     await act(() => router.navigate('/logs/daily/2026-10-07'))

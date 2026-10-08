@@ -8,7 +8,7 @@ import type { Me } from '../api/types'
 import { Modal } from '../calendar/Modal'
 import cal from '../calendar/calendar.module.css'
 import { useProfileSaver } from '../settings/useProfileSaver'
-import { refreshLogs } from './api'
+import { refreshLogs, type LogType } from './api'
 import { readPostponed, writePostponed } from './profileAsk'
 import { periodText } from './format'
 import styles from './logs.module.css'
@@ -22,12 +22,15 @@ const FIELDS: { key: Key; label: string; placeholder: string }[] = [
 interface Props {
   user: Me
   logKey: string
-  today: string
+  /** 미리보기 일자·기간: 열린 일지의 기간 */
+  type: LogType
+  start: string
+  end: string
   /** saved: 저장했으면 true, 나중에·닫기면 false */
   onDone: (saved: boolean) => void
 }
 
-export function ProfilePrompt({ user, logKey, today, onDone }: Props) {
+export function ProfilePrompt({ user, logKey, type, start, end, onDone }: Props) {
   const id = useId()
   const queryClient = useQueryClient()
   const { save } = useProfileSaver()
@@ -104,8 +107,8 @@ export function ProfilePrompt({ user, logKey, today, onDone }: Props) {
           일지 머리 미리보기
         </p>
         <dl className={styles.profilePreview} aria-labelledby={`${id}-p`}>
-          <dt>일자</dt>
-          <dd>{periodText('DAILY', today, today)}</dd>
+          <dt>{type === 'DAILY' ? '일자' : '기간'}</dt>
+          <dd>{periodText(type, start, end)}</dd>
           <dt>작성자</dt>
           <dd>{shown('name', '이름')}</dd>
           <dt>소속</dt>

@@ -105,6 +105,16 @@
   min-width: 0;
 }
 
+/* 버튼·배지는 줄지 않고 다음 줄로 넘어간다(좁은 칸에서 글자가 세로로 쌓이지 않게) */
+.barTools > * {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.barTools > .spacer {
+  flex-shrink: 1;
+}
+
 .spacer {
   flex: 1;
 }
@@ -169,6 +179,7 @@
   font-size: 13px;
   font-weight: 500;
   line-height: 1.45;
+  white-space: normal;
   visibility: hidden;
   opacity: 0;
   transition: opacity 0.12s;
@@ -423,6 +434,20 @@
   flex-direction: column;
   max-height: 320px;
   overflow-y: auto;
+}
+
+/* 계획 50줄·이슈 2000자 상한 안내. 넘었을 때는 위험 색 글자(색만으로 구분하지 않게 문구도 다름) */
+.capNote,
+.capOver {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-text-body);
+}
+
+.capOver {
+  color: var(--color-danger-text);
+  font-weight: 700;
 }
 
 .carryTitle {
@@ -688,6 +713,13 @@
 
   .sources {
     display: none;
+  }
+}
+
+@media (max-width: 767px) {
+  /* 좁은 화면은 주간처럼 기간 이동 아래 줄에 도구를 둔다(SCR-LOG-02 ①) */
+  .barTools {
+    flex-basis: 100%;
   }
 }
 

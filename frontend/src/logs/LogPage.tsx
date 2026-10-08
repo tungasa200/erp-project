@@ -295,7 +295,14 @@ function LogView({ type, start }: { type: LogType; start: string }) {
         <ExportDialog log={{ ...log, content: view }} timeZone={timeZone} onClose={() => setDialog(null)} />
       )}
       {askProfile && user && (
-        <ProfilePrompt user={user} logKey={`${type}-${start}`} today={today} onDone={() => setAskProfile(false)} />
+        <ProfilePrompt
+          user={user}
+          logKey={`${type}-${start}`}
+          type={type}
+          start={start}
+          end={log?.periodEnd ?? start}
+          onDone={() => setAskProfile(false)}
+        />
       )}
     </div>
   )
@@ -357,8 +364,20 @@ function SourceRecords(props: {
     select: (d) => d.items,
   })
   const used = new Set(props.achievements.flatMap((a) => a.recordIds))
+  const asideRef = useRef<HTMLElement>(null)
+  // 누른 버튼이 '실적에 있음'으로 바뀌므로 다음 기록의 [실적에 넣기]로, 없으면 추가된 실적 줄로
+  const add = (r: WorkRecord, i: number) => {
+    props.onAdd(r, props.projectName(r.projectId ?? null))
+    const next = records.data?.slice(i + 1).find((x) => !used.has(x.id))
+    requestAnimationFrame(() => {
+      const aside = asideRef.current
+      const button = next && aside?.querySelector<HTMLElement>(`[data-record="${next.id}"]`)
+      const rows = aside?.parentElement?.querySelectorAll<HTMLElement>('[data-field="text"]')
+      ;(button || rows?.[rows.length - 1])?.focus()
+    })
+  }
   return (
-    <aside className={styles.sources} aria-labelledby="log-sources-title">
+    <aside ref={asideRef} className={styles.sources} aria-labelledby="log-sources-title">
       <h2 id="log-sources-title" className={styles.sourcesTitle}>
         이 기간 기록
       </h2>
@@ -370,7 +389,7 @@ function SourceRecords(props: {
         <p className={styles.muted}>이 기간에 확정한 기록이 없어요.</p>
       ) : (
         <ul className={styles.sourceList}>
-          {records.data.map((r) => (
+          {records.data.map((r, i) => (
             <li key={r.id} className={styles.source}>
               <span className={styles.sourceText}>{r.content}</span>
               {r.result && <span className={styles.muted}>{r.result}</span>}
@@ -380,8 +399,9 @@ function SourceRecords(props: {
                 <button
                   type="button"
                   className={styles.sourceAdd}
+                  data-record={r.id}
                   aria-label={`${r.content} 실적에 넣기`}
-                  onClick={() => props.onAdd(r, props.projectName(r.projectId ?? null))}
+                  onClick={() => add(r, i)}
                 >
                   실적에 넣기
                 </button>
