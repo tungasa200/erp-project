@@ -13,7 +13,7 @@
 | R5 다른 PC 리허설 | 완료 | WY-backend1. 영문 경로 통과 뒤 한글·공백 경로 결함 2건(rmSync·cpSync 비정상 종료, cmd 인자 따옴표) → 0879dc3·eae4783·cf8de84·c29f7fb로 고친 뒤 재시험 통과 |
 | R6 새 프로젝트 | 완료 | C:\projects\ops-sandbox에 init → doctor 14개 ok, 결정 카드 answered, git 커밋 카드 approved → 시험 저장소 커밋 생성(가드가 그 프로젝트 승인 폴더·커밋 역할만 인정), 두 프로젝트 대기열이 섞이지 않음. 시험 폴더·세션 정리 |
 | R7 업데이트·되돌리기 | 완료 | WY-backend1 시험 + 사용자 update → Reload, doctor 14개 ok(설치본 0.6.0 @ c29f7fb). lock 파일 .claude/wy-ops.lock.json은 커밋 대상(PC마다 같은 해시) |
-| R8~R11 범용화·저장소 분리 | R8·R9 구현함, R10 다음 | 사용자 결정 카드 20261009-0930(분리를 P4 뒤에서 지금으로 앞당김, U-06 변경). 10장 |
+| R8~R11 범용화·저장소 분리 | R8·R9 구현함, R10 진행 중(필수 환경 확인·restore·deploy --dev·버전 고정·범용 문서 구현, 새 저장소 이동 남음) | 사용자 결정 카드 20261009-0930(분리를 P4 뒤에서 지금으로 앞당김, U-06 변경). 10장 |
 
 사용자 결정(2026-10-07, OPS-10):
 - 개발 위치: 이 저장소 `tools/`에서 계속 개발한다. 별도 저장소 분리는 P4 이후에서 **지금(P3 종료 뒤)으로 바뀌었다**(U-06, D-91 → D-127~D-130, 10장).
@@ -325,7 +325,7 @@ deploy 설치 원본을 바꾼다. 지금은 "프로젝트 저장소 HEAD의 하
   - 전역 스킬 agent-reach·find-skills·graphify: 출처에서 설치하고, 남의 코드는 복사하지 않는다
   - headroom MCP: pipx로 headroom-ai, Python·pipx가 없으면 함께 설치
   - learned·synced 개인 스킬은 범용에서 빼고 이전 묶음으로만 옮긴다
-- 고른 역할에 필수인 것은 늘 설치한다: design→impeccable, browser·qa→agent-browser, 세션 교대→ecc. 나머지는 기본 체크 목록으로 보여 주고 끌 수 있게 한다(wy-ops.json의 `extras.off`). doctor는 끈 항목을 '꺼짐'으로 표시하고 실패로 보지 않는다.
+- 고른 역할에 필수인 것은 늘 설치한다: design→impeccable, browser·qa→agent-browser, 세션 교체→ecc. 나머지는 기본 체크 목록으로 보여 주고 끌 수 있게 한다(wy-ops.json의 `extras.off`). doctor는 끈 항목을 '꺼짐'으로 표시하고 실패로 보지 않는다.
 - 나눔: manifest `extras.json`·`lib/extras.js`·출처 조사·테스트는 WY-backend3가 맡는다. PowerShell 사전 점검과 init·install·doctor 연결은 WY-backend2가 맡는다. 출처를 못 찾은 것은 pm에 [결정 요청]으로 올린다.
 - 시험: 이 PC에서는 '이미 있음' 경로만 실제로 돌린다. 설치 경로는 명령을 가짜로 바꾼 테스트로 확인하고, 실제로 지우거나 다시 설치하지 않는다.
 
@@ -339,6 +339,7 @@ deploy 설치 원본을 바꾼다. 지금은 "프로젝트 저장소 HEAD의 하
 - 복제본은 함께 까는 도구를 이 PC 구성 그대로 모두 켠다.
 - 범용 설치는 지금처럼 install과 init으로 한다.
 - 시험은 다른 사용자 이름의 임시 홈 폴더에서 하고, 실제 홈에서는 돌리지 않는다.
+- 구현(2026-10-09): 대상 폴더는 `--project`, 없으면 원래 경로이고 원래 홈 아래였으면 이 PC 홈 아래 같은 자리. 함께 까는 도구는 묻지 않고 프로젝트 wy-ops.json의 `extras.off`를 따른다. 시험 `test/restore.test.js`(임시 홈 olduser→newuser, 임시 설치본), `test/installPs1.test.js`(가짜 명령 PATH).
 - 비밀값은 묶음에 넣지 않고 손으로 복사한다(카드 1030, D-130 유지).
 
 export/import(WY-backend3):
