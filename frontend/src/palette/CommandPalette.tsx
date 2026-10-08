@@ -111,9 +111,11 @@ interface Props {
   onQuickAdd: (text?: string) => void
   /** 타이머 명령. 시간 기록 옵션이 꺼져 있으면 null(명령을 숨긴다) */
   timer?: { running: boolean; offline?: boolean; start: () => void; stop: () => void } | null
+  /** 오늘 하루 마감(SCR-LOG-03)을 연다 */
+  onDayClose: () => void
 }
 
-export function CommandPalette({ onClose, onQuickAdd, timer }: Props) {
+export function CommandPalette({ onClose, onQuickAdd, onDayClose, timer }: Props) {
   const navigate = useNavigate()
   const { user } = useAuth()
   const shortcutsEnabled = useShortcutsEnabled()
@@ -132,6 +134,7 @@ export function CommandPalette({ onClose, onQuickAdd, timer }: Props) {
         run: () => onQuickAdd(),
       },
       ...timerCommands(timer),
+      { id: 'day-close', label: '하루 마감', group: '동작', keywords: '오늘 일지 확정 마감', run: onDayClose },
       { id: 'go-home', label: '홈', group: '이동', keywords: '대시보드', run: go('/') },
       { id: 'go-calendar', label: '캘린더', group: '이동', keywords: '일정', run: go('/calendar') },
       { id: 'go-tasks', label: '업무 목록', group: '이동', keywords: '할일', run: go('/tasks') },
@@ -146,7 +149,7 @@ export function CommandPalette({ onClose, onQuickAdd, timer }: Props) {
         run: go('/settings/recording'),
       },
     ]
-  }, [navigate, onQuickAdd, shortcutsEnabled, timer])
+  }, [navigate, onQuickAdd, onDayClose, shortcutsEnabled, timer])
 
   const q = query.trim()
   const today = todayIn(user?.timezone ?? 'Asia/Seoul')
@@ -257,7 +260,7 @@ export function CommandPalette({ onClose, onQuickAdd, timer }: Props) {
                   <span className={styles.icon} aria-hidden="true">
                     ▦
                   </span>
-                  <span className={styles.label}>{shortDate(jumpDate)} 캘린더 보기</span>
+                  <span className={styles.label}>{shortDate(jumpDate, today)} 캘린더 보기</span>
                 </Command.Item>
               </Command.Group>
             )}

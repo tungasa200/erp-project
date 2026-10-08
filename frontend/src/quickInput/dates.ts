@@ -39,10 +39,11 @@ export function todayIn(timeZone: string, now: Date = new Date()): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(now)
 }
 
-/** 미리보기 칩용 짧은 날짜: 10/8(목) */
-export function shortDate(date: string): string {
-  const [, m, d] = date.split('-').map(Number)
-  return `${m}/${d}(${WEEKDAY_NAMES[isoWeekday(date) - 1]})`
+/** 짧은 날짜: 올해면 10/8(목), 다른 해면 2025/10/8(수). today는 사용자 시간대의 오늘 */
+export function shortDate(date: string, today: string): string {
+  const [y, m, d] = date.split('-').map(Number)
+  const year = date.slice(0, 4) === today.slice(0, 4) ? '' : `${y}/`
+  return `${year}${m}/${d}(${WEEKDAY_NAMES[isoWeekday(date) - 1]})`
 }
 
 const WEEK_START_CODES = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY']

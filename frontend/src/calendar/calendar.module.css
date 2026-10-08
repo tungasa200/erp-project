@@ -1042,6 +1042,13 @@ button.monthCell {
   color: var(--color-text-muted);
 }
 
+/* 시간으로 읽지 못한 낱말: 입력한 그대로 보여 준다(빠른 입력과 같음) */
+.unread {
+  font-weight: 600;
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+
 /* ── 업무 패널 (SCR-CAL-09) */
 .taskPanel {
   flex: none;

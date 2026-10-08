@@ -20,6 +20,7 @@ import {
   parseQuickInput,
   replaceSpan,
   toDraft,
+  unreadTimeWord,
   type Priority,
   type QuickDraft,
   type QuickSpans,
@@ -56,14 +57,14 @@ function dueOptions(today: string, current: string) {
     .filter(([, date], i) => picks.findIndex(([, d]) => d === date) === i)
     .map(([label, date]) => ({
       label,
-      detail: shortDate(date),
+      detail: shortDate(date, today),
       value: `~${monthDay(date)}`,
       current: date === current,
     }))
 }
 
 function chipsOf(draft: QuickDraft, spans: QuickSpans, today: string, projects?: Project[], tags?: Tag[]): Chip[] {
-  const day = (date: string) => (date === today ? '오늘' : shortDate(date))
+  const day = (date: string) => (date === today ? '오늘' : shortDate(date, today))
   const chips: Chip[] = []
   if (draft.schedule && spans.time) {
     const { date, start, end } = draft.schedule
@@ -192,6 +193,10 @@ export function QuickInput({
   const weekStart = weekStartNumber(user?.weekStart)
   const parsed = useMemo(() => parseQuickInput(value, { today, weekStart }), [value, today, weekStart])
   const draft = useMemo(() => toDraft(parsed, today), [parsed, today])
+  // 시간처럼 생겼는데 읽지 못해 제목에 들어간 낱말(9:00~10:00 같은 입력이 말없이 제목이 되던 것)
+  const unreadTime = unreadTimeWord(draft.title)
+  // 제목 없이 Enter를 누른 횟수. 안내를 오류로 바꿔 보여 주고, 다시 고치기 시작하면 0으로 돌아간다
+  const [emptyTries, setEmptyTries] = useState(0)
   const queryClient = useQueryClient()
   const { showToast } = useToast()
   const shortcutsEnabled = useShortcutsEnabled()
@@ -200,6 +205,7 @@ export function QuickInput({
   const [asked, setAsked] = useState(false)
   const frequent = useFrequentTasks(asked)
   const typing = value.trim() !== ''
+  const titleError = emptyTries > 0 && typing && draft.title === ''
   // 받는 중이거나 0개면 아무것도 보이지 않는다
   const suggestions = focused && !typing && !helpOpen ? (frequent.data ?? []) : []
   const suggestButtons = useRef<(HTMLButtonElement | null)[]>([])
@@ -275,7 +281,11 @@ export function QuickInput({
       suggestButtons.current[0]?.focus()
     } else if (e.key === 'Enter') {
       e.preventDefault()
-      if (!onSubmit || draft.title === '') return
+      if (!onSubmit) return
+      if (draft.title === '') {
+        if (typing) setEmptyTries((n) => n + 1)
+        return
+      }
       // 저장에 실패하면(onSubmit이 거부) 입력을 그대로 남긴다. 오류 안내는 onSubmit 쪽이 맡는다.
       void Promise.resolve(onSubmit(draft)).then(
         () => onChange(''),
@@ -318,9 +328,13 @@ export function QuickInput({
           placeholder={placeholder}
           autoComplete="off"
           value={value}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={(e) => {
+            setEmptyTries(0)
+            onChange(e.target.value)
+          }}
           onKeyDown={handleKeyDown}
           aria-describedby={typing ? `${id}-preview` : undefined}
+          aria-invalid={titleError || undefined}
           data-quick-input
         />
         {typing && onSubmit ? (
@@ -459,7 +473,18 @@ export function QuickInput({
               })}
             </ul>
           )}
-          <p className={styles.hint}>
+          {unreadTime && (
+            <p className={styles.hint}>
+              시간으로 읽지 못했어요: <span className={styles.unread}>{unreadTime}</span> (예: 14:00-15:00 · 오후
+              2시~3시)
+            </p>
+          )}
+          {/* 오류로 바뀔 때(또 Enter를 눌렀을 때도) 새로 붙여 화면 낭독기가 다시 읽게 한다 */}
+          <p
+            key={titleError ? `error-${emptyTries}` : 'hint'}
+            className={titleError ? styles.hintError : styles.hint}
+            role={titleError ? 'alert' : undefined}
+          >
             {draft.title === ''
               ? '할 일 이름을 적어 주세요'
               : draft.schedule

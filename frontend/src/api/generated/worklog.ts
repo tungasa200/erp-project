@@ -4,6 +4,239 @@
  */
 
 export interface paths {
+    "/api/worklog/logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 일지 목록 — 기간별 상태 (P3-08 LOG-09 SCR-LOG-01, 홈 이번 주 현황 SCR-HOME-01 ⑦)
+         * @description [from, to] 안의 기간마다 한 줄을 준다. 일지가 없는 기간도 준다.
+         *     type=DAILY: 날마다. WEEKLY: 겹치는 주(주 시작 요일 기준)마다. MONTHLY: 겹치는 달마다.
+         *     status: CONFIRMED·DRAFT는 저장된 일지, NOT_WRITTEN은 일지 없이 원본(보관하지 않은 확정·확인 대기 기록, 그 기간 완료 업무)이 있음,
+         *     NO_RECORDS는 일지도 원본도 없음(미래 포함). unconfirmedDays는 [from, min(to, 오늘)] 중 원본이 있는데 일간 일지가 확정이 아닌 날 수.
+         *     기간은 최대 400일(넘으면 400 to OUT_OF_RANGE, to < from이면 400 to INVALID_ORDER). periodStart 오름차순.
+         */
+        get: operations["listLogPeriods"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/worklog/logs/daily/{date}/close": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 하루 마감 준비 — 2단계 이월 후보와 마감 뒤 제안 (LOG-13·14·16, SCR-LOG-03)
+         * @description 1단계(확인 대기·빈 시간)는 GET /records/pending·/records/gaps를 쓴다. pendingCount가 0이면 화면은 1단계를 건너뛴다.
+         *     이월 후보(LOG-14): 보관하지 않은 TODO·IN_PROGRESS 업무 중 ① 그날 확정 기록이 있거나 ② 마감일이 다음 근무일 이하이거나(지난 마감 포함)
+         *     ③ IN_PROGRESS인 업무. 늘 selected=true, 마감순(없으면 뒤) → 제목.
+         *     nextWorkday는 date 다음 날부터 찾은 첫 근무일(LOG-13). planScope: 다음 근무일이 다음 주면 NEXT_WEEK, 아니면 NEXT_WORKDAY.
+         *     suggestions: date가 근무일이고 그 주·그 달의 마지막 근무일일 때만, 주간 → 월간(LOG-16).
+         */
+        get: operations["getDailyClose"];
+        put?: never;
+        /**
+         * 하루 마감 — 이월·이슈를 넣고 일간 일지 확정 (LOG-13·14, SCR-LOG-03 3단계)
+         * @description 한 트랜잭션으로: 그날 일간 초안이 없으면 만들고 → 선택한 업무를 계획에 더하고(같은 업무가 이미 있으면 그대로) →
+         *     issue가 비어 있지 않으면 이슈 칸 끝에 한 줄로 덧붙이고 → 확정한다(스냅샷·이력). 업무 자체는 바꾸지 않는다.
+         *     version은 일지가 없으면 0. 이미 확정이면 409(LOG_CONFIRMED), version이 다르면 409(VERSION_CONFLICT).
+         *     오늘보다 뒤 날짜는 400(date, OUT_OF_RANGE). 내 것이 아니거나 보관한 업무는 400(carryOverTaskIds, NOT_FOUND).
+         *     계획이 50개를 넘으면 400(carryOverTaskIds, TOO_MANY), 이슈가 2000자를 넘으면 400(issue, TOO_LONG).
+         */
+        post: operations["closeDay"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/worklog/logs/{logId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * 초안 고치기 — 자동 저장 (LOG-03·04, SCR-LOG-02)
+         * @description 보낸 칸만 바꾼다. achievements를 보내면 실적이 자동 상태에서 벗어나 보낸 목록이 그대로 저장된다
+         *     (행 추가·삭제·순서 변경은 목록 전체를 보낸다, 원본 기록 끌어오기는 recordIds를 단 행을 넣어 보낸다).
+         *     plans·issues도 같다. 바뀐 칸이 없으면 version을 올리지 않는다. 확정한 일지는 409(code=LOG_CONFIRMED).
+         */
+        patch: operations["patchLog"];
+        trace?: never;
+    };
+    "/api/worklog/logs/{logId}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 확정 — 스냅샷 저장 (LOG-05, P3-02)
+         * @description 지금 보이는 내용 전체(머리의 작성자 이름·소속·직책 포함)를 스냅샷으로 저장하고 status=CONFIRMED, 변경 이력에 한 줄을 더한다.
+         *     작성자 프로필이 비어 있어도 확정한다(빈칸). 이미 확정이면 409(LOG_CONFIRMED).
+         */
+        post: operations["confirmLog"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/worklog/logs/{logId}/refill": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 원본에서 다시 채우기 (LOG-04 — 화면이 경고창을 먼저 띄운다)
+         * @description 실적을 자동 상태로 되돌린다(직접 고친 실적은 사라진다). 계획·이슈는 그대로 둔다.
+         */
+        post: operations["refillLog"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/worklog/logs/{logId}/revisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 변경 이력 — 확정·해제 일시 (LOG-06, SCR-LOG-04 ②)
+         * @description 확정할 때마다 한 줄. 최근 것부터. 초안 편집(자동 저장)은 이력에 남기지 않는다.
+         */
+        get: operations["listLogRevisions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/worklog/logs/{logId}/revisions/{revisionNo}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 확정본 열람 (SCR-LOG-04 ②) */
+        get: operations["getLogRevision"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/worklog/logs/{logId}/unconfirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 확정 해제 (LOG-06, SCR-LOG-04 — 화면이 확인창을 먼저 띄운다)
+         * @description status=DRAFT로 되돌리고 마지막 확정 이력에 해제 시각을 적는다. 내용은 확정본 그대로 초안이 된다(실적은 자동 상태가 아니다).
+         *     원본으로 다시 만들려면 다시 채우기를 쓴다. 이미 초안이면 409(code=LOG_NOT_CONFIRMED).
+         */
+        post: operations["unconfirmLog"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/worklog/logs/{type}/{periodStart}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 일지 보기 — 없으면 저장하지 않은 미리보기 (P3-03·07 SCR-LOG-02, 홈 오늘 일지 카드 LOG-12)
+         * @description 저장된 일지가 있으면 그 일지를, 없으면 원본으로 만든 미리보기(id=null, status=NOT_WRITTEN 또는 NO_RECORDS, version=0)를 준다.
+         *     미리보기는 저장하지 않는다. 초안은 실적이 자동 상태면 읽을 때마다 원본으로 다시 만든다. 확정 일지는 스냅샷을 준다.
+         *     일간 실적: 그날 확정 기록(보관·실행 중 타이머 제외)을 정렬 순서대로 한 줄씩(source=RECORD), 그날 완료한 업무 중
+         *     그날 기록이 없는 업무는 업무 제목으로 한 줄(source=TASK, outcome=DONE). 확인 대기 기록은 metrics.pendingCount로만 센다.
+         *     소요시간 표(time)는 시간 기록 옵션이 켜져 있을 때만. 계획은 비어서 시작하고 후보(planCandidates)를 준다.
+         *     기간 시작일이 맞지 않으면 400(periodStart, INVALID_FORMAT).
+         */
+        get: operations["getLog"];
+        put?: never;
+        /**
+         * 초안 만들기 (SCR-LOG-01 미작성 날짜, LOG-16 주간·월간 제안 수락)
+         * @description 그 기간의 초안을 만든다(실적 자동 상태, 계획·이슈 비움). 이미 있으면 만들지 않고 있는 일지를 200으로 준다(멱등).
+         *     기간 시작일이 오늘(사용자 시간대)보다 뒤면 400(periodStart, OUT_OF_RANGE). 원본이 없어도 만들 수 있다.
+         */
+        post: operations["createLog"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/worklog/logs/{type}/{periodStart}/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 일지 파일 내보내기 — PDF·Word·Excel (EXP-02~04, P3-10, SCR-LOG-05)
+         * @description 확정 일지는 스냅샷으로, 초안·미리보기는 지금 내용으로 만든다(초안 경고는 화면 몫, 서버는 허용).
+         *     서식은 docs/업무일지_서식명세.md(결재란 담당·팀장·부서장 빈칸). XLSX는 시트 1 "업무일지", 시트 2 "기록"(그 기간 원본 기록,
+         *     열·규칙은 GET /records/export와 같다). PDF는 Pretendard 하위 집합을 넣고, Word·Excel은 '맑은 고딕'을 지정한다(D-111).
+         *     이메일 인증(AUTH-08): 기억한 인증이 없으면 사용자 토큰으로 identity GET /api/users/me의 emailVerified를 보고 true만 기억한다.
+         *     인증 전이면 403(EMAIL_NOT_VERIFIED), 확인하지 못하면 503(IDENTITY_UNAVAILABLE).
+         *     파일명: 업무일지_{기간 시작일}_{이름}.{pdf|docx|xlsx} — 이름의 / \ : * ? " < > |와 제어 문자는 _, 이름이 비면 "_{이름}"을 뺀다.
+         *     ASCII 대체 이름은 worklog_{기간 시작일}.{확장자}.
+         */
+        get: operations["exportLog"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/worklog/me": {
         parameters: {
             query?: never;
@@ -128,6 +361,28 @@ export interface paths {
          *     startAt이 있는데 프로필 사본이 없으면 identity에서 바로 가져온다(실패하면 503).
          */
         post: operations["createRecord"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/worklog/records/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 기간 업무 기록 Excel (EXP-03, SCR-LOG-05 ② "기간 업무 기록")
+         * @description workDate가 [from, to](최대 400일)인 보관하지 않은 기록(세 상태 모두, 상태 열 포함)을 한 행씩. 실행 중 타이머는 뺀다.
+         *     열: 날짜, 내용, 업무, 프로젝트, 상태, 결과, 결과 칩, 진행률, 시작·종료·소요시간(분, 값이 있으면 — 옵션과 관계없이).
+         *     Excel만. 이메일 인증은 exportLog와 같다. 파일명은 업무기록_{from}_{to}_{이름}.xlsx, ASCII 대체 이름은 records_{from}_{to}.xlsx.
+         */
+        get: operations["exportRecords"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -584,9 +839,56 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        CarryOverCandidate: {
+            /** Format: date */
+            dueDate: string | null;
+            /** Format: int32 */
+            progress: number;
+            /** Format: uuid */
+            projectId: string | null;
+            /** @description 기본 선택 (LOG-14 — 늘 true) */
+            selected: boolean;
+            /** @enum {string} */
+            status: "TODO" | "IN_PROGRESS" | "DONE" | "ON_HOLD";
+            /** Format: uuid */
+            taskId: string;
+            title: string;
+        };
         ConfirmPendingRequest: {
             /** @description 확정할 확인 대기 기록 (화면에 보인 것) */
             ids: string[];
+        };
+        DailyClosePlan: {
+            carryOverCandidates: components["schemas"]["CarryOverCandidate"][];
+            /** Format: date */
+            date: string;
+            log: components["schemas"]["LogPeriod"];
+            /** Format: date */
+            nextWorkday: string;
+            /**
+             * Format: int32
+             * @description 최근 7일 확인 대기 수 (GET /records/pending과 같은 범위)
+             */
+            pendingCount: number;
+            /** @enum {string} */
+            planScope: "NEXT_WORKDAY" | "NEXT_WEEK";
+            suggestions: components["schemas"]["LogSuggestion"][];
+        };
+        DailyCloseRequest: {
+            /** @description 계획으로 넘길 업무 (빈 배열 가능). 내 것이 아니거나 보관한 업무는 400(NOT_FOUND) */
+            carryOverTaskIds: string[];
+            /** @description 이슈 한 줄 (비워 둘 수 있음) */
+            issue?: string | null;
+            /**
+             * Format: int64
+             * @description 그날 일간 일지의 version, 없으면 0
+             */
+            version: number;
+        };
+        DailyCloseResult: {
+            log: components["schemas"]["WorkLog"];
+            /** @description 주간 → 월간 순 (LOG-16). 해당 없으면 빈 배열 */
+            suggestions: components["schemas"]["LogSuggestion"][];
         };
         FrequentTask: {
             /**
@@ -611,6 +913,231 @@ export interface components {
         };
         FrequentTaskList: {
             items: components["schemas"]["FrequentTask"][];
+        };
+        /** @description 실적 한 줄 (업무·결과·진행률, SCR-LOG-02 ②) */
+        LogAchievement: {
+            /** @description 이 줄의 원본 기록이 있는 날(오름차순). 주간 서식 "한 날", 월간 서식 "기록 일수"(길이). 일간은 그날 하나. recordIds가 있으면 서버가 계산한다 */
+            dates: string[];
+            /**
+             * Format: int32
+             * @description 서버가 recordIds로 계산해 넣는다(PATCH로 보낸 값은 무시). 옵션 꺼짐이면 null
+             */
+            durationMin: number | null;
+            /**
+             * Format: uuid
+             * @description 줄 식별자. 새 줄은 화면이 만든다(아무 UUID)
+             */
+            id: string;
+            /** @enum {string|null} */
+            outcome: "DONE" | "REVIEW_REQUESTED" | "IN_PROGRESS" | null;
+            /** Format: int32 */
+            progress: number | null;
+            /** @description 연결 업무의 프로젝트 이름(서식 실적 "프로젝트" 열). 서버가 taskId로 채우고 확정본은 그때 이름으로 고정 */
+            projectName: string | null;
+            /** @description 원본 기록 링크 (주간·월간은 묶인 기록 전부) */
+            recordIds: string[];
+            result: string | null;
+            /**
+             * @description RECORD 기록에서 / TASK 기록 없이 완료한 업무 / MANUAL 직접 쓴 줄
+             * @enum {string}
+             */
+            source: "RECORD" | "TASK" | "MANUAL";
+            /** Format: uuid */
+            taskId: string | null;
+            text: string;
+        };
+        /** @description 초안은 지금 프로필, 확정본은 확정 때 프로필. 빈 값은 null(문서에 빈칸) */
+        LogAuthor: {
+            name: string | null;
+            organization: string | null;
+            position: string | null;
+        };
+        /** @description 일지 문서 내용. 확정 스냅샷과 내보내기 파일이 이 모양을 그대로 쓴다. */
+        LogContent: {
+            achievements: components["schemas"]["LogAchievement"][];
+            /** @description true면 실적을 원본에서 만들고 있다(아직 직접 고치지 않음). 확정본은 false */
+            achievementsAuto: boolean;
+            author: components["schemas"]["LogAuthor"];
+            /** @description WEEKLY·MONTHLY만 (DAILY는 빈 배열). 날마다 출처 — 미확정 일 표시 (LOG-07, LOG-16) */
+            days: components["schemas"]["LogDay"][];
+            issues: string | null;
+            metrics: components["schemas"]["LogMetrics"];
+            planPeriod: components["schemas"]["LogPlanPeriod"];
+            /** @description 다음 근무일 계획 / 다음 주 계획 / 다음 달 계획 */
+            planTitle: string;
+            plans: components["schemas"]["LogPlan"][];
+            /** @description WEEKLY·MONTHLY만. 프로젝트별 실적 (LOG-08) */
+            projects: components["schemas"]["LogProjectStat"][];
+            time: components["schemas"]["TimeSummary"] | null;
+            /** @description 업무일지 / 주간 업무일지 / 월간 업무일지 */
+            title: string;
+        };
+        LogDay: {
+            /** Format: date */
+            date: string;
+            holiday: string | null;
+            /**
+             * @description CONFIRMED_LOG 확정 일간 일지 / RECORDS 원본 기록(미확정 일) / NONE 원본 없음
+             * @enum {string}
+             */
+            source: "CONFIRMED_LOG" | "RECORDS" | "NONE";
+            workday: boolean;
+        };
+        /** @description 진행 현황 자동 수치 (LOG-15). 초안은 늘 원본으로 계산 */
+        LogMetrics: {
+            /**
+             * Format: int32
+             * @description 기간 안에 완료한 업무 수
+             */
+            completedTaskCount: number;
+            /**
+             * Format: int32
+             * @description 결과 칩 "완료" 기록 수
+             */
+            done: number;
+            /** Format: int32 */
+            inProgress: number;
+            /**
+             * Format: int32
+             * @description 확인 대기 기록 수 (실적에서 뺀 개수)
+             */
+            pendingCount: number;
+            /**
+             * Format: int32
+             * @description 확정 기록 수
+             */
+            recordCount: number;
+            /** Format: int32 */
+            reviewRequested: number;
+            /**
+             * Format: int32
+             * @description 시간 기록 옵션 켜짐일 때 확정 소요시간 합, 꺼져 있으면 null
+             */
+            totalMin: number | null;
+        };
+        /** @description 일지 목록 한 줄 (SCR-LOG-01, SCR-HOME-01 ⑦) */
+        LogPeriod: {
+            /** @description WEEKLY·MONTHLY만 */
+            days?: components["schemas"]["LogPeriodDays"];
+            /** @description DAILY만. 공휴일 이름 (D-74), 아니면 null */
+            holiday?: string | null;
+            /** Format: uuid */
+            logId: string | null;
+            /**
+             * Format: date
+             * @description 양끝 포함
+             */
+            periodEnd: string;
+            /** Format: date */
+            periodStart: string;
+            /** @enum {string} */
+            status: "NO_RECORDS" | "NOT_WRITTEN" | "DRAFT" | "CONFIRMED";
+            /** @enum {string} */
+            type: "DAILY" | "WEEKLY" | "MONTHLY";
+            /** @description DAILY만. 근무일인지 (D-37). 휴일 = false */
+            workday?: boolean | null;
+        };
+        /** @description WEEKLY·MONTHLY만. "확정 4/5일" 표시용 (SCR-LOG-01 ③) */
+        LogPeriodDays: {
+            /**
+             * Format: int32
+             * @description 기간 안 일간 일지가 확정인 날 수 (비근무일 확정 포함)
+             */
+            confirmed: number;
+            /**
+             * Format: int32
+             * @description 기간 안 근무일 수
+             */
+            workdays: number;
+        };
+        LogPeriodList: {
+            items: components["schemas"]["LogPeriod"][];
+            /**
+             * Format: int32
+             * @description [from, min(to, 오늘)] 중 원본이 있는데 일간 일지가 확정이 아닌 날 수 (SCR-LOG-01 ⑤)
+             */
+            unconfirmedDays: number;
+        };
+        /** @description 계획 한 줄. dueDate·scheduledAt은 서버가 taskId로 채운다(PATCH로 보낸 값은 무시, 확정본은 그때 값으로 고정) — 서식 "예정" 칸 */
+        LogPlan: {
+            /**
+             * Format: date
+             * @description 연결 업무의 마감일
+             */
+            dueDate: string | null;
+            /** Format: uuid */
+            id: string;
+            /**
+             * Format: date-time
+             * @description 계획 기간(planPeriod) 안에서 연결 업무의 가장 이른 시간 일정 회차 시작(취소 제외). 없으면 null
+             */
+            scheduledAt: string | null;
+            /** Format: uuid */
+            taskId: string | null;
+            text: string;
+        };
+        /** @description 계획 기간 (일간이면 다음 근무일 하루, 다음 주면 그 주) */
+        LogPlanPeriod: {
+            /** Format: date */
+            end: string;
+            /** Format: date */
+            start: string;
+        };
+        LogProjectStat: {
+            /** Format: int32 */
+            completedTaskCount: number;
+            /**
+             * Format: int32
+             * @description 시간 기록 옵션 켜짐일 때만
+             */
+            minutes: number | null;
+            name: string | null;
+            /**
+             * Format: uuid
+             * @description 프로젝트 없는 업무·업무 없는 기록은 null 한 줄
+             */
+            projectId: string | null;
+            /** Format: int32 */
+            recordCount: number;
+        };
+        LogRevision: {
+            /** Format: date-time */
+            confirmedAt: string;
+            /** Format: int32 */
+            revisionNo: number;
+            /**
+             * Format: date-time
+             * @description 이 확정본을 해제한 시각. 지금 확정 상태면 null
+             */
+            unconfirmedAt: string | null;
+        };
+        LogRevisionDetail: {
+            /** Format: date-time */
+            confirmedAt: string;
+            content: components["schemas"]["LogContent"];
+            /** Format: int32 */
+            revisionNo: number;
+            /**
+             * Format: date-time
+             * @description 이 확정본을 해제한 시각. 지금 확정 상태면 null
+             */
+            unconfirmedAt: string | null;
+        };
+        LogRevisionList: {
+            /** @description 최근 것부터 */
+            items: components["schemas"]["LogRevision"][];
+        };
+        LogSuggestion: {
+            /** @enum {string} */
+            logStatus: "NO_RECORDS" | "NOT_WRITTEN" | "DRAFT" | "CONFIRMED";
+            /** Format: date */
+            periodEnd: string;
+            /** Format: date */
+            periodStart: string;
+            /** @enum {string} */
+            type: "WEEKLY" | "MONTHLY";
+            /** @description 기간 안 근무일 중 일간 일지가 확정이 아닌 날 (LOG-16) */
+            unconfirmedDates: string[];
         };
         /**
          * @description 캘린더에 그리는 일정 회차 하나. 반복이 없는 일정도 회차 하나로 준다.
@@ -773,6 +1300,22 @@ export interface components {
             startAt: string;
             /** Format: uuid */
             taskId: string | null;
+            title: string;
+        };
+        PlanCandidate: {
+            /** Format: date */
+            dueDate: string | null;
+            /** Format: int32 */
+            progress: number;
+            /**
+             * @description OVERDUE 마감 지남 / DUE 계획 기간 안 마감 / IN_PROGRESS 진행 중
+             * @enum {string}
+             */
+            reason: "OVERDUE" | "DUE" | "IN_PROGRESS";
+            /** @enum {string} */
+            status: "TODO" | "IN_PROGRESS" | "DONE" | "ON_HOLD";
+            /** Format: uuid */
+            taskId: string;
             title: string;
         };
         /** @description RFC 9457 Problem Details + 확장 필드 (P0-10 공통 모듈 형식) */
@@ -1131,6 +1674,8 @@ export interface components {
              * @description null = 업무 없는 기록
              */
             taskId: string | null;
+            /** @description 업무의 지금 제목, 업무 없는 기록은 null */
+            title: string | null;
         };
         /**
          * @description taskId·content·회차 키 중 하나 이상(content REQUIRED). scheduleId와 occurrenceStart는 함께 보낸다(빠진 쪽 INVALID_FORMAT).
@@ -1162,6 +1707,52 @@ export interface components {
             /** @description 1분 미만이라 버렸다. 직접 시작한 기록은 지웠고(record는 마지막 값), 회차를 가져간 기록은 확인 대기로 되돌렸다 */
             discarded: boolean;
             record: components["schemas"]["WorkRecord"];
+        };
+        VersionOnly: {
+            /** Format: int64 */
+            version: number;
+        };
+        /** @description 일지 (SCR-LOG-02). id=null이면 저장하지 않은 미리보기다. */
+        WorkLog: {
+            /** Format: date-time */
+            confirmedAt: string | null;
+            content: components["schemas"]["LogContent"];
+            /** Format: uuid */
+            id: string | null;
+            /**
+             * Format: date
+             * @description 양끝 포함
+             */
+            periodEnd: string;
+            /** Format: date */
+            periodStart: string;
+            /** @description 계획 후보 칩 (LOG-03). 확정이면 빈 배열 */
+            planCandidates: components["schemas"]["PlanCandidate"][];
+            /** @description 확정 뒤 그 기간 원본(기록·업무)이 바뀌었으면 true — "원본이 바뀌었어요(확정 일지는 그대로)" 안내. 확정이 아니면 false */
+            sourceChangedAfterConfirm: boolean;
+            /**
+             * @description NO_RECORDS 기록 없음 / NOT_WRITTEN 미작성 / DRAFT 초안 / CONFIRMED 확정 (LOG-09)
+             * @enum {string}
+             */
+            status: "NO_RECORDS" | "NOT_WRITTEN" | "DRAFT" | "CONFIRMED";
+            /** @enum {string} */
+            type: "DAILY" | "WEEKLY" | "MONTHLY";
+            /**
+             * Format: int64
+             * @description 미리보기는 0
+             */
+            version: number;
+        };
+        /**
+         * @description 보낸 칸만 바꾼다. achievements를 보내면 실적이 자동 상태에서 벗어나 보낸 목록이 그대로 저장된다.
+         *     서버가 채우는 칸(LogAchievement.projectName·durationMin, recordIds가 있을 때 dates, LogPlan.dueDate·scheduledAt)은 보낸 값을 무시한다.
+         */
+        WorkLogPatch: {
+            achievements?: components["schemas"]["LogAchievement"][];
+            issues?: string | null;
+            plans?: components["schemas"]["LogPlan"][];
+            /** Format: int64 */
+            version: number;
         };
         /**
          * @description 업무 기록 (REC-01, 요구사항 6장 WorkRecord). "무엇을 했고 결과가 어떤가".
@@ -1352,6 +1943,563 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    listLogPeriods: {
+        parameters: {
+            query: {
+                type: "DAILY" | "WEEKLY" | "MONTHLY";
+                from: string;
+                to: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 기간별 상태 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogPeriodList"];
+                };
+            };
+            /** @description 값 형식 오류 (code=VALIDATION_FAILED) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description identity 조회 실패 (code=PROFILE_UNAVAILABLE) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getDailyClose: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                date: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 마감 준비 정보 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DailyClosePlan"];
+                };
+            };
+            /** @description 값 형식 오류 (code=VALIDATION_FAILED) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description identity 조회 실패 (code=PROFILE_UNAVAILABLE) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    closeDay: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                date: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DailyCloseRequest"];
+            };
+        };
+        responses: {
+            /** @description 확정한 일간 일지와 이어서 할 제안 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DailyCloseResult"];
+                };
+            };
+            /** @description 값 형식 오류 (code=VALIDATION_FAILED) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description 일지 상태 충돌 (code=LOG_CONFIRMED 또는 VERSION_CONFLICT) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description identity 조회 실패 (code=PROFILE_UNAVAILABLE) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    patchLog: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                logId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkLogPatch"];
+            };
+        };
+        responses: {
+            /** @description 고친 일지 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkLog"];
+                };
+            };
+            /** @description 입력 오류 (code=VALIDATION_FAILED) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description 없거나 다른 사용자의 일지 (code=NOT_FOUND) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description VERSION_CONFLICT 또는 LOG_CONFIRMED */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    confirmLog: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                logId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VersionOnly"];
+            };
+        };
+        responses: {
+            /** @description 확정한 일지 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkLog"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description 없거나 다른 사용자의 일지 (code=NOT_FOUND) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description VERSION_CONFLICT 또는 LOG_CONFIRMED */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description identity 조회 실패 (code=PROFILE_UNAVAILABLE) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    refillLog: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                logId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VersionOnly"];
+            };
+        };
+        responses: {
+            /** @description 다시 채운 일지 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkLog"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description 없거나 다른 사용자의 일지 (code=NOT_FOUND) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description VERSION_CONFLICT 또는 LOG_CONFIRMED */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listLogRevisions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                logId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 이력 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogRevisionList"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description 없거나 다른 사용자의 일지 (code=NOT_FOUND) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getLogRevision: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                logId: string;
+                revisionNo: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 그때의 확정본 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogRevisionDetail"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description 없거나 다른 사용자의 일지·이력 (code=NOT_FOUND) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    unconfirmLog: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                logId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VersionOnly"];
+            };
+        };
+        responses: {
+            /** @description 초안으로 돌린 일지 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkLog"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description 없거나 다른 사용자의 일지 (code=NOT_FOUND) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description VERSION_CONFLICT 또는 LOG_NOT_CONFIRMED */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getLog: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 경로에서는 소문자(daily·weekly·monthly) — 화면 경로 /logs/daily/:date와 맞춘다 */
+                type: "daily" | "weekly" | "monthly";
+                /** @description 기간 시작일. 주간은 주 시작 요일의 날, 월간은 1일 (화면 경로 /logs/monthly/:yyyy-mm은 화면이 1일로 바꾼다) */
+                periodStart: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 일지 또는 미리보기 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkLog"];
+                };
+            };
+            /** @description 값 형식 오류 (code=VALIDATION_FAILED) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description identity 조회 실패 (code=PROFILE_UNAVAILABLE) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    createLog: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 경로에서는 소문자(daily·weekly·monthly) — 화면 경로 /logs/daily/:date와 맞춘다 */
+                type: "daily" | "weekly" | "monthly";
+                /** @description 기간 시작일. 주간은 주 시작 요일의 날, 월간은 1일 (화면 경로 /logs/monthly/:yyyy-mm은 화면이 1일로 바꾼다) */
+                periodStart: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 이미 있던 일지 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkLog"];
+                };
+            };
+            /** @description 만듦 */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkLog"];
+                };
+            };
+            /** @description 값 형식 오류 (code=VALIDATION_FAILED) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description identity 조회 실패 (code=PROFILE_UNAVAILABLE) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    exportLog: {
+        parameters: {
+            query: {
+                format: "PDF" | "DOCX" | "XLSX";
+            };
+            header?: never;
+            path: {
+                /** @description 경로에서는 소문자 */
+                type: "daily" | "weekly" | "monthly";
+                /** @description 기간 시작일 */
+                periodStart: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 파일 */
+            200: {
+                headers: {
+                    /** @description attachment; filename="{ASCII 대체 이름}"; filename*=UTF-8''{퍼센트 인코딩한 파일명} (RFC 6266) */
+                    "Content-Disposition": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": string;
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": string;
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": string;
+                };
+            };
+            /** @description 값 형식 오류 (code=VALIDATION_FAILED) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description 이메일 인증 전 (code=EMAIL_NOT_VERIFIED, AUTH-08). 화면은 SCR-LOG-06으로 인증을 받고 같은 요청을 다시 보낸다. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description identity에서 인증 여부·프로필을 확인하지 못함 (code=IDENTITY_UNAVAILABLE 또는 PROFILE_UNAVAILABLE). 잠시 후 재시도. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     getMe: {
         parameters: {
             query?: never;
@@ -1679,6 +2827,59 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             /** @description identity 조회 실패 (code=PROFILE_UNAVAILABLE) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    exportRecords: {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 파일 */
+            200: {
+                headers: {
+                    /** @description attachment; filename="{ASCII 대체 이름}"; filename*=UTF-8''{퍼센트 인코딩한 파일명} (RFC 6266) */
+                    "Content-Disposition": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": string;
+                };
+            };
+            /** @description 값 형식 오류 (code=VALIDATION_FAILED: to INVALID_ORDER·OUT_OF_RANGE) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description 이메일 인증 전 (code=EMAIL_NOT_VERIFIED, AUTH-08) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description identity에서 인증 여부·프로필을 확인하지 못함 (code=IDENTITY_UNAVAILABLE 또는 PROFILE_UNAVAILABLE) */
             503: {
                 headers: {
                     [name: string]: unknown;

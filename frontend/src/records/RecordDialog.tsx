@@ -20,7 +20,7 @@ import calendar from '../calendar/calendar.module.css'
 import { Skeleton } from '../components/Skeleton'
 import { useOnline } from '../components/useOnline'
 import { useToast } from '../components/useToast'
-import { shortDate } from '../quickInput/dates'
+import { shortDate, todayIn } from '../quickInput/dates'
 import { useTimeTracking } from '../settings/useWorklogSettings'
 import { RECORDS_QUERY_KEY, recordApi, type WorkRecord, type WorkRecordCreate, type WorkRecordOutcome } from './api'
 import { OutcomeChips } from './OutcomeChips'
@@ -428,7 +428,7 @@ export function RecordDialog({ recordId, defaults, planned, capped, onClose }: P
           )}
           {source && (
             <p className={styles.source}>
-              계획에서 온 기록 · {shortDate(source.date)} {formatMinutes(source.minutes)} 회차
+              계획에서 온 기록 · {shortDate(source.date, todayIn(timeZone))} {formatMinutes(source.minutes)} 회차
               {original?.status === 'PENDING' && ' — 저장하면 했어요로 기록돼요'}
             </p>
           )}

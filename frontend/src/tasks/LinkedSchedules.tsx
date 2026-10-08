@@ -67,7 +67,7 @@ export function LinkedSchedules({ task, archived }: { task: Task; archived: bool
             return (
               <li key={`${o.scheduleId}|${o.occurrenceStart}`}>
                 <Link to={`/calendar/day/${date}`} className={own.linkedItem}>
-                  <span className={own.linkedDate}>{shortDate(date)}</span>
+                  <span className={own.linkedDate}>{shortDate(date, today)}</span>
                   <span className={own.linkedTime}>{timeText(o, timeZone)}</span>
                   {o.recurring && <span className={own.repeatBadge}>반복</span>}
                 </Link>
@@ -86,9 +86,10 @@ export function LinkedSchedules({ task, archived }: { task: Task; archived: bool
 }
 
 function timeText(o: Occurrence, timeZone: string) {
-  if (o.allDay) return o.startDate === o.endDate ? '종일' : `종일 · ${shortDate(o.endDate!)}까지`
+  if (o.allDay) return o.startDate === o.endDate ? '종일' : `종일 · ${shortDate(o.endDate!, todayIn(timeZone))}까지`
   const s = toZoned(o.startAt!, timeZone)
   const e = toZoned(o.endAt!, timeZone)
-  const end = e.date === s.date ? formatMinutes(e.minutes) : `${shortDate(e.date)} ${formatMinutes(e.minutes)}`
+  const end =
+    e.date === s.date ? formatMinutes(e.minutes) : `${shortDate(e.date, todayIn(timeZone))} ${formatMinutes(e.minutes)}`
   return `${formatMinutes(s.minutes)} – ${end}`
 }

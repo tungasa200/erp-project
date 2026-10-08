@@ -7,6 +7,7 @@
 import { EMAIL_PATTERN, passwordViolations } from '../auth/passwordRules'
 import { handleScheduleMock } from '../calendar/mockSchedules'
 import { checkCode, codeStatus, issueCode } from './mockCodes'
+import { weekStartNumber } from '../quickInput/dates'
 import { handleWorklog } from './mockWorklog'
 import type { FieldError, Problem } from './problem'
 import type { Me, ProfileUpdateRequest, WorklogSettings } from './types'
@@ -303,6 +304,30 @@ export const mockFetch: typeof fetch = async (input, init) => {
     return json(200, {})
   }
 
+  // 내보내기(P3-10): 인증 전이면 403, 아니면 이름만 맞춘 글자 파일(실제 서식은 서버 몫)
+  const [bare, query] = path.split('?')
+  const exportLog = /^\/api\/worklog\/logs\/(daily|weekly|monthly)\/(\d{4}-\d{2}-\d{2})\/export$/.exec(bare)
+  if (method === 'GET' && (exportLog || bare === '/api/worklog/records/export')) {
+    const session = state.session
+    const account = session && state.accounts[session.email]
+    if (!session || !account || session.accessExpiresAt < Date.now()) return problem(401, 'UNAUTHENTICATED')
+    const current = me(session.email, account.id, account.profile)
+    if (!current.emailVerified) return problem(403, 'EMAIL_NOT_VERIFIED')
+    const q = new URLSearchParams(query ?? '')
+    const suffix = current.name ? `_${current.name.replace(/[/\\:*?"<>|]/g, '_')}` : ''
+    const ext = exportLog ? (q.get('format') ?? 'PDF').toLowerCase() : 'xlsx'
+    const name = exportLog
+      ? `업무일지_${exportLog[2]}${suffix}.${ext}`
+      : `업무기록_${q.get('from')}_${q.get('to')}${suffix}.xlsx`
+    return new Response(new Blob([`mock ${name}`]), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/octet-stream',
+        'Content-Disposition': `attachment; filename="export.${ext}"; filename*=UTF-8''${encodeURIComponent(name)}`,
+      },
+    })
+  }
+
   if (path.startsWith('/api/worklog/')) {
     if (!state.session || state.session.accessExpiresAt < Date.now()) return problem(401, 'UNAUTHENTICATED')
     const respond = {
@@ -311,10 +336,22 @@ export const mockFetch: typeof fetch = async (input, init) => {
     }
     // 일정(P1-05·06)은 캘린더 쪽 mock이 맡는다 (frontend2)
     const saved = state.accounts[state.session.email]?.settings
+    const profile = me(
+      state.session.email,
+      state.accounts[state.session.email]?.id ?? '',
+      state.accounts[state.session.email]?.profile,
+    )
     const settings = {
       timeTrackingEnabled: saved?.timeTrackingEnabled ?? false,
       workHoursStart: saved?.workHoursStart ?? '09:00',
       workHoursEnd: saved?.workHoursEnd ?? '18:00',
+      author: {
+        name: profile.name ?? null,
+        organization: profile.organization ?? null,
+        position: profile.position ?? null,
+      },
+      workDays: profile.workDays,
+      weekStart: weekStartNumber(profile.weekStart),
     }
     const handled =
       handleScheduleMock(method, path, body, respond) ?? handleWorklog(method, path, body, respond, settings)

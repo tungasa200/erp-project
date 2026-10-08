@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.UUID;
 
 /** 타이머·집계·빈 시간 응답 (P2-06·07). null일 수 있는 객체 칸은 {@link TimeOpenApi}가 oneOf [$ref, null]로 바꾼다. */
-final class TimeViews {
+public final class TimeViews {
 
 	private TimeViews() {
 	}
@@ -72,23 +72,25 @@ final class TimeViews {
 	}
 
 	@Schema(name = "TimeSummaryProject")
-	record ProjectMinutes(
+	public record ProjectMinutes(
 			@Schema(requiredMode = RequiredMode.REQUIRED, types = { "string", "null" }, format = "uuid",
 					description = "null = 업무 없는 기록·프로젝트 없는 업무") UUID projectId,
 			@Schema(requiredMode = RequiredMode.REQUIRED) int minutes) {
 	}
 
 	@Schema(name = "TimeSummaryTask")
-	record TaskMinutes(
+	public record TaskMinutes(
 			@Schema(requiredMode = RequiredMode.REQUIRED, types = { "string", "null" }, format = "uuid",
 					description = "null = 업무 없는 기록") UUID taskId,
+			@Schema(requiredMode = RequiredMode.REQUIRED, types = { "string", "null" },
+					description = "업무의 지금 제목, 업무 없는 기록은 null") String title,
 			@Schema(requiredMode = RequiredMode.REQUIRED, types = { "string", "null" }, format = "uuid",
 					description = "업무의 지금 프로젝트") UUID projectId,
 			@Schema(requiredMode = RequiredMode.REQUIRED) int minutes) {
 	}
 
 	@Schema(name = "TimeSummary", description = "정렬: minutes 내림차순 → id(null은 뒤)")
-	record TimeSummaryView(
+	public record TimeSummaryView(
 			@Schema(requiredMode = RequiredMode.REQUIRED) LocalDate from,
 			@Schema(requiredMode = RequiredMode.REQUIRED) LocalDate to,
 			@Schema(requiredMode = RequiredMode.REQUIRED) int totalMin,
@@ -96,10 +98,10 @@ final class TimeViews {
 			@Schema(requiredMode = RequiredMode.REQUIRED) List<ProjectMinutes> projects,
 			@Schema(requiredMode = RequiredMode.REQUIRED) List<TaskMinutes> tasks) {
 
-		static TimeSummaryView of(TimeQueries.Summary s) {
+		public static TimeSummaryView of(TimeQueries.Summary s) {
 			return new TimeSummaryView(s.from(), s.to(), s.totalMin(), s.recordCount(),
 					s.projects().stream().map(p -> new ProjectMinutes(p.id(), p.minutes())).toList(),
-					s.tasks().stream().map(t -> new TaskMinutes(t.id(), t.projectId(), t.minutes())).toList());
+					s.tasks().stream().map(t -> new TaskMinutes(t.id(), t.title(), t.projectId(), t.minutes())).toList());
 		}
 	}
 

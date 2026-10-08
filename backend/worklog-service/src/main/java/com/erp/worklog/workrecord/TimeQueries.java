@@ -30,15 +30,15 @@ import java.util.function.Supplier;
 
 /** 소요시간 집계와 빈 시간 (P2-07, TIME-07·11). */
 @Service
-class TimeQueries {
+public class TimeQueries {
 
 	/** 이보다 짧은 빈 구간은 주지 않는다. */
 	static final Duration MIN_GAP = Duration.ofMinutes(15);
 
-	record Row(UUID id, UUID projectId, int minutes) {
+	public record Row(UUID id, String title, UUID projectId, int minutes) {
 	}
 
-	record Summary(LocalDate from, LocalDate to, int totalMin, int recordCount, List<Row> projects, List<Row> tasks) {
+	public record Summary(LocalDate from, LocalDate to, int totalMin, int recordCount, List<Row> projects, List<Row> tasks) {
 	}
 
 	record Previous(String content, UUID taskId) {
@@ -74,7 +74,7 @@ class TimeQueries {
 
 	/** 확정·보관하지 않은 기록 중 소요시간이 있는 것만 더한다(실행 중 타이머·시간 없는 기록 제외). 겹친 기록은 두 번 센다. */
 	@Transactional(readOnly = true)
-	Summary summary(UUID ownerId, LocalDate from, LocalDate to) {
+	public Summary summary(UUID ownerId, LocalDate from, LocalDate to) {
 		List<FieldErrorDetail> errors = new ArrayList<>();
 		if (from == null) {
 			errors.add(WorkRecordService.error("from", "REQUIRED"));
@@ -92,15 +92,15 @@ class TimeQueries {
 
 		int[] count = { 0 };
 		List<Row> tasks = new ArrayList<>(jdbc.sql("""
-				SELECT r.task_id, t.project_id, sum(r.duration_min) AS minutes, count(*) AS n
+				SELECT r.task_id, t.title, t.project_id, sum(r.duration_min) AS minutes, count(*) AS n
 				FROM work_record r LEFT JOIN task t ON t.id = r.task_id
 				WHERE r.owner_id = :owner AND r.deleted_at IS NULL AND r.status = 'CONFIRMED'
 				  AND r.work_date BETWEEN :from AND :to AND r.duration_min IS NOT NULL
-				GROUP BY r.task_id, t.project_id""")
+				GROUP BY r.task_id, t.title, t.project_id""")
 			.param("owner", ownerId).param("from", from).param("to", to)
 			.query((rs, i) -> {
 				count[0] += rs.getInt("n");
-				return new Row(rs.getObject("task_id", UUID.class), rs.getObject("project_id", UUID.class),
+				return new Row(rs.getObject("task_id", UUID.class), rs.getString("title"), rs.getObject("project_id", UUID.class),
 						rs.getInt("minutes"));
 			})
 			.list());
@@ -109,7 +109,7 @@ class TimeQueries {
 			byProject.merge(t.projectId(), t.minutes(), Integer::sum);
 		}
 		List<Row> projects = new ArrayList<>(byProject.entrySet().stream()
-			.map(e -> new Row(e.getKey(), null, e.getValue())).toList());
+			.map(e -> new Row(e.getKey(), null, null, e.getValue())).toList());
 		tasks.sort(ORDER);
 		projects.sort(ORDER);
 		int total = tasks.stream().mapToInt(Row::minutes).sum();

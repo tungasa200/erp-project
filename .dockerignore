@@ -1,0 +1,13 @@
+# Docker 빌드 문맥은 저장소 루트다(backend/Dockerfile). 백엔드 이미지에 필요한 backend/와 shared/만 보낸다.
+*
+!backend
+!shared
+backend/.gradle
+backend/**/build
+backend/**/bin
+backend/**/out
+backend/.idea
+backend/.vscode
+backend/Dockerfile
+**/*.pem
+**/.env

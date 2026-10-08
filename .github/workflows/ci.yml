@@ -37,6 +37,26 @@ jobs:
           path: backend/*/build/reports/tests/
           retention-days: 7
 
+  # 운영 이미지가 저장소 루트 문맥으로 빌드되는지 확인한다(push 없음). 테스트는 backend job이 돌린다.
+  docker-image:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [api-gateway, identity-service, worklog-service]
+    steps:
+      - uses: actions/checkout@v5
+      - name: 이미지 빌드
+        run: docker build -f backend/Dockerfile --build-arg SERVICE=${{ matrix.service }} -t ci/${{ matrix.service }} .
+      # worklog는 공휴일 파일(shared/holidays/KR.json, D-74)을 jar에 넣어 classpath:holidays/KR.json으로 읽는다
+      - name: 공휴일 파일 포함 확인
+        if: matrix.service == 'worklog-service'
+        run: |
+          id=$(docker create ci/worklog-service)
+          docker cp "$id":/app/app.jar app.jar
+          docker rm "$id"
+          unzip -l app.jar | grep -q 'BOOT-INF/classes/holidays/KR.json'
+
   frontend:
     runs-on: ubuntu-24.04
     defaults:

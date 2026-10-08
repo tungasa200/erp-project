@@ -5,6 +5,8 @@ import { GuestOnly, RequireAuth } from './guards'
 import { ErrorPage } from '../pages/ErrorPage'
 import { HomePage } from '../pages/HomePage'
 import { LoginPage } from '../pages/LoginPage'
+import { LogListPage } from '../logs/LogListPage'
+import { LogPage } from '../logs/LogPage'
 import { NotFoundPage } from '../pages/NotFoundPage'
 import { ForgotPasswordPage } from '../pages/password/ForgotPasswordPage'
 import { ResetPasswordPage } from '../pages/password/ResetPasswordPage'
@@ -48,7 +50,9 @@ export const routes = [
                 element: <TaskListPage />,
                 children: [{ path: ':taskId', element: <TaskDetailPanel /> }],
               },
-              { path: '/logs', element: <PlaceholderPage title="업무일지" /> },
+              // 업무일지(P3): 목록 SCR-LOG-01, 상세·편집 SCR-LOG-02
+              { path: '/logs', element: <LogListPage /> },
+              { path: '/logs/:type/:date', element: <LogPage /> },
               { path: '/stats', element: <PlaceholderPage title="통계" /> },
               {
                 path: '/settings',

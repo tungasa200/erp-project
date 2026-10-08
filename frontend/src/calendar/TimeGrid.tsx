@@ -9,6 +9,7 @@ import {
   type CSSProperties,
   type DragEvent,
   type PointerEvent,
+  type ReactNode,
 } from 'react'
 import { occurrenceKey, type Occurrence } from './api'
 import { colorVars, type BlockColor } from './colors'
@@ -27,9 +28,10 @@ import {
   weekdayIndex,
 } from './time'
 import styles from './calendar.module.css'
+import actualStyles from './dayActual.module.css'
 
 const HOUR_HEIGHT = 48
-const PX_PER_MINUTE = HOUR_HEIGHT / 60
+export const PX_PER_MINUTE = HOUR_HEIGHT / 60
 const DEFAULT_SCROLL_HOUR = 8
 const DRAG_THRESHOLD = 4
 export const TASK_DRAG_TYPE = 'application/x-worklog-task'
@@ -60,6 +62,8 @@ interface Props {
   overview?: boolean
   /** false면(오프라인, P1-X-04) 끌기·길이 조절·빈 칸 만들기·업무 끌어 놓기를 끈다. 보기는 그대로 */
   editable?: boolean
+  /** 일 보기 실제 열(SCR-CAL-02 ④, 시간 기록 옵션 켜짐). 있으면 날짜 칸을 왼쪽 반(계획)으로 줄이고 오른쪽 반에 그린다 */
+  actual?: { head: ReactNode; column: ReactNode }
 }
 
 type Drag =
@@ -311,10 +315,13 @@ export function TimeGrid(props: Props) {
       : (taskHover ?? pending)
 
   const columns = `repeat(${days.length}, minmax(0, 1fr))`
+  const { actual } = props
+  // 실제 열이 있으면 계획 칸(끌기·만들기 좌표의 기준)은 왼쪽 반만 쓴다. 칸 사이 3px은 그리드 간격과 같다
+  const planOnly = actual ? 'calc(50% + 1.5px)' : undefined
 
   return (
     <div className={styles.timeGrid}>
-      <div className={styles.dayHeads} style={{ gridTemplateColumns: columns }}>
+      <div className={styles.dayHeads} style={{ gridTemplateColumns: actual ? 'repeat(2, minmax(0, 1fr))' : columns }}>
         {days.map((date) => {
           const holiday = holidayName(date)
           const wd = weekdayIndex(date)
@@ -335,9 +342,11 @@ export function TimeGrid(props: Props) {
                 <span className={styles.dayHeadNumber}>{label.split(' ')[1]}</span>
               </button>
               {holiday && <span className={styles.holidayTag}>{holiday}</span>}
+              {actual && <span className={actualStyles.planLabel}>계획</span>}
             </div>
           )
         })}
+        {actual && <div className={styles.dayHead}>{actual.head}</div>}
       </div>
 
       <div className={styles.allDayRow}>
@@ -345,7 +354,11 @@ export function TimeGrid(props: Props) {
         <div
           ref={allDayRef}
           className={styles.allDayCells}
-          style={{ gridTemplateColumns: columns, gridTemplateRows: `repeat(${allDayRows}, 24px)` }}
+          style={{
+            gridTemplateColumns: columns,
+            gridTemplateRows: `repeat(${allDayRows}, 24px)`,
+            marginRight: planOnly,
+          }}
           onPointerDown={readOnly ? undefined : onAllDayPointerDown}
           onPointerMove={readOnly ? undefined : onAllDayPointerMove}
           onPointerUp={readOnly ? undefined : onAllDayPointerUp}
@@ -408,7 +421,7 @@ export function TimeGrid(props: Props) {
           <div
             ref={columnsRef}
             className={styles.columns}
-            style={{ gridTemplateColumns: columns }}
+            style={{ gridTemplateColumns: columns, right: planOnly }}
             onPointerDown={readOnly ? undefined : onPointerDown}
             onPointerMove={readOnly ? undefined : onPointerMove}
             onPointerUp={readOnly ? undefined : onPointerUp}
@@ -480,6 +493,7 @@ export function TimeGrid(props: Props) {
               )
             })}
           </div>
+          {actual?.column}
         </div>
       </div>
     </div>

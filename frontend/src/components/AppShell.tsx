@@ -1,12 +1,15 @@
 // SCR-COM-01 앱 셸 (P0 골격). 알림(SCR-COM-05)·빠른 기록은 이후 단계에서 채운다.
 // 명령 팔레트(Ctrl+K)와 빠른 입력 단축키(N)는 앱 화면 어디서든 동작한다 (P1-10).
 // 타이머 미니 플레이어(SCR-COM-06, P2-06)는 사이드바 하단과 모바일 하단 탭 위에 하나씩 달고 CSS로 한쪽만 보인다.
+// 팔레트의 '하루 마감'(SCR-LOG-03)은 어느 화면에서든 오늘 마감을 연다.
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router'
 import { toastForError } from '../api/errorToast'
 import { useAuth } from '../auth/useAuth'
+import { DayClose } from '../logs/DayClose'
 import { CommandPalette } from '../palette/CommandPalette'
 import { useProjects } from '../projects/api'
+import { todayIn } from '../quickInput/dates'
 import { projectColor } from '../projects/palette'
 import { useSingleKeyShortcuts } from '../shortcuts/useShortcuts'
 import { useTimeTracking } from '../settings/useWorklogSettings'
@@ -68,6 +71,7 @@ export function AppShell() {
   const online = useOnline()
   const navigate = useNavigate()
   const [paletteOpen, setPaletteOpen] = useState(false)
+  const [dayClose, setDayClose] = useState<{ today: string; timeZone: string } | null>(null)
   const timer = usePaletteTimer()
 
   // 지금 화면에 빠른 입력창이 있으면 거기로, 없으면 홈의 입력창으로 간다.
@@ -86,6 +90,11 @@ export function AppShell() {
     lastFocus.current = document.activeElement
     setPaletteOpen(true)
   }, [])
+  // 연 순간의 오늘로 고정한다(자정을 넘겨도 마감하던 날이 바뀌지 않게)
+  const openDayClose = useCallback(() => {
+    const timeZone = user?.timezone ?? 'Asia/Seoul'
+    setDayClose({ today: todayIn(timeZone), timeZone })
+  }, [user?.timezone])
   const closePalette = useCallback(() => {
     setPaletteOpen(false)
     if (lastFocus.current instanceof HTMLElement) lastFocus.current.focus()
@@ -215,7 +224,17 @@ export function AppShell() {
         <MoreMenu />
       </nav>
 
-      {paletteOpen && <CommandPalette onClose={closePalette} onQuickAdd={quickAdd} timer={timer.commands} />}
+      {paletteOpen && (
+        <CommandPalette onClose={closePalette} onQuickAdd={quickAdd} onDayClose={openDayClose} timer={timer.commands} />
+      )}
+      {dayClose && (
+        <DayClose
+          date={dayClose.today}
+          today={dayClose.today}
+          timeZone={dayClose.timeZone}
+          onClose={() => setDayClose(null)}
+        />
+      )}
       {timer.dialog}
     </div>
   )

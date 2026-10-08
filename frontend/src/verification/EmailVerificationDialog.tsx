@@ -13,7 +13,13 @@ import { verificationApi, type CodeTimes } from './api'
 import { CodeStep } from './CodeStep'
 import styles from './dialog.module.css'
 
-export function EmailVerificationDialog({ onClose }: { onClose: () => void }) {
+interface Props {
+  onClose: () => void
+  /** 인증을 마치면 닫는 대신 이것을 부른다(내보내기에서 들어온 경우 이어서 실행, SCR-LOG-06). 포커스는 부른 쪽이 맡는다 */
+  onVerified?: () => void
+}
+
+export function EmailVerificationDialog({ onClose, onVerified }: Props) {
   const { user } = useAuth()
   const queryClient = useQueryClient()
   const { showToast } = useToast()
@@ -27,6 +33,11 @@ export function EmailVerificationDialog({ onClose }: { onClose: () => void }) {
 
   const finish = (me: Me) => {
     queryClient.setQueryData(ME_QUERY_KEY, me)
+    if (onVerified) {
+      showToast('이메일 인증을 마쳤어요')
+      onVerified()
+      return
+    }
     onClose()
     // 인증하면 배너(포커스를 돌려줄 [인증하기])가 사라지므로 화면 제목으로 옮긴다
     focusPageHeading()
@@ -36,6 +47,10 @@ export function EmailVerificationDialog({ onClose }: { onClose: () => void }) {
   // 다른 기기에서 이미 인증했으면 사용자 정보를 다시 받아 배너를 없앤다.
   const alreadyVerified = () => {
     void queryClient.refetchQueries({ queryKey: ME_QUERY_KEY })
+    if (onVerified) {
+      onVerified()
+      return
+    }
     onClose()
     focusPageHeading()
     showToast('이미 인증한 이메일이에요')

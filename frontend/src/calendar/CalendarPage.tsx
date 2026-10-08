@@ -11,8 +11,10 @@ import { RecordDialog } from '../records/RecordDialog'
 import type { WorkRecord } from '../records/api'
 import { useSingleKeyShortcuts } from '../shortcuts/useShortcuts'
 import { useProjects } from '../projects/api'
+import { useTimeTracking } from '../settings/useWorklogSettings'
 import { useOccurrences, type Occurrence } from './api'
 import { projectIdOf, useProjectColors } from './colors'
+import { DayActualColumn, DayActualHead } from './DayActual'
 import { DayRecords } from './DayRecords'
 import { useFocusRescue } from './focus'
 import { ListView } from './ListView'
@@ -23,7 +25,7 @@ import { occurrenceOf, plannedOf } from './recordStatus'
 import recordStyles from './records.module.css'
 import { ScheduleDialog } from './ScheduleDialog'
 import { ScopeDialog } from './ScopeDialog'
-import { TimeGrid, type TimeRange } from './TimeGrid'
+import { PX_PER_MINUTE, TimeGrid, type TimeRange } from './TimeGrid'
 import { QuickInput } from '../quickInput/QuickInput'
 import { TaskPanel } from './TaskPanel'
 import { YearView } from './YearView'
@@ -331,6 +333,27 @@ function Calendar({ view, date, today, timeZone, weekStart }: CalendarProps) {
 
   const activeProjects = (projects.data ?? []).filter((p) => !p.archived)
 
+  const openRecord = (r: WorkRecord) =>
+    setRecordOpen({ recordId: r.id, planned: plannedOf(occurrenceOf(query.data ?? [], r)) })
+  // 시간 기록 옵션이 켜져 있으면 일 보기를 계획/실제 두 열로(SCR-CAL-02 ④, D-105)
+  const timeTracking = useTimeTracking()
+  const actual =
+    view === 'day' && timeTracking
+      ? {
+          head: <DayActualHead date={date} />,
+          column: (
+            <DayActualColumn
+              date={date}
+              timeZone={timeZone}
+              now={now}
+              pxPerMinute={PX_PER_MINUTE}
+              editable={online}
+              onOpenRecord={openRecord}
+            />
+          ),
+        }
+      : undefined
+
   // 일·주 보기 그리드. 일 보기는 옆에 "이날의 기록"을 둔다
   const timeGrid = (
     <TimeGrid
@@ -349,6 +372,7 @@ function Calendar({ view, date, today, timeZone, weekStart }: CalendarProps) {
       onDropTask={panel.placeById}
       overview={view === 'week' && mobile}
       editable={online}
+      actual={actual}
     />
   )
 
@@ -484,7 +508,7 @@ function Calendar({ view, date, today, timeZone, weekStart }: CalendarProps) {
               timeZone={timeZone}
               occurrences={query.data ?? []}
               editable={online}
-              onOpen={(r) => setRecordOpen({ recordId: r.id, planned: plannedOf(occurrenceOf(query.data ?? [], r)) })}
+              onOpen={openRecord}
               onAdd={() => setRecordOpen({ workDate: date })}
             />
           </div>

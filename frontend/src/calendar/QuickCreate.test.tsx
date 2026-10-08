@@ -135,6 +135,35 @@ describe('일정 빠른 생성 해석 칩·업무로도 만들기 (P1-09-09)', (
     expect(within(dialog).getByRole('button', { name: '저장' })).toBeEnabled()
   })
 
+  it('업무로도 만들기를 꺼도 붙여 쓴 ~ 범위를 시간으로 읽는다 (D-106)', async () => {
+    const fetchMock = server()
+    const user = userEvent.setup()
+    const { onClose } = renderQuickCreate()
+    const dialog = await screen.findByRole('dialog', { name: '새 일정' })
+    await user.click(within(dialog).getByRole('switch', { name: '업무로도 만들기' }))
+    await user.type(within(dialog).getByLabelText('한 줄 입력'), '회의 14 ~15')
+    await user.click(within(dialog).getByRole('button', { name: '저장' }))
+    await waitFor(() => expect(onClose).toHaveBeenCalled())
+    expect(bodyOf(fetchMock, 'POST /api/worklog/schedules')).toMatchObject({
+      title: '회의',
+      startAt: '2026-10-07T05:00:00.000Z',
+      endAt: '2026-10-07T06:00:00.000Z',
+    })
+  })
+
+  it('시간처럼 생겼는데 읽지 못한 낱말은 입력칸 아래에 알린다 (O-3)', async () => {
+    server()
+    const user = userEvent.setup()
+    renderQuickCreate()
+    const dialog = await screen.findByRole('dialog', { name: '새 일정' })
+    const input = within(dialog).getByLabelText('한 줄 입력')
+    await user.type(input, '회의 14—15')
+    expect(input).toHaveAccessibleDescription(expect.stringContaining('시간으로 읽지 못했어요: 14—15'))
+    await user.clear(input)
+    await user.type(input, '회의 14-15')
+    expect(within(dialog).queryByText(/시간으로 읽지 못했어요/)).not.toBeInTheDocument()
+  })
+
   it('자세히로 넘길 때는 업무 토큰을 제목에 남긴다', async () => {
     server()
     const user = userEvent.setup()

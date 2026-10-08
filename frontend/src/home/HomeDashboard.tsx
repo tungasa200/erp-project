@@ -1,5 +1,6 @@
 // SCR-HOME-01 홈 대시보드 (P1-11): ② 요약 카드 · ④ 남은 업무 · ⑥ 다가오는 일정.
-// 확인 대기(P2-03): 요약 카드와 2건 이상일 때 띠, 누르면 SCR-HOME-02 패널. ③ 오늘 일정(P2-08)은 TodayTimeline, ⑤⑦ 일지(P3)는 아직 없다.
+// 확인 대기(P2-03): 요약 카드와 2건 이상일 때 띠, 누르면 SCR-HOME-02 패널. ③ 오늘 일정(P2-08)은 TodayTimeline.
+// ⑤ 오늘 일지·⑦ 이번 주 일지(P3-04)는 오른쪽 열에 ⑥ 다가오는 일정과 함께 쌓는다(⑤ ⑥ ⑦ 순).
 // 다가오는 일정은 오늘 남은 일정부터 7일 뒤까지 보여 준다(pm 승인 가정).
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link } from 'react-router'
@@ -16,6 +17,7 @@ import { projectColor } from '../projects/palette'
 import { PendingPanel } from '../records/PendingPanel'
 import { usePendingRecords } from '../records/pending'
 import { addDays, isoWeekday, shortDate, todayIn, WEEKDAY_NAMES, weekStartNumber } from '../quickInput/dates'
+import { TodayLogCard, WeekLogStatus } from '../logs/HomeLogCards'
 import { useTasks, type Task } from '../tasks/api'
 import { isCompletionResultFocused } from '../tasks/completionResultContext'
 import { useCompleteTask } from '../tasks/useCompleteTask'
@@ -116,7 +118,7 @@ export function HomeDashboard({ empty }: { empty: ReactNode }) {
           label="이번 주 완료"
           value={cardValue(doneThisWeek, `${doneThisWeek.items.length}${more(doneThisWeek)}`)}
           // 기간 문구는 데이터와 상관없어 불러오는 중에도 그대로 둔다
-          sub={`${shortDate(weekFirst)}부터`}
+          sub={`${shortDate(weekFirst, today)}부터`}
         />
       </ul>
 
@@ -153,16 +155,20 @@ export function HomeDashboard({ empty }: { empty: ReactNode }) {
             projects={projects.data ?? []}
           />
         )}
-        <Upcoming
-          days={days}
-          byDate={byDate}
-          today={today}
-          timeZone={timeZone}
-          isLive={notEnded}
-          loading={occurrences.isPending}
-          failed={occurrences.isError}
-          onRetry={() => void occurrences.refetch()}
-        />
+        <div className={styles.stack}>
+          <TodayLogCard today={today} timeZone={timeZone} />
+          <Upcoming
+            days={days}
+            byDate={byDate}
+            today={today}
+            timeZone={timeZone}
+            isLive={notEnded}
+            loading={occurrences.isPending}
+            failed={occurrences.isError}
+            onRetry={() => void occurrences.refetch()}
+          />
+          <WeekLogStatus today={today} weekFirst={weekFirst} />
+        </div>
       </div>
     </>
   )
@@ -455,7 +461,7 @@ function Upcoming({ days, byDate, today, timeZone, isLive, loading, failed, onRe
                   <span className={styles.dayNumber}>{Number(e.date.slice(8))}</span>
                 </span>
                 <span className={styles.upcomingText}>
-                  <span className={styles.srOnly}>{shortDate(e.date)} </span>
+                  <span className={styles.srOnly}>{shortDate(e.date, today)} </span>
                   <span className={styles.upcomingTitle} title={e.kind === 'holiday' ? e.title : e.occurrence.title}>
                     {e.kind === 'holiday' ? e.title : e.occurrence.title}
                   </span>
@@ -479,7 +485,7 @@ function Upcoming({ days, byDate, today, timeZone, isLive, loading, failed, onRe
 
 /** 그날 기준 시간. 날을 넘는 일정은 그날 안쪽만 (캘린더 목록 보기와 같은 규칙) */
 function timeText(o: Occurrence, date: string, timeZone: string) {
-  if (o.allDay) return o.startDate === o.endDate ? '종일' : `종일 · ${shortDate(o.endDate!)}까지`
+  if (o.allDay) return o.startDate === o.endDate ? '종일' : `종일 · ${shortDate(o.endDate!, todayIn(timeZone))}까지`
   const s = toZoned(o.startAt!, timeZone)
   const e = toZoned(o.endAt!, timeZone)
   const start = s.date === date ? formatMinutes(s.minutes) : '00:00'
