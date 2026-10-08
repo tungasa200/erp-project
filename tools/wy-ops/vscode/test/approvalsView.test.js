@@ -13,7 +13,7 @@ const now = Date.now();
 const iso = (minAgo) => new Date(now - minAgo * 60000).toISOString();
 const card = (o) => ({ relatedSessions: [], what: '무엇', why: '왜', onClick: '누르면', detail: '', cost: '', createdAt: iso(5), session: 'WY-pm', ...o });
 const STATE = {
-  root: 'C:\\x\\ns', kinds: { commit: '커밋', 'force-push': '강제 푸시', choice: '결정', permission: '권한', todo: '할 일' }, routineKinds: ['commit', 'push'],
+  root: 'C:\\x\\ns', kinds: { commit: '커밋', 'force-push': '강제 푸시', choice: '결정 요청', permission: '권한 요청', todo: '할 일' }, routineKinds: ['commit', 'push'],
   untrusted: ['f1', 'f2'], roleWarnings: [{ name: 'WY-commit', id: 'abc' }], notice: '', error: '', alerts: [],
   pending: [
     card({ id: 'p1', kind: 'permission', title: '권한 요청', session: 'WY-backend1', sessionId: 'sid-1', tool: 'Bash', command: 'npm test', expiresAt: new Date(now + 10 * 60000).toISOString(), createdAt: iso(5) }),
@@ -22,7 +22,7 @@ const STATE = {
       { question: 'Q1', header: 'h', multiSelect: false, allowOther: true, options: [{ label: 'A', description: '', cost: 'A의 대가', onClick: 'A를 고르면', recommended: true }, { label: 'B', description: '', cost: 'B의 대가', onClick: '' }] }] }),
     card({ id: 'g1', kind: 'force-push', title: '강제 푸시', branch: 'main', command: 'git push -f', commits: [], files: [], fileCount: null, verification: '' }),
     card({ id: 't1', kind: 'todo', title: '할 일', sessionId: 'sid-2', steps: ['하나', '`둘`'], check: '목록에 보이면 됨', sessionEnded: true }),
-    { id: 'b1', broken: '필수 칸 없음: what' },
+    { id: 'b1', broken: '필수 필드 누락: what' },
   ],
   recent: [{ id: 'r1', decision: 'done', kind: 'todo', session: 'WY-pm', note: '메모', decidedAt: iso(60), request: null }],
 };
@@ -79,7 +79,7 @@ function screenBehavior(jsdom) {
   const s = screen(jsdom, 1000);
   assert.deepStrictEqual(s.posted.map((m) => m.type), ['ready'], '처음에 ready');
   s.send({ type: 'state', state: STATE });
-  assert.deepStrictEqual(s.txt('.grp').map((t) => t.replace(/\s\d+$/, '')), ['지금 막힘', '판단 대기', '할 일', '형식 오류'], '묶음 순서');
+  assert.deepStrictEqual(s.txt('.grp').map((t) => t.replace(/\s\d+$/, '')), ['차단', '결정 대기', '할 일', '형식 오류'], '묶음 순서');
   assert.strictEqual(s.id('dt-title').textContent, '기한 지난 권한', '넓은 폭은 첫 카드를 고름(오래된 순)');
   // 경고는 둘만 보이고 나머지는 접힘
   assert.strictEqual(s.d.querySelectorAll('.alert').length, 2, '경고 2개만');
@@ -124,7 +124,7 @@ function screenBehavior(jsdom) {
 
   // 할 일: 단계 체크, 확인 방법, 세션 끝남, 완료
   s.send({ type: 'select', id: 't1' });
-  assert.ok(s.txt('.who-row .mc').some((t) => t.startsWith('세션 끝남')), '세션 끝남 표시');
+  assert.ok(s.txt('.who-row .mc').some((t) => t.startsWith('세션 종료됨')), '세션 종료됨 표시');
   assert.ok(s.txt('.blk-h').includes('확인 방법'), '확인 방법');
   s.id('tick-t1-0').click();
   assert.strictEqual(s.id('tick-t1-0').getAttribute('aria-checked'), 'true', '단계 체크');

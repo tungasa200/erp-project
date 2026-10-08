@@ -21,16 +21,16 @@ const choice = { kind: 'choice', session: 'WY-pm', ...filled, questions: [{ ques
 // 칸 누락 4종: what·why·onClick 하나씩 빠짐, choice 선택지 cost 빠짐 → 형식 오류 카드
 for (const k of ['what', 'why', 'onClick']) {
   const r = read({ kind: 'commit', session: 'WY-commit', command: 'git commit', ...filled, [k]: '  ' });
-  assert.strictEqual(r.broken, `필수 칸 없음: ${k}`);
+  assert.strictEqual(r.broken, `필수 필드 누락: ${k}`);
 }
-assert.strictEqual(read({ kind: 'todo', session: 'x' }).broken, '필수 칸 없음: what, why, onClick');
+assert.strictEqual(read({ kind: 'todo', session: 'x' }).broken, '필수 필드 누락: what, why, onClick');
 const noCost = read({ ...choice, questions: [{ question: '고르세요', options: [options[0], { label: '나' }] }] });
-assert.strictEqual(noCost.broken, '필수 칸 없음: 1번 질문 선택지 cost(나)');
+assert.strictEqual(noCost.broken, '필수 필드 누락: 1번 질문 선택지 cost(나)');
 
 // 형식 오류 카드는 결정할 수 없다
 const p = store.ensureDirs(dir);
 fs.writeFileSync(path.join(p.requests, 'bad.json'), JSON.stringify({ kind: 'commit', session: 'x', command: 'git commit' }));
-assert.throws(() => store.decide('bad', 'approved', { root: dir }), /필수 칸 없음/);
+assert.throws(() => store.decide('bad', 'approved', { root: dir }), /필수 필드 누락/);
 
 // 정상 카드는 네 칸을 그대로 넘긴다
 const ok = read(choice);

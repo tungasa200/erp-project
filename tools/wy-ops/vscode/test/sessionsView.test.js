@@ -47,7 +47,7 @@ const flush = () => new Promise((r) => setImmediate(r));
     view.send({ type: 'open', id: '985b4168', name: ops.commitRole });
     await flush();
     const warn = fake.messages.find((m) => m[0] === 'warning');
-    assert.ok(warn && /교대/.test(warn[1]) && warn[2].modal, '커밋 세션 경고(모달)');
+    assert.ok(warn && /세션 교체/.test(warn[1]) && warn[2].modal, '커밋 세션 경고(모달)');
     assert.strictEqual(fake.terminals.length, 1, '취소하면 열지 않음');
     fake.nextChoice = '열기';
     view.send({ type: 'open', id: '985b4168', name: ops.commitRole });

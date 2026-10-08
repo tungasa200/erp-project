@@ -10,14 +10,14 @@
 
   const GIT_ICON = { push: 'i-push', 'force-push': 'i-push' };
   const KIND = {
-    permission: { label: '권한 확인', icon: 'i-perm', c: 'var(--k-perm)', f: 'perm', g: 0 },
-    choice: { label: '결정', icon: 'i-choice', c: 'var(--k-choice)', f: 'choice', g: 1 },
+    permission: { label: '권한 요청', icon: 'i-perm', c: 'var(--k-perm)', f: 'perm', g: 0 },
+    choice: { label: '결정 요청', icon: 'i-choice', c: 'var(--k-choice)', f: 'choice', g: 1 },
     git: { label: 'git', icon: 'i-commit', c: 'var(--k-git)', f: 'git', g: 1 },
     todo: { label: '할 일', icon: 'i-todo', c: 'var(--k-todo)', f: 'todo', g: 2 },
     broken: { label: '형식 오류', icon: 'i-broken', c: 'var(--err)', f: 'broken', g: 3 },
   };
-  const GROUPS = [['지금 막힘', 'urgent'], ['판단 대기', ''], ['할 일', ''], ['형식 오류', '']];
-  const FILTERS = [['all', '전체', null], ['perm', '권한', 'var(--k-perm)'], ['choice', '결정', 'var(--k-choice)'], ['git', 'git', 'var(--k-git)'], ['todo', '할 일', 'var(--k-todo)'], ['broken', '형식 오류', 'var(--err)']];
+  const GROUPS = [['차단', 'urgent'], ['결정 대기', ''], ['할 일', ''], ['형식 오류', '']];
+  const FILTERS = [['all', '전체', null], ['perm', '권한 요청', 'var(--k-perm)'], ['choice', '결정 요청', 'var(--k-choice)'], ['git', 'git', 'var(--k-git)'], ['todo', '할 일', 'var(--k-todo)'], ['broken', '형식 오류', 'var(--err)']];
   const PRI = { urgent: ['긴급', 'i-p-urgent'], high: ['높음', 'i-p-high'], normal: ['보통', 'i-p-normal'] };
   // 요청 세션이 onClick을 비워 보냈을 때(B2-2 전) 쓰는 기본 문구
   const THEN = {
@@ -129,7 +129,7 @@
   }
   function avatar(name, { size = '', ended = false } = {}) {
     const a = el('span', `av ${size}${ended ? ' ended' : ''}`, initials(name));
-    a.title = name + (ended ? ' · 세션 끝남' : '');
+    a.title = name + (ended ? ' · 세션 종료됨' : '');
     a.setAttribute('aria-hidden', 'true');
     return a;
   }
@@ -148,14 +148,14 @@
       if (r.branch) out.push(chip('mono', r.branch));
       if (r.fileCount != null) out.push(chip('', `파일 ${r.fileCount}`));
       if (r.commits && r.commits.length) out.push(chip('', `커밋 ${r.commits.length}`));
-      out.push(r.verification ? chip('ok', '검증', 'i-check') : chip('warn', '검증 없음'));
+      out.push(r.verification ? chip('ok', '검증', 'i-check') : chip('warn', '검증 결과 없음'));
       if (isPmGit(r)) out.push(chip('red', 'PM 결정'));
     }
     if (k === 'choice') out.push(chip('', `질문 ${r.questions.length}`));
     if (k === 'todo' && r.steps && r.steps.length) out.push(chip('', `단계 ${r.steps.length}`));
     if (k === 'todo' && r.shell) out.push(chip('mono', r.shell === 'bash' ? 'Bash' : 'PowerShell'));
     if (k === 'permission' && r.tool) out.push(chip('mono', r.tool));
-    if (r.sessionEnded) out.push(chip('red', '세션 끝남'));
+    if (r.sessionEnded) out.push(chip('red', '세션 종료됨'));
     return out;
   }
 
@@ -198,7 +198,7 @@
       if (extra != null) t.append(el('span', 'n', String(extra)));
       return t;
     };
-    tabs.append(tab('inbox', '받은 요청', n), tab('hist', '처리됨'));
+    tabs.append(tab('inbox', '대기 중', n), tab('hist', '처리됨'));
     tabs.addEventListener('keydown', (e) => {
       if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
       ui.view = ui.view === 'inbox' ? 'hist' : 'inbox';
@@ -221,11 +221,11 @@
     };
     if (state.error) add('err', '승인 파일을 읽지 못했습니다', state.error);
     for (const id of state.untrusted || []) {
-      const ack = button('btn secondary', '확인함', () => vscode.postMessage({ type: 'ackUntrusted', id }), { id: 'ack-' + id, title: '내용을 확인했습니다. 같은 내용이면 다시 띄우지 않습니다(신뢰하는 것은 아님)' });
+      const ack = button('btn secondary', '확인', () => vscode.postMessage({ type: 'ackUntrusted', id }), { id: 'ack-' + id, title: '내용을 확인했습니다. 같은 내용이면 다시 표시하지 않습니다(신뢰하는 것은 아님)' });
       add('err', '출처 불명 결정', `decisions/${id}.json — 승인 센터가 쓰지 않은 결정입니다. 위조일 수 있으니 열어 확인하세요.`, ack);
     }
     for (const w of state.roleWarnings || []) {
-      add('', '커밋 세션 역할 누락', `${w.name}(${w.id || '?'})이 --agent ${w.name} 없이 떠 있습니다. 커밋이 가드 훅에 막히니 session.ps1 rotate ${w.name} none으로 교대하세요.`);
+      add('', '커밋 세션 역할 누락', `${w.name}(${w.id || '?'})이 --agent ${w.name} 없이 실행 중입니다. 커밋이 가드 훅에 막히니 session.ps1 rotate ${w.name} none으로 세션을 교체하세요.`);
     }
     if (state.notice) add('', '옛 승인 폴더', state.notice);
     if (!box.childNodes.length) return null;
@@ -362,7 +362,7 @@
       return s;
     };
     bar.append(item(['j', 'k'], '이동'), item(['a'], '처리'), item(['x'], '거부'));
-    if (ui.keysFull) bar.append(item(['Enter'], '열기'), item(['Esc'], '목록으로·취소'), item(['1', '–', '4'], '선택지'), item(['w'], '왜 펼치기'), item(['g', 'a'], '활동 탭'), item(['?'], '단축키 접기'));
+    if (ui.keysFull) bar.append(item(['Enter'], '열기'), item(['Esc'], '목록으로·취소'), item(['1', '–', '4'], '선택지'), item(['w'], '배경 펼치기'), item(['g', 'a'], '활동 탭'), item(['?'], '단축키 접기'));
     else bar.append(item(['?'], '전체'));
     return bar;
   }
@@ -397,7 +397,7 @@
     const d = el('details', 'why');
     d.id = 'why-' + r.id;
     const s = el('summary');
-    s.append(el('b', null, '왜'), el('span', 'pv', text.split('\n')[0]), ico('i-down', 'i-s'));
+    s.append(el('b', null, '배경'), el('span', 'pv', text.split('\n')[0]), ico('i-down', 'i-s'));
     d.append(s, rich('p', null, text));
     return d;
   }
@@ -434,7 +434,7 @@
     ];
     const chain = el('div', 'chain');
     chain.setAttribute('role', 'list');
-    chain.setAttribute('aria-label', '진행 단계: ' + steps.map(([w, , s]) => `${w}(${s === 'done' ? '끝남' : s === 'now' ? '지금' : '남음'})`).join(', '));
+    chain.setAttribute('aria-label', '진행 단계: ' + steps.map(([w, , s]) => `${w}(${s === 'done' ? '완료' : s === 'now' ? '지금' : '남음'})`).join(', '));
     steps.forEach(([who, icon, st], i) => {
       if (i) {
         const prev = steps[i - 1][2];
@@ -482,7 +482,7 @@
       const fs = el('fieldset', 'q' + (bad.has(qi) ? ' is-invalid' : ''));
       fs.id = base;
       const lg = el('legend', 'q-h');
-      lg.append(el('b', null, q.question), chip('', q.multiSelect ? '여러 개' : '하나'));
+      lg.append(el('b', null, q.question), chip('', q.multiSelect ? '복수 선택' : '단일 선택'));
       if (q.header) lg.append(chip('', q.header));
       fs.append(lg);
       if (bad.has(qi)) {
@@ -812,7 +812,7 @@
 
     if (ui.rejecting === r.id) {
       const cancel = button('btn secondary', '취소', () => cancelPanel(r), { kbd: 'Esc', id: 'cancel-' + r.id });
-      const go = button('btn danger solid', '거부 보내기', () => {
+      const go = button('btn danger solid', '거부 전송', () => {
         if (!d.reason.trim()) {
           errors.set(r.id, '거부 사유를 적어 주세요. 요청한 세션이 이 사유를 보고 다음 행동을 정합니다.');
           focusAfter = 'reason-' + r.id;
@@ -827,7 +827,7 @@
 
     if (ui.memo === r.id) {
       const cancel = button('btn secondary', '닫기', () => cancelPanel(r), { kbd: 'Esc', id: 'memo-close-' + r.id });
-      const go = button('btn primary', k === 'todo' ? '완료' : '답 보내기', () => primary(r), { icon: 'i-check', id: 'memo-send-' + r.id });
+      const go = button('btn primary', k === 'todo' ? '완료' : '응답 전송', () => primary(r), { icon: 'i-check', id: 'memo-send-' + r.id });
       go.setAttribute('aria-disabled', String(waiting));
       return textPanel('memo', 'note-' + r.id, '메모', '(선택) — 요청한 세션에 함께 전달', d.note, (v) => (d.note = v), [cancel, go]);
     }
@@ -845,12 +845,12 @@
       [rej, ok].forEach((b) => b.setAttribute('aria-disabled', String(waiting || !!expired)));
       btns.append(rej, ok);
     } else if (k === 'choice' || k === 'todo') {
-      const memo = button('btn secondary', d.note ? '메모 고치기' : '메모', () => {
+      const memo = button('btn secondary', d.note ? '메모 수정' : '메모', () => {
         ui.memo = r.id;
         focusAfter = 'note-' + r.id;
         render();
       }, { id: 'memo-' + r.id });
-      const ok = button('btn primary', k === 'todo' ? '완료' : '답 보내기', () => primary(r), { icon: 'i-check', kbd: 'a', id: 'approve-' + r.id });
+      const ok = button('btn primary', k === 'todo' ? '완료' : '응답 전송', () => primary(r), { icon: 'i-check', kbd: 'a', id: 'approve-' + r.id });
       ok.setAttribute('aria-disabled', String(waiting));
       btns.append(memo, ok);
     } else {
@@ -865,7 +865,7 @@
   function detail(r) {
     const col = el('div', 'detail-col');
     if (!r) {
-      col.append(el('div', 'detail-empty', '왼쪽에서 요청을 고르세요'));
+      col.append(el('div', 'detail-empty', '왼쪽에서 요청을 선택하세요'));
       return col;
     }
     const m = meta(r);
@@ -912,14 +912,14 @@
       const w = minutesSince(r.createdAt);
       if (tl) who.append(chip('red', `${tl.left}분 남음`, 'i-clock'));
       else if (w != null) who.append(chip(w >= DAY ? 'red' : '', `${ago(w)}째`, 'i-clock'));
-      if (r.sessionEnded) who.append(chip('red', '세션 끝남 — 처리해도 받을 세션이 없습니다', 'i-warn'));
+      if (r.sessionEnded) who.append(chip('red', '세션 종료됨 — 처리해도 받을 세션이 없습니다', 'i-warn'));
       if (r.relatedSessions && r.relatedSessions.length) {
-        const rel = el('span', 'rel', '함께 알림 ');
+        const rel = el('span', 'rel', '참조 ');
         const avs = el('span', 'avs');
         r.relatedSessions.forEach((n) => avs.append(avatar(n, { size: 'xs' })));
         rel.append(avs);
         rel.title = r.relatedSessions.join(', ');
-        rel.setAttribute('aria-label', '함께 알림: ' + r.relatedSessions.join(', '));
+        rel.setAttribute('aria-label', '참조: ' + r.relatedSessions.join(', '));
         who.append(rel);
       }
       // D-89: 권한·할 일 카드는 attach 버튼 대신 세션 현황 링크만
@@ -931,7 +931,7 @@
       // 카드 단위 대가(B2-2, 선택). 결정 카드의 대가는 선택지마다 보인다
       if (r.cost) {
         const c = el('p', 'cost-line');
-        c.append(el('b', null, '대가 '), document.createTextNode(r.cost));
+        c.append(el('b', null, '트레이드오프 '), document.createTextNode(r.cost));
         body.append(c);
       }
       const k = kindOf(r);
@@ -949,7 +949,7 @@
   /* ── 처리됨 ── */
   const DECISION = {
     approved: ['i-check', '승인', 'var(--ok)'],
-    answered: ['i-check', '답함', 'var(--k-choice)'],
+    answered: ['i-check', '응답함', 'var(--k-choice)'],
     done: ['i-check', '완료', 'var(--k-todo)'],
     rejected: ['i-x', '거부', 'var(--err)'],
     expired: ['i-clock', '시간 초과', 'var(--warn)'],

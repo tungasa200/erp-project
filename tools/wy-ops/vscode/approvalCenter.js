@@ -147,7 +147,7 @@ class ApprovalCenter {
       for (const r of state.pending) if (r.sessionId && ended.has(r.sessionId)) r.sessionEnded = true;
       state.alerts = [
         ...state.untrusted.map((id) => `출처 불명 결정: decisions/${id}.json — 승인 센터가 쓰지 않은 결정입니다. 위조일 수 있으니 확인하세요.`),
-        ...state.roleWarnings.map((w) => `커밋 세션 역할 누락: ${w.name}(${w.id || '?'})이 --agent ${w.name} 없이 떠 있습니다. 커밋이 가드 훅에 막히니 session.ps1 rotate ${w.name} none으로 교대하세요.`),
+        ...state.roleWarnings.map((w) => `커밋 세션 역할 누락: ${w.name}(${w.id || '?'})이 --agent ${w.name} 없이 실행 중입니다. 커밋이 가드 훅에 막히니 session.ps1 rotate ${w.name} none으로 세션을 교체하세요.`),
       ];
       state.error = '';
       this.bell.update(state.pending.filter((r) => !r.broken).map((r) => r.id));
@@ -174,7 +174,7 @@ class ApprovalCenter {
     const todos = count('todo');
     const broken = this.state.pending.filter((r) => r.broken).length;
     const git = n - choices - perms - todos - broken;
-    const parts = [git && `승인 ${git}건`, perms && `권한 ${perms}건`, choices && `결정 ${choices}건`, todos && `할 일 ${todos}건`, broken && `형식 오류 ${broken}건`].filter(Boolean).join(' · ');
+    const parts = [git && `승인 ${git}건`, perms && `권한 요청 ${perms}건`, choices && `결정 요청 ${choices}건`, todos && `할 일 ${todos}건`, broken && `형식 오류 ${broken}건`].filter(Boolean).join(' · ');
     this.status.text = n ? `$(bell-dot) 승인 대기 ${n}` : '$(check) 승인 대기 없음';
     this.status.tooltip = n ? `WY 승인 센터: ${parts} — 눌러서 열기` : 'WY 승인 센터 열기';
     this.status.backgroundColor = n ? new vscode.ThemeColor('statusBarItem.warningBackground') : undefined;

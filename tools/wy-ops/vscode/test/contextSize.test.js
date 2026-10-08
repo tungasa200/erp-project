@@ -41,7 +41,7 @@ const assistant = (inp, read, create, extra) => line({ type: 'assistant', messag
     const marker = hook.markerFile(require('../approvalStore').rootFor(proj), sid);
 
     const msg = await hook.check(input, { listAgents: agents('WY-qa') });
-    assert.ok(msg && msg.includes('WY-qa') && msg.includes('211k') && msg.includes('교대 요청') && msg.includes('WY-pm'), msg);
+    assert.ok(msg && msg.includes('WY-qa') && msg.includes('211k') && msg.includes('세션 교체 요청') && msg.includes('WY-pm'), msg);
     assert.ok(fs.existsSync(marker), '표시 파일');
     assert.strictEqual(await hook.check(input, { listAgents: agents('WY-qa') }), null, '세션당 한 번');
     fs.rmSync(marker);

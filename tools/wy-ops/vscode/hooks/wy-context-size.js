@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Stop 훅: 역할 세션의 대화가 rotation.notifyTokens(기본 20만)를 넘으면 한 번만 "이 단계까지 마치고 보고한 뒤 교대 요청"을 알린다.
+// Stop 훅: 역할 세션의 대화가 rotation.notifyTokens(기본 20만)를 넘으면 한 번만 "이 단계까지 마치고 보고한 뒤 세션 교체 요청"을 알린다.
 //   매 턴 대화 전체를 다시 읽으므로 비용 ≈ 턴 수 × 대화 크기(토큰 절감 2차, 사용자 결정 2026-10-07).
 //   세션당 한 번: 승인 폴더 sessions/<sessionId>.ctx-notified 표시 파일. 역할 세션이 아니어도 표시를 남겨 다시 확인하지 않는다.
 //   역할 판단: claude agents 목록에서 이 세션의 이름이 wy-ops.json roles(agent:true)인지. 넘은 뒤 한 번만 부른다.
@@ -14,9 +14,9 @@ const markerFile = (root, id) => path.join(root, 'sessions', `${id}.ctx-notified
 
 function message(name, tokens, pmRole) {
   const k = Math.round(tokens / 1000);
-  return `[대화 크기 알림] ${name} 세션의 대화가 약 ${k}k 토큰입니다. 매 턴 대화 전체를 다시 읽어 비용이 커집니다. ` +
+  return `[컨텍스트 크기 알림] ${name} 세션의 컨텍스트가 약 ${k}k 토큰입니다. 매 턴 컨텍스트 전체를 다시 읽어 비용이 커집니다. ` +
     `새 작업을 시작하지 말고, 지금 단계까지만 마친 뒤 ${pmRole}에 [완료](끝났으면) 또는 진행 상태(미커밋 파일·남은 일)를 보고하고 ` +
-    `같은 메시지에 "교대 요청"을 적으세요. 이 알림은 이 세션에 한 번만 옵니다.`;
+    `같은 메시지에 "세션 교체 요청"을 적으세요. 이 알림은 이 세션에 한 번만 옵니다.`;
 }
 
 // 알릴 문구를 돌려준다(알릴 것이 없으면 null). listAgents는 시험에서 바꿔 끼운다

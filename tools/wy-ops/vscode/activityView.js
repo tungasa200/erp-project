@@ -156,7 +156,7 @@ class ActivityView {
   }
 
   buildState() {
-    if (!this.reader) return { error: '열린 폴더가 없어 대화 기록 위치를 알 수 없습니다.' };
+    if (!this.reader) return { error: '열린 폴더가 없어 트랜스크립트 위치를 알 수 없습니다.' };
     this.reader.poll();
     const now = this.clock();
     const feed = this.reader.feed();

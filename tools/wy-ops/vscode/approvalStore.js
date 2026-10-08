@@ -29,13 +29,13 @@ const GIT_KINDS = {
   branch: '브랜치 생성',
   'delete-branch': '브랜치 삭제',
   merge: '병합',
-  reset: 'reset',
-  rebase: 'rebase',
+  reset: '초기화',
+  rebase: '리베이스',
   'tag-delete': '태그 삭제',
 };
 const ROUTINE_KINDS = ['commit', 'push'];
 // permission: 권한 카드(PermissionRequest 훅), todo: 사람이 직접 할 일(PermissionDenied 훅 등, '완료'로 닫는다)
-const KINDS = { ...GIT_KINDS, choice: '결정', permission: '권한', todo: '할 일' };
+const KINDS = { ...GIT_KINDS, choice: '결정 요청', permission: '권한 요청', todo: '할 일' };
 const LIMITS = { questions: 4, optionsMin: 2, optionsMax: 4, text: 2000 };
 const REQUIRED = ['what', 'why', 'onClick'];
 
@@ -90,7 +90,7 @@ function readQuestions(list) {
     if (labels.some((l) => !l)) throw new Error(`${i + 1}번 질문에 제목 없는 선택지가 있음`);
     if (new Set(labels).size !== labels.length) throw new Error(`${i + 1}번 질문의 선택지 제목이 겹침`);
     const noCost = labels.filter((l, j) => !text(options[j].cost, 500).trim());
-    if (noCost.length) throw new Error(`필수 칸 없음: ${i + 1}번 질문 선택지 cost(${noCost.join(', ')})`);
+    if (noCost.length) throw new Error(`필수 필드 누락: ${i + 1}번 질문 선택지 cost(${noCost.join(', ')})`);
     return {
       question: text(q.question, 500),
       header: text(q.header, 24),
@@ -115,7 +115,7 @@ function readRequest(file, id) {
     if (!KINDS[r.kind]) throw new Error(`알 수 없는 종류: ${r.kind}`);
     // OPS-03: 카드만 보고 판단할 수 있게 무엇을·왜·누르면 무슨 일이 비면 올리지 않는다
     const missing = REQUIRED.filter((k) => !text(r[k]).trim());
-    if (missing.length) throw new Error(`필수 칸 없음: ${missing.join(', ')}`);
+    if (missing.length) throw new Error(`필수 필드 누락: ${missing.join(', ')}`);
     const base = {
       id,
       kind: r.kind,
@@ -224,7 +224,7 @@ function writeDecision(id, req, body, root) {
 }
 
 function loadPending(id, root) {
-  if (!ID_RE.test(String(id))) throw new Error('요청 id 형식이 틀림');
+  if (!ID_RE.test(String(id))) throw new Error('요청 id 형식이 잘못됨');
   const req = readRequest(path.join(paths(root).requests, `${id}.json`), id);
   if (req.broken) throw new Error('요청 파일을 읽지 못함: ' + req.broken);
   return req;

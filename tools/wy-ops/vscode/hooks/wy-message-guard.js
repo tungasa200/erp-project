@@ -22,10 +22,10 @@ function check(list, to, pmRole = null) {
   const same = (list || []).filter((s) => s && s.name === name);
   if (!same.length || isReachable(list, name)) return null;
   const latest = same.reduce((a, b) => ((b.startedAt || 0) > (a.startedAt || 0) ? b : a));
-  const state = latest.state || '끝남';
+  const state = latest.state || '상태 미상';
   return {
     decision: 'deny',
-    reason: `대상 세션 ${name}이 대기 중 종료됨(${state}) — 메시지가 전달되지 않습니다. ${pmRole || 'pm 세션'}에 알리거나 session.ps1 start ${name}으로 다시 띄우세요.`,
+    reason: `대상 세션 ${name}이 종료됨(${state}) — 메시지가 전달되지 않습니다. ${pmRole || 'pm 세션'}에 알리거나 session.ps1 start ${name}으로 재시작하세요.`,
     to: name,
     toSessionId: latest.sessionId || null,
     toState: latest.state || null,

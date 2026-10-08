@@ -9,13 +9,13 @@
   // 상태(view)는 확장의 agentsReader가 정한다(운영 도구 구현 계획 2.2)
   // 네 가지 상태(사용자 확정 2026-10-07). 꺼짐(done·stopped)은 아래 접는 묶음, 이유는 작은 글씨로
   const STATES = {
-    working: { label: '일하는 중', icon: 'i-working' },
+    working: { label: '작업 중', icon: 'i-working' },
     input: { label: '입력 대기', icon: 'i-waiting' },
-    permission: { label: '권한 대기', icon: 'i-approval' },
-    off: { label: '꺼짐', icon: 'i-stopped' },
-    none: { label: '띄우지 않음', icon: 'i-none' },
+    permission: { label: '권한 승인 대기', icon: 'i-approval' },
+    off: { label: '종료됨', icon: 'i-stopped' },
+    none: { label: '미실행', icon: 'i-none' },
   };
-  const OFF_REASON = { stopped: '멈춤', done: '스스로 끝남', failed: '오류로 끝남' };
+  const OFF_REASON = { stopped: '중지됨', done: '정상 종료', failed: '오류 종료' };
   // 권한 대기 > 일하는 중 > 입력 대기 > 꺼짐 > 띄우지 않음. 같은 그룹 안은 역할 표 순서
   const GROUP = { permission: 0, working: 1, input: 2, off: 3, none: 4 };
   // 꺼진 뒤 메시지가 온 세션은 접는 묶음에 숨기지 않는다
@@ -206,21 +206,21 @@
       // 대화 크기(토큰): 매 턴 이만큼 다시 읽는다. 교대 기준 이상이면 배지
       if (s.contextTokens) {
         const ctx = el('span', 's-ctx', ' · ' + Math.round(s.contextTokens / 1000) + 'k');
-        ctx.title = `대화 약 ${s.contextTokens.toLocaleString('ko-KR')} 토큰(매 턴 다시 읽는 크기)`;
+        ctx.title = `컨텍스트 약 ${s.contextTokens.toLocaleString('ko-KR')} 토큰(매 턴 다시 읽는 크기)`;
         meta.append(ctx);
       }
       if (s.rotate) {
-        const badge = el('span', 'badge badge-warn', '교대 권장');
-        badge.title = '대화가 교대 기준 이상입니다. 다음 작업은 session.ps1 rotate로 새로 띄워 주세요';
+        const badge = el('span', 'badge badge-warn', '세션 교체 권장');
+        badge.title = '컨텍스트가 세션 교체 기준 이상입니다. 다음 작업은 session.ps1 rotate로 세션을 교체해 주세요';
         meta.append(badge);
       }
       if (s.roleMissing) {
         const badge = el('span', 'badge badge-warn', '역할 누락');
-        badge.title = '--agent 없이 뜬 세션입니다. 역할 파일의 규칙이 실리지 않았을 수 있습니다';
+        badge.title = '--agent 없이 실행된 세션입니다. 역할 파일의 규칙이 실리지 않았을 수 있습니다';
         meta.append(badge);
       }
     } else {
-      meta.textContent = '띄우지 않음';
+      meta.textContent = '미실행';
     }
     who.append(nm, meta);
     // 권한 대기: 기다리는 도구·명령(OPS-04)
@@ -241,11 +241,11 @@
       cell.colSpan = 4;
       const line = el('div', 's-offwarn');
       const from = warn.from.length ? ` · ${warn.from.join(', ')}` : '';
-      line.append(icon('i-warn'), el('span', null, `꺼진 뒤 메시지 옴 ${warn.count}건${from}`));
-      line.title = (warn.summary ? `마지막: ${warn.summary}\n` : '') + '꺼진 뒤 보낸 메시지는 전달되지 않았습니다. 다시 띄운 뒤 보낸 세션에 알리세요.';
-      const ack = el('button', 'ack-btn', '확인함');
+      line.append(icon('i-warn'), el('span', null, `미전달 메시지 ${warn.count}건${from}`));
+      line.title = (warn.summary ? `마지막: ${warn.summary}\n` : '') + '종료된 뒤 보낸 메시지는 전달되지 않았습니다. 재시작한 뒤 보낸 세션에 알리세요.';
+      const ack = el('button', 'ack-btn', '확인');
       ack.type = 'button';
-      ack.setAttribute('aria-label', `${name} 꺼진 뒤 메시지 경고 확인함`);
+      ack.setAttribute('aria-label', `${name} 미전달 메시지 경고 확인`);
       ack.addEventListener('click', () => vscode.postMessage({ type: 'ackOff', sessionId: s.sessionId }));
       line.append(ack);
       cell.append(line);
@@ -318,7 +318,7 @@
       b.setAttribute('aria-expanded', String(!offFolded));
       const chev = icon('i-chev');
       chev.classList.add('chev');
-      b.append(chev, el('span', null, `꺼짐 ${bottom.filter((r) => r.st === 'off').length}` + (bottom.some((r) => r.st === 'none') ? ` · 띄우지 않음 ${bottom.filter((r) => r.st === 'none').length}` : '')));
+      b.append(chev, el('span', null, `종료됨 ${bottom.filter((r) => r.st === 'off').length}` + (bottom.some((r) => r.st === 'none') ? ` · 미실행 ${bottom.filter((r) => r.st === 'none').length}` : '')));
       b.addEventListener('click', () => {
         if (folded.has('offRows')) folded.delete('offRows');
         else folded.add('offRows');
@@ -342,11 +342,11 @@
 
     const count = (st) => sessions.filter((r) => r.st === st).length;
     const live = sessions.filter((r) => r.s.alive).length;
-    const parts = [`실행 ${live}`];
-    if (count('permission')) parts.push(`권한 대기 ${count('permission')}`);
+    const parts = [`실행 중 ${live}`];
+    if (count('permission')) parts.push(`권한 승인 대기 ${count('permission')}`);
     if (count('input')) parts.push(`입력 대기 ${count('input')}`);
     const warned = sessions.filter((r) => r.s.offWarning).length;
-    if (warned) parts.push(`꺼진 뒤 메시지 ${warned}`);
+    if (warned) parts.push(`미전달 메시지 ${warned}`);
     $('sess-sum').textContent = parts.join(' · ') + (roles.length ? ` / 역할 ${roles.length}` : '');
   }
 

@@ -38,12 +38,12 @@
 
   // 네 가지 상태와 순서(권한 대기 > 일하는 중 > 입력 대기 > 꺼짐). 꺼진 이유는 작은 글씨로
   const VIEW = {
-    permission: ['권한 대기', 0],
-    working: ['일하는 중', 1],
+    permission: ['권한 승인 대기', 0],
+    working: ['작업 중', 1],
     input: ['입력 대기', 2],
-    off: ['꺼짐', 3],
+    off: ['종료됨', 3],
   };
-  const OFF_REASON = { stopped: '멈춤', done: '스스로 끝남', failed: '오류로 끝남' };
+  const OFF_REASON = { stopped: '중지됨', done: '정상 종료', failed: '오류 종료' };
   // 꺼진 뒤 메시지가 온 세션은 꺼짐 묶음에 숨기지 않는다
   const warned = (s) => s.view === 'off' && s.offWarn > 0;
   const STAGE = {
@@ -58,11 +58,11 @@
   const NEXT = { bug: '수정', order: '완료', ask: '결정', block: '해결', commit: '커밋', verify: '통과' };
   const BSTATE = {
     run: ['진행 중', 'i-loop'],
-    bug: ['결함 열림', 'i-bug'],
+    bug: ['결함 미해결', 'i-bug'],
     ask: ['결정 대기', 'i-hand'],
-    me: ['내 차례', 'i-hand'],
-    blocked: ['막힘', 'i-block'],
-    perm: ['권한 대기', 'i-perm'],
+    me: ['사용자 조치 필요', 'i-hand'],
+    blocked: ['차단', 'i-block'],
+    perm: ['권한 승인 대기', 'i-perm'],
     done: ['완료', 'i-check'],
   };
 
@@ -91,10 +91,10 @@
   const av = (name, size = '') => `<span class="av ${size} ${sessionView(name)}" title="${esc(name)}">${esc(initials(name))}</span>`;
 
   function doingText(s) {
-    if (s.view === 'permission') return s.pending && s.pending.command ? `권한 대기 · ${s.pending.command}` : '권한 대기';
-    if (s.view === 'working') return s.doing || '일하는 중';
-    if (warned(s)) return `꺼진 뒤 메시지 옴 ${s.offWarn}건 · 다시 띄워야 함`;
-    if (s.view === 'off') return `꺼짐 · ${OFF_REASON[s.offReason] || '끝남'}`;
+    if (s.view === 'permission') return s.pending && s.pending.command ? `권한 승인 대기 · ${s.pending.command}` : '권한 승인 대기';
+    if (s.view === 'working') return s.doing || '작업 중';
+    if (warned(s)) return `미전달 메시지 ${s.offWarn}건 · 재시작 필요`;
+    if (s.view === 'off') return OFF_REASON[s.offReason] ? `종료됨 · ${OFF_REASON[s.offReason]}` : '종료됨';
     if (!VIEW[s.view]) return `상태: ${s.view || '알 수 없음'}`;
     return s.lastAt ? `입력 대기 · ${ago(s.lastAt)} 마지막 동작` : '입력 대기';
   }
@@ -108,20 +108,20 @@
       const text = doingText(s);
       return `<button type="button" class="sc ${s.view}${warned(s) ? ' offwarn' : ''}" data-session="${esc(s.sessionId || '')}" aria-label="${esc(`${s.name}, ${text}. 세션 현황에서 보기`)}" title="${esc(text)}">${av(s.name)}<span><span class="nm">${esc(short(s.name))}</span><span class="ac">${esc(text)}</span></span></button>`;
     });
-    if (stopped.length) chips.push(`<span class="sc rest" title="${esc(stopped.map((s) => `${s.name}(${OFF_REASON[s.offReason] || '끝남'})`).join(', '))}">꺼짐 ${stopped.length}</span>`);
+    if (stopped.length) chips.push(`<span class="sc rest" title="${esc(stopped.map((s) => `${s.name}(${OFF_REASON[s.offReason] || '종료됨'})`).join(', '))}">종료됨 ${stopped.length}</span>`);
     if (state.statusError) chips.push(`<span class="err">${ico('i-warn', 'i-s')}세션 상태를 읽지 못함: ${esc(state.statusError)}</span>`);
-    strip.innerHTML = chips.join('') || '<span class="sc rest">살아 있는 세션 없음</span>';
+    strip.innerHTML = chips.join('') || '<span class="sc rest">실행 중인 세션 없음</span>';
   }
 
   function renderSum() {
     const count = (v) => state.sessions.filter((s) => s.view === v).length;
-    const parts = [`일하는 중 <b>${count('working')}</b>`];
-    if (count('permission')) parts.push(`권한 대기 <b>${count('permission')}</b>`);
+    const parts = [`작업 중 <b>${count('working')}</b>`];
+    if (count('permission')) parts.push(`권한 승인 대기 <b>${count('permission')}</b>`);
     if (count('input')) parts.push(`입력 대기 <b>${count('input')}</b>`);
     const warnedCount = state.sessions.filter(warned).length;
-    if (warnedCount) parts.push(`꺼진 뒤 메시지 옴 <b>${warnedCount}</b>`);
+    if (warnedCount) parts.push(`미전달 메시지 <b>${warnedCount}</b>`);
     parts.push(`최근 ${state.windowHours}시간 메시지 <b>${state.feed.length}</b>`);
-    if (state.unreadable) parts.push(`<span class="warn" title="Claude Code 대화 기록 형식이 바뀌었을 수 있습니다. 해당 줄은 건너뛰었습니다.">${ico('i-warn', 'i-s')}읽을 수 없음 ${state.unreadable}</span>`);
+    if (state.unreadable) parts.push(`<span class="warn" title="Claude Code 트랜스크립트 형식이 바뀌었을 수 있습니다. 해당 줄은 건너뛰었습니다.">${ico('i-warn', 'i-s')}파싱 실패 ${state.unreadable}</span>`);
     $('sum').innerHTML = parts.join(' · ');
   }
 
@@ -148,13 +148,13 @@
       const label = s.st === 'todo' ? `다음: ${s.who}` : `${s.who} ${STAGE[s.stage][1]}${s.st === 'now' ? '(지금)' : ''}`;
       return `${lk}<div class="sn ${s.st} c-${s.stage || 'dim'}" title="${esc(label)}"><span class="ic">${ico(icon, 'i-s')}</span><span class="who">${esc(s.who)}</span></div>`;
     });
-    return `<div class="chain" role="img" aria-label="${esc(`단계 ${b.steps.length}개: ${b.steps.map((s) => STAGE[s.stage][1]).join(' → ')}`)}">${nodes.join('')}</div>`;
+    return `<div class="chain" role="img" aria-label="${esc(`메시지 ${b.steps.length}개: ${b.steps.map((s) => STAGE[s.stage][1]).join(' → ')}`)}">${nodes.join('')}</div>`;
   }
 
   // 진행 중 묶음은 위(최근에 움직인 순). 그 아래 '휴면 n'(2시간 넘게 조용한 진행 중), 맨 아래 '완료 n'.
   // 두 묶음 모두 기본 접힘이고 접힘 상태는 webview에 기억한다. 휴면·완료 판정은 확장(activityView.js)이 한다
   const GROUPS = {
-    dormant: { label: '휴면', icon: 'i-clock', aria: '2시간 넘게 움직임이 없는 스레드', key: 'dormantOpen' },
+    dormant: { label: '유휴', icon: 'i-clock', aria: '2시간 넘게 움직임이 없는 스레드', key: 'dormantOpen' },
     done: { label: '완료', icon: 'i-check', aria: '완료된 스레드', key: 'doneOpen' },
   };
 
@@ -255,7 +255,7 @@
     renderSum();
     renderStrip();
     $('main').innerHTML = state.transcriptsMissing
-      ? empty('대화 기록 폴더를 찾지 못했습니다', `${state.transcriptsMissing} 에 세션 대화 기록이 없습니다. 이 창에 연 폴더가 세션을 띄운 저장소와 같은지 확인해 주세요. 세션 상태는 위 칩에 그대로 보입니다.`, true)
+      ? empty('트랜스크립트 폴더를 찾지 못했습니다', `${state.transcriptsMissing} 에 세션 트랜스크립트가 없습니다. 이 창에 연 폴더가 세션을 실행한 저장소와 같은지 확인해 주세요. 세션 상태는 위 칩에 그대로 보입니다.`, true)
       : mode === 'feed' ? renderFeed() : mode === 'time' ? renderTime() : renderThreads();
   }
 
@@ -310,7 +310,7 @@
       const unread = l.from && l.from > t0 ? `<rect class="unread" x="${X0}" y="${yy - 7}" width="${x(l.from) - X0}" height="14" rx="3"><title>이 앞은 읽지 않음(처음 열 때 기록 끝부분만 읽습니다)</title></rect>` : '';
       const bands = l.bands.map(([a, b]) => `<rect class="band" x="${x(a)}" y="${yy - 6}" width="${Math.max(3, x(b) - x(a))}" height="12" rx="6"/>`).join('');
       const tailKind = view.includes('offwarn') ? 'offwarn' : ['permission', 'input'].includes(view) ? view : '';
-      const tail = tailKind ? `<rect class="tail tail-${tailKind}" x="${X1 - 28}" y="${yy - 6}" width="28" height="12" rx="6"><title>${tailKind === 'offwarn' ? '꺼진 뒤 메시지 옴' : esc(VIEW[view][0])}</title></rect>` : '';
+      const tail = tailKind ? `<rect class="tail tail-${tailKind}" x="${X1 - 28}" y="${yy - 6}" width="28" height="12" rx="6"><title>${tailKind === 'offwarn' ? '미전달 메시지' : esc(VIEW[view][0])}</title></rect>` : '';
       const label = fitLabel(short(n), 15); // 이름 칸(약 110px)을 넘지 않게
       return `<g class="lane ${view}"><title>${esc(n)}</title><circle class="lav" cx="${16}" cy="${yy}" r="11"/><text class="lav-t" x="16" y="${yy + 4}" text-anchor="middle">${esc(initials(n))}</text><text class="lane-n" x="34" y="${yy + 4}">${esc(label)}</text>
         <rect class="track" x="${X0}" y="${yy - 2}" width="${X1 - X0}" height="4" rx="2"/>${unread}${bands}${tail}</g>`;
@@ -348,8 +348,8 @@
 
     const markers = Object.keys(STAGE).map((k) => `<marker id="mk-${k}" class="c-${k}" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path class="mk" d="M0 0 10 5 0 10Z"/></marker>`).join('');
     const nowLine = `<line class="now-line" x1="${X1}" y1="${TOP - 10}" x2="${X1}" y2="${H}"/><rect class="now-pill" x="${X1 - 19}" y="${TOP - 26}" width="38" height="16" rx="8"/><text class="now-t" x="${X1}" y="${TOP - 14}" text-anchor="middle">지금</text>`;
-    const legend = [['band', '일한 구간'], ['tail-permission', '권한 대기'], ['tail-input', '입력 대기'], ['tail-offwarn', '꺼진 뒤 메시지 옴']]
-      .map(([c, t]) => `<span><i class="lg ${c}"></i>${t}</span>`).join('') + `<span><i class="lg box-lg"></i>진행 중인 스레드</span><span><i class="lg unread"></i>읽지 않은 앞부분</span>`;
+    const legend = [['band', '활동 구간'], ['tail-permission', '권한 승인 대기'], ['tail-input', '입력 대기'], ['tail-offwarn', '미전달 메시지']]
+      .map(([c, t]) => `<span><i class="lg ${c}"></i>${t}</span>`).join('') + `<span><i class="lg box-lg"></i>진행 중인 스레드</span><span><i class="lg unread"></i>미로드 구간</span>`;
 
     const selRow = ui.timeSel && state.messages[ui.timeSel] ? `<ul class="feed sel-msg">${msgRow(ui.timeSel, stageOf.get(ui.timeSel) || 'order')}</ul>` : `<p class="hint">화살표를 누르면 그 메시지의 원문이 여기에 펼쳐집니다.</p>`;
     return `<div class="lanes"><svg viewBox="0 0 ${X1 + 30} ${H}" role="group" aria-label="${esc(`최근 ${ui.range}시간 세션별 활동, 메시지 ${msgs.length}개`)}"><defs>${markers}</defs>${ticks.join('')}${boxes}${lanes}${arrows}${nowLine}</svg></div>
