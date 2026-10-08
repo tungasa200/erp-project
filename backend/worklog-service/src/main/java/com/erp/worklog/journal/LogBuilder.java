@@ -7,15 +7,19 @@ import com.erp.worklog.journal.LogViews.Achievement;
 import com.erp.worklog.journal.LogViews.Author;
 import com.erp.worklog.journal.LogViews.Candidate;
 import com.erp.worklog.journal.LogViews.Content;
+import com.erp.worklog.journal.LogViews.Day;
 import com.erp.worklog.journal.LogViews.Metrics;
 import com.erp.worklog.journal.LogViews.Period;
 import com.erp.worklog.journal.LogViews.Plan;
+import com.erp.worklog.journal.LogViews.ProjectStat;
+import com.erp.worklog.journal.WorkLogRepository.Row;
 import com.erp.worklog.schedule.EndedOccurrences.Ended;
 import com.erp.worklog.schedule.PlanOccurrences;
 import com.erp.worklog.user.Profile;
 import com.erp.worklog.workrecord.TimeQueries;
 import com.erp.worklog.workrecord.TimeViews.TimeSummaryView;
 import org.springframework.stereotype.Component;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -24,14 +28,17 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.UUID;
 
 /**
- * 일지 내용 만들기 (P3-03 일간 LOG-01~03·15). 초안의 사용자가 고친 칸(Draft)을 받아 나머지를 원본으로 채운다.
+ * 일지 내용 만들기 (P3-03 일간 LOG-01~03·15, P3-07 주간·월간 LOG-07·08). 초안의 사용자가 고친 칸(Draft)을 받아 나머지를 원본으로 채운다.
  * 호출하는 쪽의 트랜잭션 안에서 부른다.
  */
 @Component
@@ -53,11 +60,15 @@ class LogBuilder {
 	private final LogSources sources;
 	private final TimeQueries times;
 	private final PlanOccurrences occurrences;
+	private final WorkLogRepository logs;
+	private final JsonMapper json;
 
-	LogBuilder(LogSources sources, TimeQueries times, PlanOccurrences occurrences) {
+	LogBuilder(LogSources sources, TimeQueries times, PlanOccurrences occurrences, WorkLogRepository logs, JsonMapper json) {
 		this.sources = sources;
 		this.times = times;
 		this.occurrences = occurrences;
+		this.logs = logs;
+		this.json = json;
 	}
 
 	Content build(Context c, LogType type, LocalDate start, Draft draft) {
@@ -65,12 +76,138 @@ class LogBuilder {
 		List<Rec> records = sources.records(c.ownerId(), start, end);
 		List<DoneTask> done = sources.completedTasks(c.ownerId(), c.zone(), start, end);
 		Period planPeriod = planPeriod(c.calendar(), type, start);
-		List<Achievement> achievements = draft.achievements() == null
-				? autoAchievements(c, start, records, done)
-				: enrich(c, draft.achievements());
-		return new Content(type.title, author(c.profile()), draft.achievements() == null, achievements,
+		boolean auto = draft.achievements() == null;
+		List<Day> days = new ArrayList<>();
+		List<ProjectStat> projects = List.of();
+		List<Achievement> achievements;
+		if (type == LogType.DAILY) {
+			achievements = auto ? autoAchievements(c, records, done) : enrich(c, draft.achievements());
+		}
+		else {
+			List<Achievement> daily = periodAchievements(c, start, end, records, done, days);
+			achievements = auto ? group(c, daily) : enrich(c, draft.achievements());
+			projects = projects(c, records, done);
+		}
+		return new Content(type.title, author(c.profile()), auto, achievements,
 				metrics(c, start, end, records, done), planTitle(type, planPeriod), planPeriod,
-				plans(c, planPeriod, draft.plans()), draft.issues(), time(c, start, end), List.of(), List.of());
+				plans(c, planPeriod, draft.plans()), draft.issues(), time(c, start, end), days, projects);
+	}
+
+	/**
+	 * 주간·월간의 날마다 실적: 확정된 일간 일지가 있으면 그 스냅샷 실적, 없으면 그날 원본(일간과 같은 규칙). days에 출처를 채운다.
+	 */
+	private List<Achievement> periodAchievements(Context c, LocalDate start, LocalDate end, List<Rec> records,
+			List<DoneTask> done, List<Day> days) {
+		Map<LocalDate, Row> confirmed = new HashMap<>();
+		for (Row r : logs.findStarting(c.ownerId(), LogType.DAILY, start, end)) {
+			if (r.confirmed()) {
+				confirmed.put(r.periodStart(), r);
+			}
+		}
+		Map<LocalDate, List<Rec>> recordsByDay = new HashMap<>();
+		records.forEach(r -> recordsByDay.computeIfAbsent(r.workDate(), d -> new ArrayList<>()).add(r));
+		Map<LocalDate, List<DoneTask>> doneByDay = new HashMap<>();
+		done.forEach(t -> doneByDay.computeIfAbsent(t.date(), d -> new ArrayList<>()).add(t));
+
+		List<Achievement> result = new ArrayList<>();
+		for (LocalDate d = start; !d.isAfter(end); d = d.plusDays(1)) {
+			Row row = confirmed.get(d);
+			String source;
+			if (row != null) {
+				List<LocalDate> day = List.of(d);
+				for (Achievement a : json.readValue(row.content(), Content.class).achievements()) {
+					result.add(a.dates().isEmpty() ? withDates(a, day) : a);
+				}
+				source = "CONFIRMED_LOG";
+			}
+			else {
+				List<Achievement> rows = autoAchievements(c, recordsByDay.getOrDefault(d, List.of()),
+						doneByDay.getOrDefault(d, List.of()));
+				result.addAll(rows);
+				source = rows.isEmpty() ? "NONE" : "RECORDS";
+			}
+			days.add(new Day(d, c.calendar().workday(d), c.calendar().holiday(d), source));
+		}
+		return result;
+	}
+
+	/**
+	 * 업무별로 묶기 (LOG-07): 같은 업무의 줄은 처음 나온 자리에 한 줄로 — 내용은 업무 제목, 결과는 마지막으로 적은 결과,
+	 * 결과 칩·진행률은 마지막 줄, 날짜·기록은 합친다. 업무 없는 줄은 그대로 한 줄씩.
+	 */
+	private List<Achievement> group(Context c, List<Achievement> rows) {
+		Map<UUID, List<Achievement>> byTask = new LinkedHashMap<>();
+		List<Object> order = new ArrayList<>();
+		for (Achievement a : rows) {
+			if (a.taskId() == null) {
+				order.add(a);
+				continue;
+			}
+			if (!byTask.containsKey(a.taskId())) {
+				order.add(a.taskId());
+			}
+			byTask.computeIfAbsent(a.taskId(), k -> new ArrayList<>()).add(a);
+		}
+		Map<UUID, TaskInfo> tasks = sources.tasks(c.ownerId(), byTask.keySet());
+		List<Achievement> grouped = new ArrayList<>();
+		for (Object o : order) {
+			if (o instanceof Achievement a) {
+				grouped.add(a);
+				continue;
+			}
+			UUID taskId = (UUID) o;
+			List<Achievement> same = byTask.get(taskId);
+			Achievement last = same.getLast();
+			String result = null;
+			Set<LocalDate> dates = new TreeSet<>();
+			Set<UUID> recordIds = new LinkedHashSet<>();
+			Integer minutes = null;
+			for (Achievement a : same) {
+				result = a.result() != null ? a.result() : result;
+				dates.addAll(a.dates());
+				recordIds.addAll(a.recordIds());
+				if (a.durationMin() != null) {
+					minutes = (minutes == null ? 0 : minutes) + a.durationMin();
+				}
+			}
+			TaskInfo t = tasks.get(taskId);
+			grouped.add(new Achievement(taskId, t == null ? last.text() : t.title(), result, last.outcome(), last.progress(),
+					taskId, last.projectName(), List.copyOf(dates), List.copyOf(recordIds), c.timeTracking() ? minutes : null,
+					recordIds.isEmpty() ? last.source() : "RECORD"));
+		}
+		return grouped;
+	}
+
+	/** 프로젝트별 실적 (LOG-08): 완료 업무 수·기록 수·(옵션) 소요시간. 이름순, 프로젝트 없는 업무·업무 없는 기록은 null 한 줄로 맨 뒤. */
+	private List<ProjectStat> projects(Context c, List<Rec> records, List<DoneTask> done) {
+		Set<UUID> taskIds = new HashSet<>();
+		records.stream().map(Rec::taskId).filter(Objects::nonNull).forEach(taskIds::add);
+		Map<UUID, TaskInfo> tasks = sources.tasks(c.ownerId(), taskIds);
+		Map<UUID, int[]> stats = new HashMap<>(); // [완료 업무, 기록, 분]
+		int[] none = new int[3];
+		for (Rec r : records) {
+			TaskInfo t = r.taskId() == null ? null : tasks.get(r.taskId());
+			int[] s = t == null || t.projectId() == null ? none : stats.computeIfAbsent(t.projectId(), k -> new int[3]);
+			s[1]++;
+			s[2] += r.durationMin() == null ? 0 : r.durationMin();
+		}
+		for (DoneTask t : done) {
+			(t.projectId() == null ? none : stats.computeIfAbsent(t.projectId(), k -> new int[3]))[0]++;
+		}
+		Map<UUID, String> names = sources.projectNames(c.ownerId(), stats.keySet());
+		List<ProjectStat> result = new ArrayList<>();
+		stats.forEach((id, s) -> result.add(new ProjectStat(id, names.get(id), s[0], s[1], c.timeTracking() ? s[2] : null)));
+		result.sort(Comparator.comparing(ProjectStat::name, Comparator.nullsLast(Comparator.naturalOrder()))
+			.thenComparing(ProjectStat::projectId));
+		if (none[0] + none[1] > 0) {
+			result.add(new ProjectStat(null, null, none[0], none[1], c.timeTracking() ? none[2] : null));
+		}
+		return result;
+	}
+
+	private static Achievement withDates(Achievement a, List<LocalDate> dates) {
+		return new Achievement(a.id(), a.text(), a.result(), a.outcome(), a.progress(), a.taskId(), a.projectName(), dates,
+				a.recordIds(), a.durationMin(), a.source());
 	}
 
 	/** 계획 후보 칩 (LOG-03): 진행 중, 계획 기간 끝까지 마감, 마감 지남. 보관·보류·완료 제외, 마감순(없으면 뒤) → 제목, 최대 20개. */
@@ -123,8 +260,8 @@ class LogBuilder {
 		};
 	}
 
-	/** 일간 자동 실적: 확정 기록 한 줄씩, 그날 기록 없이 완료한 업무는 업무 제목으로 한 줄. */
-	private List<Achievement> autoAchievements(Context c, LocalDate day, List<Rec> records, List<DoneTask> done) {
+	/** 하루의 자동 실적: 확정 기록 한 줄씩, 그날 기록 없이 완료한 업무는 업무 제목으로 한 줄. */
+	private List<Achievement> autoAchievements(Context c, List<Rec> records, List<DoneTask> done) {
 		Set<UUID> taskIds = new HashSet<>();
 		records.stream().map(Rec::taskId).filter(Objects::nonNull).forEach(taskIds::add);
 		done.forEach(t -> taskIds.add(t.id()));
