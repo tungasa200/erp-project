@@ -2728,11 +2728,14 @@ components:
           type: array
           items:
             type: object
-            required: [taskId, projectId, minutes]
+            required: [taskId, title, projectId, minutes]
             properties:
               taskId:
                 type: [string, 'null']
                 format: uuid
+              title:
+                type: [string, 'null']
+                description: 업무의 지금 제목, 업무 없는 기록은 null. 일지 확정본은 확정 때 제목을 그대로 남긴다
               projectId:
                 type: [string, 'null']
                 format: uuid
@@ -2865,7 +2868,7 @@ components:
       properties:
         title:
           type: string
-          description: 예 "업무일지(일간)", "업무일지(주간)", "업무일지(월간)"
+          description: 업무일지 / 주간 업무일지 / 월간 업무일지 (서식 명세)
         author:
           type: object
           description: 초안은 지금 프로필, 확정본은 확정 때 프로필. 빈 값은 null(문서에 빈칸)

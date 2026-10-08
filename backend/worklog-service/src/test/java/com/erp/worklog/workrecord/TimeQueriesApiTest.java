@@ -117,6 +117,8 @@ class TimeQueriesApiTest {
 			.andExpect(jsonPath("$.tasks.length()").value(3))
 			.andExpect(jsonPath("$.tasks[0].taskId").value(inProject))
 			.andExpect(jsonPath("$.tasks[0].projectId").value(project))
+			.andExpect(jsonPath("$.tasks[0].title").value("a"))
+			.andExpect(jsonPath("$.tasks[1].title").isEmpty())
 			.andExpect(jsonPath("$.tasks[1].taskId").isEmpty())
 			.andExpect(jsonPath("$.tasks[1].minutes").value(45))
 			.andExpect(jsonPath("$.tasks[2].taskId").value(loose))

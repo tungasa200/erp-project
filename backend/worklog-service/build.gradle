@@ -11,6 +11,9 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 	implementation 'org.springframework.boot:spring-boot-starter-restclient'
 	implementation libs.springdoc.webmvc.api
+	// 일지 내보내기 (D-111): PDF는 OpenPDF(MPL-2.0 선택), Word·Excel은 Apache POI
+	implementation 'com.github.librepdf:openpdf:3.0.5'
+	implementation 'org.apache.poi:poi-ooxml:5.5.1'
 	runtimeOnly 'org.flywaydb:flyway-database-postgresql'
 	runtimeOnly 'org.postgresql:postgresql'
 

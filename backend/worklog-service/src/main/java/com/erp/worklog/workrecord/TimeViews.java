@@ -82,6 +82,8 @@ public final class TimeViews {
 	public record TaskMinutes(
 			@Schema(requiredMode = RequiredMode.REQUIRED, types = { "string", "null" }, format = "uuid",
 					description = "null = 업무 없는 기록") UUID taskId,
+			@Schema(requiredMode = RequiredMode.REQUIRED, types = { "string", "null" },
+					description = "업무의 지금 제목, 업무 없는 기록은 null") String title,
 			@Schema(requiredMode = RequiredMode.REQUIRED, types = { "string", "null" }, format = "uuid",
 					description = "업무의 지금 프로젝트") UUID projectId,
 			@Schema(requiredMode = RequiredMode.REQUIRED) int minutes) {
@@ -99,7 +101,7 @@ public final class TimeViews {
 		public static TimeSummaryView of(TimeQueries.Summary s) {
 			return new TimeSummaryView(s.from(), s.to(), s.totalMin(), s.recordCount(),
 					s.projects().stream().map(p -> new ProjectMinutes(p.id(), p.minutes())).toList(),
-					s.tasks().stream().map(t -> new TaskMinutes(t.id(), t.projectId(), t.minutes())).toList());
+					s.tasks().stream().map(t -> new TaskMinutes(t.id(), t.title(), t.projectId(), t.minutes())).toList());
 		}
 	}
 

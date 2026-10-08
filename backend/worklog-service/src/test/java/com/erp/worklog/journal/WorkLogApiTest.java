@@ -93,7 +93,7 @@ class WorkLogApiTest {
 			.andExpect(jsonPath("$.id").value(nullValue()))
 			.andExpect(jsonPath("$.status").value("NO_RECORDS"))
 			.andExpect(jsonPath("$.version").value(0))
-			.andExpect(jsonPath("$.content.title").value("업무일지(일간)"))
+			.andExpect(jsonPath("$.content.title").value("업무일지"))
 			.andExpect(jsonPath("$.content.author.name").value("홍길동"))
 			.andExpect(jsonPath("$.content.author.position").value(nullValue()))
 			.andExpect(jsonPath("$.content.achievementsAuto").value(true))

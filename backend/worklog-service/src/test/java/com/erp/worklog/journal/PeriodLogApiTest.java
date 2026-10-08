@@ -102,7 +102,7 @@ class PeriodLogApiTest {
 	void 주간은_확정_일간_스냅샷과_원본을_업무별로_묶는다() throws Exception {
 		send(get(WEEK), "").andExpect(status().isOk())
 			.andExpect(jsonPath("$.status").value("NOT_WRITTEN"))
-			.andExpect(jsonPath("$.content.title").value("업무일지(주간)"))
+			.andExpect(jsonPath("$.content.title").value("주간 업무일지"))
 			.andExpect(jsonPath("$.content.planTitle").value("다음 주 계획"))
 			.andExpect(jsonPath("$.content.planPeriod.start").value("2026-10-12"))
 			.andExpect(jsonPath("$.content.days", hasSize(7)))
@@ -149,7 +149,7 @@ class PeriodLogApiTest {
 	@Test
 	void 월간은_날마다_출처와_프로젝트별_실적을_준다() throws Exception {
 		send(get("/api/worklog/logs/monthly/2026-10-01"), "").andExpect(status().isOk())
-			.andExpect(jsonPath("$.content.title").value("업무일지(월간)"))
+			.andExpect(jsonPath("$.content.title").value("월간 업무일지"))
 			.andExpect(jsonPath("$.content.planTitle").value("다음 달 계획"))
 			.andExpect(jsonPath("$.content.planPeriod.start").value("2026-11-01"))
 			.andExpect(jsonPath("$.content.days", hasSize(31)))

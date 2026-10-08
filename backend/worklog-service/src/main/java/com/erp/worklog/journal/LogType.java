@@ -8,7 +8,7 @@ import java.util.Locale;
 /** 일지 종류와 기간. 일간은 그날, 주간은 주 시작 요일부터 7일, 월간은 그달. */
 enum LogType {
 
-	DAILY("업무일지(일간)"), WEEKLY("업무일지(주간)"), MONTHLY("업무일지(월간)");
+	DAILY("업무일지"), WEEKLY("주간 업무일지"), MONTHLY("월간 업무일지");
 
 	final String title;
 

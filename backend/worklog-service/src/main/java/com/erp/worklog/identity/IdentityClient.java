@@ -114,14 +114,31 @@ public class IdentityClient {
 				.body(DeletedUserPage.class));
 	}
 
+	/** identity GET /api/users/me의 이메일 인증 여부만 (AUTH-08 내보내기 확인). */
+	record EmailState(boolean emailVerified) {
+	}
+
 	/** 사본이 없을 때 사용자 토큰을 그대로 실어 공통 프로필을 조회한다 (P0-11 즉시 조회). */
 	public Profile me(String userToken) {
+		return me(userToken, Profile.class);
+	}
+
+	/** 사용자 토큰으로 이메일 인증 여부를 본다 (AUTH-08, 파일 내보내기 전). */
+	public boolean emailVerified(String userToken) {
+		return me(userToken, EmailState.class).emailVerified();
+	}
+
+	private <T> T me(String userToken, Class<T> type) {
 		try {
 			return rest.get().uri("/api/users/me")
 					.headers(h -> h.setBearerAuth(userToken))
 					.exchange((req, res) -> {
 						if (res.getStatusCode().is2xxSuccessful()) {
-							return res.bodyTo(Profile.class);
+							T body = res.bodyTo(type);
+							if (body == null) {
+								throw new IdentityUnavailableException("identity /api/users/me 빈 응답");
+							}
+							return body;
 						}
 						if (res.getStatusCode().value() == HttpStatus.UNAUTHORIZED.value()) {
 							ProblemDetail problem = res.bodyTo(ProblemDetail.class);

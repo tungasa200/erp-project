@@ -32,7 +32,7 @@ public class DeletedUserInterceptor implements HandlerInterceptor {
 		return true;
 	}
 
-	static ApiException userDeleted() {
+	public static ApiException userDeleted() {
 		return new ApiException(HttpStatus.UNAUTHORIZED, "USER_DELETED", "탈퇴한 사용자입니다.");
 	}
 }

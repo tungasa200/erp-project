@@ -106,7 +106,7 @@ final class LogViews {
 
 	@Schema(name = "LogContent", description = "일지 문서 내용. 확정 스냅샷과 내보내기 파일이 이 모양을 그대로 쓴다.")
 	record Content(
-			@Schema(requiredMode = RequiredMode.REQUIRED, description = "예 \"업무일지(일간)\"") String title,
+			@Schema(requiredMode = RequiredMode.REQUIRED, description = "업무일지 / 주간 업무일지 / 월간 업무일지") String title,
 			@Schema(requiredMode = RequiredMode.REQUIRED) Author author,
 			@Schema(requiredMode = RequiredMode.REQUIRED,
 					description = "true면 실적을 원본에서 만들고 있다(아직 직접 고치지 않음). 확정본은 false") boolean achievementsAuto,
