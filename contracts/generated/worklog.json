@@ -77,6 +77,340 @@
         "required" : [ "items" ],
         "type" : "object"
       },
+      "LogAchievement" : {
+        "description" : "실적 한 줄 (업무·결과·진행률, SCR-LOG-02 ②)",
+        "properties" : {
+          "dates" : {
+            "description" : "이 줄의 원본 기록이 있는 날(오름차순). 주간 서식 \"한 날\", 월간 서식 \"기록 일수\"(길이). 일간은 그날 하나. recordIds가 있으면 서버가 계산한다",
+            "items" : {
+              "format" : "date",
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "durationMin" : {
+            "description" : "서버가 recordIds로 계산해 넣는다(PATCH로 보낸 값은 무시). 옵션 꺼짐이면 null",
+            "format" : "int32",
+            "type" : [ "integer", "null" ]
+          },
+          "id" : {
+            "description" : "줄 식별자. 새 줄은 화면이 만든다(아무 UUID)",
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "outcome" : {
+            "enum" : [ "DONE", "REVIEW_REQUESTED", "IN_PROGRESS" ],
+            "type" : [ "string", "null" ]
+          },
+          "progress" : {
+            "format" : "int32",
+            "maximum" : 100,
+            "minimum" : 0,
+            "multipleOf" : 10.0,
+            "type" : [ "integer", "null" ]
+          },
+          "projectName" : {
+            "description" : "연결 업무의 프로젝트 이름(서식 실적 \"프로젝트\" 열). 서버가 taskId로 채우고 확정본은 그때 이름으로 고정",
+            "type" : [ "string", "null" ]
+          },
+          "recordIds" : {
+            "description" : "원본 기록 링크 (주간·월간은 묶인 기록 전부)",
+            "items" : {
+              "format" : "uuid",
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "result" : {
+            "maxLength" : 200,
+            "type" : [ "string", "null" ]
+          },
+          "source" : {
+            "description" : "RECORD 기록에서 / TASK 기록 없이 완료한 업무 / MANUAL 직접 쓴 줄",
+            "enum" : [ "RECORD", "TASK", "MANUAL" ],
+            "type" : "string"
+          },
+          "taskId" : {
+            "format" : "uuid",
+            "type" : [ "string", "null" ]
+          },
+          "text" : {
+            "maxLength" : 500,
+            "minLength" : 1,
+            "type" : "string"
+          }
+        },
+        "required" : [ "dates", "durationMin", "id", "outcome", "progress", "projectName", "recordIds", "result", "source", "taskId", "text" ],
+        "type" : "object"
+      },
+      "LogAuthor" : {
+        "description" : "초안은 지금 프로필, 확정본은 확정 때 프로필. 빈 값은 null(문서에 빈칸)",
+        "properties" : {
+          "name" : {
+            "type" : [ "string", "null" ]
+          },
+          "organization" : {
+            "type" : [ "string", "null" ]
+          },
+          "position" : {
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "name", "organization", "position" ],
+        "type" : "object"
+      },
+      "LogContent" : {
+        "description" : "일지 문서 내용. 확정 스냅샷과 내보내기 파일이 이 모양을 그대로 쓴다.",
+        "properties" : {
+          "achievements" : {
+            "items" : {
+              "$ref" : "#/components/schemas/LogAchievement"
+            },
+            "type" : "array"
+          },
+          "achievementsAuto" : {
+            "description" : "true면 실적을 원본에서 만들고 있다(아직 직접 고치지 않음). 확정본은 false",
+            "type" : "boolean"
+          },
+          "author" : {
+            "$ref" : "#/components/schemas/LogAuthor"
+          },
+          "days" : {
+            "description" : "WEEKLY·MONTHLY만 (DAILY는 빈 배열). 날마다 출처 — 미확정 일 표시 (LOG-07, LOG-16)",
+            "items" : {
+              "$ref" : "#/components/schemas/LogDay"
+            },
+            "type" : "array"
+          },
+          "issues" : {
+            "maxLength" : 2000,
+            "type" : [ "string", "null" ]
+          },
+          "metrics" : {
+            "$ref" : "#/components/schemas/LogMetrics"
+          },
+          "planPeriod" : {
+            "$ref" : "#/components/schemas/LogPlanPeriod"
+          },
+          "planTitle" : {
+            "description" : "다음 근무일 계획 / 다음 주 계획 / 다음 달 계획",
+            "type" : "string"
+          },
+          "plans" : {
+            "items" : {
+              "$ref" : "#/components/schemas/LogPlan"
+            },
+            "type" : "array"
+          },
+          "projects" : {
+            "description" : "WEEKLY·MONTHLY만. 프로젝트별 실적 (LOG-08)",
+            "items" : {
+              "$ref" : "#/components/schemas/LogProjectStat"
+            },
+            "type" : "array"
+          },
+          "time" : {
+            "oneOf" : [ {
+              "$ref" : "#/components/schemas/TimeSummary"
+            }, {
+              "type" : "null"
+            } ]
+          },
+          "title" : {
+            "description" : "예 \"업무일지(일간)\"",
+            "type" : "string"
+          }
+        },
+        "required" : [ "achievements", "achievementsAuto", "author", "days", "issues", "metrics", "planPeriod", "planTitle", "plans", "projects", "time", "title" ],
+        "type" : "object"
+      },
+      "LogDay" : {
+        "properties" : {
+          "date" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "holiday" : {
+            "type" : [ "string", "null" ]
+          },
+          "source" : {
+            "description" : "CONFIRMED_LOG 확정 일간 일지 / RECORDS 원본 기록(미확정 일) / NONE 원본 없음",
+            "enum" : [ "CONFIRMED_LOG", "RECORDS", "NONE" ],
+            "type" : "string"
+          },
+          "workday" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "date", "holiday", "source", "workday" ],
+        "type" : "object"
+      },
+      "LogMetrics" : {
+        "description" : "진행 현황 자동 수치 (LOG-15). 초안은 늘 원본으로 계산",
+        "properties" : {
+          "completedTaskCount" : {
+            "description" : "기간 안에 완료한 업무 수",
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "done" : {
+            "description" : "결과 칩 \"완료\" 기록 수",
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "inProgress" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "pendingCount" : {
+            "description" : "확인 대기 기록 수 (실적에서 뺀 개수)",
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "recordCount" : {
+            "description" : "확정 기록 수",
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "reviewRequested" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "totalMin" : {
+            "description" : "시간 기록 옵션 켜짐일 때 확정 소요시간 합, 꺼져 있으면 null",
+            "format" : "int32",
+            "type" : [ "integer", "null" ]
+          }
+        },
+        "required" : [ "completedTaskCount", "done", "inProgress", "pendingCount", "recordCount", "reviewRequested", "totalMin" ],
+        "type" : "object"
+      },
+      "LogPlan" : {
+        "description" : "계획 한 줄. dueDate·scheduledAt은 서버가 taskId로 채운다(PATCH로 보낸 값은 무시, 확정본은 그때 값으로 고정) — 서식 \"예정\" 칸",
+        "properties" : {
+          "dueDate" : {
+            "description" : "연결 업무의 마감일",
+            "format" : "date",
+            "type" : [ "string", "null" ]
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "scheduledAt" : {
+            "description" : "계획 기간(planPeriod) 안에서 연결 업무의 가장 이른 시간 일정 회차 시작(취소 제외). 없으면 null",
+            "format" : "date-time",
+            "type" : [ "string", "null" ]
+          },
+          "taskId" : {
+            "format" : "uuid",
+            "type" : [ "string", "null" ]
+          },
+          "text" : {
+            "maxLength" : 200,
+            "minLength" : 1,
+            "type" : "string"
+          }
+        },
+        "required" : [ "dueDate", "id", "scheduledAt", "taskId", "text" ],
+        "type" : "object"
+      },
+      "LogPlanPeriod" : {
+        "description" : "계획 기간 (일간이면 다음 근무일 하루, 다음 주면 그 주)",
+        "properties" : {
+          "end" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "start" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        },
+        "required" : [ "end", "start" ],
+        "type" : "object"
+      },
+      "LogProjectStat" : {
+        "properties" : {
+          "completedTaskCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "minutes" : {
+            "description" : "시간 기록 옵션 켜짐일 때만",
+            "format" : "int32",
+            "type" : [ "integer", "null" ]
+          },
+          "name" : {
+            "type" : [ "string", "null" ]
+          },
+          "projectId" : {
+            "description" : "프로젝트 없는 업무·업무 없는 기록은 null 한 줄",
+            "format" : "uuid",
+            "type" : [ "string", "null" ]
+          },
+          "recordCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "completedTaskCount", "minutes", "name", "projectId", "recordCount" ],
+        "type" : "object"
+      },
+      "LogRevision" : {
+        "properties" : {
+          "confirmedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "revisionNo" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "unconfirmedAt" : {
+            "description" : "이 확정본을 해제한 시각. 지금 확정 상태면 null",
+            "format" : "date-time",
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "confirmedAt", "revisionNo", "unconfirmedAt" ],
+        "type" : "object"
+      },
+      "LogRevisionDetail" : {
+        "properties" : {
+          "confirmedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "content" : {
+            "$ref" : "#/components/schemas/LogContent"
+          },
+          "revisionNo" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "unconfirmedAt" : {
+            "description" : "이 확정본을 해제한 시각. 지금 확정 상태면 null",
+            "format" : "date-time",
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "confirmedAt", "content", "revisionNo", "unconfirmedAt" ],
+        "type" : "object"
+      },
+      "LogRevisionList" : {
+        "properties" : {
+          "items" : {
+            "description" : "최근 것부터",
+            "items" : {
+              "$ref" : "#/components/schemas/LogRevision"
+            },
+            "type" : "array"
+          }
+        },
+        "required" : [ "items" ],
+        "type" : "object"
+      },
       "Occurrence" : {
         "description" : "캘린더에 그리는 일정 회차 하나. 반복이 없는 일정도 회차 하나로 준다.\noccurrenceStart는 회차 키(원래 시작 시각, 종일은 원래 날짜의 일정 시간대 0시)이며 회차를 옮겨도 바뀌지 않는다.",
         "properties" : {
@@ -366,6 +700,36 @@
           }
         },
         "required" : [ "endAt", "occurrenceStart", "scheduleId", "startAt", "taskId", "title" ],
+        "type" : "object"
+      },
+      "PlanCandidate" : {
+        "properties" : {
+          "dueDate" : {
+            "format" : "date",
+            "type" : [ "string", "null" ]
+          },
+          "progress" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "reason" : {
+            "description" : "OVERDUE 마감 지남 / DUE 계획 기간 안 마감 / IN_PROGRESS 진행 중",
+            "enum" : [ "OVERDUE", "DUE", "IN_PROGRESS" ],
+            "type" : "string"
+          },
+          "status" : {
+            "enum" : [ "TODO", "IN_PROGRESS", "DONE", "ON_HOLD" ],
+            "type" : "string"
+          },
+          "taskId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "title" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "dueDate", "progress", "reason", "status", "taskId", "title" ],
         "type" : "object"
       },
       "Problem" : {
@@ -1272,6 +1636,100 @@
         "required" : [ "capped", "discarded", "record" ],
         "type" : "object"
       },
+      "VersionOnly" : {
+        "properties" : {
+          "version" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "version" ],
+        "type" : "object"
+      },
+      "WorkLog" : {
+        "description" : "일지 (SCR-LOG-02). id=null이면 저장하지 않은 미리보기다.",
+        "properties" : {
+          "confirmedAt" : {
+            "format" : "date-time",
+            "type" : [ "string", "null" ]
+          },
+          "content" : {
+            "$ref" : "#/components/schemas/LogContent"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : [ "string", "null" ]
+          },
+          "periodEnd" : {
+            "description" : "양끝 포함",
+            "format" : "date",
+            "type" : "string"
+          },
+          "periodStart" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "planCandidates" : {
+            "description" : "계획 후보 칩 (LOG-03). 확정이면 빈 배열",
+            "items" : {
+              "$ref" : "#/components/schemas/PlanCandidate"
+            },
+            "type" : "array"
+          },
+          "sourceChangedAfterConfirm" : {
+            "description" : "확정 뒤 그 기간 원본(기록·업무)이 바뀌었으면 true — \"원본이 바뀌었어요(확정 일지는 그대로)\" 안내. 확정이 아니면 false",
+            "type" : "boolean"
+          },
+          "status" : {
+            "description" : "NO_RECORDS 기록 없음 / NOT_WRITTEN 미작성 / DRAFT 초안 / CONFIRMED 확정 (LOG-09)",
+            "enum" : [ "NO_RECORDS", "NOT_WRITTEN", "DRAFT", "CONFIRMED" ],
+            "type" : "string"
+          },
+          "type" : {
+            "enum" : [ "DAILY", "WEEKLY", "MONTHLY" ],
+            "type" : "string"
+          },
+          "version" : {
+            "description" : "미리보기는 0",
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "confirmedAt", "content", "id", "periodEnd", "periodStart", "planCandidates", "sourceChangedAfterConfirm", "status", "type", "version" ],
+        "type" : "object"
+      },
+      "WorkLogPatch" : {
+        "description" : "보낸 칸만 바꾼다. achievements를 보내면 실적이 자동 상태에서 벗어나 보낸 목록이 그대로 저장된다.\n서버가 채우는 칸(LogAchievement.projectName·durationMin, recordIds가 있을 때 dates, LogPlan.dueDate·scheduledAt)은 보낸 값을 무시한다.",
+        "properties" : {
+          "achievements" : {
+            "items" : {
+              "$ref" : "#/components/schemas/LogAchievement"
+            },
+            "maxItems" : 200,
+            "minItems" : 0,
+            "type" : "array"
+          },
+          "issues" : {
+            "maxLength" : 2000,
+            "minLength" : 0,
+            "type" : [ "string", "null" ]
+          },
+          "plans" : {
+            "items" : {
+              "$ref" : "#/components/schemas/LogPlan"
+            },
+            "maxItems" : 50,
+            "minItems" : 0,
+            "type" : "array"
+          },
+          "version" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "version" ],
+        "type" : "object"
+      },
       "WorkRecord" : {
         "description" : "업무 기록 (REC-01, 요구사항 6장 WorkRecord). \"무엇을 했고 결과가 어떤가\".\n계획에서 온 기록은 scheduleId·occurrenceStart를 가진다(SCR-REC-01 ⑥ 출처 표시). 일정을 지우면 scheduleId는 null이 되고\noccurrenceStart는 남는다(출처 표시는 occurrenceStart로 판단). 시간 칸(startAt·endAt·durationMin)은 모두 null일 수 있다.",
         "properties" : {
@@ -1589,6 +2047,521 @@
   },
   "openapi" : "3.1.0",
   "paths" : {
+    "/api/worklog/logs/{logId}" : {
+      "patch" : {
+        "description" : "보낸 칸만 바꾼다. achievements를 보내면 실적이 자동 상태에서 벗어나 보낸 목록이 그대로 저장된다\n(행 추가·삭제·순서 변경은 목록 전체를 보낸다, 원본 기록 끌어오기는 recordIds를 단 행을 넣어 보낸다).\nplans·issues도 같다. 바뀐 칸이 없으면 version을 올리지 않는다. 확정한 일지는 409(code=LOG_CONFIRMED).",
+        "operationId" : "patchLog",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "logId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/WorkLogPatch"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/WorkLog"
+                }
+              }
+            },
+            "description" : "고친 일지"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "입력 오류 (code=VALIDATION_FAILED)"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/Unauthorized"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "없거나 다른 사용자의 일지 (code=NOT_FOUND)"
+          },
+          "409" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "VERSION_CONFLICT 또는 LOG_CONFIRMED"
+          }
+        },
+        "security" : [ {
+          "accessTokenCookie" : [ ]
+        } ],
+        "summary" : "초안 고치기 — 자동 저장 (LOG-03·04, SCR-LOG-02)",
+        "tags" : [ "logs" ]
+      }
+    },
+    "/api/worklog/logs/{logId}/confirm" : {
+      "post" : {
+        "description" : "지금 보이는 내용 전체(머리의 작성자 이름·소속·직책 포함)를 스냅샷으로 저장하고 status=CONFIRMED, 변경 이력에 한 줄을 더한다.\n작성자 프로필이 비어 있어도 확정한다(빈칸). 이미 확정이면 409(LOG_CONFIRMED).",
+        "operationId" : "confirmLog",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "logId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/VersionOnly"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/WorkLog"
+                }
+              }
+            },
+            "description" : "확정한 일지"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/Unauthorized"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "없거나 다른 사용자의 일지 (code=NOT_FOUND)"
+          },
+          "409" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "VERSION_CONFLICT 또는 LOG_CONFIRMED"
+          },
+          "503" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "identity 조회 실패 (code=PROFILE_UNAVAILABLE)"
+          }
+        },
+        "security" : [ {
+          "accessTokenCookie" : [ ]
+        } ],
+        "summary" : "확정 — 스냅샷 저장 (LOG-05, P3-02)",
+        "tags" : [ "logs" ]
+      }
+    },
+    "/api/worklog/logs/{logId}/refill" : {
+      "post" : {
+        "description" : "실적을 자동 상태로 되돌린다(직접 고친 실적은 사라진다). 계획·이슈는 그대로 둔다.",
+        "operationId" : "refillLog",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "logId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/VersionOnly"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/WorkLog"
+                }
+              }
+            },
+            "description" : "다시 채운 일지"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/Unauthorized"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "없거나 다른 사용자의 일지 (code=NOT_FOUND)"
+          },
+          "409" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "VERSION_CONFLICT 또는 LOG_CONFIRMED"
+          }
+        },
+        "security" : [ {
+          "accessTokenCookie" : [ ]
+        } ],
+        "summary" : "원본에서 다시 채우기 (LOG-04 — 화면이 경고창을 먼저 띄운다)",
+        "tags" : [ "logs" ]
+      }
+    },
+    "/api/worklog/logs/{logId}/revisions" : {
+      "get" : {
+        "description" : "확정할 때마다 한 줄. 최근 것부터. 초안 편집(자동 저장)은 이력에 남기지 않는다.",
+        "operationId" : "listLogRevisions",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "logId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/LogRevisionList"
+                }
+              }
+            },
+            "description" : "이력"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/Unauthorized"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "없거나 다른 사용자의 일지 (code=NOT_FOUND)"
+          }
+        },
+        "security" : [ {
+          "accessTokenCookie" : [ ]
+        } ],
+        "summary" : "변경 이력 — 확정·해제 일시 (LOG-06, SCR-LOG-04 ②)",
+        "tags" : [ "logs" ]
+      }
+    },
+    "/api/worklog/logs/{logId}/revisions/{revisionNo}" : {
+      "get" : {
+        "operationId" : "getLogRevision",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "logId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "revisionNo",
+          "required" : true,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/LogRevisionDetail"
+                }
+              }
+            },
+            "description" : "그때의 확정본"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/Unauthorized"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "없거나 다른 사용자의 일지·이력 (code=NOT_FOUND)"
+          }
+        },
+        "security" : [ {
+          "accessTokenCookie" : [ ]
+        } ],
+        "summary" : "확정본 열람 (SCR-LOG-04 ②)",
+        "tags" : [ "logs" ]
+      }
+    },
+    "/api/worklog/logs/{logId}/unconfirm" : {
+      "post" : {
+        "description" : "status=DRAFT로 되돌리고 마지막 확정 이력에 해제 시각을 적는다. 내용은 확정본 그대로 초안이 된다(실적은 자동 상태가 아니다).\n원본으로 다시 만들려면 다시 채우기를 쓴다. 이미 초안이면 409(code=LOG_NOT_CONFIRMED).",
+        "operationId" : "unconfirmLog",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "logId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/VersionOnly"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/WorkLog"
+                }
+              }
+            },
+            "description" : "초안으로 돌린 일지"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/Unauthorized"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "없거나 다른 사용자의 일지 (code=NOT_FOUND)"
+          },
+          "409" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "VERSION_CONFLICT 또는 LOG_NOT_CONFIRMED"
+          }
+        },
+        "security" : [ {
+          "accessTokenCookie" : [ ]
+        } ],
+        "summary" : "확정 해제 (LOG-06, SCR-LOG-04 — 화면이 확인창을 먼저 띄운다)",
+        "tags" : [ "logs" ]
+      }
+    },
+    "/api/worklog/logs/{type}/{periodStart}" : {
+      "get" : {
+        "description" : "저장된 일지가 있으면 그 일지를, 없으면 원본으로 만든 미리보기(id=null, status=NOT_WRITTEN 또는 NO_RECORDS, version=0)를 준다.\n미리보기는 저장하지 않는다. 초안은 실적이 자동 상태면 읽을 때마다 원본으로 다시 만든다. 확정 일지는 스냅샷을 준다.\n일간 실적: 그날 확정 기록(보관·실행 중 타이머 제외)을 정렬 순서대로 한 줄씩(source=RECORD), 그날 완료한 업무 중\n그날 기록이 없는 업무는 업무 제목으로 한 줄(source=TASK, outcome=DONE). 확인 대기 기록은 metrics.pendingCount로만 센다.\n소요시간 표(time)는 시간 기록 옵션이 켜져 있을 때만. 계획은 비어서 시작하고 후보(planCandidates)를 준다.\n기간 시작일이 맞지 않으면 400(periodStart, INVALID_FORMAT).",
+        "operationId" : "getLog",
+        "parameters" : [ {
+          "description" : "경로에서는 소문자(daily·weekly·monthly) — 화면 경로 /logs/daily/:date와 맞춘다",
+          "in" : "path",
+          "name" : "type",
+          "required" : true,
+          "schema" : {
+            "enum" : [ "daily", "weekly", "monthly" ],
+            "type" : "string"
+          }
+        }, {
+          "description" : "기간 시작일. 주간은 주 시작 요일의 날, 월간은 1일 (화면 경로 /logs/monthly/:yyyy-mm은 화면이 1일로 바꾼다)",
+          "in" : "path",
+          "name" : "periodStart",
+          "required" : true,
+          "schema" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/WorkLog"
+                }
+              }
+            },
+            "description" : "일지 또는 미리보기"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "값 형식 오류 (code=VALIDATION_FAILED)"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/Unauthorized"
+          },
+          "503" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "identity 조회 실패 (code=PROFILE_UNAVAILABLE)"
+          }
+        },
+        "security" : [ {
+          "accessTokenCookie" : [ ]
+        } ],
+        "summary" : "일지 보기 — 없으면 저장하지 않은 미리보기 (P3-03·07 SCR-LOG-02, 홈 오늘 일지 카드 LOG-12)",
+        "tags" : [ "logs" ]
+      },
+      "post" : {
+        "description" : "그 기간의 초안을 만든다(실적 자동 상태, 계획·이슈 비움). 이미 있으면 만들지 않고 있는 일지를 200으로 준다(멱등).\n기간 시작일이 오늘(사용자 시간대)보다 뒤면 400(periodStart, OUT_OF_RANGE). 원본이 없어도 만들 수 있다.",
+        "operationId" : "createLog",
+        "parameters" : [ {
+          "description" : "경로에서는 소문자(daily·weekly·monthly) — 화면 경로 /logs/daily/:date와 맞춘다",
+          "in" : "path",
+          "name" : "type",
+          "required" : true,
+          "schema" : {
+            "enum" : [ "daily", "weekly", "monthly" ],
+            "type" : "string"
+          }
+        }, {
+          "description" : "기간 시작일. 주간은 주 시작 요일의 날, 월간은 1일 (화면 경로 /logs/monthly/:yyyy-mm은 화면이 1일로 바꾼다)",
+          "in" : "path",
+          "name" : "periodStart",
+          "required" : true,
+          "schema" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/WorkLog"
+                }
+              }
+            },
+            "description" : "이미 있던 일지"
+          },
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/WorkLog"
+                }
+              }
+            },
+            "description" : "만듦"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "값 형식 오류 (code=VALIDATION_FAILED)"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/Unauthorized"
+          },
+          "503" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "identity 조회 실패 (code=PROFILE_UNAVAILABLE)"
+          }
+        },
+        "security" : [ {
+          "accessTokenCookie" : [ ]
+        } ],
+        "summary" : "초안 만들기 (SCR-LOG-01 미작성 날짜, LOG-16 주간·월간 제안 수락)",
+        "tags" : [ "logs" ]
+      }
+    },
     "/api/worklog/me" : {
       "get" : {
         "operationId" : "getMe",

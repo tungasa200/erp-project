@@ -1,4 +1,4 @@
--- 확정 (2026-10-08, 사용자 카드 20261008-1130·1131 추천안). 구현 때 worklog-service db/migration/V8__work_log.sql로 옮긴다.
+-- P3 업무일지 (2026-10-08 확정, 사용자 카드 20261008-1130·1131). 계약 contracts/worklog.yaml logs.
 -- P3-02 업무일지 (LOG-05·06, contracts/worklog.yaml logs). 요구사항정의서 6장 WorkLog.
 -- id는 애플리케이션이 만드는 UUIDv7. 탈퇴 파기(D-45)는 owner_id로 work_log를 지우고 이력은 CASCADE로 함께 지운다.
 
