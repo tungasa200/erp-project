@@ -1,7 +1,7 @@
 // SCR-LOG-02 일지 상세·편집 (P3-06, LOG-01~06·15, D-107). /logs/daily/:date · /logs/weekly/:date · /logs/monthly/:yyyy-mm
 // ① 상단 바: 이전·다음 기간, 상태 배지, 실적 자동/고정 알약(초안만, 종이 밖), 다시 채우기(고정 초안만), 확정·확정 해제, 변경 이력
 // ② 문서(LogPaper) ④ 데스크톱 오른쪽: 이 기간 원본 기록 — "실적에 넣기"(끌기 대신 버튼, 키보드로도 같은 일)
-// 내보내기(SCR-LOG-05, P3-10)는 아직 없다. 고칠 수 있는 일지에 처음 들어오면 프로필 빈 칸을 묻는다(SCR-ONB-01).
+// 내보내기(SCR-LOG-05, P3-10)는 고친 내용을 먼저 저장하고 연다. 고칠 수 있는 일지에 처음 들어오면 프로필 빈 칸을 묻는다(SCR-ONB-01).
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
 import { Link, useParams } from 'react-router'
@@ -14,6 +14,7 @@ import { useProjects } from '../projects/api'
 import { addDays, todayIn } from '../quickInput/dates'
 import type { WorkRecord } from '../records/api'
 import { ConfirmDialog, RevisionsDialog } from './LogDialogs'
+import { ExportDialog } from './ExportDialog'
 import { LogPaper, type PaperEditor } from './LogPaper'
 import { logApi, logHref, refreshLogs, storeLog, useLog, type LogAchievement, type LogType, type WorkLog } from './api'
 import { parseLogPath, periodText, STATUS_LABEL } from './format'
@@ -57,7 +58,7 @@ function LogView({ type, start }: { type: LogType; start: string }) {
   const log = query.data
   const projects = useProjects()
   const [announce, setAnnounce] = useState('')
-  const [dialog, setDialog] = useState<'refill' | 'unconfirm' | 'revisions' | null>(null)
+  const [dialog, setDialog] = useState<'refill' | 'unconfirm' | 'revisions' | 'export' | null>(null)
   const [busy, setBusy] = useState(false)
   const headingRef = useRef<HTMLHeadingElement>(null)
 
@@ -165,6 +166,18 @@ function LogView({ type, start }: { type: LogType; start: string }) {
                 원본에서 다시 채우기
               </button>
             )}
+            <button
+              type="button"
+              className={styles.secondary}
+              aria-haspopup="dialog"
+              onClick={() => {
+                // 파일은 서버에 저장된 내용으로 만들므로 남은 수정을 먼저 보낸다(실패는 편집기가 알림)
+                void editor.flush().catch(() => {})
+                setDialog('export')
+              }}
+            >
+              내보내기
+            </button>
             {log.id && (
               <button type="button" className={styles.secondary} onClick={() => setDialog('revisions')}>
                 변경 이력
@@ -277,6 +290,9 @@ function LogView({ type, start }: { type: LogType; start: string }) {
       )}
       {dialog === 'revisions' && log?.id && (
         <RevisionsDialog log={log} timeZone={timeZone} onClose={() => setDialog(null)} />
+      )}
+      {dialog === 'export' && log && view && (
+        <ExportDialog log={{ ...log, content: view }} timeZone={timeZone} onClose={() => setDialog(null)} />
       )}
       {askProfile && user && (
         <ProfilePrompt user={user} logKey={`${type}-${start}`} today={today} onDone={() => setAskProfile(false)} />

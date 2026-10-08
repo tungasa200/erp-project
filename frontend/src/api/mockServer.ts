@@ -304,6 +304,30 @@ export const mockFetch: typeof fetch = async (input, init) => {
     return json(200, {})
   }
 
+  // 내보내기(P3-10): 인증 전이면 403, 아니면 이름만 맞춘 글자 파일(실제 서식은 서버 몫)
+  const [bare, query] = path.split('?')
+  const exportLog = /^\/api\/worklog\/logs\/(daily|weekly|monthly)\/(\d{4}-\d{2}-\d{2})\/export$/.exec(bare)
+  if (method === 'GET' && (exportLog || bare === '/api/worklog/records/export')) {
+    const session = state.session
+    const account = session && state.accounts[session.email]
+    if (!session || !account || session.accessExpiresAt < Date.now()) return problem(401, 'UNAUTHENTICATED')
+    const current = me(session.email, account.id, account.profile)
+    if (!current.emailVerified) return problem(403, 'EMAIL_NOT_VERIFIED')
+    const q = new URLSearchParams(query ?? '')
+    const suffix = current.name ? `_${current.name.replace(/[/\\:*?"<>|]/g, '_')}` : ''
+    const ext = exportLog ? (q.get('format') ?? 'PDF').toLowerCase() : 'xlsx'
+    const name = exportLog
+      ? `업무일지_${exportLog[2]}${suffix}.${ext}`
+      : `업무기록_${q.get('from')}_${q.get('to')}${suffix}.xlsx`
+    return new Response(new Blob([`mock ${name}`]), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/octet-stream',
+        'Content-Disposition': `attachment; filename="export.${ext}"; filename*=UTF-8''${encodeURIComponent(name)}`,
+      },
+    })
+  }
+
   if (path.startsWith('/api/worklog/')) {
     if (!state.session || state.session.accessExpiresAt < Date.now()) return problem(401, 'UNAUTHENTICATED')
     const respond = {

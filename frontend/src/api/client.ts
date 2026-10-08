@@ -18,6 +18,27 @@ export interface RequestOptions {
   keepalive?: boolean
 }
 
+/** 내려받은 파일. name은 Content-Disposition의 파일명(없으면 null) */
+export interface Download {
+  blob: Blob
+  name: string | null
+}
+
+// RFC 6266: filename*=UTF-8''(퍼센트 인코딩)을 먼저, 없으면 filename="…"
+export function fileNameOf(disposition: string | null): string | null {
+  if (!disposition) return null
+  const star = /filename\*\s*=\s*UTF-8''([^;]+)/i.exec(disposition)
+  if (star) {
+    try {
+      return decodeURIComponent(star[1].trim())
+    } catch {
+      // 잘못된 인코딩이면 ASCII 이름으로
+    }
+  }
+  const plain = /filename\s*=\s*"?([^";]+)"?/i.exec(disposition)
+  return plain ? plain[1].trim() : null
+}
+
 const REFRESH_PATH = '/api/auth/refresh'
 
 // Retry-After는 남은 초(contracts/gateway.yaml). 형식이 다르면 시각을 모르는 것으로 본다.
@@ -50,8 +71,8 @@ export function createApiClient({ fetchFn, onSessionExpired, onMaintenance = () 
     return refreshing
   }
 
-  async function send(path: string, options: RequestOptions): Promise<Response> {
-    const headers: Record<string, string> = { Accept: 'application/json, application/problem+json' }
+  async function send(path: string, options: RequestOptions, accept: string): Promise<Response> {
+    const headers: Record<string, string> = { Accept: accept }
     let body: string | undefined
     if (options.body !== undefined) {
       headers['Content-Type'] = 'application/json'
@@ -72,9 +93,10 @@ export function createApiClient({ fetchFn, onSessionExpired, onMaintenance = () 
     }
   }
 
-  async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  // 401이면 갱신 후 한 번 재시도하고, 실패 응답은 ApiError로 던진다
+  async function fetchOk(path: string, options: RequestOptions, accept: string): Promise<Response> {
     const seenRefreshCount = refreshCount
-    let res = await send(path, options)
+    let res = await send(path, options, accept)
 
     // /api/auth/** 의 401은 로그인 실패·refresh 실패이므로 갱신하지 않는다.
     if (res.status === 401 && !path.startsWith('/api/auth/')) {
@@ -89,7 +111,7 @@ export function createApiClient({ fetchFn, onSessionExpired, onMaintenance = () 
         onSessionExpired(failure)
         throw error
       }
-      res = await send(path, options)
+      res = await send(path, options, accept)
       if (res.status === 401) {
         const retryError = await toApiError(res)
         onSessionExpired(retryError.code)
@@ -103,11 +125,22 @@ export function createApiClient({ fetchFn, onSessionExpired, onMaintenance = () 
       if (res.status === 503 && error.code === 'MAINTENANCE') onMaintenance(retryAt(res))
       throw error
     }
+    return res
+  }
+
+  async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+    const res = await fetchOk(path, options, 'application/json, application/problem+json')
     if (res.status === 204 || res.headers.get('Content-Length') === '0') return undefined as T
     return (await res.json()) as T
   }
 
-  return { request }
+  /** 파일 내려받기(일지 내보내기 P3-10). 오류 처리는 request와 같다 */
+  async function download(path: string, options: RequestOptions = {}): Promise<Download> {
+    const res = await fetchOk(path, options, '*/*')
+    return { blob: await res.blob(), name: fileNameOf(res.headers.get('Content-Disposition')) }
+  }
+
+  return { request, download }
 }
 
 export type ApiClient = ReturnType<typeof createApiClient>

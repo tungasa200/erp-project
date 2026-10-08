@@ -1,5 +1,5 @@
 // 업무일지 API (P3, contracts/worklog.yaml logs — D-107·D-108).
-// 타입은 생성 타입(springdoc 스냅샷). 내보내기(P3-10)는 아직 없다.
+// 타입은 생성 타입(springdoc 스냅샷). 내보내기(P3-10)는 파일로 받는다(api.download).
 // 쿼리 키는 모두 ['logs', …]로 시작한다. 기록·업무가 바뀌면 일지 미리보기도 바뀌므로 함께 무효화한다.
 import { useQuery, type QueryClient } from '@tanstack/react-query'
 import { api } from '../api'
@@ -24,6 +24,7 @@ export type LogSuggestion = Schemas['LogSuggestion']
 export type DailyClosePlan = Schemas['DailyClosePlan']
 export type DailyCloseRequest = Schemas['DailyCloseRequest']
 export type DailyCloseResult = Schemas['DailyCloseResult']
+export type ExportFormat = 'PDF' | 'DOCX' | 'XLSX'
 
 /** 화면 경로의 소문자 종류 (/logs/daily/:date) */
 export const LOG_PATH: Record<LogType, string> = { DAILY: 'daily', WEEKLY: 'weekly', MONTHLY: 'monthly' }
@@ -65,6 +66,11 @@ export const logApi = {
   closePlan: (date: string) => api.request<DailyClosePlan>(`${base}/daily/${date}/close`),
   close: (date: string, body: DailyCloseRequest) =>
     api.request<DailyCloseResult>(`${base}/daily/${date}/close`, { method: 'POST', body }),
+  /** 일지 파일 (SCR-LOG-05, EXP-02~04). 이메일 인증 전이면 403 EMAIL_NOT_VERIFIED */
+  exportLog: (type: LogType, periodStart: string, format: ExportFormat) =>
+    api.download(`${base}/${LOG_PATH[type]}/${periodStart}/export?format=${format}`),
+  /** 기간 업무 기록 Excel (SCR-LOG-05 ②, EXP-03) */
+  exportRecords: (from: string, to: string) => api.download(`/api/worklog/records/export?from=${from}&to=${to}`),
 }
 
 export function useLog(type: LogType, periodStart: string, options: { enabled?: boolean } = {}) {

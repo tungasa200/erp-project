@@ -1,11 +1,11 @@
 // SCR-LOG-02 ② 문서 영역: 내보낼 파일과 같은 모습(docs/업무일지_서식명세.md, 화면 px = pt × 1.35).
 // 테마 색을 쓰지 않는다. 초안을 고칠 수 있을 때만(editor) 칸이 입력으로 바뀌고 줄 버튼·계획 후보 칩이 붙는다.
 import { useId, useRef, type ReactNode } from 'react'
-import { toZoned, formatMinutes } from '../calendar/time'
 import { WEEKDAY_NAMES, isoWeekday, todayIn } from '../quickInput/dates'
 import type { LogAchievement, LogContent, LogPlan, LogType, PlanCandidate } from './api'
 import { durationLabel, progressLabel } from './api'
 import { periodText, stamp } from './format'
+import { SECTION, md, mdw, metricsLine, planWhen } from './logText'
 import styles from './paper.module.css'
 
 export interface PaperEditor {
@@ -28,10 +28,6 @@ interface Props {
   /** 프로젝트 이름(소요시간 표) */
   projectName?: (id: string | null) => string | null
 }
-
-const SECTION: Record<LogType, string> = { DAILY: '금일 실적', WEEKLY: '이번 주 실적', MONTHLY: '이번 달 실적' }
-const md = (date: string) => `${Number(date.slice(5, 7))}/${Number(date.slice(8))}`
-const mdw = (date: string) => `${md(date)} (${WEEKDAY_NAMES[isoWeekday(date) - 1]})`
 
 const newId = () => crypto.randomUUID()
 
@@ -136,28 +132,6 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
       {children}
     </section>
   )
-}
-
-function metricsLine(type: LogType, c: LogContent): string {
-  const m = c.metrics
-  // 서식명세 2.5: 월간만 "완료 업무·기록", 일간·주간은 결과별 건수
-  if (type === 'MONTHLY') {
-    const parts = [
-      m.completedTaskCount && `완료 업무 ${m.completedTaskCount}건`,
-      m.recordCount && `기록 ${m.recordCount}건`,
-    ]
-    return parts.filter(Boolean).join(' · ') || '없음'
-  }
-  const parts = [
-    m.done && `완료 ${m.done}건`,
-    m.inProgress && `진행 중 ${m.inProgress}건`,
-    m.reviewRequested && `검토 요청 ${m.reviewRequested}건`,
-  ].filter(Boolean)
-  if (parts.length === 0) return '없음'
-  const going = c.achievements.filter((a) => a.outcome === 'IN_PROGRESS')
-  const names = going.slice(0, 3).map((a) => `${a.text} ${a.progress != null ? `${a.progress}%` : '진행 중'}`)
-  const extra = going.length > 3 ? ` 외 ${going.length - 3}건` : ''
-  return `${parts.join(' · ')}${names.length > 0 ? ` (${names.join(', ')}${extra})` : ''}`
 }
 
 // 서식명세 2.3: 구분 제목은 보이지 않고(표 이름으로만), 오늘 이후 날의 '기록 없음'은 빈칸
@@ -393,13 +367,7 @@ const REASON: Record<PlanCandidate['reason'], (c: PlanCandidate) => string> = {
 
 function Plans({ plans, editor, timeZone }: { plans: LogPlan[]; editor?: PaperEditor; timeZone: string }) {
   const listRef = useRef<HTMLDivElement>(null)
-  const when = (p: LogPlan) => {
-    if (p.scheduledAt) {
-      const z = toZoned(p.scheduledAt, timeZone)
-      return `${mdw(z.date)} ${formatMinutes(z.minutes)}`
-    }
-    return p.dueDate ? `마감 ${mdw(p.dueDate)}` : ''
-  }
+  const when = (p: LogPlan) => planWhen(p, timeZone)
   const taken = new Set(plans.map((p) => p.taskId).filter(Boolean))
   const chips = editor?.candidates.filter((c) => !taken.has(c.taskId)) ?? []
   const focusAfter = (selector: string, index: number) =>

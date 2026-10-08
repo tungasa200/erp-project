@@ -1,6 +1,6 @@
 // SCR-HOME-01 ⑤ 오늘 일지 미리보기 · ⑦ 이번 주 일지 현황 (P3-04, LOG-01·16).
-// ⑤ 채움 정도(실적·계획·이슈), [일지 보기]·[하루 마감]. 확정하면 "확정됨"과 확정 시각.
-// ⑦ 이번 주 날마다 확정/작성 중/미작성/기록 없음/예정/휴일, 날을 누르면 그날 일지. 내보내기(P3-10)는 아직 없다.
+// ⑤ 채움 정도(실적·계획·이슈), [일지 보기]·[하루 마감]. 확정하면 "확정됨"과 확정 시각, [하루 마감] 자리에 [내보내기].
+// ⑦ 이번 주 날마다 확정/작성 중/미작성/기록 없음/예정/휴일, 날을 누르면 그날 일지.
 import { useState } from 'react'
 import { Link } from 'react-router'
 import { addDays, isoWeekday, WEEKDAY_NAMES } from '../quickInput/dates'
@@ -8,12 +8,14 @@ import { Skeleton } from '../components/Skeleton'
 import home from '../home/home.module.css'
 import { logHref, useLog, useLogPeriods, type LogPeriod } from './api'
 import { DayClose } from './DayClose'
+import { ExportDialog } from './ExportDialog'
 import { stamp } from './format'
 import styles from './logs.module.css'
 
 export function TodayLogCard({ today, timeZone }: { today: string; timeZone: string }) {
   const log = useLog('DAILY', today)
   const [closing, setClosing] = useState(false)
+  const [exporting, setExporting] = useState(false)
   const data = log.data
   const c = data?.content
   const parts = c ? [c.achievements.length > 0, c.plans.length > 0, !!c.issues?.trim()] : []
@@ -61,7 +63,16 @@ export function TodayLogCard({ today, timeZone }: { today: string; timeZone: str
             <Link to={logHref('DAILY', today)} className={styles.secondaryLink}>
               일지 보기
             </Link>
-            {!confirmed && (
+            {confirmed ? (
+              <button
+                type="button"
+                className={styles.primary}
+                aria-haspopup="dialog"
+                onClick={() => setExporting(true)}
+              >
+                내보내기
+              </button>
+            ) : (
               <button type="button" className={styles.primary} aria-haspopup="dialog" onClick={() => setClosing(true)}>
                 하루 마감
               </button>
@@ -69,6 +80,7 @@ export function TodayLogCard({ today, timeZone }: { today: string; timeZone: str
           </div>
         </>
       )}
+      {exporting && data && <ExportDialog log={data} timeZone={timeZone} onClose={() => setExporting(false)} />}
       {closing && <DayClose date={today} today={today} timeZone={timeZone} onClose={() => setClosing(false)} />}
     </section>
   )
