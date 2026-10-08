@@ -66,20 +66,20 @@ MSA ERP 프로젝트. 이 파일은 git으로 공유되는 작업 규칙이다. 
 
 `WY-search`는 사용자에게 직접 답한다. 사용자가 요청하지 않으면 원래 세션에 결과를 돌려보내지 않는다. 프로젝트 파일은 읽기만 한다.
 
-## 세션 교대
+## 세션 교체(rotate)
 
-대화가 길어지면 앞 내용을 흐리게 기억하고 판단이 무뎌진다(컨텍스트 로트). 역할 세션은 `/clear`로 비우지 않고 새 세션으로 교대한다. 기억은 대화가 아니라 파일에 둔다.
+대화가 길어지면 앞 내용을 흐리게 기억하고 판단이 무뎌진다(컨텍스트 로트). 역할 세션은 `/clear`로 비우지 않고 새 세션으로 교체한다. 기억은 대화가 아니라 파일에 둔다.
 
 - **역할**은 `.claude/agents/<역할>.md`에 있다(담당 범위·작업 방식·함정). 새 세션은 `--agent <역할>`로 띄워 이 파일을 싣고 시작한다. 이 파일은 생성물이다: 역할 문구는 `.claude/ops/roles/<역할>.md`(역할별)나 `.claude/ops/agent.md`(공통)를 고치고 `node tools/wy-ops/gen-agents.js`로 만든다. pm-ops 스킬도 같다: `.claude/ops/pm-ops.project.md`(이 프로젝트 부록)나 `tools/wy-ops/templates/pm-ops/SKILL.md`(공통)를 고치고 `node tools/wy-ops/gen-skill.js`로 만든다. 세션 스크립트 `.claude/skills/pm-ops/scripts/session.ps1`도 생성물이다: `tools/wy-ops/templates/pm-ops/scripts/session.ps1`을 고치고 같은 명령으로 만든다. 생성물을 직접 고치지 않는다.
 - **진행 상황**은 `docs/진행현황.md`("역할별 다음 할 일"과 WBS 표), **결정**은 `docs/결정기록.md`에 둔다. 다른 PC로 이어갈 내용은 이 문서와 커밋으로 넘긴다.
-- **하던 일의 중간 상태**(미커밋 파일, 반쯤 한 작업, 막힌 이유)만 `/ecc:save-session`으로 짧게 남긴다. short-id는 역할 이름(같은 날 두 번째면 `-2`). 작업 하나를 끝낸 시점에 교대하면 인수인계 파일 없이 역할 파일과 진행현황만으로 시작한다. 인수인계 파일은 이 PC에만 남는다.
+- **하던 일의 중간 상태**(미커밋 파일, 반쯤 한 작업, 막힌 이유)만 `/ecc:save-session`으로 짧게 남긴다. short-id는 역할 이름(같은 날 두 번째면 `-2`). 작업 하나를 끝낸 시점에 세션을 교체하면 인수인계 파일 없이 역할 파일과 진행현황만으로 시작한다. 인수인계 파일은 이 PC에만 남는다.
 
-역할 세션 교대는 `WY-pm`이 한다(사용자 손 없음):
-1. `session.ps1 health`로 대화 크기를 보고(`.claude/wy-ops.json`의 `rotation.transcriptMB` 이상이면 교대 권장, 2026-10-07부터 2MB), 작업 경계나 단계 끝에 교대한다.
+역할 세션 교체는 `WY-pm`이 한다(사용자 손 없음):
+1. `session.ps1 health`로 컨텍스트 크기를 보고(`.claude/wy-ops.json`의 `rotation.transcriptMB` 이상이면 세션 교체 권장, 2026-10-07부터 2MB), 작업 경계나 단계 끝에 교체한다.
 2. `session.ps1 prep <역할>` → 세션이 진행 중인 것만 저장하고 경로(또는 "진행 중 없음")를 알린다.
 3. `session.ps1 rotate <역할> <경로|none>` → 이전 세션을 멈추고 새 세션을 띄운다. 새 세션이 시작을 알리면 `WY-pm`이 "멈춰 있는 동안 끝난 일"을 보낸다.
 
-`WY-pm` 교대: `WY-pm`이 `/ecc:save-session`(short-id `WY-pm`)으로 저장하고 `session.ps1 pm-cmd`가 출력한 명령 한 줄을 사용자에게 준다. 사용자는 새 터미널이나 Claude 패널에서 그 줄을 실행하고 이전 pm 창을 닫는다.
+`WY-pm` 세션 교체: `WY-pm`이 `/ecc:save-session`(short-id `WY-pm`)으로 저장하고 `session.ps1 pm-cmd`가 출력한 명령 한 줄을 사용자에게 준다. 사용자는 새 터미널이나 Claude 패널에서 그 줄을 실행하고 이전 pm 창을 닫는다.
 
 ## 문서
 
