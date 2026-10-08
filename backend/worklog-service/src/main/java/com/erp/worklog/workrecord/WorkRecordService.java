@@ -40,7 +40,7 @@ import java.util.function.Supplier;
 
 /** 업무 기록 (P2-01, REC-01·02)과 확인 대기 생성·모두 했어요 (P2-03, REC-03). 요청 하나가 한 트랜잭션이다. */
 @Service
-class WorkRecordService {
+public class WorkRecordService {
 
 	static final int MAX_RANGE_DAYS = 400;
 	/** 홈 확인 대기 범위: 오늘을 포함한 최근 7일 (D-39). */
@@ -135,6 +135,12 @@ class WorkRecordService {
 			}
 		}
 		return result;
+	}
+
+	/** 확인 대기 목록의 개수 (하루 마감 1단계를 건너뛸지, P3-05). 목록과 같이 확인 대기를 먼저 만든다. */
+	@Transactional
+	public int pendingCount(UUID ownerId, Supplier<String> timezone) {
+		return pending(ownerId, timezone).size();
 	}
 
 	/**

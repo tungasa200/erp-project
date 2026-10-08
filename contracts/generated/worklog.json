@@ -13,6 +13,39 @@
       }
     },
     "schemas" : {
+      "CarryOverCandidate" : {
+        "properties" : {
+          "dueDate" : {
+            "format" : "date",
+            "type" : [ "string", "null" ]
+          },
+          "progress" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "projectId" : {
+            "format" : "uuid",
+            "type" : [ "string", "null" ]
+          },
+          "selected" : {
+            "description" : "기본 선택 (LOG-14 — 늘 true)",
+            "type" : "boolean"
+          },
+          "status" : {
+            "enum" : [ "TODO", "IN_PROGRESS", "DONE", "ON_HOLD" ],
+            "type" : "string"
+          },
+          "taskId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "title" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "dueDate", "progress", "projectId", "selected", "status", "taskId", "title" ],
+        "type" : "object"
+      },
       "ConfirmPendingRequest" : {
         "properties" : {
           "ids" : {
@@ -28,6 +61,87 @@
           }
         },
         "required" : [ "ids" ],
+        "type" : "object"
+      },
+      "DailyClosePlan" : {
+        "properties" : {
+          "carryOverCandidates" : {
+            "items" : {
+              "$ref" : "#/components/schemas/CarryOverCandidate"
+            },
+            "type" : "array"
+          },
+          "date" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "log" : {
+            "$ref" : "#/components/schemas/LogPeriod"
+          },
+          "nextWorkday" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "pendingCount" : {
+            "description" : "최근 7일 확인 대기 수 (GET /records/pending과 같은 범위)",
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "planScope" : {
+            "enum" : [ "NEXT_WORKDAY", "NEXT_WEEK" ],
+            "type" : "string"
+          },
+          "suggestions" : {
+            "items" : {
+              "$ref" : "#/components/schemas/LogSuggestion"
+            },
+            "type" : "array"
+          }
+        },
+        "required" : [ "carryOverCandidates", "date", "log", "nextWorkday", "pendingCount", "planScope", "suggestions" ],
+        "type" : "object"
+      },
+      "DailyCloseRequest" : {
+        "properties" : {
+          "carryOverTaskIds" : {
+            "description" : "계획으로 넘길 업무 (빈 배열 가능). 내 것이 아니거나 보관한 업무는 400(NOT_FOUND)",
+            "items" : {
+              "format" : "uuid",
+              "type" : "string"
+            },
+            "maxItems" : 50,
+            "minItems" : 0,
+            "type" : "array"
+          },
+          "issue" : {
+            "description" : "이슈 한 줄 (비워 둘 수 있음)",
+            "maxLength" : 500,
+            "minLength" : 0,
+            "type" : [ "string", "null" ]
+          },
+          "version" : {
+            "description" : "그날 일간 일지의 version, 없으면 0",
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "carryOverTaskIds", "version" ],
+        "type" : "object"
+      },
+      "DailyCloseResult" : {
+        "properties" : {
+          "log" : {
+            "$ref" : "#/components/schemas/WorkLog"
+          },
+          "suggestions" : {
+            "description" : "주간 → 월간 순 (LOG-16). 해당 없으면 빈 배열",
+            "items" : {
+              "$ref" : "#/components/schemas/LogSuggestion"
+            },
+            "type" : "array"
+          }
+        },
+        "required" : [ "log", "suggestions" ],
         "type" : "object"
       },
       "FrequentTask" : {
@@ -285,6 +399,80 @@
         "required" : [ "completedTaskCount", "done", "inProgress", "pendingCount", "recordCount", "reviewRequested", "totalMin" ],
         "type" : "object"
       },
+      "LogPeriod" : {
+        "description" : "일지 목록 한 줄 (SCR-LOG-01, SCR-HOME-01 ⑦)",
+        "properties" : {
+          "days" : {
+            "$ref" : "#/components/schemas/LogPeriodDays",
+            "description" : "WEEKLY·MONTHLY만"
+          },
+          "holiday" : {
+            "description" : "DAILY만. 공휴일 이름 (D-74), 아니면 null",
+            "type" : [ "string", "null" ]
+          },
+          "logId" : {
+            "format" : "uuid",
+            "type" : [ "string", "null" ]
+          },
+          "periodEnd" : {
+            "description" : "양끝 포함",
+            "format" : "date",
+            "type" : "string"
+          },
+          "periodStart" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "status" : {
+            "enum" : [ "NO_RECORDS", "NOT_WRITTEN", "DRAFT", "CONFIRMED" ],
+            "type" : "string"
+          },
+          "type" : {
+            "enum" : [ "DAILY", "WEEKLY", "MONTHLY" ],
+            "type" : "string"
+          },
+          "workday" : {
+            "description" : "DAILY만. 근무일인지 (D-37). 휴일 = false",
+            "type" : [ "boolean", "null" ]
+          }
+        },
+        "required" : [ "logId", "periodEnd", "periodStart", "status", "type" ],
+        "type" : "object"
+      },
+      "LogPeriodDays" : {
+        "description" : "WEEKLY·MONTHLY만. \"확정 4/5일\" 표시용 (SCR-LOG-01 ③)",
+        "properties" : {
+          "confirmed" : {
+            "description" : "기간 안 일간 일지가 확정인 날 수 (비근무일 확정 포함)",
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "workdays" : {
+            "description" : "기간 안 근무일 수",
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "confirmed", "workdays" ],
+        "type" : "object"
+      },
+      "LogPeriodList" : {
+        "properties" : {
+          "items" : {
+            "items" : {
+              "$ref" : "#/components/schemas/LogPeriod"
+            },
+            "type" : "array"
+          },
+          "unconfirmedDays" : {
+            "description" : "[from, min(to, 오늘)] 중 원본이 있는데 일간 일지가 확정이 아닌 날 수 (SCR-LOG-01 ⑤)",
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "items", "unconfirmedDays" ],
+        "type" : "object"
+      },
       "LogPlan" : {
         "description" : "계획 한 줄. dueDate·scheduledAt은 서버가 taskId로 채운다(PATCH로 보낸 값은 무시, 확정본은 그때 값으로 고정) — 서식 \"예정\" 칸",
         "properties" : {
@@ -409,6 +597,36 @@
           }
         },
         "required" : [ "items" ],
+        "type" : "object"
+      },
+      "LogSuggestion" : {
+        "properties" : {
+          "logStatus" : {
+            "enum" : [ "NO_RECORDS", "NOT_WRITTEN", "DRAFT", "CONFIRMED" ],
+            "type" : "string"
+          },
+          "periodEnd" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "periodStart" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "type" : {
+            "enum" : [ "WEEKLY", "MONTHLY" ],
+            "type" : "string"
+          },
+          "unconfirmedDates" : {
+            "description" : "기간 안 근무일 중 일간 일지가 확정이 아닌 날 (LOG-16)",
+            "items" : {
+              "format" : "date",
+              "type" : "string"
+            },
+            "type" : "array"
+          }
+        },
+        "required" : [ "logStatus", "periodEnd", "periodStart", "type", "unconfirmedDates" ],
         "type" : "object"
       },
       "Occurrence" : {
@@ -2047,6 +2265,205 @@
   },
   "openapi" : "3.1.0",
   "paths" : {
+    "/api/worklog/logs" : {
+      "get" : {
+        "description" : "[from, to] 안의 기간마다 한 줄을 준다. 일지가 없는 기간도 준다.\ntype=DAILY: 날마다. WEEKLY: 겹치는 주(주 시작 요일 기준)마다. MONTHLY: 겹치는 달마다.\nstatus: CONFIRMED·DRAFT는 저장된 일지, NOT_WRITTEN은 일지 없이 원본(보관하지 않은 확정·확인 대기 기록, 그 기간 완료 업무)이 있음,\nNO_RECORDS는 일지도 원본도 없음(미래 포함). unconfirmedDays는 [from, min(to, 오늘)] 중 원본이 있는데 일간 일지가 확정이 아닌 날 수.\n기간은 최대 400일(넘으면 400 to OUT_OF_RANGE, to < from이면 400 to INVALID_ORDER). periodStart 오름차순.",
+        "operationId" : "listLogPeriods",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "type",
+          "required" : true,
+          "schema" : {
+            "enum" : [ "DAILY", "WEEKLY", "MONTHLY" ],
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "from",
+          "required" : true,
+          "schema" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "to",
+          "required" : true,
+          "schema" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/LogPeriodList"
+                }
+              }
+            },
+            "description" : "기간별 상태"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "값 형식 오류 (code=VALIDATION_FAILED)"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/Unauthorized"
+          },
+          "503" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "identity 조회 실패 (code=PROFILE_UNAVAILABLE)"
+          }
+        },
+        "security" : [ {
+          "accessTokenCookie" : [ ]
+        } ],
+        "summary" : "일지 목록 — 기간별 상태 (P3-08 LOG-09 SCR-LOG-01, 홈 이번 주 현황 SCR-HOME-01 ⑦)",
+        "tags" : [ "logs" ]
+      }
+    },
+    "/api/worklog/logs/daily/{date}/close" : {
+      "get" : {
+        "description" : "1단계(확인 대기·빈 시간)는 GET /records/pending·/records/gaps를 쓴다. pendingCount가 0이면 화면은 1단계를 건너뛴다.\n이월 후보(LOG-14): 보관하지 않은 TODO·IN_PROGRESS 업무 중 ① 그날 확정 기록이 있거나 ② 마감일이 다음 근무일 이하이거나(지난 마감 포함)\n③ IN_PROGRESS인 업무. 늘 selected=true, 마감순(없으면 뒤) → 제목.\nnextWorkday는 date 다음 날부터 찾은 첫 근무일(LOG-13). planScope: 다음 근무일이 다음 주면 NEXT_WEEK, 아니면 NEXT_WORKDAY.\nsuggestions: date가 근무일이고 그 주·그 달의 마지막 근무일일 때만, 주간 → 월간(LOG-16).",
+        "operationId" : "getDailyClose",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "date",
+          "required" : true,
+          "schema" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DailyClosePlan"
+                }
+              }
+            },
+            "description" : "마감 준비 정보"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "값 형식 오류 (code=VALIDATION_FAILED)"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/Unauthorized"
+          },
+          "503" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "identity 조회 실패 (code=PROFILE_UNAVAILABLE)"
+          }
+        },
+        "security" : [ {
+          "accessTokenCookie" : [ ]
+        } ],
+        "summary" : "하루 마감 준비 — 2단계 이월 후보와 마감 뒤 제안 (LOG-13·14·16, SCR-LOG-03)",
+        "tags" : [ "logs" ]
+      },
+      "post" : {
+        "description" : "한 트랜잭션으로: 그날 일간 초안이 없으면 만들고 → 선택한 업무를 계획에 더하고(같은 업무가 이미 있으면 그대로) →\nissue가 비어 있지 않으면 이슈 칸 끝에 한 줄로 덧붙이고 → 확정한다(스냅샷·이력). 업무 자체는 바꾸지 않는다.\nversion은 일지가 없으면 0. 이미 확정이면 409(LOG_CONFIRMED), version이 다르면 409(VERSION_CONFLICT).\n오늘보다 뒤 날짜는 400(date, OUT_OF_RANGE). 내 것이 아니거나 보관한 업무는 400(carryOverTaskIds, NOT_FOUND).\n계획이 50개를 넘으면 400(carryOverTaskIds, TOO_MANY), 이슈가 2000자를 넘으면 400(issue, TOO_LONG).",
+        "operationId" : "closeDay",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "date",
+          "required" : true,
+          "schema" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/DailyCloseRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DailyCloseResult"
+                }
+              }
+            },
+            "description" : "확정한 일간 일지와 이어서 할 제안"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "값 형식 오류 (code=VALIDATION_FAILED)"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/Unauthorized"
+          },
+          "409" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "일지 상태 충돌 (code=LOG_CONFIRMED 또는 VERSION_CONFLICT)"
+          },
+          "503" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "identity 조회 실패 (code=PROFILE_UNAVAILABLE)"
+          }
+        },
+        "security" : [ {
+          "accessTokenCookie" : [ ]
+        } ],
+        "summary" : "하루 마감 — 이월·이슈를 넣고 일간 일지 확정 (LOG-13·14, SCR-LOG-03 3단계)",
+        "tags" : [ "logs" ]
+      }
+    },
     "/api/worklog/logs/{logId}" : {
       "patch" : {
         "description" : "보낸 칸만 바꾼다. achievements를 보내면 실적이 자동 상태에서 벗어나 보낸 목록이 그대로 저장된다\n(행 추가·삭제·순서 변경은 목록 전체를 보낸다, 원본 기록 끌어오기는 recordIds를 단 행을 넣어 보낸다).\nplans·issues도 같다. 바뀐 칸이 없으면 version을 올리지 않는다. 확정한 일지는 409(code=LOG_CONFIRMED).",

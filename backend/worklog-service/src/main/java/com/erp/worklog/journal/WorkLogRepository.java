@@ -54,8 +54,8 @@ class WorkLogRepository {
 
 	/** 기간 시작일이 [from, to]인 일지. */
 	List<Row> findStarting(UUID ownerId, LogType type, LocalDate from, LocalDate to) {
-		return jdbc.sql("SELECT " + COLUMNS + """
-				 FROM work_log WHERE owner_id = ? AND type = ? AND period_start BETWEEN ? AND ? ORDER BY period_start""")
+		return jdbc.sql("SELECT " + COLUMNS + " " + """
+				FROM work_log WHERE owner_id = ? AND type = ? AND period_start BETWEEN ? AND ? ORDER BY period_start""")
 			.params(ownerId, type.name(), from, to)
 			.query(WorkLogRepository::row)
 			.list();
