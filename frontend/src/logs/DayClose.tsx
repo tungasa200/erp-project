@@ -1,10 +1,12 @@
 // SCR-LOG-03 하루 마감 (P3-05, LOG-14·16, D-107). 홈 오늘 일지 카드·명령 팔레트에서 연다.
 // 1 확인 대기(0건이면 건너뜀, 처리는 기존 확인 대기 패널) → 2 계획으로 넘길 일(기본 모두 선택) → 3 이슈 한 줄·미리보기 → 확정.
 // 끝나면 주간·월간 확정 제안(LOG-16). 이미 확정한 날은 "확정 해제 후 다시 마감할 수 있어요".
+// 확정 직전에 프로필 빈 칸을 묻는다(SCR-ONB-01). 묻는 동안은 이 창 대신 그 창을 보이고, 저장·나중에 뒤 바로 마감한다.
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useId, useRef, useState } from 'react'
 import { Link } from 'react-router'
 import { ApiError } from '../api/client'
+import { useAuth } from '../auth/useAuth'
 import { Modal } from '../calendar/Modal'
 import cal from '../calendar/calendar.module.css'
 import { Skeleton } from '../components/Skeleton'
@@ -12,6 +14,8 @@ import { useToast } from '../components/useToast'
 import { PendingPanel } from '../records/PendingPanel'
 import { logApi, logHref, refreshLogs, storeLog, useLog, type DailyCloseResult } from './api'
 import { periodText } from './format'
+import { shouldAskProfile } from './profileAsk'
+import { ProfilePrompt } from './ProfilePrompt'
 import styles from './logs.module.css'
 
 type Step = 'pending' | 'carry' | 'issue'
@@ -37,6 +41,8 @@ export function DayClose({ date, today, timeZone, onClose }: Props) {
   const [issue, setIssue] = useState('')
   const [busy, setBusy] = useState(false)
   const [pendingOpen, setPendingOpen] = useState(false)
+  const [askProfile, setAskProfile] = useState(false)
+  const { user } = useAuth()
   const [result, setResult] = useState<DailyCloseResult | null>(null)
   const headingRef = useRef<HTMLHeadingElement>(null)
 
@@ -83,8 +89,23 @@ export function DayClose({ date, today, timeZone, onClose }: Props) {
     )
   }
 
-  const submit = async () => {
+  if (askProfile && user) {
+    return (
+      <ProfilePrompt
+        user={user}
+        logKey={`DAILY-${date}`}
+        today={today}
+        onDone={() => {
+          setAskProfile(false)
+          void submit(true)
+        }}
+      />
+    )
+  }
+
+  async function submit(asked = false) {
     if (!data || busy) return
+    if (!asked && shouldAskProfile(user, `DAILY-${date}`)) return setAskProfile(true)
     setBusy(true)
     try {
       const done = await logApi.close(date, {

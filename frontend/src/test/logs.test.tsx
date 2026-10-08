@@ -19,7 +19,8 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-const me = () => json(200, { ...ME, name: '김하늘' })
+// 프로필이 다 차 있어 프로필 입력 요청(SCR-ONB-01)은 뜨지 않는다. 그 창은 profilePrompt.test.tsx
+const me = () => json(200, { ...ME, name: '김하늘', organization: '개발팀', position: '매니저' })
 
 function workLog(extra: Partial<WorkLog> = {}, content: Partial<WorkLog['content']> = {}): WorkLog {
   return {
