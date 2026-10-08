@@ -184,6 +184,39 @@ describe('SCR-COM-02 빠른 입력창', () => {
       expect(input).toHaveValue('14-16 @영업 #결제')
     })
 
+    it('제목 없이 Enter를 누르면 오류로 알리고, 다시 적기 시작하면 안내로 돌아간다', async () => {
+      const { onSubmit, input } = await renderQuick()
+      await userEvent.type(input, '내일 15:00')
+      expect(input).not.toHaveAttribute('aria-invalid')
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+      await userEvent.keyboard('{Enter}')
+      expect(onSubmit).not.toHaveBeenCalled()
+      expect(screen.getByRole('alert')).toHaveTextContent('할 일 이름을 적어 주세요')
+      expect(input).toHaveAttribute('aria-invalid', 'true')
+      expect(input).toHaveAccessibleDescription(expect.stringContaining('할 일 이름을 적어 주세요'))
+      expect(input).toHaveFocus()
+      await userEvent.type(input, ' 회의')
+      expect(input).not.toHaveAttribute('aria-invalid')
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+      await userEvent.keyboard('{Enter}')
+      expect(onSubmit).toHaveBeenCalledWith({
+        title: '회의',
+        schedule: { date: '2026-10-08', start: '15:00', end: '16:00' },
+      })
+    })
+
+    it('시간처럼 생겼는데 읽지 못한 낱말은 입력창 아래에 알린다', async () => {
+      const { input } = await renderQuick()
+      await userEvent.type(input, '회의 14—15')
+      expect(input).toHaveAccessibleDescription(expect.stringContaining('시간으로 읽지 못했어요: 14—15'))
+      await userEvent.clear(input)
+      await userEvent.type(input, '회의 9:00~10:00')
+      expect(screen.queryByText(/시간으로 읽지 못했어요/)).not.toBeInTheDocument()
+      expect(within(screen.getByRole('list', { name: '해석 결과' })).getByRole('button')).toHaveTextContent(
+        '오늘 09:00–10:00',
+      )
+    })
+
     it('제목이 있으면 해석 결과로 저장하고 입력을 비운다', async () => {
       const { onSubmit, input } = await renderQuick()
       await userEvent.type(input, '견적서 14-16 @영업 #결제{Enter}')

@@ -2,7 +2,10 @@
 //
 // 공백으로 나눈 낱말을 순서와 관계없이 읽는다. 태그 말고는 종류마다 처음 나온 것만 쓰고,
 // 해석하지 못한 낱말과 두 번째부터 나온 같은 종류 낱말은 제목에 그대로 남는다.
-//   시간    14-16 · 9:30-10:30   24시간제. 끝이 시작보다 이르면 오후로 본다(11-1 → 11:00–13:00)
+//   시간    14-16 · 9:30-10:30 · 9:00~10:00 · 14:00 - 15:00 · 14시-15시 · 오후 2시~3시 · 14시 30분-15시
+//           24시간제. 구분자는 - – ~ ～ 〜, 앞뒤 공백 허용. 오전/오후를 붙일 수 있다.
+//           끝이 시작보다 이르면 오후로 본다(11-1 → 11:00–13:00). 끝에 오전/오후를 쓰면 그대로 둔다
+//           시각 하나(15:00 · 14시 · 오후 3시)는 1시간 일정. 숫자만(14)은 시각으로 보지 않는다
 //   날짜    오늘 · 내일 · 모레 · 어제 · 수요일 · 이번주/다음주/다다음주/지난주 수(요일) · 10/12 · 10월 12일
 //           요일만 쓰면 오늘을 포함해 가장 가까운 그 요일. 한 글자 요일은 주 앞말이나 ~ 뒤에서만 받는다("일 정리" 오해석 방지)
 //           월/일만 쓰면 오늘에서 가장 가까운 해
@@ -129,15 +132,47 @@ function toMinutes(h: string, m: string | undefined): number | null {
 const pad = (n: number) => String(n).padStart(2, '0')
 const hhmm = (minutes: number) => `${pad(Math.floor(minutes / 60))}:${pad(minutes % 60)}`
 
-function matchTime(t: string): { start: string; end: string } | null {
-  const m = /^(\d{1,2})(?::(\d{2}))?[-–](\d{1,2})(?::(\d{2}))?$/.exec(t)
-  if (!m) return null
-  const start = toMinutes(m[1], m[2])
-  let end = toMinutes(m[3], m[4])
-  if (start === null || end === null || start >= 24 * 60) return null
-  if (end <= start && end < 12 * 60) end += 12 * 60
-  if (end <= start || end > 24 * 60) return null
-  return { start: hhmm(start), end: hhmm(end) }
+// 시각 하나: [오전|오후] 14 | 14:30 | 14시 | 14시 30분. 묶음 4개(오전/오후, 시, :분, 분)
+const POINT = String.raw`(?:(오전|오후)\s*)?(\d{1,2})(?::(\d{2})|시(?:\s*(\d{1,2})분)?)?`
+// 낱말 경계에서 끝나야 한다(3시간·14:00부터는 시각이 아님). 여러 낱말에 걸칠 수 있다
+const RANGE_RE = new RegExp(String.raw`^${POINT}\s*[-–~～〜]\s*${POINT}(?=\s|$)`)
+const SINGLE_RE = new RegExp(String.raw`^${POINT}(?=\s|$)`)
+
+/** 묶음 4개로 분 단위 시각. 오후는 12를 더하고 오전 12시는 0시. 오전/오후에 13 이상은 잘못 */
+function pointMinutes(meridiem: string | undefined, h: string, colonMin?: string, korMin?: string): number | null {
+  let hour = Number(h)
+  if (meridiem && hour > 12) return null
+  if (meridiem === '오후' && hour < 12) hour += 12
+  if (meridiem === '오전' && hour === 12) hour = 0
+  return toMinutes(String(hour), colonMin ?? korMin)
+}
+
+/** text 맨 앞에서 시간을 읽는다. length는 읽은 글자 수(낱말 여러 개일 수 있음) */
+function matchTime(text: string): { start: string; end: string; length: number } | null {
+  const range = RANGE_RE.exec(text)
+  if (range) {
+    const start = pointMinutes(range[1], range[2], range[3], range[4])
+    let end = pointMinutes(range[5], range[6], range[7], range[8])
+    if (start !== null && end !== null && start < 24 * 60) {
+      if (end <= start && end < 12 * 60 && !range[5]) end += 12 * 60
+      if (end > start && end <= 24 * 60) return { start: hhmm(start), end: hhmm(end), length: range[0].length }
+    }
+  }
+  // 범위로 못 읽었으면 앞 시각 하나만. 숫자만 쓴 것(:·시 없음)은 시각이 아니다
+  const single = SINGLE_RE.exec(text)
+  if (!single || (single[3] === undefined && !/시/.test(single[0]))) return null
+  const start = pointMinutes(single[1], single[2], single[3], single[4])
+  if (start === null || start + 60 > 24 * 60) return null
+  return { start: hhmm(start), end: hhmm(start + 60), length: single[0].length }
+}
+
+// 시간처럼 생겼는데 읽지 못한 낱말: 15:00까지 · 14—15 · 24-1 · 전각 숫자. 3시간·2-3개는 아니다
+const TIMEISH_RE =
+  /^(?:오전|오후)?[0-9０-９]{1,2}(?:[:：][0-9０-９]{2}|시(?!간))|^[0-9０-９]{1,2}(?:[:：][0-9０-９]{2})?[-–—~～〜][0-9０-９]{1,2}(?:[:：][0-9０-９]{2})?$/
+
+/** 제목에 남은 낱말 중 시간으로 읽지 못한 첫 낱말 (입력창 안내용) */
+export function unreadTimeWord(title: string): string | undefined {
+  return title.split(/\s+/).find((w) => TIMEISH_RE.test(w))
 }
 
 export function parseQuickInput(text: string, options: ParseOptions): QuickParse {
@@ -156,11 +191,15 @@ export function parseQuickInput(text: string, options: ParseOptions): QuickParse
   while (i < tokens.length) {
     const t = tokens[i]
 
-    const time = result.time ? null : matchTime(t)
+    const time = result.time ? null : matchTime(text.slice(found[i].index))
     if (time) {
-      result.time = time
-      spans.time = span(i, 1)
-      i += 1
+      result.time = { start: time.start, end: time.end }
+      // 읽은 글자가 끝나는 낱말까지 한 칩으로 묶는다
+      const endAt = found[i].index + time.length
+      let len = 1
+      while (found[i + len - 1].index + found[i + len - 1][0].length < endAt) len += 1
+      spans.time = span(i, len)
+      i += len
       continue
     }
     if (!result.project && /^@\S{1,50}$/.test(t)) {

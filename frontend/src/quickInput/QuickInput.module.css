@@ -345,6 +345,21 @@
   color: var(--color-text-muted);
 }
 
+.hintError {
+  margin: 0;
+  padding: 0 2px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-danger);
+}
+
+/* 읽지 못한 낱말: 입력한 그대로 보여 준다 */
+.unread {
+  font-weight: 600;
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+
 .popover {
   position: absolute;
   top: 60px;
@@ -398,6 +413,9 @@
   background: var(--color-accent-soft);
   border-radius: 9px;
   padding: 5px 10px;
+  /* 좁은 패널에서 줄이 바뀌어도 줄마다 알약 모양을 유지한다 */
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
 }
 
 .examplesLabel {
