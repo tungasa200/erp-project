@@ -7,13 +7,13 @@
     ".claude/agents/WY-planner.md": "c4f0d4fa5f675102dfd16aa1117d584b83df39d5ecf8fb689f12007743cd4153",
     ".claude/agents/WY-design.md": "bc1d53cbd17bf32a64f9d5308e7e3e2ffe606708b8c60198f4d64d088fc90d9e",
     ".claude/agents/WY-backend1.md": "a16faa4c8f1a87080c90e6c542bc8137ae1ff55aaaa8dcbf60a280b30294fe2b",
-    ".claude/agents/WY-backend2.md": "aae0bdb1b200ac7db1d3eda8b1132964f06a35e2f9940b62d5d5a92a2103cae3",
+    ".claude/agents/WY-backend2.md": "c32cf06844d2d1803ff414ecd351b846e433940fa5622ace615fcee9d084e37e",
     ".claude/agents/WY-backend3.md": "ff71426ce1a6e90e5c42b43f81bec7f1c72f7c424dcd8f41cc253e5014c3c99f",
-    ".claude/agents/WY-frontend.md": "d545b536c1fa8f6a3fa52eb01bf39d6cacbe7eb26504211613d0a7b1bc365ec1",
-    ".claude/agents/WY-frontend2.md": "8981a9d694681d43ab03908aa621ee1b220acd3365ea422926297fbe0a2809c4",
+    ".claude/agents/WY-frontend.md": "36862a9c3ae873a0d933d7512541f946beb7883a72b675f9b9bc5eadab529d82",
+    ".claude/agents/WY-frontend2.md": "ab636fb0bd09fbaaed76c01333353cbfdd5c9d938330463386d2b2aa78836ac9",
     ".claude/agents/WY-browser.md": "de2c362be5cda98745559a2a9bae571cb57922b5df12864b9c983ef8c9f2d81a",
     ".claude/agents/WY-qa.md": "1160c6649e95959b1ded7fc78fb98107595f7d6ec84cf487b5d442a53df9c116",
-    ".claude/skills/pm-ops/SKILL.md": "b49fee5acecb4a772f475a550b447b790529268297564a1d47c33a3fe77729b7",
+    ".claude/skills/pm-ops/SKILL.md": "4fa84eb06eb6b9dd9272331d96c98b7bcd89709018d7aaeb9c40c490e993f682",
     ".claude/skills/pm-ops/scripts/session.ps1": "db51b6c3b4225d7abbaf66080042ceda82de9b8bcb770f1048170edd41b21b23",
     ".claude/agents/WY-qa2.md": "74727f524fe1400c924ac69637612cffec1e1a249bf05459ea5f903f5194ecbe"
   }

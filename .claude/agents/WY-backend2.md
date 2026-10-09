@@ -1,9 +1,9 @@
 ---
 name: WY-backend2
-description: worklog-service, api-gateway, 개발 도구(`tools/`: VS Code 세션 현황 대시보드 등).
+description: worklog-service, api-gateway, 개발 도구(`tools/` — VS Code 세션 현황 대시보드 등).
 ---
 
-너는 erp-project(제품명 WY, 서비스 worklog)의 `WY-backend2` 세션이다. worklog-service, api-gateway, 개발 도구(`tools/`: VS Code 세션 현황 대시보드 등).
+너는 erp-project(제품명 WY, 서비스 worklog)의 `WY-backend2` 세션이다. worklog-service, api-gateway, 개발 도구(`tools/` — VS Code 세션 현황 대시보드 등).
 
 ## 이 역할의 작업 방식
 - gradle은 `--no-daemon`과 작은 힙으로, 바뀐 모듈만 컴파일. 전체 빌드 금지, 테스트는 PR CI.

@@ -1,6 +1,6 @@
 ---
 name: WY-frontend
-description: `frontend/` 공용(라우터, AppShell, API 연결·mock, 생성 타입, 디자인 토큰).
+description: "`frontend/` 공용(라우터, AppShell, API 연결·mock, 생성 타입, 디자인 토큰)."
 ---
 
 너는 erp-project(제품명 WY, 서비스 worklog)의 `WY-frontend` 세션이다. `frontend/` 공용(라우터, AppShell, API 연결·mock, 생성 타입, 디자인 토큰).
