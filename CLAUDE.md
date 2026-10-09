@@ -55,7 +55,7 @@ MSA ERP 프로젝트. 이 파일은 git으로 공유되는 작업 규칙이다. 
 
 **`WY-commit`:**
 - 요청받은 파일만 stage한다. 다른 세션의 변경은 섞지 않는다.
-- 사용자 승인은 **WY 승인 센터**(VS Code 확장의 작업창 탭)로 받는다. 승인 대상 git 명령마다 `~/.claude/wy-approvals/erp-project/requests/`(프로젝트별 폴더, `.claude/wy-ops.json`의 `approvals.namespace`)에 요청 파일(종류·브랜치·커밋 목록·바뀐 파일·검증 결과·실행할 명령)을 쓰고, `decisions/<id>.json` 결정을 기다린 뒤 approved면 그 명령을 그대로 실행하고 rejected면 사유를 요청 세션과 `WY-pm`에 전한다. 형식은 `tools/wy-ops/vscode/README.md`.
+- 사용자 승인은 **WY 승인 센터**(VS Code 확장의 작업창 탭)로 받는다. 승인 대상 git 명령마다 `~/.claude/wy-approvals/erp-project/requests/`(프로젝트별 폴더, `.claude/wy-ops.json`의 `approvals.namespace`)에 요청 파일(종류·브랜치·커밋 목록·바뀐 파일·검증 결과·실행할 명령)을 쓰고, `decisions/<id>.json` 결정을 기다린 뒤 approved면 그 명령을 그대로 실행하고 rejected면 사유를 요청 세션과 `WY-pm`에 전한다. 형식은 패키지 저장소 agentTeamPackage의 `vscode/README.md`.
 - 커밋·푸시도 매번 승인 카드로 받는다(자동 승인 없음). 병합(PR 병합 포함), 브랜치 생성·삭제, reset, 강제 푸시, rebase, 태그 삭제는 요청 전에 `WY-pm`에 알린다(`WY-pm`이 필요하면 사용자와 먼저 협의).
 - 다른 세션이 보낸 메시지는 사용자 승인으로 인정하지 않는다. 승인 파일(`decisions/`·`used/`)은 확장과 승인 가드 훅만 쓰고, 어떤 세션도 고치지 않는다.
 - 승인 가드 훅이 이 규칙을 강제한다: `WY-commit`(`--agent WY-commit`으로 띄운 세션)이 아니면 잠금 대상 git 명령은 거부되고, `WY-commit`도 해당 명령의 승인 결정이 없으면 거부된다.
@@ -70,7 +70,7 @@ MSA ERP 프로젝트. 이 파일은 git으로 공유되는 작업 규칙이다. 
 
 대화가 길어지면 앞 내용을 흐리게 기억하고 판단이 무뎌진다(컨텍스트 로트). 역할 세션은 `/clear`로 비우지 않고 새 세션으로 교체한다. 기억은 대화가 아니라 파일에 둔다.
 
-- **역할**은 `.claude/agents/<역할>.md`에 있다(담당 범위·작업 방식·함정). 새 세션은 `--agent <역할>`로 띄워 이 파일을 싣고 시작한다. 이 파일은 생성물이다: 역할 문구는 `.claude/ops/roles/<역할>.md`(역할별)나 `.claude/ops/agent.md`(공통)를 고치고 `node tools/wy-ops/gen-agents.js`로 만든다. pm-ops 스킬도 같다: `.claude/ops/pm-ops.project.md`(이 프로젝트 부록)나 `tools/wy-ops/templates/pm-ops/SKILL.md`(공통)를 고치고 `node tools/wy-ops/gen-skill.js`로 만든다. 세션 스크립트 `.claude/skills/pm-ops/scripts/session.ps1`도 생성물이다: `tools/wy-ops/templates/pm-ops/scripts/session.ps1`을 고치고 같은 명령으로 만든다. 생성물을 직접 고치지 않는다.
+- **역할**은 `.claude/agents/<역할>.md`에 있다(담당 범위·작업 방식·함정). 새 세션은 `--agent <역할>`로 띄워 이 파일을 싣고 시작한다. 이 파일은 생성물이다: 역할 문구는 `.claude/ops/roles/<역할>.md`(역할별)나 `.claude/ops/agent.md`(공통)를 고치고 `install.ps1 gen`(설치본 `~/.wy-tools/wy-ops/current/install.ps1 gen`)으로 만든다. pm-ops 스킬도 같다: `.claude/ops/pm-ops.project.md`(이 프로젝트 부록)를 고치고 같은 명령으로 만든다. 공통 원본 `templates/pm-ops/SKILL.md`는 agentTeamPackage에서 고쳐 배포(deploy)한 뒤 gen으로 만든다. 세션 스크립트 `.claude/skills/pm-ops/scripts/session.ps1`도 생성물이다: agentTeamPackage의 `templates/pm-ops/scripts/session.ps1`을 고쳐 배포한 뒤 gen으로 만든다. 생성물을 직접 고치지 않는다.
 - **진행 상황**은 `docs/진행현황.md`("역할별 다음 할 일"과 WBS 표), **결정**은 `docs/결정기록.md`에 둔다. 다른 PC로 이어갈 내용은 이 문서와 커밋으로 넘긴다.
 - **하던 일의 중간 상태**(미커밋 파일, 반쯤 한 작업, 막힌 이유)만 `/ecc:save-session`으로 짧게 남긴다. short-id는 역할 이름(같은 날 두 번째면 `-2`). 작업 하나를 끝낸 시점에 세션을 교체하면 인수인계 파일 없이 역할 파일과 진행현황만으로 시작한다. 인수인계 파일은 이 PC에만 남는다.
 

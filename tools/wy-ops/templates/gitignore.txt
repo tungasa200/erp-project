@@ -1,3 +1,0 @@
-.claude/settings.local.json
-.claude/wy-ops.local.json
-.claude/*.bak-*

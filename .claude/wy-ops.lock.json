@@ -2,19 +2,19 @@
   "schema": 1,
   "version": "0.6.0",
   "files": {
-    ".claude/agents/WY-commit.md": "2a2c12ce7e640cb3bbdf405094e2e6d4de5b23ea3bd20d0dfe8cee77c16f0b0c",
+    ".claude/agents/WY-commit.md": "ed5ea18a3dfaba71e4fc7316a66b6fd824a7a0569ca3b89ae547e5b2c864dc3d",
     ".claude/agents/WY-search.md": "61ad23c9e498761bb5be6070970f7a0ff0a237507ebe7210f9a78365cae28c7a",
     ".claude/agents/WY-planner.md": "c4f0d4fa5f675102dfd16aa1117d584b83df39d5ecf8fb689f12007743cd4153",
     ".claude/agents/WY-design.md": "bc1d53cbd17bf32a64f9d5308e7e3e2ffe606708b8c60198f4d64d088fc90d9e",
     ".claude/agents/WY-backend1.md": "a16faa4c8f1a87080c90e6c542bc8137ae1ff55aaaa8dcbf60a280b30294fe2b",
-    ".claude/agents/WY-backend2.md": "e5b45b6ce1d9578a16e55bcf121a7a9922a4a75ed69ec16636f7e8a0f5a19343",
-    ".claude/agents/WY-backend3.md": "decd2e8aeb58baea6bed7429c79db356d69127c804df151037dd91c4a31a4307",
+    ".claude/agents/WY-backend2.md": "aae0bdb1b200ac7db1d3eda8b1132964f06a35e2f9940b62d5d5a92a2103cae3",
+    ".claude/agents/WY-backend3.md": "ff71426ce1a6e90e5c42b43f81bec7f1c72f7c424dcd8f41cc253e5014c3c99f",
     ".claude/agents/WY-frontend.md": "d545b536c1fa8f6a3fa52eb01bf39d6cacbe7eb26504211613d0a7b1bc365ec1",
     ".claude/agents/WY-frontend2.md": "8981a9d694681d43ab03908aa621ee1b220acd3365ea422926297fbe0a2809c4",
     ".claude/agents/WY-browser.md": "de2c362be5cda98745559a2a9bae571cb57922b5df12864b9c983ef8c9f2d81a",
     ".claude/agents/WY-qa.md": "1160c6649e95959b1ded7fc78fb98107595f7d6ec84cf487b5d442a53df9c116",
-    ".claude/skills/pm-ops/SKILL.md": "c4562178fa46efdb2d561ca1af5d154f236ea00134b97f9d3ed4e66678faac3a",
-    ".claude/skills/pm-ops/scripts/session.ps1": "a3d0af5f1771bc4870c3600402ffa1664fb5b7cbd69f7cd24ada2db1322345ce",
+    ".claude/skills/pm-ops/SKILL.md": "b49fee5acecb4a772f475a550b447b790529268297564a1d47c33a3fe77729b7",
+    ".claude/skills/pm-ops/scripts/session.ps1": "db51b6c3b4225d7abbaf66080042ceda82de9b8bcb770f1048170edd41b21b23",
     ".claude/agents/WY-qa2.md": "74727f524fe1400c924ac69637612cffec1e1a249bf05459ea5f903f5194ecbe"
   }
 }
