@@ -43,7 +43,7 @@ identity:
   mail:
     username: ${MAIL_USERNAME:}
     password: ${MAIL_PASSWORD:}
-    from-name: ${MAIL_FROM_NAME:worklog}
+    from-name: ${MAIL_FROM_NAME:WY Worklog}
   jwt:
     # PKCS#8 PEM. 비어 있으면 실행할 때마다 임시 키를 만든다(로컬 전용). 운영은 아래 prod 프로필에서 필수.
     private-key: ${JWT_PRIVATE_KEY:}
