@@ -2,8 +2,10 @@ package com.erp.worklog.user;
 
 import com.erp.worklog.identity.IdentityClient;
 import com.erp.worklog.identity.IdentityClient.UserEvent;
+import com.erp.worklog.notification.NotifyScheduleChanged;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -25,15 +27,17 @@ public class UserSyncService {
 	private final FeedCursorRepository cursor;
 	private final UserDataPurger purger;
 	private final TransactionTemplate tx;
+	private final ApplicationEventPublisher events;
 
 	UserSyncService(IdentityClient identity, UserSnapshotRepository snapshots, DeletedUserRepository deletedUsers,
-			FeedCursorRepository cursor, UserDataPurger purger, TransactionTemplate tx) {
+			FeedCursorRepository cursor, UserDataPurger purger, TransactionTemplate tx, ApplicationEventPublisher events) {
 		this.identity = identity;
 		this.snapshots = snapshots;
 		this.deletedUsers = deletedUsers;
 		this.cursor = cursor;
 		this.purger = purger;
 		this.tx = tx;
+		this.events = events;
 	}
 
 	/** 쌓인 피드를 끝까지 가져온다. 커서가 없거나 보관 기간 밖이면 전체 재동기화한다. */
@@ -62,8 +66,9 @@ public class UserSyncService {
 		tx.executeWithoutResult(status -> {
 			switch (event.type()) {
 				case "CREATED", "PROFILE_UPDATED" -> {
-					if (!deletedUsers.contains(event.userId())) {
-						snapshots.upsert(event.userId(), event.profile(), event.seq());
+					if (!deletedUsers.contains(event.userId())
+							&& snapshots.upsert(event.userId(), event.profile(), event.seq())) {
+						events.publishEvent(new NotifyScheduleChanged(event.userId()));
 					}
 				}
 				case "DELETED" -> delete(event.userId());
@@ -87,8 +92,8 @@ public class UserSyncService {
 			}
 			long seq = asOfSeq;
 			tx.executeWithoutResult(status -> page.items().forEach(u -> {
-				if (!deletedUsers.contains(u.userId())) {
-					snapshots.upsert(u.userId(), u.profile(), seq);
+				if (!deletedUsers.contains(u.userId()) && snapshots.upsert(u.userId(), u.profile(), seq)) {
+					events.publishEvent(new NotifyScheduleChanged(u.userId()));
 				}
 			}));
 			next = page.nextCursor();

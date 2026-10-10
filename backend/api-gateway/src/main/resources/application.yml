@@ -25,6 +25,8 @@ gateway:
   audience: erp-api
   allowed-origins: ${ALLOWED_ORIGINS:http://localhost:5173}
   origin-secret: ${ORIGIN_SECRET:} # 운영은 Vercel 프로젝트와 같은 값. 비우면 직접 접근 차단을 끈다(로컬)
+  maintenance-mode: ${MAINTENANCE_MODE:false} # 점검 모드 (P4-12, D-48). true면 /api/** 전체 503
+  maintenance-until: ${MAINTENANCE_UNTIL:} # 선택, UTC ISO-8601 종료 예상 시각 → Retry-After
 
 management:
   endpoints:

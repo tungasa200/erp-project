@@ -71,7 +71,9 @@ final class LogViews {
 	record Metrics(
 			@Schema(requiredMode = RequiredMode.REQUIRED, description = "확정 기록 수") int recordCount,
 			@Schema(requiredMode = RequiredMode.REQUIRED, description = "기간 안에 완료한 업무 수") int completedTaskCount,
-			@Schema(requiredMode = RequiredMode.REQUIRED, description = "결과 칩 \"완료\" 기록 수") int done,
+			@Schema(requiredMode = RequiredMode.REQUIRED, description = """
+					'완료' 건수. 일간·주간: 결과 '완료' 기록 수 + 완료한 날 그 업무의 기록이 없는 완료 업무 수(그날 '완료' 기록이 있는 업무는 한 번만, D-113).
+					월간: 기간 안에 완료한 업무 수(D-123)""") int done,
 			@Schema(requiredMode = RequiredMode.REQUIRED) int reviewRequested,
 			@Schema(requiredMode = RequiredMode.REQUIRED) int inProgress,
 			@Schema(requiredMode = RequiredMode.REQUIRED, description = "확인 대기 기록 수 (실적에서 뺀 개수)") int pendingCount,

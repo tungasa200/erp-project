@@ -151,6 +151,17 @@ class GatewayRoutingTest {
 	}
 
 	@Test
+	void clientErrorsAreHandledByGatewayWithoutLoginButStillOriginChecked() {
+		client.post().uri("/api/client-errors").header("Origin", ORIGIN).header("Content-Type", "application/json")
+				.bodyValue("{\"message\":\"boom\"}")
+				.exchange().expectStatus().isNoContent();
+		client.post().uri("/api/client-errors").header("Content-Type", "application/json")
+				.bodyValue("{\"message\":\"boom\"}")
+				.exchange().expectStatus().isForbidden();
+		assertThat(lastDownstreamHeaders.get()).isNull();
+	}
+
+	@Test
 	void internalAndWellKnownPathsAreNotRouted() {
 		client.get().uri("/internal/user-events?after=0").exchange().expectStatus().isEqualTo(HttpStatus.NOT_FOUND);
 		client.get().uri("/.well-known/jwks.json").exchange().expectStatus().isEqualTo(HttpStatus.NOT_FOUND);

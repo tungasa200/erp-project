@@ -39,10 +39,10 @@ public class UserSnapshotRepository {
 	/**
 	 * 피드·전체 목록·즉시 갱신 반영. 사본의 프로필 version이 같거나 더 크면 무시한다 (멱등, 5.4).
 	 * seq가 아니라 version으로 비교하는 이유: 즉시 갱신은 seq를 모르고, 늦게 처리된 오래된 피드 이벤트가 새 값을 되돌리면 안 된다.
-	 * seq는 즉시 갱신이면 0이며, 기록용으로 큰 값을 남긴다.
+	 * seq는 즉시 갱신이면 0이며, 기록용으로 큰 값을 남긴다. 사본을 바꿨으면 true.
 	 */
-	public void upsert(UUID userId, Profile p, long seq) {
-		jdbc.sql("""
+	public boolean upsert(UUID userId, Profile p, long seq) {
+		return jdbc.sql("""
 						INSERT INTO user_snapshot (user_id, name, organization, position, timezone, week_start, work_days, profile_version, last_seq, synced_at)
 						VALUES (:id, :name, :org, :pos, :tz, :ws, :wd, :ver, :seq, now())
 						ON CONFLICT (user_id) DO UPDATE SET
@@ -52,7 +52,7 @@ public class UserSnapshotRepository {
 						    last_seq = GREATEST(user_snapshot.last_seq, EXCLUDED.last_seq), synced_at = EXCLUDED.synced_at
 						WHERE user_snapshot.profile_version < EXCLUDED.profile_version""")
 				.params(params(userId, p, seq))
-				.update();
+				.update() > 0;
 	}
 
 	/** 즉시 조회로 만든 사본. 그 사이 피드가 먼저 넣었으면 그것을 둔다. */
