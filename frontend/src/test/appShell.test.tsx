@@ -128,3 +128,18 @@ describe('P4 화면 경로 연결 (통계·보관함)', () => {
     expect(await screen.findByRole('heading', { level: 1, name: '보관함' })).toBeInTheDocument()
   })
 })
+
+describe('SCR-COM-05 ② 알림 종 배치 (P4-01)', () => {
+  it('사이드바 위(브랜드 줄)에 종이 있고 안 읽은 수를 이름으로 읽는다. 홈 머리에도 모바일용 종이 있다', async () => {
+    stubFetch({
+      'GET /api/users/me': () => json(200, ME),
+      'GET /api/worklog/notifications': () => json(200, { items: [], nextCursor: null, unreadCount: 12 }),
+    })
+    renderApp('/')
+    const sidebar = await screen.findByRole('navigation', { name: '주 메뉴' })
+    expect(await within(sidebar).findByRole('button', { name: '알림, 안 읽음 12개' })).toHaveTextContent('9+')
+    // 홈 머리의 종은 CSS로 모바일에서만 보인다(jsdom은 둘 다 그린다)
+    const header = screen.getByRole('heading', { level: 1 }).closest('header')!
+    expect(within(header).getByRole('button', { name: '알림, 안 읽음 12개' })).toBeInTheDocument()
+  })
+})

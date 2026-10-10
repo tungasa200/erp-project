@@ -103,6 +103,9 @@ export function stubFetch(handlers: Record<string, Handler>) {
     // 업무를 완료하면 결과 팝오버(SCR-TASK-03)가 닫힐 때 기록을 만든다. 등록하지 않았으면 만든 것으로 답한다
     if (key === 'POST /api/worklog/records') return json(201, { id: 'r-auto', status: 'CONFIRMED' })
     if (key === 'POST /api/auth/refresh') return problem(401, 'REFRESH_INVALID')
+    // 알림 종(SCR-COM-05 ②)은 사이드바·홈 머리에 늘 있다. 등록하지 않았으면 알림 없음
+    if (key.split('?')[0] === 'GET /api/worklog/notifications')
+      return json(200, { items: [], nextCursor: null, unreadCount: 0 })
     // worklog 설정(시간 기록 옵션·업무 시간대). 등록하지 않았으면 기본값(꺼짐, 09:00~18:00)으로 답한다
     if (key === 'GET /api/worklog/me')
       return json(200, {

@@ -20,6 +20,7 @@ import { stoppedMessage, useRunningTimer, useTimerCommands } from '../timer/api'
 import { TimerMiniPlayer } from '../timer/TimerMiniPlayer'
 import { TimerStartDialog } from '../timer/TimerStartDialog'
 import { UnverifiedBanner } from '../verification/UnverifiedBanner'
+import { NotificationBell } from '../notifications/NotificationBell'
 import styles from './AppShell.module.css'
 import { useFocusRescue } from './focusRescue'
 import { QuickSheet } from './QuickSheet'
@@ -181,6 +182,8 @@ export function AppShell() {
             w
           </span>
           <span className={styles.brandName}>worklog</span>
+          {/* SCR-COM-05 ② 종: 데스크톱·태블릿은 사이드바 위(모바일은 홈 머리 오른쪽) */}
+          <NotificationBell className={styles.bell} />
         </div>
         {/* 프로필 영역을 누르면 프로필 설정으로 (SCR-SET-01 진입 경로) */}
         <Link to="/settings/profile" className={styles.profile} title="프로필 설정">

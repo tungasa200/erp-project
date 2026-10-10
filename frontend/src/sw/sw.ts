@@ -35,3 +35,66 @@ self.addEventListener('fetch', (event) => {
     )
   }
 })
+
+// 웹 푸시 (P4-01, SCR-COM-05 ④·⑤). 본문은 contracts/worklog.yaml /push/subscriptions 설명의
+// {type, notificationId, title, body, url}. 같은 종류(tag=type)는 최신 하나만 남긴다.
+interface PushPayload {
+  type: string
+  notificationId: string
+  title: string
+  body: string | null
+  url: string
+}
+
+/** 이 앱 안의 경로만 연다(다른 사이트로 보내는 알림을 막는다). 아니면 홈 */
+function safeAppPath(url: unknown): string {
+  if (typeof url !== 'string' || !url.startsWith('/')) return '/'
+  // '//evil.com'·'/\evil.com'처럼 다른 사이트로 풀리는 주소를 걸러 낸다
+  const resolved = new URL(url, self.location.origin)
+  return resolved.origin === self.location.origin ? resolved.pathname + resolved.search + resolved.hash : '/'
+}
+
+self.addEventListener('push', (event) => {
+  let data: PushPayload
+  try {
+    data = event.data?.json() as PushPayload
+  } catch {
+    return
+  }
+  if (!data?.title) return
+  event.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body ?? undefined,
+      tag: data.type,
+      icon: '/icons/notification-icon-192.png',
+      badge: '/icons/badge-72.png',
+      lang: 'ko',
+      data: { notificationId: data.notificationId, url: safeAppPath(data.url) },
+    }),
+  )
+})
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close()
+  const { notificationId, url } = (event.notification.data ?? {}) as { notificationId?: string; url?: string }
+  const target = new URL(safeAppPath(url), self.location.origin).href
+  event.waitUntil(
+    (async () => {
+      // 읽음 처리는 실패해도 화면은 연다(로그인이 끝났으면 401, 알림 센터에서 다시 읽음이 된다)
+      if (notificationId)
+        await fetch(`/api/worklog/notifications/${encodeURIComponent(notificationId)}/read`, {
+          method: 'POST',
+          credentials: 'same-origin',
+        }).catch(() => undefined)
+      // 열린 앱 창이 있으면 그 창을 그 화면으로 옮기고 앞으로 가져온다
+      const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+      const open = windows.find((c) => new URL(c.url).origin === self.location.origin)
+      if (open) {
+        const moved = await open.navigate(target).catch(() => null)
+        await (moved ?? open).focus()
+        return
+      }
+      await self.clients.openWindow(target)
+    })(),
+  )
+})
