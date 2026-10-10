@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { handleScheduleMock } from '../calendar/mockSchedules'
 import type { Task } from '../tasks/api'
-import { handleWorklog } from './mockWorklog'
+import { handleWorklog, setMockHistorySeed } from './mockWorklog'
 
 const r = {
   json: (status: number, body: unknown) => new Response(JSON.stringify(body), { status }),
@@ -245,5 +245,38 @@ describe('가짜 통계(P4-02, GET /stats·/stats/plan-vs-actual)', () => {
     expect(body.topDiffs).toEqual([
       { taskId: first.id, title: first.title, projectId: first.projectId, plannedMin: 120, actualMin: 90 },
     ])
+  })
+})
+
+describe('데모 시드: 지난 2주 확정 기록·완료 업무·확정 일지', () => {
+  const get = async (url: string) => (await handleWorklog('GET', url, {}, r)!.json()) as Record<string, unknown>
+  const seoul = (offset: number) =>
+    new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(new Date(Date.now() + offset * 86_400_000))
+
+  it('처음 불러오면 지난 근무일마다 확정 기록 3건, 가장 최근 근무일만 빼고 일지 확정, 통계에 숫자가 찬다', async () => {
+    setMockHistorySeed(true)
+    try {
+      const from = seoul(-14)
+      const to = seoul(-1)
+      const stats = await get(`/api/worklog/stats?from=${from}&to=${to}`)
+      const daily = stats.daily as { date: string; completedTaskCount: number; recordedMin?: number }[]
+      expect(daily.reduce((n, d) => n + d.completedTaskCount, 0)).toBeGreaterThanOrEqual(5)
+
+      const logs = (await get(`/api/worklog/logs?type=DAILY&from=${from}&to=${to}`)) as {
+        items: { periodStart: string; status: string; workday: boolean }[]
+        unconfirmedDays: number
+      }
+      // 목록은 최근 날짜가 먼저일 수 있어 날짜 순으로 본다
+      const workdays = logs.items.filter((i) => i.workday).sort((a, b) => a.periodStart.localeCompare(b.periodStart))
+      expect(workdays.length).toBeGreaterThanOrEqual(8)
+      expect(workdays.slice(0, -1).every((i) => i.status === 'CONFIRMED')).toBe(true)
+      expect(workdays.at(-1)!.status).not.toBe('CONFIRMED')
+
+      // 다시 불러와도 두 번 채우지 않는다
+      const again = (await get(`/api/worklog/logs?type=DAILY&from=${from}&to=${to}`)) as typeof logs
+      expect(again.items.filter((i) => i.status === 'CONFIRMED')).toHaveLength(workdays.length - 1)
+    } finally {
+      setMockHistorySeed(false)
+    }
   })
 })
