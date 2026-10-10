@@ -607,6 +607,14 @@
       "post" : {
         "description" : "현재 비밀번호 확인 뒤 새 비밀번호(D-38)로 바꾼다. 현재 기기의 세션만 남기고 다른 기기의 로그인 세션을 폐기한다.",
         "operationId" : "changePassword",
+        "parameters" : [ {
+          "in" : "cookie",
+          "name" : "refresh_token",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
         "requestBody" : {
           "content" : {
             "application/json" : {
