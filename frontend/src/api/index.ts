@@ -1,6 +1,7 @@
 import { createApiClient } from './client'
 import { mockFetch } from './mockServer'
 import type {
+  AccountDeletionRequest,
   LoginRequest,
   Me,
   PasswordChangeRequest,
@@ -41,6 +42,9 @@ export const authApi = {
   /** SCR-SET-06 ② (D-173). currentSessionKept=false면 서버가 쿠키를 지웠다 */
   changePassword: (body: PasswordChangeRequest) =>
     api.request<PasswordChanged>('/api/auth/password-change', { method: 'POST', body }),
+  /** SCR-SET-07 회원 탈퇴 (D-176). 204면 서버가 쿠키를 지웠다 */
+  deleteAccount: (body: AccountDeletionRequest) =>
+    api.request<void>('/api/users/me/deletion', { method: 'POST', body }),
   updateMe: (body: ProfileUpdateRequest) => api.request<Me>('/api/users/me', { method: 'PATCH', body }),
 }
 

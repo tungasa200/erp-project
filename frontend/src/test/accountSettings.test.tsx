@@ -84,7 +84,7 @@ describe('SCR-SET-06 계정', () => {
     await userEvent.click(screen.getByRole('button', { name: '비밀번호 변경' }))
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/login'))
-    expect(screen.getByText('비밀번호를 바꿨어요. 새 비밀번호로 다시 로그인해 주세요.')).toBeInTheDocument()
+    expect(await screen.findByText('비밀번호를 바꿨어요. 새 비밀번호로 다시 로그인해 주세요.')).toBeInTheDocument()
   })
 
   it('보내기 전에 화면에서 확인한다: 빈 칸, 규칙, 지금 것과 같음, 확인 불일치', async () => {

@@ -12,6 +12,7 @@ import { ForgotPasswordPage } from '../pages/password/ForgotPasswordPage'
 import { ResetPasswordPage } from '../pages/password/ResetPasswordPage'
 import { PlaceholderPage } from '../pages/PlaceholderPage'
 import { SignupPage } from '../pages/SignupPage'
+import { AccountDeletion } from '../settings/AccountDeletion'
 import { AccountSettings } from '../settings/AccountSettings'
 import { GeneralSettings } from '../settings/GeneralSettings'
 import { ProfileSettings } from '../settings/ProfileSettings'
@@ -55,6 +56,8 @@ export const routes = [
               { path: '/logs', element: <LogListPage /> },
               { path: '/logs/:type/:date', element: <LogPage /> },
               { path: '/stats', element: <PlaceholderPage title="통계" /> },
+              // SCR-SET-07 회원 탈퇴(P4-05): 설정 메뉴 없이 한 화면(목업 SET-07)
+              { path: '/settings/account/deletion', element: <AccountDeletion /> },
               {
                 path: '/settings',
                 element: <SettingsLayout />,

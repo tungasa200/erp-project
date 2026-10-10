@@ -12,6 +12,7 @@ export type LoginRequest = IdentitySchemas['LoginRequest']
 
 export type PasswordChangeRequest = IdentitySchemas['PasswordChangeRequest']
 export type PasswordChanged = IdentitySchemas['PasswordChanged']
+export type AccountDeletionRequest = IdentitySchemas['AccountDeletionRequest']
 
 type WorklogSchemas = WorklogComponents['schemas']
 

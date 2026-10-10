@@ -15,9 +15,11 @@ export function RequireAuth() {
   // 로그인 여부를 알 수 없으면 로그인 화면으로 보내지 않고 서버 오류 페이지(SCR-SYS-02 ①)를 보여 준다.
   if (error) throw error
   if (!user) {
+    const reason = sessionEndReason() ?? undefined
     const state: LoginLocationState = {
-      from: location.pathname + location.search + location.hash,
-      reason: sessionEndReason() ?? undefined,
+      // 탈퇴한 뒤에는 보던 화면(탈퇴 화면)으로 돌아갈 일이 없다
+      from: reason === 'withdrawn' ? undefined : location.pathname + location.search + location.hash,
+      reason,
     }
     return <Navigate to="/login" replace state={state} />
   }

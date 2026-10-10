@@ -230,6 +230,29 @@ export const mockFetch: typeof fetch = async (input, init) => {
     return new Response(null, { status: 204 })
   }
 
+  // SCR-SET-07 회원 탈퇴(D-176). 틀린 횟수는 비밀번호 변경과 함께 센다
+  if (method === 'POST' && path === '/api/users/me/deletion') {
+    const account = state.session && state.accounts[state.session.email]
+    if (!state.session || !account) return problem(401, 'UNAUTHENTICATED')
+    if (passwordChangeLock.until > Date.now()) {
+      return problem(429, 'PASSWORD_CHANGE_LOCKED', {
+        retryAfterSeconds: Math.ceil((passwordChangeLock.until - Date.now()) / 1000),
+      })
+    }
+    const password = String(body.password ?? '')
+    if (!password) return problem(400, 'VALIDATION_FAILED', { errors: [{ field: 'password', code: 'REQUIRED' }] })
+    if (password !== account.password) {
+      passwordChangeLock.fails += 1
+      if (passwordChangeLock.fails >= 5) passwordChangeLock = { fails: 0, until: Date.now() + 15 * 60 * 1000 }
+      return problem(400, 'PASSWORD_MISMATCH', { errors: [{ field: 'password', code: 'PASSWORD_MISMATCH' }] })
+    }
+    passwordChangeLock = { fails: 0, until: 0 }
+    delete state.accounts[state.session.email]
+    state.session = null
+    save(state)
+    return new Response(null, { status: 204 })
+  }
+
   if (method === 'POST' && path === '/api/auth/password-change') {
     const account = state.session && state.accounts[state.session.email]
     if (!state.session || !account) return problem(401, 'UNAUTHENTICATED')

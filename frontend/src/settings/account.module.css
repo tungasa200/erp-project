@@ -210,6 +210,18 @@
   cursor: pointer;
 }
 
+.linkRow + .linkRow {
+  border-top: 1px solid var(--color-divider);
+}
+
+a.linkRow {
+  text-decoration: none;
+}
+
+.linkDanger {
+  color: var(--color-danger);
+}
+
 .srOnly {
   position: absolute;
   width: 1px;
