@@ -22,7 +22,8 @@ export const AuthContext = createContext<AuthValue | null>(null)
 // 로그인 중이던 사용자의 세션이 끝난 이유. 로그인 화면이 "다시 로그인해 주세요"나 탈퇴 안내를 띄우는 데 쓴다.
 // passwordChanged: 비밀번호를 바꿨는데 서버가 이 기기를 가려내지 못해 모든 기기를 로그아웃함(SCR-SET-06, D-173)
 // withdrawn: 이 기기에서 회원 탈퇴를 마침(SCR-SET-07, D-176). deleted는 다른 곳에서 탈퇴한 계정의 토큰이 남아 있던 경우
-export type SessionEndReason = 'expired' | 'deleted' | 'passwordChanged' | 'withdrawn'
+// loggedOut: 직접 로그아웃함. 안내는 없고, /에 있었어도 랜딩 대신 로그인 화면으로 보낸다(SCR-AUTH-01)
+export type SessionEndReason = 'expired' | 'deleted' | 'passwordChanged' | 'withdrawn' | 'loggedOut'
 let sessionEnd: SessionEndReason | null = null
 export const sessionEndReason = () => sessionEnd
 

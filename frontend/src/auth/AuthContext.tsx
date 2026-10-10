@@ -50,7 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
       logout: async () => {
         await authApi.logout().catch(() => undefined)
-        clearSession()
+        clearSession('loggedOut')
       },
       clearSession,
     }

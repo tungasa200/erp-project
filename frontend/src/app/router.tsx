@@ -8,6 +8,7 @@ import { LoginPage } from '../pages/LoginPage'
 import { LogListPage } from '../logs/LogListPage'
 import { LogPage } from '../logs/LogPage'
 import { NotFoundPage } from '../pages/NotFoundPage'
+import { NotificationsPage } from '../notifications/NotificationsPage'
 import { ForgotPasswordPage } from '../pages/password/ForgotPasswordPage'
 import { ResetPasswordPage } from '../pages/password/ResetPasswordPage'
 import { SignupPage } from '../pages/SignupPage'
@@ -60,6 +61,8 @@ export const routes = [
               { path: '/logs/:type/:date', element: <LogPage /> },
               // 통계 SCR-STAT-01(P4-02, frontend2)
               { path: '/stats', element: <StatsPage /> },
+              // 알림 SCR-COM-05 ③ 모바일 전체 화면(P4-01, frontend2). 데스크톱은 종 팝오버
+              { path: '/notifications', element: <NotificationsPage /> },
               // SCR-SET-07 회원 탈퇴(P4-05): 설정 메뉴 없이 한 화면(목업 SET-07)
               { path: '/settings/account/deletion', element: <AccountDeletion /> },
               {
