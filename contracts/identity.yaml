@@ -3,7 +3,7 @@ info:
   title: identity-service API
   version: 0.3.0-draft
   description: |
-    구현 전 합의용 초안 (P0 범위: P0-05 인증, P0-11 내부 API. P1 범위: P1-01 프로필 수정, P1-12 이메일 인증, P1-13 비밀번호 재설정. P4 범위: P4-08 비밀번호 변경). 구현 후에는 springdoc 출력이 기준이다 (P0-10).
+    구현 전 합의용 초안 (P0 범위: P0-05 인증, P0-11 내부 API. P1 범위: P1-01 프로필 수정, P1-12 이메일 인증, P1-13 비밀번호 재설정. P4 범위: P4-08 비밀번호 변경, P4-05 회원 탈퇴). 구현 후에는 springdoc 출력이 기준이다 (P0-10).
     규약은 요구사항정의서 5.5를 따른다: 버전 없는 모듈 접두사(/api/auth, /api/users/me), 시각은 UTC ISO-8601,
     시간대는 IANA 이름, camelCase, 오류는 RFC 9457 Problem Details + code·errors[]·traceId.
 
@@ -311,7 +311,7 @@ paths:
           $ref: '#/components/responses/OriginRejected'
         '429':
           description: |
-            현재 비밀번호 불일치가 15분 안에 5회면 15분 동안 이 API만 막는다 (code=PASSWORD_CHANGE_LOCKED).
+            비밀번호 재확인 불일치가 15분 안에 5회면 15분 동안 막는다 (code=PASSWORD_CHANGE_LOCKED). 회원 탈퇴(/api/users/me/deletion)와 횟수를 합산하고, 잠기면 두 기능 모두 막힌다 (카드 20261011-0330).
             로그인은 막지 않는다(탈취된 세션이 비밀번호를 추측하는 것을 막는 용도). 남은 시간은 Retry-After 헤더(초)와 retryAfterSeconds.
           headers:
             Retry-After:
@@ -455,6 +455,68 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/OriginRejected'
+  /api/users/me/deletion:
+    post:
+      tags: [me]
+      operationId: deleteMe
+      summary: 회원 탈퇴 (AUTH-06, P4-05, SCR-SET-07 ③⑤)
+      description: |
+        비밀번호를 다시 입력받아 확인한 뒤 즉시 실제로 삭제한다 (D-49, D-174 ④). 유예 기간·복구는 없다.
+        화면의 "탈퇴" 입력 확인(SET-07 ④)은 화면에서만 확인하고 보내지 않는다.
+        DELETE /api/users/me가 아니라 POST인 까닭: 비밀번호를 본문으로 받아야 하는데 DELETE 본문은 프록시·클라이언트가 버릴 수 있다.
+
+        확인 순서: access 검증(401) → 시도 제한(429) → 비밀번호(400 PASSWORD_MISMATCH).
+
+        성공하면 한 트랜잭션에서
+        - users 행을 지운다. 로그인 수단·Refresh Token(모든 기기의 로그인 세션)·인증 코드는 FK로 함께 지워진다.
+          이메일은 남기지 않으므로 같은 이메일로 바로 다시 가입할 수 있고, 새 계정은 새 ID다 (D-49).
+        - 탈퇴 기록(user_id·시각만, /internal/deleted-users)을 남기고 사용자 변경 피드에 DELETED를 남긴다.
+          그 사용자의 과거 CREATED·PROFILE_UPDATED 이벤트는 지운다.
+        - 쿠키 2종을 지운다(Set-Cookie Max-Age=0, refresh_token은 Path=/api/auth로 지운다).
+
+        다른 모듈의 파기 (D-28, D-45): worklog는 피드를 30초마다 받아 DELETED를 반영할 때 업무·일정·기록·일지를 지운다.
+        - 파기 지연 상한(처리방침에 적는 값, WY-backend2 확인 2026-10-11): 정상 운영 시 탈퇴 후 1분 이내,
+          놓친 쓰기를 지우는 재파기는 15분 뒤(20분 이내 완료). identity 또는 worklog가 멈춰 있었다면 복구 직후 첫 poll에서 파기한다.
+        - identity는 탈퇴 직후부터 남은 Access Token(최대 10분) 요청을 401 USER_DELETED로 거부한다. worklog는 반영(1분 이내) 뒤부터
+          401 USER_DELETED이고, 반영 전 요청으로 생긴 데이터는 재파기(20분 이내)로 지운다.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccountDeletionRequest'
+      responses:
+        '204':
+          description: 탈퇴 완료. 쿠키 2종을 지운다. 화면은 탈퇴 완료 안내로 이동한다.
+          headers:
+            Set-Cookie:
+              $ref: '#/components/headers/ClearAuthCookies'
+        '400':
+          description: |
+            - PASSWORD_MISMATCH: 비밀번호가 틀림. errors[]에 field=password, code=PASSWORD_MISMATCH 하나. 불일치 횟수가 1 오른다.
+            - VALIDATION_FAILED: password 칸 없음(REQUIRED).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/OriginRejected'
+        '429':
+          description: |
+            비밀번호 재확인 불일치가 15분 안에 5회면 15분 동안 막는다 (code=PASSWORD_CHANGE_LOCKED, 비밀번호 변경과 같은 횟수를 함께 센다, 카드 20261011-0330).
+            남은 시간은 Retry-After 헤더(초)와 retryAfterSeconds.
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/RateLimitedProblem'
   /.well-known/jwks.json:
     get:
       tags: [jwks]
@@ -968,6 +1030,13 @@ components:
         newPassword:
           type: string
           description: 8~64자, UTF-8 72바이트 이하, 영문·숫자 포함, 이메일과 다른 문자열 (D-38). errors[].field는 newPassword
+    AccountDeletionRequest:
+      type: object
+      required: [password]
+      properties:
+        password:
+          type: string
+          description: 현재 비밀번호. errors[].field는 password
     PasswordChangeRequest:
       type: object
       required: [currentPassword, newPassword]

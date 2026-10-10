@@ -59,7 +59,7 @@ public class PasswordChangeController {
 	@ApiResponse(responseCode = "200", description = "변경 완료. currentSessionKept=false이면 쿠키 2종을 지운다")
 	@ApiResponse(responseCode = "400", description = "CURRENT_PASSWORD_MISMATCH(errors[].field=currentPassword) 또는 VALIDATION_FAILED(REQUIRED, 비밀번호 규칙, PASSWORD_SAME_AS_CURRENT)", content = @Content(mediaType = "application/problem+json", schema = @Schema(ref = "#/components/schemas/Problem")))
 	@ApiResponse(responseCode = "401", description = "UNAUTHENTICATED 또는 USER_DELETED", content = @Content(mediaType = "application/problem+json", schema = @Schema(ref = "#/components/schemas/Problem")))
-	@ApiResponse(responseCode = "429", description = "PASSWORD_CHANGE_LOCKED: 현재 비밀번호 불일치 15분 안에 5회 → 15분 동안 이 API만 막음. 남은 시간은 Retry-After(초)와 retryAfterSeconds", headers = @Header(name = HttpHeaders.RETRY_AFTER, schema = @Schema(type = "integer")), content = @Content(mediaType = "application/problem+json", schema = @Schema(ref = AuthOpenApi.RATE_LIMITED_PROBLEM_REF)))
+	@ApiResponse(responseCode = "429", description = "PASSWORD_CHANGE_LOCKED: 비밀번호 재확인 불일치(회원 탈퇴와 합산) 15분 안에 5회 → 15분 동안 비밀번호 변경·탈퇴를 막음. 남은 시간은 Retry-After(초)와 retryAfterSeconds", headers = @Header(name = HttpHeaders.RETRY_AFTER, schema = @Schema(type = "integer")), content = @Content(mediaType = "application/problem+json", schema = @Schema(ref = AuthOpenApi.RATE_LIMITED_PROBLEM_REF)))
 	@PostMapping(PATH)
 	public ResponseEntity<PasswordChanged> change(@AuthenticationPrincipal Jwt jwt,
 			@CookieValue(name = AuthCookies.REFRESH, required = false) String refreshToken,

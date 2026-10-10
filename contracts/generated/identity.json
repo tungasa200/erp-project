@@ -13,6 +13,17 @@
       }
     },
     "schemas" : {
+      "AccountDeletionRequest" : {
+        "properties" : {
+          "password" : {
+            "description" : "현재 비밀번호. errors[].field는 password",
+            "minLength" : 1,
+            "type" : "string"
+          }
+        },
+        "required" : [ "password" ],
+        "type" : "object"
+      },
       "CodeCheckRequest" : {
         "properties" : {
           "code" : {
@@ -664,7 +675,7 @@
                 }
               }
             },
-            "description" : "PASSWORD_CHANGE_LOCKED: 현재 비밀번호 불일치 15분 안에 5회 → 15분 동안 이 API만 막음. 남은 시간은 Retry-After(초)와 retryAfterSeconds",
+            "description" : "PASSWORD_CHANGE_LOCKED: 비밀번호 재확인 불일치(회원 탈퇴와 합산) 15분 안에 5회 → 15분 동안 비밀번호 변경·탈퇴를 막음. 남은 시간은 Retry-After(초)와 retryAfterSeconds",
             "headers" : {
               "Retry-After" : {
                 "schema" : {
@@ -982,6 +993,70 @@
           "bearerAuth" : [ ]
         } ],
         "summary" : "공통 프로필·화면 설정 수정 (AUTH-04·05, UX-09, P1-01)",
+        "tags" : [ "me" ]
+      }
+    },
+    "/api/users/me/deletion" : {
+      "post" : {
+        "description" : "비밀번호를 다시 확인한 뒤 즉시 실제로 삭제한다(D-49). 모든 기기의 로그인 세션도 함께 지운다. 다른 모듈은 사용자 변경 피드로 보통 1분, 늦어도 20분 안에 파기한다.",
+        "operationId" : "deleteMe",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/AccountDeletionRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "204" : {
+            "description" : "탈퇴 완료. 쿠키 2종을 지운다"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "PASSWORD_MISMATCH(errors[].field=password) 또는 VALIDATION_FAILED(REQUIRED)"
+          },
+          "401" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "UNAUTHENTICATED 또는 USER_DELETED"
+          },
+          "429" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RateLimitedProblem"
+                }
+              }
+            },
+            "description" : "PASSWORD_CHANGE_LOCKED: 비밀번호 재확인 불일치(비밀번호 변경과 합산) 15분 안에 5회 → 15분 동안 막음. 남은 시간은 Retry-After(초)와 retryAfterSeconds",
+            "headers" : {
+              "Retry-After" : {
+                "schema" : {
+                  "type" : "integer"
+                },
+                "style" : "simple"
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ],
+        "summary" : "회원 탈퇴 (AUTH-06, P4-05, SCR-SET-07)",
         "tags" : [ "me" ]
       }
     },
