@@ -186,6 +186,31 @@
         "required" : [ "email", "emailVerified", "id", "keyboardShortcutsEnabled", "themeAccent", "themeGround", "timezone", "version", "weekStart", "workDays" ],
         "type" : "object"
       },
+      "PasswordChangeRequest" : {
+        "properties" : {
+          "currentPassword" : {
+            "minLength" : 1,
+            "type" : "string"
+          },
+          "newPassword" : {
+            "description" : "8~64자, UTF-8 72바이트 이하, 영문·숫자 포함, 이메일과 다른 문자열 (D-38), 현재 비밀번호와 다른 문자열. errors[].field는 newPassword",
+            "minLength" : 1,
+            "type" : "string"
+          }
+        },
+        "required" : [ "currentPassword", "newPassword" ],
+        "type" : "object"
+      },
+      "PasswordChanged" : {
+        "properties" : {
+          "currentSessionKept" : {
+            "description" : "true: 현재 기기는 로그인 유지, 다른 기기의 로그인 세션은 폐기. false: 현재 기기를 가려낼 수 없어 모든 로그인 세션을 폐기하고 쿠키를 지움",
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "currentSessionKept" ],
+        "type" : "object"
+      },
       "PasswordResetConfirmRequest" : {
         "properties" : {
           "code" : {
@@ -575,6 +600,77 @@
           }
         },
         "summary" : "로그아웃",
+        "tags" : [ "auth" ]
+      }
+    },
+    "/api/auth/password-change" : {
+      "post" : {
+        "description" : "현재 비밀번호 확인 뒤 새 비밀번호(D-38)로 바꾼다. 현재 기기의 세션만 남기고 다른 기기의 로그인 세션을 폐기한다.",
+        "operationId" : "changePassword",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/PasswordChangeRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PasswordChanged"
+                }
+              }
+            },
+            "description" : "변경 완료. currentSessionKept=false이면 쿠키 2종을 지운다"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "CURRENT_PASSWORD_MISMATCH(errors[].field=currentPassword) 또는 VALIDATION_FAILED(REQUIRED, 비밀번호 규칙, PASSWORD_SAME_AS_CURRENT)"
+          },
+          "401" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "UNAUTHENTICATED 또는 USER_DELETED"
+          },
+          "429" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RateLimitedProblem"
+                }
+              }
+            },
+            "description" : "PASSWORD_CHANGE_LOCKED: 현재 비밀번호 불일치 15분 안에 5회 → 15분 동안 이 API만 막음. 남은 시간은 Retry-After(초)와 retryAfterSeconds",
+            "headers" : {
+              "Retry-After" : {
+                "schema" : {
+                  "type" : "integer"
+                },
+                "style" : "simple"
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ],
+        "summary" : "비밀번호 변경 (AUTH-07, P4-08, SCR-SET-06)",
         "tags" : [ "auth" ]
       }
     },

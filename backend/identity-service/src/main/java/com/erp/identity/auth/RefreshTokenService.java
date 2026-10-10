@@ -90,6 +90,28 @@ public class RefreshTokenService {
 			.ifPresent(token -> tokens.revokeFamily(token.getFamilyId(), clock.instant()));
 	}
 
+	/**
+	 * 비밀번호 변경 (AUTH-07, P4-08): 요청의 refresh 토큰이 이 사용자의 살아 있는 세션이면 그 세션만 남기고 나머지를 폐기한다.
+	 * 토큰이 없거나 유효하지 않으면 현재 기기를 가려낼 수 없으므로 모든 세션을 폐기하고 false를 돌려준다.
+	 * 방금 교체된 토큰(30초 유예)도 같은 세션으로 본다. 다른 탭이 먼저 갱신한 경우다.
+	 */
+	@Transactional
+	public boolean keepOnlySession(UUID userId, String rawToken) {
+		Instant now = clock.instant();
+		RefreshToken token = rawToken == null || rawToken.isBlank() ? null
+				: tokens.findByTokenHashForUpdate(hash(rawToken)).orElse(null);
+		boolean current = token != null && token.getUserId().equals(userId) && !token.isExpired(now)
+				&& (token.getRevokedAt() == null || token.getRevokedAt().plus(GRACE).isAfter(now))
+				&& tokens.existsByFamilyIdAndRevokedAtIsNull(token.getFamilyId());
+		if (current) {
+			tokens.revokeOtherFamilies(userId, token.getFamilyId(), now);
+		}
+		else {
+			tokens.revokeAllOfUser(userId, now);
+		}
+		return current;
+	}
+
 	private String issue(UUID userId, UUID familyId, Instant now) {
 		byte[] bytes = new byte[32];
 		RANDOM.nextBytes(bytes);

@@ -21,6 +21,7 @@ import org.springframework.web.servlet.HandlerExceptionResolver;
 
 import com.erp.common.error.ApiException;
 import com.erp.common.error.ProblemSecurityHandler;
+import com.erp.identity.auth.PasswordChangeController;
 import com.erp.identity.token.JwtKeyConfig;
 
 @Configuration
@@ -71,6 +72,8 @@ public class SecurityConfig {
 						"/api/auth/logout", "/api/auth/password-reset", "/api/auth/password-reset/verify",
 						"/api/auth/password-reset/confirm")
 				.permitAll()
+				.requestMatchers(HttpMethod.POST, PasswordChangeController.PATH)
+				.authenticated()
 				// Gateway가 외부로 라우팅하지 않는 경로 (내부 전용)
 				.requestMatchers(HttpMethod.GET, "/.well-known/jwks.json", "/v3/api-docs", "/v3/api-docs/**")
 				.permitAll()
@@ -80,8 +83,12 @@ public class SecurityConfig {
 				.authenticated()
 				.anyRequest()
 				.denyAll())
-			.oauth2ResourceServer(rs -> rs.jwt(jwt -> {
-			}).authenticationEntryPoint(problems).accessDeniedHandler(problems))
+			// /api/auth/password-change만 access_token 쿠키를 직접 읽는다 (Gateway가 /api/auth/**에 Bearer를 붙이지 않음).
+			.oauth2ResourceServer(rs -> rs.bearerTokenResolver(PasswordChangeController.bearerTokenResolver())
+				.jwt(jwt -> {
+				})
+				.authenticationEntryPoint(problems)
+				.accessDeniedHandler(problems))
 			.exceptionHandling(e -> e.authenticationEntryPoint(problems).accessDeniedHandler(problems));
 		return http.build();
 	}
