@@ -1,6 +1,7 @@
 # 로컬 개발용 PostgreSQL (P0-03). 운영(Railway)에는 쓰지 않는다.
 # 실행: docker compose -f infra/docker-compose.yml up -d
 # 초기화 스크립트는 데이터 볼륨이 비어 있을 때 한 번만 실행된다. 다시 만들려면 down -v.
+# E2E(P4-06)용 Mailpit까지 띄우려면: docker compose -f infra/docker-compose.yml --profile e2e up -d --wait
 services:
   postgres:
     image: postgres:18
@@ -22,6 +23,17 @@ services:
       retries: 10
     # PC 메모리가 넉넉하지 않아(Docker VM 약 3.7GB) 상한을 둔다.
     mem_limit: 512m
+
+  # E2E 시험용 메일 수신기 (P4-06, 카드 20261011-0420). identity가 MAIL_HOST=localhost·MAIL_PORT=1025로 보내면
+  # Playwright가 http://localhost:8025/api/v1/... 로 인증 코드 메일을 읽는다. 메일은 메모리에만 두고 컨테이너를 끄면 사라진다.
+  mailpit:
+    image: axllent/mailpit:v1.31.4
+    container_name: erp-mailpit
+    profiles: [e2e]
+    ports:
+      - "1025:1025" # SMTP
+      - "8025:8025" # 웹 화면·API
+    mem_limit: 128m
 
 volumes:
   erp-postgres-data:
