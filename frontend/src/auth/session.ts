@@ -12,17 +12,21 @@ export interface AuthValue {
   login: (body: LoginRequest) => Promise<Me>
   signup: (body: SignupRequest) => Promise<Me>
   logout: () => Promise<void>
+  /** 서버가 이미 쿠키를 지운 뒤(비밀번호 변경 currentSessionKept=false) 이 기기의 로그인 상태만 비운다.
+   *  reason은 로그인 화면 안내에 쓴다 */
+  clearSession: (reason?: SessionEndReason) => void
 }
 
 export const AuthContext = createContext<AuthValue | null>(null)
 
 // 로그인 중이던 사용자의 세션이 끝난 이유. 로그인 화면이 "다시 로그인해 주세요"나 탈퇴 안내를 띄우는 데 쓴다.
-export type SessionEndReason = 'expired' | 'deleted'
+// passwordChanged: 비밀번호를 바꿨는데 서버가 이 기기를 가려내지 못해 모든 기기를 로그아웃함(SCR-SET-06, D-173)
+export type SessionEndReason = 'expired' | 'deleted' | 'passwordChanged'
 let sessionEnd: SessionEndReason | null = null
 export const sessionEndReason = () => sessionEnd
 
-export function setUser(queryClient: QueryClient, me: Me | null) {
-  sessionEnd = null
+export function setUser(queryClient: QueryClient, me: Me | null, reason: SessionEndReason | null = null) {
+  sessionEnd = reason
   queryClient.setQueryData(ME_QUERY_KEY, me)
 }
 

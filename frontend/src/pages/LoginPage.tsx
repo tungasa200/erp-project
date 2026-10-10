@@ -100,6 +100,11 @@ export function LoginPage() {
             다시 로그인해 주세요. 로그인 후 보던 화면으로 돌아가요.
           </div>
         )}
+        {state.reason === 'passwordChanged' && !notice && (
+          <div role="status" className={`${styles.alert} ${styles.alertInfo}`}>
+            비밀번호를 바꿨어요. 새 비밀번호로 다시 로그인해 주세요.
+          </div>
+        )}
         {state.reason === 'deleted' && !notice && (
           <div role="status" className={`${styles.alert} ${styles.alertInfo}`}>
             <span>

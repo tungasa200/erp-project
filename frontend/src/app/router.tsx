@@ -12,6 +12,7 @@ import { ForgotPasswordPage } from '../pages/password/ForgotPasswordPage'
 import { ResetPasswordPage } from '../pages/password/ResetPasswordPage'
 import { PlaceholderPage } from '../pages/PlaceholderPage'
 import { SignupPage } from '../pages/SignupPage'
+import { AccountSettings } from '../settings/AccountSettings'
 import { GeneralSettings } from '../settings/GeneralSettings'
 import { ProfileSettings } from '../settings/ProfileSettings'
 import { ProjectSettings } from '../settings/ProjectSettings'
@@ -63,6 +64,8 @@ export const routes = [
                   { path: 'general', element: <GeneralSettings /> },
                   { path: 'recording', element: <RecordingSettings /> },
                   { path: 'projects', element: <ProjectSettings /> },
+                  // SCR-SET-06 계정(P4-08 비밀번호 변경)
+                  { path: 'account', element: <AccountSettings /> },
                 ],
               },
             ],

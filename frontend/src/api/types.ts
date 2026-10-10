@@ -10,6 +10,9 @@ export type ProfileUpdateRequest = IdentitySchemas['ProfileUpdateRequest']
 export type SignupRequest = IdentitySchemas['SignupRequest']
 export type LoginRequest = IdentitySchemas['LoginRequest']
 
+export type PasswordChangeRequest = IdentitySchemas['PasswordChangeRequest']
+export type PasswordChanged = IdentitySchemas['PasswordChanged']
+
 type WorklogSchemas = WorklogComponents['schemas']
 
 export type WorklogMe = WorklogSchemas['WorklogMe']

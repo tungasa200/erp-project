@@ -109,6 +109,9 @@ function updateProfile(current: Me, body: ProfileUpdateRequest): Me | Response {
   return changed ? { ...next, version: current.version + 1 } : current
 }
 
+// 비밀번호 변경: 현재 비밀번호를 5번 틀리면 15분 동안 막는다(429 PASSWORD_CHANGE_LOCKED). 새로 고침하면 풀린다.
+let passwordChangeLock = { fails: 0, until: 0 }
+
 function startSession(state: MockState, email: string) {
   state.session = { email, accessExpiresAt: Date.now() + ACCESS_TTL_MS }
   save(state)
@@ -225,6 +228,34 @@ export const mockFetch: typeof fetch = async (input, init) => {
     state.session = null // 모든 기기 로그아웃
     save(state)
     return new Response(null, { status: 204 })
+  }
+
+  if (method === 'POST' && path === '/api/auth/password-change') {
+    const account = state.session && state.accounts[state.session.email]
+    if (!state.session || !account) return problem(401, 'UNAUTHENTICATED')
+    const email = state.session.email
+    if (passwordChangeLock.until > Date.now()) {
+      return problem(429, 'PASSWORD_CHANGE_LOCKED', {
+        retryAfterSeconds: Math.ceil((passwordChangeLock.until - Date.now()) / 1000),
+      })
+    }
+    const current = String(body.currentPassword ?? '')
+    const next = String(body.newPassword ?? '')
+    if (!current) return problem(400, 'VALIDATION_FAILED', { errors: [{ field: 'currentPassword', code: 'REQUIRED' }] })
+    if (current !== account.password) {
+      passwordChangeLock.fails += 1
+      if (passwordChangeLock.fails >= 5) passwordChangeLock = { fails: 0, until: Date.now() + 15 * 60 * 1000 }
+      return problem(400, 'CURRENT_PASSWORD_MISMATCH', {
+        errors: [{ field: 'currentPassword', code: 'CURRENT_PASSWORD_MISMATCH' }],
+      })
+    }
+    const errors: FieldError[] = passwordViolations(next, email).map((code) => ({ field: 'newPassword', code }))
+    if (next === current) errors.push({ field: 'newPassword', code: 'PASSWORD_SAME_AS_CURRENT' })
+    if (errors.length) return problem(400, 'VALIDATION_FAILED', { errors })
+    passwordChangeLock = { fails: 0, until: 0 }
+    account.password = next
+    save(state)
+    return json(200, { currentSessionKept: true })
   }
 
   if (path.startsWith('/api/users/me/email-verification')) {

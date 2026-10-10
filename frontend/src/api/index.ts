@@ -3,6 +3,8 @@ import { mockFetch } from './mockServer'
 import type {
   LoginRequest,
   Me,
+  PasswordChangeRequest,
+  PasswordChanged,
   ProfileUpdateRequest,
   SignupRequest,
   WorklogMe,
@@ -36,6 +38,9 @@ export const authApi = {
   login: (body: LoginRequest) => api.request<Me>('/api/auth/login', { method: 'POST', body }),
   logout: () => api.request<void>('/api/auth/logout', { method: 'POST' }),
   me: () => api.request<Me>('/api/users/me'),
+  /** SCR-SET-06 ② (D-173). currentSessionKept=false면 서버가 쿠키를 지웠다 */
+  changePassword: (body: PasswordChangeRequest) =>
+    api.request<PasswordChanged>('/api/auth/password-change', { method: 'POST', body }),
   updateMe: (body: ProfileUpdateRequest) => api.request<Me>('/api/users/me', { method: 'PATCH', body }),
 }
 
