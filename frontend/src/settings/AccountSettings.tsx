@@ -1,5 +1,5 @@
 // SCR-SET-06 설정 — 계정 (P4-08, 목업 SET-06·SET-06s). ① 이메일·인증 상태 ② 비밀번호 변경(D-173) ③ 로그아웃.
-// 회원 탈퇴 줄은 SCR-SET-07(P4-05)로 간다. 개인정보 처리방침·이용약관 줄은 그 화면(SCR-AUTH-06·07)을 만들 때 더한다.
+// 회원 탈퇴 줄은 SCR-SET-07(P4-05)로 간다. ⑤ 개인정보 처리방침·이용약관(SCR-AUTH-06·07)은 공개 화면으로 간다.
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link } from 'react-router'
 import { authApi } from '../api'
@@ -105,6 +105,17 @@ export function AccountSettings() {
         </button>
         <Link to="/settings/account/deletion" className={`${account.linkRow} ${account.linkDanger}`}>
           회원 탈퇴
+          <span aria-hidden="true">›</span>
+        </Link>
+      </section>
+
+      <section aria-label="약관·정책" className={`${styles.panel} ${account.links}`}>
+        <Link to="/privacy" className={account.linkRow}>
+          개인정보 처리방침
+          <span aria-hidden="true">›</span>
+        </Link>
+        <Link to="/terms" className={account.linkRow}>
+          이용약관
           <span aria-hidden="true">›</span>
         </Link>
       </section>

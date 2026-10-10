@@ -176,4 +176,12 @@ describe('SCR-SET-06 계정', () => {
     await userEvent.click(await screen.findByRole('button', { name: '로그아웃' }))
     await waitFor(() => expect(router.state.location.pathname).toBe('/login'))
   })
+
+  it('⑤ 개인정보 처리방침·이용약관 링크', async () => {
+    server()
+    renderApp('/settings/account')
+    const legal = await screen.findByRole('region', { name: '약관·정책' })
+    expect(within(legal).getByRole('link', { name: '개인정보 처리방침' })).toHaveAttribute('href', '/privacy')
+    expect(within(legal).getByRole('link', { name: '이용약관' })).toHaveAttribute('href', '/terms')
+  })
 })

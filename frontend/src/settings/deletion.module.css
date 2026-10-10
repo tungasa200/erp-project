@@ -149,4 +149,9 @@
     flex-direction: column;
     align-items: flex-start;
   }
+
+  /* 세로로 쌓이면 240px 기준 폭이 높이로 작동해 글 아래가 비므로 글 높이만큼만 차지한다(TC-P4Q-DEL-01) */
+  .exportText {
+    flex: none;
+  }
 }
