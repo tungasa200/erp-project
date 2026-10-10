@@ -289,9 +289,78 @@ export interface paths {
         head?: never;
         /**
          * worklog 전용 설정 수정 (P1-01, 항목별 자동 저장)
-         * @description 보낸 칸만 바꾼다. 설정 행이 없으면 version=0으로 보낸다.
+         * @description SCR-SET-02의 ④ 업무 시간대 ⑤ 하루 마감 시각과 SCR-SET-03의 시간 기록 사용 여부, SCR-SET-05 ① 하루 마감 알림 켜기(P4-01).
+         *     보낸 칸만 바꾼다. 설정 행이 없으면 version=0으로 보낸다.
+         *     dailyCloseTime·dailyCloseNotifyEnabled가 바뀌면 다음 알림 시각(next_notify_at)을 다시 계산한다 (5.6). 프로필 시간대·업무 요일이 바뀌어도
+         *     (피드로 사본이 바뀔 때) 다시 계산한다.
+         *     하루 마감 알림 발송(P4-01): 1분마다(ShedLock) next_notify_at이 지난 사용자에게 보낸다.
+         *     - 근무일(D-37)이 아닌 날은 보내지 않는다. next_notify_at은 다음 근무일의 dailyCloseTime(사용자 시간대)이다.
+         *     - 그날 일간 일지가 이미 확정(CONFIRMED)이면 보내지 않는다(이미 마감함).
+         *     - 서버가 멈춰 1시간 넘게 지난 알림은 보내지 않고 다음 시각만 다시 계산한다.
+         *     - 보내기 = 알림 센터 항목(DAILY_CLOSE, 확인 대기 수 포함) + 그 사용자의 모든 푸시 구독에 웹 푸시. 그날이 주(월)의 마지막 근무일이면
+         *       LOG_SUGGESTION(WEEKLY → MONTHLY)도 같은 때 만든다(푸시는 하루 마감 한 통만).
+         *     - 푸시 내용: 제목 "하루 마감 시간이에요", 본문 확인 대기 n건 안내(0이면 생략), 누르면 앱 화면 /logs/daily/{date}?close=1(마감 창이 열림, 알림 읽음 처리, pm 결정 2026-10-10). TTL 1시간.
+         *       기록·업무 제목 같은 내용은 넣지 않는다.
          */
         patch: operations["updateMySettings"];
+        trace?: never;
+    };
+    "/api/worklog/notifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 알림 센터 목록 (P4-01, NOTI-01·LOG-16 — SCR-COM-05)
+         * @description 최신순(createdAt 내림차순 → id). 30일이 지난 알림은 하루 1회 정리 작업이 지운다.
+         *     unreadCount는 전체(페이지와 무관) 읽지 않은 수로, 사이드바 배지에 쓴다(배지는 limit=1로 불러도 된다).
+         */
+        get: operations["listNotifications"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/worklog/notifications/read-all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 모두 읽음 (SCR-COM-05 ②) */
+        post: operations["markAllNotificationsRead"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/worklog/notifications/{notificationId}/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 알림 하나 읽음 (항목 클릭, 웹 푸시 클릭으로 열 때)
+         * @description 이미 읽었으면 그대로 204(멱등).
+         */
+        post: operations["markNotificationRead"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/worklog/projects": {
@@ -334,6 +403,57 @@ export interface paths {
          * @description 보낸 칸만 바꾼다. 보관한 프로젝트의 업무는 업무 목록 기본 조회에서 빠진다.
          */
         patch: operations["updateProject"];
+        trace?: never;
+    };
+    "/api/worklog/push/public-key": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 웹 푸시 VAPID 공개 키 (P4-01, SCR-SET-05 ③)
+         * @description PushManager.subscribe의 applicationServerKey에 넣는 값(base64url, 비압축 P-256 공개 키 65바이트).
+         *     공개 키라 비밀이 아니지만 서버 환경변수 하나(VAPID_PUBLIC_KEY)로 관리하려고 API로 준다.
+         */
+        get: operations["getPushPublicKey"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/worklog/push/subscriptions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * 이 브라우저의 푸시 구독 등록 (권한 허용 직후, 그리고 앱을 열 때마다 다시 보냄)
+         * @description PushSubscription.toJSON()의 endpoint·keys를 그대로 보낸다. endpoint가 같으면 덮어쓴다(다른 사용자 것이었으면 이 사용자로 옮긴다 — 같은 브라우저에서 계정을 바꾼 경우).
+         *     사용자당 최대 10개, 넘으면 가장 오래 쓰지 않은 구독을 지운다.
+         *     보안(SSRF 방지): endpoint는 https이고 호스트가 알려진 푸시 서비스여야 한다 —
+         *     fcm.googleapis.com, updates.push.services.mozilla.com, *.notify.windows.com, web.push.apple.com, *.push.apple.com. 아니면 400(errors[].field=endpoint, code=NOT_ALLOWED).
+         *     발송 때 푸시 서비스가 404·410을 주면 그 구독을 지운다.
+         *     푸시 메시지 본문(서비스 워커 push 이벤트의 data.json()): {"type":"DAILY_CLOSE","notificationId":uuid,"title":string,"body":string|null,"url":"/logs/daily/{date}?close=1"}.
+         *     서비스 워커는 title·body로 알림을 띄우고(tag=type), 누르면 notificationId를 읽음 처리하고 url을 연다.
+         */
+        put: operations["savePushSubscription"];
+        post?: never;
+        /**
+         * 이 브라우저의 푸시 구독 해제 (알림 끄기·로그아웃 때)
+         * @description 없는 endpoint여도 204(멱등). 다른 사용자의 구독은 지우지 않는다.
+         */
+        delete: operations["deletePushSubscription"];
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/worklog/records": {
@@ -616,6 +736,62 @@ export interface paths {
          *     version은 일정의 version이며 성공하면 오른다.
          */
         patch: operations["updateOccurrence"];
+        trace?: never;
+    };
+    "/api/worklog/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 업무 통계 (P4-02, STAT-01 — SCR-STAT-01 ②③④)
+         * @description 화면이 차트를 직접 그리므로 숫자만 준다. 기간 [from, to] 양끝 포함, 최대 400일. 날짜는 사용자의 현재 시간대 기준.
+         *     - 완료 업무: 보관하지 않은 업무 중 완료 시각(completedAt)의 날짜가 기간 안인 것. 지금 DONE이 아니면(완료 취소) 세지 않는다.
+         *     - 기록: 보관하지 않은 확정(CONFIRMED) 기록, workDate 기준(확인 대기 제외).
+         *     - 확정 일지: 상태 CONFIRMED이고 기간 시작일이 [from, to] 안인 일지(일간·주간·월간 합).
+         *     - daily: from부터 to까지 하루도 빠짐없이(0 포함) 날짜순. 주·월 막대는 화면이 프로필 주 시작 요일로 묶는다.
+         *     - projects: 프로젝트별 완료 업무 수·기록 수. 프로젝트는 업무의 지금 프로젝트, 업무 없는 기록·프로젝트 없는 업무는 projectId=null 한 줄.
+         *       둘 다 0인 프로젝트는 넣지 않는다. 정렬: completedTaskCount 내림차순 → recordCount 내림차순 → projectId.
+         *       소요시간 비중(⑤)은 GET /records/time-summary를 같은 기간으로 부른다.
+         *     - firstRecordDate: 이 사용자의 첫 확정 기록 workDate(기간과 무관, 없으면 null). "1주일 기록이 쌓이면" 판단은 화면이 한다.
+         */
+        get: operations["getStats"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/worklog/stats/plan-vs-actual": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 예상 대비 실제 회고 (P4-02, UX-05 — SCR-STAT-01 ⑥)
+         * @description 업무 단위로 비교한다(계획 시간 정의는 카드 0401).
+         *     - 예상(plannedMin): 업무에 연결된 시간 일정(allDay=false) 회차 중 취소하지 않은 것의 길이(분). 회차가 속한 주는 회차 시작 시각을 사용자 시간대 날짜로 바꿔 정한다.
+         *       종일 일정·업무 없는 일정은 예상에 넣지 않는다.
+         *     - 실제(actualMin): 보관하지 않은 확정 기록의 durationMin(시간 없는 기록 제외), workDate 기준. 기록의 업무로 묶는다(계획에서 온 기록인지와 무관).
+         *     - 주: 프로필 주 시작 요일 기준. 기간 [from, to](최대 400일)와 겹치는 주를 모두 주되, 각 주는 기간 안 날짜만 센다.
+         *     - weeks[]: 주마다 plannedMin(그 주 예상 합), actualMin(그 주 예상이 있는 업무의 실제 합), unplannedMin(그 주 예상이 없는 업무·업무 없는 기록의 실제 합).
+         *     - topDiffs: 기간 전체에서 예상이 있는 업무를 |actualMin − plannedMin| 내림차순 → taskId로 최대 5개. actualMin은 그 업무의 기간 전체 실제.
+         *       업무 제목은 지금 제목(보관 업무 포함).
+         *     시간 기록 옵션과 관계없이 응답한다(꺼져 있으면 화면이 영역을 숨긴다).
+         */
+        get: operations["getPlanVsActual"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/worklog/tags": {
@@ -992,7 +1168,8 @@ export interface components {
             completedTaskCount: number;
             /**
              * Format: int32
-             * @description 결과 칩 "완료" 기록 수
+             * @description '완료' 건수. 일간·주간: 결과 '완료' 기록 수 + 완료한 날 그 업무의 기록이 없는 완료 업무 수(그날 '완료' 기록이 있는 업무는 한 번만, D-113).
+             *     월간: 기간 안에 완료한 업무 수(D-123)
              */
             done: number;
             /** Format: int32 */
@@ -1138,6 +1315,46 @@ export interface components {
             type: "WEEKLY" | "MONTHLY";
             /** @description 기간 안 근무일 중 일간 일지가 확정이 아닌 날 (LOG-16) */
             unconfirmedDates: string[];
+        };
+        Notification: {
+            /** Format: date-time */
+            createdAt: string;
+            /**
+             * Format: date
+             * @description 알림이 가리키는 날(하루 마감 대상일, 제안을 만든 날)
+             */
+            date: string;
+            /** Format: uuid */
+            id: string;
+            /**
+             * @description LOG_SUGGESTION일 때만
+             * @enum {string|null}
+             */
+            logType?: "WEEKLY" | "MONTHLY" | null;
+            /**
+             * Format: int32
+             * @description DAILY_CLOSE일 때 보낼 때의 확인 대기 기록 수(스냅샷). 다른 종류는 null
+             */
+            pendingCount?: number | null;
+            /**
+             * Format: date
+             * @description LOG_SUGGESTION일 때만
+             */
+            periodStart?: string | null;
+            /** Format: date-time */
+            readAt: string | null;
+            /**
+             * @description DAILY_CLOSE 하루 마감 시간(이동: SCR-LOG-03, date), LOG_SUGGESTION 주간·월간 일지 만들 차례(이동: 그 일지, logType·periodStart).
+             * @enum {string}
+             */
+            type: "DAILY_CLOSE" | "LOG_SUGGESTION";
+        };
+        NotificationList: {
+            items: components["schemas"]["Notification"][];
+            /** @description 다음 페이지가 없으면 null */
+            nextCursor?: string | null;
+            /** Format: int32 */
+            unreadCount: number;
         };
         /**
          * @description 캘린더에 그리는 일정 회차 하나. 반복이 없는 일정도 회차 하나로 준다.
@@ -1318,6 +1535,38 @@ export interface components {
             taskId: string;
             title: string;
         };
+        PlanVsActual: {
+            /** Format: date */
+            from: string;
+            /** Format: date */
+            to: string;
+            topDiffs: components["schemas"]["PlanVsActualTask"][];
+            weeks: components["schemas"]["PlanVsActualWeek"][];
+        };
+        PlanVsActualTask: {
+            /** Format: int32 */
+            actualMin: number;
+            /** Format: int32 */
+            plannedMin: number;
+            /** Format: uuid */
+            projectId: string | null;
+            /** Format: uuid */
+            taskId: string;
+            title: string;
+        };
+        PlanVsActualWeek: {
+            /** Format: int32 */
+            actualMin: number;
+            /** Format: int32 */
+            plannedMin: number;
+            /** Format: int32 */
+            unplannedMin: number;
+            /**
+             * Format: date
+             * @description 그 주의 시작일(기간 앞으로 나갈 수 있음)
+             */
+            weekStart: string;
+        };
         /** @description RFC 9457 Problem Details + 확장 필드 (P0-10 공통 모듈 형식) */
         Problem: {
             /** @description 기계 판독용 오류 코드 */
@@ -1394,6 +1643,17 @@ export interface components {
             name?: string;
             /** Format: int64 */
             version: number;
+        };
+        PublicKey: {
+            publicKey: string;
+        };
+        PushSubscription: {
+            endpoint: string;
+            keys: components["schemas"]["PushSubscriptionKeys"];
+        };
+        PushSubscriptionKeys: {
+            auth: string;
+            p256dh: string;
         };
         /**
          * @description 반복 규칙 (SCH-03). 첫 회차는 항상 일정의 시작이라 매주는 weekdays에 시작일의 요일이 있어야 한다.
@@ -1484,6 +1744,41 @@ export interface components {
             title?: string;
             /** Format: int64 */
             version: number;
+        };
+        Stats: {
+            /** Format: int32 */
+            completedTaskCount: number;
+            /** Format: int32 */
+            confirmedLogCount: number;
+            daily: components["schemas"]["StatsDay"][];
+            /**
+             * Format: date
+             * @description 첫 확정 기록 workDate(기간과 무관), 없으면 null
+             */
+            firstRecordDate: string | null;
+            /** Format: date */
+            from: string;
+            projects: components["schemas"]["StatsProject"][];
+            /** Format: int32 */
+            recordCount: number;
+            /** Format: date */
+            to: string;
+        };
+        StatsDay: {
+            /** Format: int32 */
+            completedTaskCount: number;
+            /** Format: date */
+            date: string;
+            /** Format: int32 */
+            recordCount: number;
+        };
+        StatsProject: {
+            /** Format: int32 */
+            completedTaskCount: number;
+            /** Format: uuid */
+            projectId: string | null;
+            /** Format: int32 */
+            recordCount: number;
         };
         Tag: {
             /** Format: date-time */
@@ -1892,6 +2187,12 @@ export interface components {
         };
         WorklogSettings: {
             /**
+             * @description 하루 마감 알림 켜기(SCR-SET-05 ①). 기본 꺼짐(카드 0401, 기존 사용자도 꺼짐). 켜면 앱 안 알림을 만들고, 푸시 구독이 있으면 웹 푸시도 보낸다.
+             *     웹 푸시 권한은 브라우저마다 따로라 여기서 다루지 않는다(구독 API).
+             * @default false
+             */
+            dailyCloseNotifyEnabled: boolean;
+            /**
              * @description 사용자 시간대 기준 하루 마감 시각
              * @example 18:00
              */
@@ -1911,6 +2212,7 @@ export interface components {
             workHoursStart: string;
         };
         WorklogSettingsPatch: {
+            dailyCloseNotifyEnabled?: boolean;
             dailyCloseTime?: string;
             timeTrackingEnabled?: boolean;
             /**
@@ -2603,6 +2905,89 @@ export interface operations {
             };
         };
     };
+    listNotifications: {
+        parameters: {
+            query?: {
+                /** @description 이전 응답의 nextCursor. 처음이면 생략. */
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 알림 목록 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationList"];
+                };
+            };
+            /** @description cursor 형식이 틀림(code=INVALID_CURSOR) 또는 값 형식 오류(code=VALIDATION_FAILED) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    markAllNotificationsRead: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 읽지 않은 알림을 모두 읽음으로 */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    markNotificationRead: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                notificationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 읽음 */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description 없거나 내 알림이 아님 (code=NOT_FOUND) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     listProjects: {
         parameters: {
             query?: {
@@ -2754,6 +3139,80 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+        };
+    };
+    getPushPublicKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 공개 키 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicKey"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    savePushSubscription: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PushSubscription"];
+            };
+        };
+        responses: {
+            /** @description 저장됨 */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 입력 오류 (code=VALIDATION_FAILED). errors[].code: REQUIRED, TOO_LONG, NOT_ALLOWED */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    deletePushSubscription: {
+        parameters: {
+            query: {
+                endpoint: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 지움 */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
         };
     };
     listRecords: {
@@ -3486,6 +3945,92 @@ export interface operations {
             };
             /** @description version 불일치(code=VERSION_CONFLICT) 또는 반복 일정이 아님(code=NOT_RECURRING) */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getStats: {
+        parameters: {
+            query: {
+                from: string;
+                /** @description from 이후(같아도 됨), from + 400일 이내 */
+                to: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 통계 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Stats"];
+                };
+            };
+            /** @description 값 형식 오류 (code=VALIDATION_FAILED) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description identity 조회 실패 (code=PROFILE_UNAVAILABLE) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getPlanVsActual: {
+        parameters: {
+            query: {
+                from: string;
+                /** @description from 이후(같아도 됨), from + 400일 이내 */
+                to: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 주별 비교와 차이 큰 업무 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanVsActual"];
+                };
+            };
+            /** @description 값 형식 오류 (code=VALIDATION_FAILED) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description identity 조회 실패 (code=PROFILE_UNAVAILABLE) */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

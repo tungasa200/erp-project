@@ -321,6 +321,7 @@ export const mockFetch: typeof fetch = async (input, init) => {
     if (!session || !account || session.accessExpiresAt < Date.now()) return problem(401, 'UNAUTHENTICATED')
     const current: WorklogSettings = account.settings ?? {
       timeTrackingEnabled: false,
+      dailyCloseNotifyEnabled: false,
       workHoursStart: '09:00',
       workHoursEnd: '18:00',
       dailyCloseTime: '18:00',
