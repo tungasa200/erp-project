@@ -166,11 +166,17 @@ function ListStatus({ pending, error, onRetry, empty }: ListState & { empty: str
   return <p className={styles.muted}>{empty}</p>
 }
 
-/** [복원]: 끊긴 동안은 막는다(보낼 수 없음). 실패는 토스트 */
+/**
+ * [복원]: 끊긴 동안은 막는다(보낼 수 없음). 실패는 토스트. 보내는 동안은 disabled 대신 aria-disabled로 막는다:
+ * disabled는 포커스를 먼저 놓아 버려, 줄이 빠진 뒤 앱 셸 안전망이 이웃·제목으로 옮겨 주지 못한다
+ */
 function useRestore(onFail?: () => void) {
   const { showToast } = useToast()
   const [busy, setBusy] = useState<string | null>(null)
+  const sending = useRef(false)
   const run = async (key: string, action: () => Promise<unknown>, done: string) => {
+    if (sending.current) return
+    sending.current = true
     setBusy(key)
     try {
       await action()
@@ -180,6 +186,7 @@ function useRestore(onFail?: () => void) {
       showToast(message, { traceId })
       onFail?.()
     } finally {
+      sending.current = false
       setBusy(null)
     }
   }
@@ -221,7 +228,8 @@ function TaskList(
                 type="button"
                 className={styles.restore}
                 data-focus-item
-                disabled={!online || busy === t.id}
+                disabled={!online}
+                aria-disabled={busy === t.id || undefined}
                 aria-label={`${t.title} 복원`}
                 onClick={() =>
                   void run(
@@ -271,7 +279,8 @@ function ProjectList(props: ListState & { projects: Project[]; timeZone: string 
               type="button"
               className={styles.restore}
               data-focus-item
-              disabled={!online || busy === p.id}
+              disabled={!online}
+              aria-disabled={busy === p.id || undefined}
               aria-label={`${p.name} 복원`}
               onClick={() =>
                 void run(

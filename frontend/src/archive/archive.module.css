@@ -171,6 +171,7 @@
 }
 
 .restore:disabled,
+.restore[aria-disabled='true'],
 .more:disabled {
   background: var(--color-ground);
   color: var(--color-disabled);
@@ -196,8 +197,10 @@
     padding: 4px 16px;
   }
 
+  /* 이름 옆에서 글자 단위로 꺾이지 않게: 자리가 모자라면 날짜가 통째로 다음 줄로 */
   .when {
     min-width: 0;
-    flex: 1;
+    flex: 1 0 auto;
+    white-space: nowrap;
   }
 }
