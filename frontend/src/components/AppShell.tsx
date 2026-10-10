@@ -1,14 +1,16 @@
-// SCR-COM-01 앱 셸 (P0 골격). 알림(SCR-COM-05)·빠른 기록은 이후 단계에서 채운다.
+// SCR-COM-01 앱 셸 (P0 골격). 알림(SCR-COM-05)은 P4-01에서 채운다.
+// 모바일 하단 탭 가운데 +와 PWA 바로가기 '빠른 기록'(/?quick=1)은 빠른 기록 바텀시트(SCR-MOB-01, P4-03)를 연다.
 // 명령 팔레트(Ctrl+K)와 빠른 입력 단축키(N)는 앱 화면 어디서든 동작한다 (P1-10).
 // 타이머 미니 플레이어(SCR-COM-06, P2-06)는 사이드바 하단과 모바일 하단 탭 위에 하나씩 달고 CSS로 한쪽만 보인다.
 // 팔레트의 '하루 마감'(SCR-LOG-03)은 어느 화면에서든 오늘 마감을 연다.
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
-import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router'
+import { Link, NavLink, Outlet, useLocation, useNavigate, useSearchParams } from 'react-router'
 import { toastForError } from '../api/errorToast'
 import { useAuth } from '../auth/useAuth'
 import { DayClose } from '../logs/DayClose'
 import { CommandPalette } from '../palette/CommandPalette'
 import { useProjects } from '../projects/api'
+import { PendingPanel } from '../records/PendingPanel'
 import { todayIn } from '../quickInput/dates'
 import { projectColor } from '../projects/palette'
 import { useSingleKeyShortcuts } from '../shortcuts/useShortcuts'
@@ -20,6 +22,7 @@ import { TimerStartDialog } from '../timer/TimerStartDialog'
 import { UnverifiedBanner } from '../verification/UnverifiedBanner'
 import styles from './AppShell.module.css'
 import { useFocusRescue } from './focusRescue'
+import { QuickSheet } from './QuickSheet'
 import { useOnline } from './useOnline'
 import { useToast } from './useToast'
 
@@ -42,6 +45,15 @@ const MENU = [
   },
   { to: '/stats', label: '통계', icon: 'M4 20V10M10 20V4M16 20v-7M22 20H2' },
 ]
+const ICON = {
+  home: MENU[0].icon,
+  calendar: MENU[1].icon,
+  tasks: MENU[2].icon,
+  logs: MENU[3].icon,
+  stats: MENU[4].icon,
+  archive: 'M3 4h18v4H3zM5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8M10 12h4',
+  more: 'M5 12h.01M12 12h.01M19 12h.01',
+}
 const SETTINGS_ICON =
   'M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM12 2v3M12 19v3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1 7 17M17 7l2.1-2.1'
 
@@ -63,6 +75,8 @@ function Icon({ d, size = 18 }: { d: string; size?: number }) {
   )
 }
 
+const tabClass = ({ isActive }: { isActive: boolean }) => (isActive ? `${styles.tab} ${styles.tabActive}` : styles.tab)
+
 const navClass = ({ isActive }: { isActive: boolean }) =>
   isActive ? `${styles.navItem} ${styles.active}` : styles.navItem
 
@@ -73,6 +87,24 @@ export function AppShell() {
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [dayClose, setDayClose] = useState<{ today: string; timeZone: string } | null>(null)
   const timer = usePaletteTimer()
+  // 빠른 기록 시트(SCR-MOB-01). 닫아도 쓰던 글은 남긴다
+  const [sheetOpen, setSheetOpen] = useState(false)
+  const [sheetText, setSheetText] = useState('')
+  const [pendingFrom, setPendingFrom] = useState<{ today: string; timeZone: string } | null>(null)
+  const [searchParams, setSearchParams] = useSearchParams()
+  // PWA 바로가기 '빠른 기록'(manifest shortcuts, /?quick=1)으로 열리면 시트를 바로 띄우고 주소에서 뺀다
+  const quickParam = searchParams.get('quick') === '1'
+  if (quickParam && !sheetOpen) setSheetOpen(true)
+  useEffect(() => {
+    if (!quickParam) return
+    setSearchParams(
+      (params) => {
+        params.delete('quick')
+        return params
+      },
+      { replace: true },
+    )
+  }, [quickParam, setSearchParams])
 
   // 지금 화면에 빠른 입력창이 있으면 거기로, 없으면 홈의 입력창으로 간다.
   const quickAdd = useCallback(
@@ -114,8 +146,6 @@ export function AppShell() {
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [paletteOpen, openPalette, closePalette])
-
-  const { pathname } = useLocation()
 
   // 모바일에서 하단 탭 위 타이머가 떠 있으면 토스트를 그 위로 올린다(TC-P2A-02). 타이머 높이는 안내 줄 수에 따라 달라 잰다.
   // 데스크톱·태블릿은 토스트가 사이드바 오른쪽에 떠서(Toast.module.css) 사이드바 타이머를 덮지 않는다
@@ -194,35 +224,46 @@ export function AppShell() {
         <TimerMiniPlayer />
       </div>
 
-      {/* 모바일 하단 탭. 빠른 기록 바텀시트(SCR-MOB-01)는 P4라 P1에서는 + 가 홈 빠른 입력칸으로 보낸다(P1-X-01) */}
+      {/* 모바일 하단 탭(SCR-COM-01 ⑤). 아이콘 20px + 글자, 가운데 +는 빠른 기록 시트. 끊긴 동안에도 시트는 열리고 입력만 막힌다(SCR-MOB-01 ④) */}
       <nav className={styles.tabs} aria-label="하단 탭">
-        <NavLink to="/" end className={({ isActive }) => (isActive ? `${styles.tab} ${styles.tabActive}` : styles.tab)}>
-          홈
+        <NavLink to="/" end className={tabClass}>
+          <Icon d={ICON.home} size={20} />홈
         </NavLink>
-        <NavLink
-          to="/calendar"
-          className={({ isActive }) => (isActive ? `${styles.tab} ${styles.tabActive}` : styles.tab)}
-        >
+        <NavLink to="/calendar" className={tabClass}>
+          <Icon d={ICON.calendar} size={20} />
           캘린더
         </NavLink>
         <button
           type="button"
           className={styles.quick}
           aria-label="빠른 기록"
-          disabled={!online}
-          onClick={() => {
-            const input = document.querySelector<HTMLInputElement>('[data-quick-input]')
-            if (pathname === '/' && input) input.focus()
-            else navigate('/', { state: { focusQuick: true } })
-          }}
+          aria-haspopup="dialog"
+          onClick={() => setSheetOpen(true)}
         >
           <Icon d="M12 5v14M5 12h14" size={24} />
         </button>
-        <NavLink to="/logs" className={({ isActive }) => (isActive ? `${styles.tab} ${styles.tabActive}` : styles.tab)}>
+        <NavLink to="/logs" className={tabClass}>
+          <Icon d={ICON.logs} size={20} />
           일지
         </NavLink>
         <MoreMenu />
       </nav>
+
+      {sheetOpen && (
+        <QuickSheet
+          text={sheetText}
+          onTextChange={setSheetText}
+          onClose={() => setSheetOpen(false)}
+          onOpenPending={() => {
+            const timeZone = user?.timezone ?? 'Asia/Seoul'
+            setPendingFrom({ today: todayIn(timeZone), timeZone })
+          }}
+          onStartTimer={timer.commands?.start}
+        />
+      )}
+      {pendingFrom && (
+        <PendingPanel today={pendingFrom.today} timeZone={pendingFrom.timeZone} onClose={() => setPendingFrom(null)} />
+      )}
 
       {paletteOpen && (
         <CommandPalette onClose={closePalette} onQuickAdd={quickAdd} onDayClose={openDayClose} timer={timer.commands} />
@@ -276,11 +317,13 @@ function usePaletteTimer() {
   return { commands, dialog }
 }
 
-// SCR-COM-01 ⑤ 하단 탭 '더보기' (P1-X-01). P1에 있는 화면(업무, 설정)만 담는다.
+// SCR-COM-01 ⑤ 하단 탭 '더보기' (P1-X-01, P4-03 아이콘·통계·보관함).
 // 열면 첫 항목으로, Esc·바깥 누르기·항목 선택으로 닫히면 더보기 버튼으로 포커스를 돌려준다.
 const MORE = [
-  { to: '/tasks', label: '업무' },
-  { to: '/settings', label: '설정' },
+  { to: '/tasks', label: '업무', icon: ICON.tasks },
+  { to: '/stats', label: '통계', icon: ICON.stats },
+  { to: '/tasks/archive', label: '보관함', icon: ICON.archive },
+  { to: '/settings', label: '설정', icon: SETTINGS_ICON },
 ]
 
 function MoreMenu() {
@@ -326,6 +369,7 @@ function MoreMenu() {
         aria-controls={id}
         onClick={() => setOpen((o) => !o)}
       >
+        <Icon d={ICON.more} size={20} />
         더보기
       </button>
       {open && (
@@ -333,6 +377,7 @@ function MoreMenu() {
           {MORE.map((m) => (
             <li key={m.to}>
               <Link to={m.to} className={styles.moreItem} onClick={() => close()}>
+                <Icon d={m.icon} />
                 {m.label}
               </Link>
             </li>

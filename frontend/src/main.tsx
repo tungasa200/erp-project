@@ -1,7 +1,9 @@
+/// <reference types="vite-plugin-pwa/vanillajs" />
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { RouterProvider } from 'react-router'
+import { registerSW } from 'virtual:pwa-register'
 import { setSessionExpiredHandler } from './api'
 import { MaintenanceGate } from './app/MaintenanceGate'
 import { router } from './app/router'
@@ -14,6 +16,9 @@ import './theme/global.css'
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false } },
 })
+
+// 서비스 워커(P4-03). 개발 서버에서는 플러그인이 빈 함수를 줘서 등록하지 않는다
+registerSW({ immediate: true })
 
 setSessionExpiredHandler((code) => handleSessionExpired(queryClient, code))
 

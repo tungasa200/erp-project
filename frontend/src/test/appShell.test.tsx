@@ -10,7 +10,7 @@ afterEach(() => {
 
 // 모바일 하단 탭은 CSS로만 숨겨 jsdom에서는 늘 있다
 describe('SCR-COM-01 ⑤ 모바일 하단 탭 (P1-X-01)', () => {
-  it('더보기를 누르면 업무·설정 메뉴가 열려 첫 항목으로 포커스가 가고, Esc로 닫으면 더보기로 돌아온다', async () => {
+  it('더보기를 누르면 업무·통계·보관함·설정 메뉴가 열려 첫 항목으로 포커스가 가고, Esc로 닫으면 더보기로 돌아온다', async () => {
     stubFetch({ 'GET /api/users/me': () => json(200, ME) })
     renderApp('/')
     const tabs = await screen.findByRole('navigation', { name: '하단 탭' })
@@ -25,7 +25,7 @@ describe('SCR-COM-01 ⑤ 모바일 하단 탭 (P1-X-01)', () => {
       within(menu)
         .getAllByRole('link')
         .map((a) => a.textContent),
-    ).toEqual(['업무', '설정'])
+    ).toEqual(['업무', '통계', '보관함', '설정'])
     expect(within(menu).getByRole('link', { name: '업무' })).toHaveFocus()
 
     await userEvent.keyboard('{Escape}')
@@ -43,26 +43,7 @@ describe('SCR-COM-01 ⑤ 모바일 하단 탭 (P1-X-01)', () => {
     expect(within(tabs).queryByRole('list', { name: '더보기 메뉴' })).not.toBeInTheDocument()
     expect(within(tabs).getByRole('button', { name: '더보기' })).toHaveFocus()
   })
-
-  it('가운데 +는 홈으로 가서 빠른 입력칸에 포커스한다', async () => {
-    stubFetch({ 'GET /api/users/me': () => json(200, ME) })
-    const { router } = renderApp('/tasks')
-    const tabs = await screen.findByRole('navigation', { name: '하단 탭' })
-    await userEvent.click(within(tabs).getByRole('button', { name: '빠른 기록' }))
-    expect(router.state.location.pathname).toBe('/')
-    await waitFor(() => expect(screen.getByRole('textbox', { name: '빠른 기록' })).toHaveFocus())
-  })
-
-  it('오프라인이면 가운데 +를 막는다 (SCR-SYS-02 ③)', async () => {
-    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
-    stubFetch({ 'GET /api/users/me': () => json(200, ME) })
-    const { router } = renderApp('/tasks')
-    const tabs = await screen.findByRole('navigation', { name: '하단 탭' })
-    const quick = within(tabs).getByRole('button', { name: '빠른 기록' })
-    expect(quick).toBeDisabled()
-    await userEvent.click(quick)
-    expect(router.state.location.pathname).toBe('/tasks')
-  })
+  // 가운데 +(빠른 기록 시트, 끊긴 동안 입력 막힘)는 quickSheet.test.tsx (P4-03)
 })
 
 describe('SCR-COM-03 ② 타이머 명령 (P2-06)', () => {

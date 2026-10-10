@@ -1,0 +1,182 @@
+/* SCR-MOB-01 빠른 기록 바텀시트 (목업 MOB-01·MOB-01s) */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(26, 28, 43, 0.45);
+}
+
+.sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding: 0 18px calc(28px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-radius: 28px 28px 0 0;
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+/* 손잡이: 보이는 막대는 40×5, 누르는 자리는 88×28 + 위아래 여유(44px) */
+.grip {
+  align-self: center;
+  width: 88px;
+  height: var(--size-touch);
+  margin-bottom: -10px;
+  border: 0;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  touch-action: none;
+}
+
+.grip span {
+  width: 40px;
+  height: 5px;
+  border-radius: 3px;
+  background: #b9bdcc;
+}
+
+.title {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 800;
+}
+
+.input {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+/* 16px 아래면 iOS가 입력칸에 포커스할 때 화면을 확대한다 */
+.input input[data-quick-input] {
+  font-size: 16px;
+}
+
+.hint {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--color-text-muted);
+}
+
+.pending {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 18px;
+  background: #fff7e3;
+  border: 2px solid #e0a100;
+}
+
+.pending:has(.done:disabled) {
+  background: #f7f8fc;
+  border-color: var(--color-border);
+}
+
+.pendingText {
+  flex: 1;
+  min-width: 0;
+}
+
+.pendingMeta {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--color-warning-text);
+}
+
+.pendingTitle {
+  margin: 2px 0 0;
+  font-size: 15px;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.pendingMore {
+  min-height: var(--size-touch);
+  margin: 0 0 -10px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-warning-text);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.done {
+  flex: none;
+  height: var(--size-touch);
+  padding: 0 16px;
+  border: 0;
+  border-radius: 22px;
+  background: var(--color-text);
+  color: var(--color-on-accent);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.done:disabled,
+.timer:disabled {
+  background: var(--color-disabled);
+  cursor: not-allowed;
+}
+
+.timer {
+  height: 52px;
+  border: 0;
+  border-radius: 26px;
+  background: var(--color-text);
+  color: var(--color-on-accent);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.timerDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 4px;
+  background: #ff6b5e;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .sheet {
+    animation: rise 180ms ease-out;
+  }
+  @keyframes rise {
+    from {
+      transform: translateY(24px);
+      opacity: 0.6;
+    }
+  }
+}
+
+/* 넓은 화면(설치한 앱을 바로가기로 연 데스크톱 등)에서는 가운데 480px */
+@media (min-width: 768px) {
+  .sheet {
+    width: min(480px, 100%);
+    margin: 0 auto;
+  }
+}
