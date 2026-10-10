@@ -151,6 +151,6 @@ qa 시트 "도메인 전환 재검증"(DOM-01~10, [docs/qa/P0-화면테스트_v1
 | Restore(T)·Deploy | 새 배포 약 08:10 KST Active(Restore 누른 시각은 기록 안 함). 볼륨이 T 시점 백업 볼륨으로 바뀌고 옛 볼륨은 분리됨. 첫 시도는 staged 띠의 Deploy를 누르지 않아 반영 안 됨 |
 | 9단계 복원 직후 | users `2` \| deleted_users `0` \| seq_before `2` (B가 되살아남) |
 | 10단계 재적용 | `0 \| 1 \| 1 \| 0`, 확인 users `1` \| a `1` \| deleted_seq `3` > seq_before `2`. 다시 실행해도 같은 값(멱등) |
-| 11단계 정리 | 임시 서비스·볼륨 삭제는 사용자 진행 중(카드 20261011-1050) |
+| 11단계 정리 | 삭제 완료(2026-10-11, 카드 20261011-1050): `restore-drill-pg` 없음, 분리된 볼륨 없음, staged 띠 없음, 남은 서비스 4개(api-gateway·worklog-service·identity-service·Postgres) 모두 Online |
 
 판정: 백업 → Restore·Deploy로 T 시점 복원, 탈퇴 재적용 SQL로 T 뒤 탈퇴 반영, 재적용 DELETED 순번이 복원 시점 순번보다 커서 worklog가 다시 읽음(3.4) — 통과.
