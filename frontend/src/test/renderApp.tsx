@@ -157,7 +157,7 @@ export function renderApp(path: string, appRoutes: RouteObject[] = routes) {
       <AuthProvider>
         <AppFrame>
           <MaintenanceGate router={router}>
-            <ToastProvider>
+            <ToastProvider navigate={(to) => void router.navigate(to)}>
               <RouterProvider router={router} />
             </ToastProvider>
           </MaintenanceGate>

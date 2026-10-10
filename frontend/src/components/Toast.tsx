@@ -20,6 +20,7 @@ interface UndoItem {
   message: UndoOptions['message']
   undos: UndoOptions['undo'][]
   commits: NonNullable<UndoOptions['commit']>[]
+  view?: UndoOptions['view']
 }
 
 const DURATION_MS = 5000
@@ -40,7 +41,8 @@ function CloseIcon() {
   )
 }
 
-export function ToastProvider({ children }: { children: ReactNode }) {
+// 토스트는 라우터 밖에 있어 Link를 쓸 수 없다. [보기] 이동은 라우터의 navigate를 받아 쓴다
+export function ToastProvider({ children, navigate }: { children: ReactNode; navigate?: (to: string) => void }) {
   const [items, setItems] = useState<ToastItem[]>([])
   const [undoItem, setUndoItem] = useState<UndoItem | null>(null)
   const [paused, setPaused] = useState(false)
@@ -110,7 +112,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   )
 
   const showUndo = useCallback<ToastValue['showUndo']>(
-    ({ group, message, undo, commit }) => {
+    ({ group, message, undo, commit, view }) => {
       rememberOrigin()
       const current = undoRef.current
       const commits = commit ? [commit] : []
@@ -119,13 +121,14 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           ...current,
           count: current.count + 1,
           message,
+          view,
           undos: [...current.undos, undo],
           commits: [...current.commits, ...commits],
         })
       } else {
         // 다른 동작의 토스트로 바뀌면 앞 동작은 더 되돌릴 수 없으니 확정한다.
         current?.commits.forEach((c) => c({ keepalive: false }))
-        setUndo({ id: nextId.current++, group, count: 1, message, undos: [undo], commits })
+        setUndo({ id: nextId.current++, group, count: 1, message, view, undos: [undo], commits })
       }
       remaining.current = DURATION_MS
       if (pauseReasons.current.size === 0) startTimer(DURATION_MS)
@@ -205,7 +208,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
   // 토스트 버튼을 누르면 토스트가 사라지므로, 그 버튼에 포커스가 있었으면 토스트를 띄울 때 포커스가 있던 곳으로
   // 먼저 옮긴다. 그 요소가 사라졌으면(완료·보관한 행) 화면 제목으로
-  const leave = (e: MouseEvent<HTMLButtonElement>, action: () => void) => {
+  const leave = (e: MouseEvent<HTMLElement>, action: () => void) => {
     if (e.currentTarget === document.activeElement) {
       const origin = originRef.current
       if (origin?.isConnected) origin.focus()
@@ -243,6 +246,22 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             }}
           >
             <span className={styles.message}>{undoItem.message(undoItem.count)}</span>
+            {undoItem.view && navigate && (
+              <a
+                href={undoItem.view.to}
+                className={styles.viewLink}
+                onClick={(e) => {
+                  // 새 탭 열기(Ctrl·가운데 클릭)는 브라우저에 맡긴다
+                  if (e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return
+                  e.preventDefault()
+                  const to = undoItem.view!.to
+                  leave(e, closeUndo)
+                  navigate(to)
+                }}
+              >
+                {undoItem.view.label}
+              </a>
+            )}
             <button type="button" className={styles.undoButton} onClick={(e) => leave(e, () => void runUndo())}>
               되돌리기
             </button>

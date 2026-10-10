@@ -32,7 +32,7 @@ createRoot(document.getElementById('root')!).render(
       <AuthProvider>
         <AppFrame>
           <MaintenanceGate router={router}>
-            <ToastProvider>
+            <ToastProvider navigate={(to) => void router.navigate(to)}>
               <RouterProvider router={router} />
             </ToastProvider>
           </MaintenanceGate>
