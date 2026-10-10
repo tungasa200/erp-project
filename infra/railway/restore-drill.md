@@ -67,7 +67,7 @@ psql 대신 콘솔 Data의 쿼리 화면으로 할 때는 7·9·10단계에 3.2-
    INSERT INTO reapply VALUES ('00000000-0000-7000-8000-00000000000b', now());
    ```
    이것으로 "백업에는 B가 살아 있고, 지금은 탈퇴했다"는 상황이 된다.
-8. 🖱 [이름 확인: `restore-drill-pg`] → **Backups** → T 백업 줄의 **Restore**. 화면 위 staged changes를 열어 **바뀌는 서비스가 `restore-drill-pg` 하나뿐인지** 확인한 뒤 **Deploy**. 다른 서비스가 보이면 Deploy하지 말고 Discard 후 `WY-pm`에 알린다. 재배포가 끝나면(서비스 Active) 4단계 psql은 끊겨 있으므로 4단계 명령으로 다시 연다.
+8. 🖱 [이름 확인: `restore-drill-pg`] → **Backups** → T 백업 줄의 **Restore**. 화면 위 staged changes를 열어 **바뀌는 서비스가 `restore-drill-pg` 하나뿐인지** 확인한 뒤 **Deploy**(Restore만 누르면 staged 상태로 남아 반영되지 않는다, 2026-10-11 시험). 다른 서비스가 보이면 Deploy하지 말고 Discard 후 `WY-pm`에 알린다. 재배포가 끝나면(서비스 Active) 4단계 psql은 끊겨 있으므로 4단계 명령으로 다시 연다.
 9. psql: 복원 직후 상태 확인. `2 | 0`이어야 한다(B가 되살아났고 탈퇴 기록이 없다).
    ```sql
    SET search_path TO identity;
@@ -163,6 +163,7 @@ SELECT (SELECT count(*) FROM identity.users u JOIN r ON u.id = r.user_id) - (SEL
 - 확정이 곧바로 된다(psql판의 "확인 뒤 COMMIT/ROLLBACK" 단계가 없다). 그래서 이 판은 시험 계정 B만 든 임시 DB에서만 쓴다.
 - 피드 순번 잠금(`pg_advisory_xact_lock(7001)`)은 뺐다: 임시 DB에는 identity 앱이 붙어 있지 않아 `user_events`에 동시에 쓰는 쪽이 없으므로 순서가 섞일 일이 없다(한 문장 안에서는 잠금이 데이터 변경보다 먼저 잡힌다는 보장도 없다).
 - 실제 복원은 3.2 psql판(잠금·확인 뒤 COMMIT)을 그대로 쓴다.
+- 쿼리 화면 주의(2026-10-11 시험): 입력칸이 실행 뒤 비워지지 않고 새 입력이 이어 붙는다 → 입력칸 클릭 → Ctrl+A → Delete 뒤 붙여 넣는다. SELECT라도 문장에 `DELETED` 글자가 있으면 destructive 확인 창이 뜬다(확인하고 진행).
 - 9단계도 이 화면에서는 한 문장으로 본다. 기대 `2 | 0 | <seq_before>`:
   ```sql
   SELECT (SELECT count(*) FROM identity.users) AS users, (SELECT count(*) FROM identity.deleted_users) AS deleted, (SELECT max(seq) FROM identity.user_events) AS seq_before;

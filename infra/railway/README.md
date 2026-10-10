@@ -138,3 +138,19 @@ qa 시트 "도메인 전환 재검증"(DOM-01~10, [docs/qa/P0-화면테스트_v1
 | Origin 검사 | evil·www·http·Origin 없음 → 403. 기존 `project-7qtt1.vercel.app`은 당시 통과(전환 기간). D-81 적용(2026-10-07) 뒤 `ALLOWED_ORIGINS`에서 빠져 옛·외부 Origin 모두 403 |
 | `x-vercel-cache` | API 응답 MISS (정적 `/`는 HIT, 정상) |
 | 기존 도메인 | 당시 로그인 계속 동작, 세션은 도메인별로 따로. D-81 뒤로는 wy-worklog.com으로 308 |
+
+### 복원 시험 (P4-07)
+
+2026-10-11, 임시 Postgres `restore-drill-pg`에서 [restore-drill.md](restore-drill.md) 2장 절차를 콘솔 Data 쿼리 화면(3.2-콘솔)으로 진행. 운영 Postgres는 변동 없음(배포 6일 전 그대로, 복원 흔적 없음).
+
+| 항목 | 결과 |
+|---|---|
+| 5단계 시험 계정 A·B | 07:55 KST 생성, users `2` |
+| 수동 백업 T | 07:56 KST, 표시 크기 861 MB(빈 DB인데 큼: 볼륨 스냅샷 크기로 추정, 미확인) |
+| 7단계 B 탈퇴(3.2-콘솔) | `0 \| 1 \| 1 \| 0` |
+| Restore(T)·Deploy | 새 배포 약 08:10 KST Active(Restore 누른 시각은 기록 안 함). 볼륨이 T 시점 백업 볼륨으로 바뀌고 옛 볼륨은 분리됨. 첫 시도는 staged 띠의 Deploy를 누르지 않아 반영 안 됨 |
+| 9단계 복원 직후 | users `2` \| deleted_users `0` \| seq_before `2` (B가 되살아남) |
+| 10단계 재적용 | `0 \| 1 \| 1 \| 0`, 확인 users `1` \| a `1` \| deleted_seq `3` > seq_before `2`. 다시 실행해도 같은 값(멱등) |
+| 11단계 정리 | 임시 서비스·볼륨 삭제는 사용자 진행 중(카드 20261011-1050) |
+
+판정: 백업 → Restore·Deploy로 T 시점 복원, 탈퇴 재적용 SQL로 T 뒤 탈퇴 반영, 재적용 DELETED 순번이 복원 시점 순번보다 커서 worklog가 다시 읽음(3.4) — 통과.
