@@ -80,3 +80,78 @@ jobs:
       - run: npm run format:check
       - run: npm test
       - run: npm run build
+
+  # E2E (P4-06, D-175 ③): 전체 서비스를 띄우고 Playwright로 Chromium·WebKit·모바일 크기를 돌린다.
+  # 메일 인증 코드는 Mailpit(infra/docker-compose.yml 프로필 e2e)으로 받는다(카드 20261011-0420). 운영 코드에 시험용 경로는 없다.
+  # Playwright 설정·시나리오(frontend의 npm run test:e2e)는 WY-frontend 담당, 이 job은 실행 환경만 맞춘다.
+  e2e:
+    needs: [backend, frontend]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      E2E_BASE_URL: http://localhost:4173
+      MAILPIT_URL: http://localhost:8025
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: PostgreSQL·Mailpit 기동
+        run: docker compose -f infra/docker-compose.yml --profile e2e up -d --wait
+      - name: 서비스 jar 빌드
+        working-directory: backend
+        run: ./gradlew :identity-service:bootJar :worklog-service:bootJar :api-gateway:bootJar --console=plain
+      # 로컬 기본 프로필(임시 JWT 키·로컬 DB 계정)로 띄운다. worklog·gateway는 identity의 JWKS·서비스 토큰을 쓰므로 identity를 먼저 띄운다.
+      - name: 서비스 기동
+        working-directory: backend
+        env:
+          MAIL_HOST: localhost
+          MAIL_PORT: 1025
+          MAIL_SMTP_AUTH: false
+          MAIL_SMTP_STARTTLS: false
+          MAIL_USERNAME: e2e@worklog.test
+          ALLOWED_ORIGINS: http://localhost:4173
+        run: |
+          mkdir -p ../e2e-logs
+          wait_up() {
+            for _ in $(seq 1 90); do
+              curl -fs "http://localhost:$1/actuator/health" > /dev/null && return 0
+              sleep 2
+            done
+            echo "포트 $1 서비스가 뜨지 않음"; return 1
+          }
+          nohup java -jar identity-service/build/libs/identity-service-*-SNAPSHOT.jar > ../e2e-logs/identity.log 2>&1 &
+          wait_up 8081
+          nohup java -jar worklog-service/build/libs/worklog-service-*-SNAPSHOT.jar > ../e2e-logs/worklog.log 2>&1 &
+          nohup java -jar api-gateway/build/libs/api-gateway-*-SNAPSHOT.jar > ../e2e-logs/gateway.log 2>&1 &
+          wait_up 8082
+          wait_up 8080
+      - name: 프론트 빌드·미리보기 기동
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+          npx playwright install --with-deps chromium webkit
+          # vite preview는 server.proxy를 그대로 써서 /api를 gateway(8080)로 보낸다.
+          nohup npx vite preview --port 4173 --strictPort > ../e2e-logs/preview.log 2>&1 &
+          for _ in $(seq 1 30); do curl -fs http://localhost:4173 > /dev/null && exit 0; sleep 1; done
+          echo "vite preview가 뜨지 않음"; exit 1
+      - name: E2E 실행
+        working-directory: frontend
+        run: npm run test:e2e
+      - if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: e2e-reports
+          path: |
+            e2e-logs/
+            frontend/playwright-report/
+            frontend/test-results/
+          retention-days: 7
