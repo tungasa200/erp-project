@@ -33,6 +33,7 @@ Railway 콘솔에서 보기만 한다(설정 변경·재시작·삭제 없음). 
 > ⚠ 콘솔에서 누르는 단계(🖱) 앞에는 매번 **화면 위쪽 서비스 이름이 `restore-drill-pg`인지** 확인한다. 운영 Postgres의 이름은 `Postgres`다. Restore는 확인 창 없이 staged change를 만든다.
 
 준비: Docker가 켜진 이 PC의 PowerShell 터미널(psql을 Docker로 띄운다, 설치 없음). 걸리는 시간 1시간 안팎.
+psql 대신 콘솔 Data의 쿼리 화면으로 할 때는 7·9·10단계에 3.2-콘솔의 한 문장을 쓴다.
 
 1. 🖱 시작 전: 프로젝트 화면 위쪽에 staged changes(배포 대기 변경)가 **없는지** 본다. 있으면 멈추고 `WY-pm`에 알린다(7단계 Deploy 때 함께 배포되면 안 된다).
 2. 🖱 프로젝트 → 운영 환경 → **+ Create** → **Database** → **PostgreSQL**. 만들어진 서비스 → **Settings** → 이름을 `restore-drill-pg`로 바꾼다.
@@ -131,6 +132,42 @@ SELECT (SELECT count(*) FROM identity.users u JOIN reapply r ON u.id = r.user_id
 
 - 코드·API·권한 추가 없음, 복원 직후 identity를 띄우기 전에도 실행할 수 있음.
 - DB 관리자 계정으로 SQL을 직접 쓰므로 확인 쿼리와 ROLLBACK으로 실수를 막는다. 스키마가 바뀌면 이 SQL도 함께 고친다(identity 마이그레이션을 바꿀 때 이 문서를 확인).
+
+### 3.2-콘솔 Railway 쿼리 화면용 한 문장 (2장 임시 DB 시험 전용)
+
+Railway 콘솔 Data의 쿼리 화면은 `BEGIN`~`COMMIT` 묶음·임시 테이블을 오류 없이 반영하지 않고, 결과 표도 마지막 문장만 보여 준다(2026-10-11 시험에서 확인). 그래서 2장을 psql 대신 이 화면으로 할 때는 7·10단계에서 아래 **한 문장**을 그대로 붙여 넣어 한 번 실행한다. 한 문장은 그 자체로 한 트랜잭션이라 중간에 실패하면 아무것도 바뀌지 않는다.
+
+```sql
+WITH r(user_id, deleted_at) AS (
+  VALUES ('00000000-0000-7000-8000-00000000000b'::uuid, now())
+), gone AS (
+  DELETE FROM identity.users u USING r WHERE u.id = r.user_id RETURNING u.id
+), recorded AS (
+  INSERT INTO identity.deleted_users (user_id, deleted_at)
+  SELECT user_id, deleted_at FROM r ON CONFLICT (user_id) DO NOTHING RETURNING user_id
+), announced AS (
+  INSERT INTO identity.user_events (type, user_id, payload, created_at)
+  SELECT 'DELETED', id, NULL, now() FROM gone RETURNING seq
+), purged AS (
+  DELETE FROM identity.user_events e USING r
+  WHERE e.user_id = r.user_id AND e.type IN ('CREATED', 'PROFILE_UPDATED') RETURNING e.seq
+)
+-- 한 문장 안의 SELECT는 실행 전 상태를 보므로, 실행 전 개수에 이번에 바뀐 행 수를 더하고 뺀다
+SELECT (SELECT count(*) FROM identity.users u JOIN r ON u.id = r.user_id) - (SELECT count(*) FROM gone) AS users_left,
+       (SELECT count(*) FROM identity.deleted_users d JOIN r USING (user_id)) + (SELECT count(*) FROM recorded) AS recorded,
+       (SELECT count(*) FROM identity.user_events e JOIN r USING (user_id) WHERE e.type = 'DELETED') + (SELECT count(*) FROM announced) AS deleted_events,
+       (SELECT count(*) FROM identity.user_events e JOIN r USING (user_id) WHERE e.type <> 'DELETED') - (SELECT count(*) FROM purged) AS other_events;
+```
+
+- 기대 결과: `0 | 1 | 1 | 0`. 다시 실행해도(이미 지워진 B) `0 | 1 | 1 | 0`이고 아무것도 더 바뀌지 않는다. 7단계·10단계 모두 같은 문장이다.
+- 확정이 곧바로 된다(psql판의 "확인 뒤 COMMIT/ROLLBACK" 단계가 없다). 그래서 이 판은 시험 계정 B만 든 임시 DB에서만 쓴다.
+- 피드 순번 잠금(`pg_advisory_xact_lock(7001)`)은 뺐다: 임시 DB에는 identity 앱이 붙어 있지 않아 `user_events`에 동시에 쓰는 쪽이 없으므로 순서가 섞일 일이 없다(한 문장 안에서는 잠금이 데이터 변경보다 먼저 잡힌다는 보장도 없다).
+- 실제 복원은 3.2 psql판(잠금·확인 뒤 COMMIT)을 그대로 쓴다.
+- 9단계도 이 화면에서는 한 문장으로 본다. 기대 `2 | 0 | <seq_before>`:
+  ```sql
+  SELECT (SELECT count(*) FROM identity.users) AS users, (SELECT count(*) FROM identity.deleted_users) AS deleted, (SELECT max(seq) FROM identity.user_events) AS seq_before;
+  ```
+  10단계 끝 확인 쿼리는 테이블 이름 앞에 `identity.`를 붙여 그대로 쓴다.
 
 ### 3.3 검토 후 채택 안 함 — 운영자용 내부 API
 
