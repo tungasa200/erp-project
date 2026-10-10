@@ -32,10 +32,10 @@
 }
 
 .segment button {
-  min-height: 36px;
+  min-height: var(--size-touch);
   padding: 0 16px;
   border: 0;
-  border-radius: 18px;
+  border-radius: 22px;
   background: transparent;
   color: var(--color-text-muted);
   font: inherit;
@@ -268,7 +268,7 @@ a.projectRow:hover .projectName {
 
 .table {
   width: 100%;
-  min-width: 420px;
+  min-width: 480px;
   border-collapse: collapse;
   font-size: 14px;
 }
@@ -591,14 +591,22 @@ a.projectRow:hover .projectName {
   }
 }
 
-.inlineButton {
-  min-height: 24px;
-  padding: 0 4px;
+.retryRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.retryButton {
+  min-height: var(--size-touch);
+  padding: 0 18px;
   border: 0;
-  background: none;
-  color: var(--color-accent-ink);
+  border-radius: 22px;
+  background: var(--color-ground);
+  color: var(--color-text);
   font: inherit;
+  font-size: 14px;
   font-weight: 800;
-  text-decoration: underline;
   cursor: pointer;
 }

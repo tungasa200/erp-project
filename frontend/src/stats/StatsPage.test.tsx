@@ -57,6 +57,7 @@ const PLAN: PlanVsActual = {
   weeks: [
     { weekStart: '2026-09-28', plannedMin: 600, actualMin: 780, unplannedMin: 60 },
     { weekStart: '2026-10-05', plannedMin: 0, actualMin: 0, unplannedMin: 0 },
+    { weekStart: '2026-10-12', plannedMin: 0, actualMin: 0, unplannedMin: 45 },
   ],
   topDiffs: [{ taskId: 't-1', title: '결제 API 설계', projectId: 'p-dev', plannedMin: 360, actualMin: 540 }],
 }
@@ -141,7 +142,16 @@ describe('SCR-STAT-01 통계', () => {
     const region = await screen.findByRole('region', { name: '주별 예상 대비 실제 표' })
     expect(statsCalls(fetchMock)).toContain('/api/worklog/stats/plan-vs-actual?from=2026-09-28&to=2026-11-01')
     expect(region).toHaveAttribute('tabindex', '0')
-    expect(within(region).getByRole('row', { name: '9/28–10/4 10시간 13시간 +3시간' })).toBeInTheDocument()
+    expect(
+      within(region)
+        .getAllByRole('columnheader')
+        .map((th) => th.textContent),
+    ).toEqual(['주', '예상', '실제', '차이', '계획 밖'])
+    expect(within(region).getByRole('row', { name: '9/28–10/4 10시간 13시간 +3시간 1시간' })).toBeInTheDocument()
+    // 아무것도 없는 주는 빼고, 계획 밖만 있는 주는 보인다(TC-P4Q-STAT-01)
+    expect(within(region).queryByRole('row', { name: /^10\/5–/ })).toBeNull()
+    expect(within(region).getByRole('row', { name: /^10\/12–10\/18 .* 45분$/ })).toBeInTheDocument()
+    expect(screen.getByText(/일정에 잡지 않고 한 일은 '계획 밖'에 따로 모아요/)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /결제 API 설계/ })).toHaveAttribute('href', '/tasks/t-1')
   })
 

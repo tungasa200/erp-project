@@ -229,8 +229,8 @@ function TimeSection(props: { report: Stats; projects: Project[]; today: string;
   const aligned = weekAligned(report.from, report.to, props.weekStart)
   const plan = usePlanVsActual(aligned.from, aligned.to, true)
   const retro = plan.data
-  // 예상도 실제도 없는 주는 줄을 만들지 않는다
-  const retroWeeks = retro?.weeks.filter((w) => w.plannedMin > 0 || w.actualMin > 0) ?? []
+  // 예상·실제·계획 밖이 모두 없는 주는 줄을 만들지 않는다(계획 밖만 있는 주도 보인다)
+  const retroWeeks = retro?.weeks.filter((w) => w.plannedMin > 0 || w.actualMin > 0 || w.unplannedMin > 0) ?? []
   return (
     <>
       <p className={styles.timeNote}>
@@ -255,13 +255,15 @@ function TimeSection(props: { report: Stats; projects: Project[]; today: string;
           <h2 id="stats-retro" className={styles.cardTitle}>
             주간 회고 · 예상 대비 실제
           </h2>
-          <p className={styles.muted}>일정에 잡아 둔 시간(예상)과 확정 기록 시간(실제)을 주마다 비교해요</p>
+          <p className={styles.muted}>
+            업무에 연결한 일정 시간(예상)과 그 업무의 확정 기록 시간(실제)을 주마다 비교해요
+          </p>
           {plan.isPending ? (
             <p className={styles.muted}>불러오는 중…</p>
           ) : plan.isError ? (
-            <p role="alert" className={styles.muted}>
-              예상 대비 실제를 불러오지 못했어요{' '}
-              <button type="button" className={styles.inlineButton} onClick={() => void plan.refetch()}>
+            <p role="alert" className={`${styles.muted} ${styles.retryRow}`}>
+              예상 대비 실제를 불러오지 못했어요
+              <button type="button" className={styles.retryButton} onClick={() => void plan.refetch()}>
                 다시 시도
               </button>
             </p>
@@ -276,6 +278,7 @@ function TimeSection(props: { report: Stats; projects: Project[]; today: string;
                       <th scope="col">예상</th>
                       <th scope="col">실제</th>
                       <th scope="col">차이</th>
+                      <th scope="col">계획 밖</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -287,6 +290,7 @@ function TimeSection(props: { report: Stats; projects: Project[]; today: string;
                         <td className={styles[diffTone(w.plannedMin, w.actualMin)]}>
                           {diffText(w.plannedMin, w.actualMin)}
                         </td>
+                        <td className={styles.mutedCell}>{hoursText(w.unplannedMin)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -314,10 +318,12 @@ function TimeSection(props: { report: Stats; projects: Project[]; today: string;
                   </ul>
                 </>
               )}
-              <p className={styles.footnote}>예상 시간이 없는(일정 없이 만든) 업무는 세지 않아요</p>
+              <p className={styles.footnote}>
+                일정에 잡지 않고 한 일은 '계획 밖'에 따로 모아요. 차이는 예상이 있는 업무끼리만 비교해요
+              </p>
             </>
           ) : (
-            <p className={styles.muted}>이 기간에는 일정에 잡아 둔 업무가 없어 비교할 수 없어요</p>
+            <p className={styles.muted}>이 기간에는 일정도 기록도 없어 비교할 수 없어요</p>
           )}
         </section>
       </div>

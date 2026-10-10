@@ -1,4 +1,4 @@
-// 기간 고르기 (SCR-STAT-01 ① 직접 선택, 목업 STAT-01s ④). 캘린더의 모달 틀을 쓴다(포커스 가두기·Esc·돌려주기).
+// 기간 고르기 (SCR-STAT-01 ① 직접 선택, 목업 STAT-01s ④). 캘린더의 모달 틀을 쓴다(포커스 가두기·Esc·돌려주기). 모바일은 바텀시트.
 import { useId, useState } from 'react'
 import { Modal } from '../calendar/Modal'
 import type { Weekday } from '../calendar/time'
@@ -27,7 +27,7 @@ export function PeriodDialog({ from: initialFrom, to: initialTo, today, weekStar
   const badFrom = shown !== null && (!from || from > to)
   const badTo = shown !== null && !badFrom
   return (
-    <Modal labelledBy={`${id}-title`} onClose={onClose} narrow>
+    <Modal labelledBy={`${id}-title`} onClose={onClose} narrow sheet>
       <h2 id={`${id}-title`} className={calendarStyles.title} style={{ fontSize: 18 }}>
         기간 고르기
       </h2>
