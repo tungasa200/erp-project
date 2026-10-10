@@ -45,6 +45,20 @@
   border-radius: 18px;
 }
 
+/* 설정을 못 불러왔을 때 [다시 시도]. 공용 settings의 .retry는 32px라 이 화면은 누르는 영역 44px로 따로 둔다 */
+.retry {
+  min-height: var(--size-touch);
+  padding: 0 16px;
+  border: 0;
+  border-radius: 22px;
+  background: var(--color-danger-soft);
+  color: var(--color-danger-text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
 /* 하루 마감 알림이 꺼져 있을 때. 글자 대비를 지키려고 칸 전체를 흐리게 하지 않고 버튼만 막는다 */
 .pushOff {
   background: var(--color-ground);

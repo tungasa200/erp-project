@@ -1,6 +1,6 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { json, ME, problem, renderApp, stubFetch } from '../test/renderApp'
 import type { AppNotification } from './api'
 import { notificationHref, notificationText, notificationTime } from './format'
@@ -158,7 +158,8 @@ describe('SCR-COM-05 알림 센터', () => {
 
   it('비었고 하루 마감 알림이 꺼져 있으면 설정 › 알림으로 보낸다', async () => {
     setup({ items: [], notifyEnabled: false })
-    expect(await screen.findByText('새 알림이 없어요')).toBeInTheDocument()
+    expect(await screen.findByText('하루 마감 알림이 꺼져 있어요')).toBeInTheDocument()
+    expect(screen.queryByText('새 알림이 없어요')).not.toBeInTheDocument()
     expect(await screen.findByRole('link', { name: '하루 마감 알림 켜기' })).toHaveAttribute(
       'href',
       '/settings/notifications',
@@ -169,6 +170,7 @@ describe('SCR-COM-05 알림 센터', () => {
   it('비었고 알림이 켜져 있으면 안내만', async () => {
     setup({ items: [] })
     expect(await screen.findByText('하루 마감과 일지 알림이 여기에 모여요')).toBeInTheDocument()
+    expect(screen.getByText('새 알림이 없어요')).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: '하루 마감 알림 켜기' })).not.toBeInTheDocument()
   })
 
@@ -235,6 +237,33 @@ describe('SCR-SET-05 설정 — 알림', () => {
   it('알림 시각은 일반 탭의 하루 마감 시각으로 보낸다', async () => {
     setup({ path: '/settings/notifications' })
     expect(await screen.findByRole('link', { name: /알림 시각 18:30/ })).toHaveAttribute('href', '/settings/general')
+  })
+
+  it('켜면 푸시 안내 문구가 같은 aria-live 칸에서 바뀐다', async () => {
+    setup({ path: '/settings/notifications', notifyEnabled: false })
+    const user = userEvent.setup()
+    const live = await screen.findByText('하루 마감 알림을 켜면 고를 수 있어요')
+    expect(live).toHaveAttribute('aria-live', 'polite')
+    await user.click(screen.getByRole('switch', { name: '하루 마감 알림' }))
+    await waitFor(() => expect(live).toHaveTextContent(/이 브라우저는 푸시 알림을 받을 수 없어요/))
+    expect(live).toBeInTheDocument()
+  })
+
+  it('권한을 아직 묻지 않았으면 "아직 묻지 않음"과 허용하기', async () => {
+    vi.stubGlobal('Notification', { permission: 'default' })
+    vi.stubGlobal('PushManager', function PushManager() {})
+    // jsdom에는 서비스 워커가 없다. 이 테스트에서만 붙이고 끝나면 뗀다
+    Object.defineProperty(navigator, 'serviceWorker', {
+      configurable: true,
+      value: { getRegistration: () => Promise.resolve({ pushManager: {} }) },
+    })
+    onTestFinished(() => {
+      delete (navigator as { serviceWorker?: unknown }).serviceWorker
+    })
+    setup({ path: '/settings/notifications' })
+    expect(await screen.findByText('아직 묻지 않음')).toBeInTheDocument()
+    expect(screen.queryByText('이 기기 꺼짐')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '허용하기' })).toBeEnabled()
   })
 
   it('푸시를 받을 수 없는 브라우저(서비스 워커 없음)면 지원 안 함', async () => {

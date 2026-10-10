@@ -70,18 +70,19 @@ export function NotificationList({ heading, onNavigate }: Props) {
       {query.isSuccess && items.length === 0 && (
         <div className={styles.empty}>
           <BellIcon size={40} className={styles.emptyIcon} />
-          <p className={styles.stateTitle}>새 알림이 없어요</p>
           {notifyOff ? (
             <>
-              <p className={styles.stateText}>
-                하루 마감 알림이 꺼져 있어요. 켜면 마감 시각에 오늘 기록을 정리하라고 알려 드려요.
-              </p>
+              <p className={styles.stateTitle}>하루 마감 알림이 꺼져 있어요</p>
+              <p className={styles.stateText}>켜면 마감 시각에 오늘 기록을 정리하라고 알려 드려요.</p>
               <Link to={NOTIFICATION_SETTINGS_PATH} className={styles.primary} onClick={onNavigate}>
                 하루 마감 알림 켜기
               </Link>
             </>
           ) : (
-            <p className={styles.stateText}>하루 마감과 일지 알림이 여기에 모여요</p>
+            <>
+              <p className={styles.stateTitle}>새 알림이 없어요</p>
+              <p className={styles.stateText}>하루 마감과 일지 알림이 여기에 모여요</p>
+            </>
           )}
         </div>
       )}

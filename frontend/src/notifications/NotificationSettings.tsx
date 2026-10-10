@@ -40,7 +40,7 @@ export function NotificationSettings() {
           설정을 불러오지 못했어요
           <button
             type="button"
-            className={settingsStyles.retry}
+            className={styles.retry}
             onClick={(e) => {
               focusSectionHeading(e.currentTarget)
               void refetch()
@@ -123,7 +123,7 @@ function NotificationForm({ settings, save }: { settings: WorklogSettings; save:
 }
 
 const BADGE: Partial<Record<PushState, { text: string; tone: 'off' | 'on' | 'blocked' }>> = {
-  default: { text: '이 기기 꺼짐', tone: 'off' },
+  default: { text: '아직 묻지 않음', tone: 'off' },
   'granted-off': { text: '이 기기 꺼짐', tone: 'off' },
   on: { text: '이 기기 켜짐', tone: 'on' },
   denied: { text: '차단됨', tone: 'blocked' },
@@ -197,34 +197,21 @@ function PushCard({
     </div>
   )
 
-  // 하루 마감 알림이 꺼져 있으면 흐리게 막는다(상태 배지는 보여 준다)
-  if (!enabled || state === null) {
-    return (
-      <div
-        className={`${styles.push} ${styles.pushOff}`}
-        role="group"
-        aria-labelledby={titleId}
-        aria-describedby={descId}
-      >
-        <div className={styles.pushText}>
-          {title}
-          <div id={descId} className={styles.pushDescription}>
-            하루 마감 알림을 켜면 고를 수 있어요
-          </div>
-        </div>
-        {state && BADGE[state] && <Badge {...BADGE[state]} />}
-        {(state === 'default' || state === 'granted-off') && (
-          <button ref={allowRef} type="button" className={styles.allow} disabled>
-            허용하기
-          </button>
-        )}
-      </div>
-    )
-  }
-
   let description: React.ReactNode
   let action: React.ReactNode = null
-  if (state === 'ios-browser') {
+  // 꺼져 있으면 흐리게 막는다(상태 배지는 보여 준다). 켜졌는데 권한을 읽는 중이면 끈 안내를 띄우지 않고 비워 둔다
+  const off = !enabled
+  if (off) {
+    description = '하루 마감 알림을 켜면 고를 수 있어요'
+    if (state === 'default' || state === 'granted-off')
+      action = (
+        <button ref={allowRef} type="button" className={styles.allow} disabled>
+          허용하기
+        </button>
+      )
+  } else if (state === null) {
+    description = null
+  } else if (state === 'ios-browser') {
     description = (
       <>
         iPhone에서는 WY를 <b>홈 화면에 추가</b>해서 열어야 푸시 알림을 받을 수 있어요. Safari 공유 버튼 → 홈 화면에
@@ -264,12 +251,15 @@ function PushCard({
     )
   }
 
+  // 한 틀로 그려 aria-live 칸이 분기가 바뀌어도 새로 생기지 않게 한다(새로 생긴 칸의 첫 문구는 읽히지 않을 수 있다)
+  const tone = off ? styles.pushOff : state === 'denied' ? styles.pushBlocked : ''
   return (
     <div
-      className={state === 'denied' ? `${styles.push} ${styles.pushBlocked}` : styles.push}
+      className={`${styles.push} ${tone}`}
       role="group"
       aria-labelledby={titleId}
       aria-describedby={descId}
+      aria-busy={!off && state === null ? true : undefined}
     >
       <div className={styles.pushText}>
         {title}
@@ -277,7 +267,7 @@ function PushCard({
           {description}
         </div>
       </div>
-      {BADGE[state] && <Badge {...BADGE[state]} />}
+      {state && BADGE[state] && <Badge {...BADGE[state]} />}
       {action}
     </div>
   )
