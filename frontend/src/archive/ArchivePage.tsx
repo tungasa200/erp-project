@@ -11,6 +11,7 @@ import { useOnline } from '../components/useOnline'
 import { useToast } from '../components/useToast'
 import { Skeleton } from '../components/Skeleton'
 import { PROJECTS_QUERY_KEY, projectApi, useProjects, type Project } from '../projects/api'
+import { objectParticle } from '../palette/particle'
 import { projectColor } from '../projects/palette'
 import { refreshTasks, taskApi, useTasks, type Task } from '../tasks/api'
 import styles from './archive.module.css'
@@ -46,14 +47,6 @@ export function ArchivePage() {
 
   const taskCount = tasks.isPending ? '' : tasks.hasNextPage ? `${archivedTasks.length}+` : String(archivedTasks.length)
   const projectCount = projectsQuery.isPending ? '' : String(archivedProjects.length)
-  const nothing =
-    !tasks.isPending &&
-    !tasks.isError &&
-    !projectsQuery.isPending &&
-    !projectsQuery.isError &&
-    archivedTasks.length === 0 &&
-    archivedProjects.length === 0
-
   const tabs: { kind: Kind; label: string; count: string }[] = [
     { kind: 'tasks', label: '업무', count: taskCount },
     { kind: 'projects', label: '프로젝트', count: projectCount },
@@ -89,59 +82,53 @@ export function ArchivePage() {
         보관함
       </h1>
       <p className={styles.lead}>보관한 업무와 프로젝트를 되돌릴 수 있어요. 탈퇴 전까지 사라지지 않아요.</p>
-      {nothing ? (
-        <section className={styles.empty} aria-label="보관한 항목">
-          <p className={styles.emptyTitle}>보관한 항목이 없어요</p>
-          <p className={styles.muted}>업무나 프로젝트를 보관하면 여기에 모여요.</p>
+      {/* 마지막 줄을 복원해도 탭은 남기고 탭마다 빈 상태를 보인다(TASK-04s ①) */}
+      <>
+        <div role="tablist" aria-label="종류" className={styles.tabs} onKeyDown={onTabKey}>
+          {tabs.map((t) => (
+            <button
+              key={t.kind}
+              ref={(el) => {
+                tabRefs.current[t.kind] = el
+              }}
+              type="button"
+              role="tab"
+              id={`${id}-tab-${t.kind}`}
+              aria-selected={kind === t.kind}
+              aria-controls={`${id}-panel`}
+              tabIndex={kind === t.kind ? 0 : -1}
+              className={styles.tab}
+              onClick={() => select(t.kind)}
+            >
+              {t.label}
+              {t.count && ` ${t.count}`}
+            </button>
+          ))}
+        </div>
+        <section role="tabpanel" id={`${id}-panel`} aria-labelledby={`${id}-tab-${kind}`} className={styles.panel}>
+          {kind === 'tasks' ? (
+            <TaskList
+              tasks={archivedTasks}
+              projects={allProjects}
+              timeZone={timeZone}
+              pending={tasks.isPending}
+              error={tasks.isError}
+              onRetry={() => void tasks.refetch()}
+              hasMore={tasks.hasNextPage}
+              loadingMore={tasks.isFetchingNextPage}
+              onMore={() => void tasks.fetchNextPage()}
+            />
+          ) : (
+            <ProjectList
+              projects={archivedProjects}
+              timeZone={timeZone}
+              pending={projectsQuery.isPending}
+              error={projectsQuery.isError}
+              onRetry={() => void projectsQuery.refetch()}
+            />
+          )}
         </section>
-      ) : (
-        <>
-          <div role="tablist" aria-label="종류" className={styles.tabs} onKeyDown={onTabKey}>
-            {tabs.map((t) => (
-              <button
-                key={t.kind}
-                ref={(el) => {
-                  tabRefs.current[t.kind] = el
-                }}
-                type="button"
-                role="tab"
-                id={`${id}-tab-${t.kind}`}
-                aria-selected={kind === t.kind}
-                aria-controls={`${id}-panel`}
-                tabIndex={kind === t.kind ? 0 : -1}
-                className={styles.tab}
-                onClick={() => select(t.kind)}
-              >
-                {t.label}
-                {t.count && ` ${t.count}`}
-              </button>
-            ))}
-          </div>
-          <section role="tabpanel" id={`${id}-panel`} aria-labelledby={`${id}-tab-${kind}`} className={styles.panel}>
-            {kind === 'tasks' ? (
-              <TaskList
-                tasks={archivedTasks}
-                projects={allProjects}
-                timeZone={timeZone}
-                pending={tasks.isPending}
-                error={tasks.isError}
-                onRetry={() => void tasks.refetch()}
-                hasMore={tasks.hasNextPage}
-                loadingMore={tasks.isFetchingNextPage}
-                onMore={() => void tasks.fetchNextPage()}
-              />
-            ) : (
-              <ProjectList
-                projects={archivedProjects}
-                timeZone={timeZone}
-                pending={projectsQuery.isPending}
-                error={projectsQuery.isError}
-                onRetry={() => void projectsQuery.refetch()}
-              />
-            )}
-          </section>
-        </>
-      )}
+      </>
     </div>
   )
 }
@@ -152,7 +139,28 @@ interface ListState {
   onRetry: () => void
 }
 
-function ListStatus({ pending, error, onRetry, empty }: ListState & { empty: string }) {
+interface Empty {
+  title: string
+  text: string
+  to: string
+  link: string
+}
+
+const EMPTY_TASKS: Empty = {
+  title: '보관한 업무가 없어요',
+  text: '끝난 업무를 목록에서 치우고 싶을 때 업무의 ⋯ 메뉴에서 보관하세요. 기록과 일지는 그대로 남아요.',
+  to: '/tasks',
+  link: '업무로 가기',
+}
+
+const EMPTY_PROJECTS: Empty = {
+  title: '보관한 프로젝트가 없어요',
+  text: '설정 › 프로젝트·태그에서 보관할 수 있어요.',
+  to: '/settings/projects',
+  link: '프로젝트·태그 설정으로 가기',
+}
+
+function ListStatus({ pending, error, onRetry, empty }: ListState & { empty: Empty }) {
   if (pending) return <Skeleton shape="lines" count={4} offlineText="연결되면 보관함을 불러올게요" />
   if (error)
     return (
@@ -163,7 +171,29 @@ function ListStatus({ pending, error, onRetry, empty }: ListState & { empty: str
         </button>
       </p>
     )
-  return <p className={styles.muted}>{empty}</p>
+  return (
+    <div className={styles.emptyState}>
+      <svg
+        aria-hidden="true"
+        width="40"
+        height="40"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={styles.emptyIcon}
+      >
+        <path d="M3 7h18v13H3zM2 3h20v4H2zM10 12h4" />
+      </svg>
+      <p className={styles.emptyTitle}>{empty.title}</p>
+      <p className={styles.muted}>{empty.text}</p>
+      <Link to={empty.to} className={styles.emptyLink}>
+        {empty.link}
+      </Link>
+    </div>
+  )
 }
 
 /**
@@ -171,16 +201,26 @@ function ListStatus({ pending, error, onRetry, empty }: ListState & { empty: str
  * disabled는 포커스를 먼저 놓아 버려, 줄이 빠진 뒤 앱 셸 안전망이 이웃·제목으로 옮겨 주지 못한다
  */
 function useRestore(onFail?: () => void) {
-  const { showToast } = useToast()
+  const { showToast, showUndo } = useToast()
   const [busy, setBusy] = useState<string | null>(null)
   const sending = useRef(false)
-  const run = async (key: string, action: () => Promise<unknown>, done: string) => {
+  /** 복원하고 "'{이름}'을 복원했어요 · 되돌리기"(되돌리기 = 다시 보관, SCR-COM-04 규칙) */
+  const run = async <T,>(
+    key: string,
+    action: () => Promise<T>,
+    done: { group: string; name: string; unit: string; undo: (restored: T) => Promise<void> },
+  ) => {
     if (sending.current) return
     sending.current = true
     setBusy(key)
     try {
-      await action()
-      showToast(done)
+      const restored = await action()
+      showUndo({
+        group: done.group,
+        message: (n) =>
+          n > 1 ? `${done.unit} ${n}개를 복원했어요` : `'${done.name}'${objectParticle(done.name)} 복원했어요`,
+        undo: () => done.undo(restored),
+      })
     } catch (err) {
       const { message, traceId } = toastForError(err)
       showToast(message, { traceId })
@@ -207,7 +247,7 @@ function TaskList(
   const online = useOnline()
   const { busy, run } = useRestore()
   // 다시 받다 실패해도 받아 둔 줄은 그대로 둔다
-  if (props.tasks.length === 0) return <ListStatus {...props} empty="보관한 업무가 없어요" />
+  if (props.tasks.length === 0) return <ListStatus {...props} empty={EMPTY_TASKS} />
   return (
     <>
       <ul className={styles.list} data-focus-list>
@@ -238,7 +278,15 @@ function TaskList(
                       await taskApi.restore(t.id)
                       refreshTasks(queryClient)
                     },
-                    `업무를 복원했어요`,
+                    {
+                      group: 'archive-restore-task',
+                      name: t.title,
+                      unit: '업무',
+                      undo: async () => {
+                        await taskApi.remove(t.id)
+                        refreshTasks(queryClient)
+                      },
+                    },
                   )
                 }
               >
@@ -262,7 +310,7 @@ function ProjectList(props: ListState & { projects: Project[]; timeZone: string 
   const online = useOnline()
   // 다른 곳에서 고쳐 version이 어긋났으면(409) 새 version으로 다시 받아 다음 복원이 맞게 가도록
   const { busy, run } = useRestore(() => void queryClient.invalidateQueries({ queryKey: PROJECTS_QUERY_KEY }))
-  if (props.projects.length === 0) return <ListStatus {...props} empty="보관한 프로젝트가 없어요" />
+  if (props.projects.length === 0) return <ListStatus {...props} empty={EMPTY_PROJECTS} />
   return (
     <ul className={styles.list} data-focus-list>
       {props.projects.map((p) => {
@@ -286,12 +334,22 @@ function ProjectList(props: ListState & { projects: Project[]; timeZone: string 
                 void run(
                   p.id,
                   async () => {
-                    await projectApi.update(p.id, { version: p.version, archived: false })
+                    const restored = await projectApi.update(p.id, { version: p.version, archived: false })
                     // 프로젝트를 되돌리면 그 업무들도 업무 목록·사이드바에 다시 보인다
                     void queryClient.invalidateQueries({ queryKey: PROJECTS_QUERY_KEY })
                     refreshTasks(queryClient)
+                    return restored
                   },
-                  `프로젝트를 복원했어요`,
+                  {
+                    group: 'archive-restore-project',
+                    name: p.name,
+                    unit: '프로젝트',
+                    undo: async (restored) => {
+                      await projectApi.update(p.id, { version: restored.version, archived: true })
+                      void queryClient.invalidateQueries({ queryKey: PROJECTS_QUERY_KEY })
+                      refreshTasks(queryClient)
+                    },
+                  },
                 )
               }
             >

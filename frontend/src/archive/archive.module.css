@@ -11,7 +11,9 @@
   align-self: flex-start;
   display: inline-flex;
   align-items: center;
-  min-height: 24px;
+  /* 화살표 뒤 공백이 inline-flex에서 사라지므로 간격으로 띄운다 */
+  gap: 4px;
+  min-height: var(--size-touch);
   font-size: 14px;
   font-weight: 700;
   color: var(--color-accent-ink);
@@ -39,10 +41,10 @@
 }
 
 .tab {
-  min-height: 40px;
+  min-height: var(--size-touch);
   padding: 0 18px;
   border: 0;
-  border-radius: 20px;
+  border-radius: 22px;
   background: var(--color-surface);
   color: var(--color-text-body);
   font: inherit;
@@ -57,8 +59,7 @@
   font-weight: 800;
 }
 
-.panel,
-.empty {
+.panel {
   padding: 8px 20px;
   border-radius: 22px;
   background: var(--color-surface);
@@ -70,13 +71,36 @@
   padding: 14px 0;
 }
 
-.empty {
-  padding: 36px 24px;
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 36px 4px;
   text-align: center;
 }
 
+.emptyIcon {
+  color: var(--color-disabled);
+  margin-bottom: 4px;
+}
+
+.emptyLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--size-touch);
+  margin-top: 8px;
+  padding: 0 18px;
+  border-radius: 22px;
+  background: var(--color-ground);
+  color: var(--color-text);
+  font-size: 14px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
 .emptyTitle {
-  margin: 0 0 6px;
+  margin: 0;
   font-size: 17px;
   font-weight: 800;
 }
@@ -147,10 +171,10 @@
 .restore,
 .softButton,
 .more {
-  min-height: 38px;
+  min-height: var(--size-touch);
   padding: 0 16px;
   border: 0;
-  border-radius: 19px;
+  border-radius: 22px;
   background: var(--color-accent-soft);
   color: var(--color-accent-ink);
   font: inherit;
