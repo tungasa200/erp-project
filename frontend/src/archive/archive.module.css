@@ -1,0 +1,203 @@
+/* SCR-TASK-04 보관함 (목업 TASK-04) */
+.page {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.back {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-accent-ink);
+}
+
+.title {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}
+
+.lead,
+.muted {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--color-text-muted);
+}
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tab {
+  min-height: 40px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 20px;
+  background: var(--color-surface);
+  color: var(--color-text-body);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.tab[aria-selected='true'] {
+  background: var(--color-text);
+  color: var(--color-surface);
+  font-weight: 800;
+}
+
+.panel,
+.empty {
+  padding: 8px 20px;
+  border-radius: 22px;
+  background: var(--color-surface);
+}
+
+.panel > .muted,
+.panel > [role='status'],
+.panel > .error {
+  padding: 14px 0;
+}
+
+.empty {
+  padding: 36px 24px;
+  text-align: center;
+}
+
+.emptyTitle {
+  margin: 0 0 6px;
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 14px 0;
+}
+
+.item + .item {
+  border-top: 1px solid var(--color-divider);
+}
+
+.name {
+  flex: 1 1 240px;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text-body);
+  overflow-wrap: anywhere;
+}
+
+.chip {
+  max-width: 220px;
+  padding: 3px 9px;
+  border-radius: 8px;
+  font-size: 11.5px;
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chipNote {
+  font-weight: 700;
+}
+
+.swatch {
+  width: 12px;
+  height: 12px;
+  flex: none;
+  border-radius: 4px;
+}
+
+.count {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.when {
+  min-width: 150px;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.restore,
+.softButton,
+.more {
+  min-height: 38px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 19px;
+  background: var(--color-accent-soft);
+  color: var(--color-accent-ink);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.softButton,
+.more {
+  background: var(--color-ground);
+  color: var(--color-text);
+}
+
+.more {
+  align-self: center;
+  margin: 4px 0 12px;
+}
+
+.restore:disabled,
+.more:disabled {
+  background: var(--color-ground);
+  color: var(--color-disabled);
+  cursor: default;
+}
+
+.error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+@media (max-width: 767px) {
+  .title {
+    font-size: 24px;
+  }
+
+  .panel {
+    padding: 4px 16px;
+  }
+
+  .when {
+    min-width: 0;
+    flex: 1;
+  }
+}
