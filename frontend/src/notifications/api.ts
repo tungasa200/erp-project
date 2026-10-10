@@ -1,30 +1,15 @@
 // 알림 센터 API (P4-01, NOTI-01·LOG-16, SCR-COM-05). contracts/worklog.yaml 0.6.0의 /notifications.
-// TODO(P4-01 생성 타입): 0.6.0이 api/generated/worklog에 들어오면 아래 타입을 components['schemas']['Notification']로 바꾼다.
 import { useInfiniteQuery, useQuery, useQueryClient, type InfiniteData } from '@tanstack/react-query'
 import { useCallback } from 'react'
 import { api } from '../api'
+import type { components } from '../api/generated/worklog'
 
-export type NotificationType = 'DAILY_CLOSE' | 'LOG_SUGGESTION'
+type Schemas = components['schemas']
 
-export interface AppNotification {
-  id: string
-  type: NotificationType
-  /** 하루 마감 대상일, 제안을 만든 날 */
-  date: string
-  /** DAILY_CLOSE일 때 보낼 때의 확인 대기 수(스냅샷) */
-  pendingCount?: number | null
-  logType?: 'WEEKLY' | 'MONTHLY' | null
-  periodStart?: string | null
-  createdAt: string
-  readAt: string | null
-}
-
-export interface NotificationPage {
-  items: AppNotification[]
-  /** 페이지와 무관한 전체 안 읽은 수 */
-  unreadCount: number
-  nextCursor?: string | null
-}
+/** date는 하루 마감 대상일·제안을 만든 날, pendingCount는 DAILY_CLOSE일 때 보낼 때의 확인 대기 수(스냅샷) */
+export type AppNotification = Schemas['Notification']
+/** unreadCount는 페이지와 무관한 전체 안 읽은 수 */
+export type NotificationPage = Schemas['NotificationList']
 
 export const NOTIFICATIONS_QUERY_KEY = ['notifications'] as const
 const LIST_KEY = [...NOTIFICATIONS_QUERY_KEY, 'list'] as const

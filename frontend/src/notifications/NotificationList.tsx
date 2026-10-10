@@ -27,8 +27,7 @@ export function NotificationList({ heading, onNavigate }: Props) {
   const query = useNotifications()
   const { markRead, markAllRead } = useMarkRead()
   const listRef = useRef<HTMLUListElement>(null)
-  // TODO(P4-01 생성 타입): WorklogSettings에 dailyCloseNotifyEnabled가 들어오면 캐스트를 뺀다
-  const settings = useWorklogMe().data?.settings as { dailyCloseNotifyEnabled?: boolean } | undefined
+  const settings = useWorklogMe().data?.settings
   const notifyOff = settings?.dailyCloseNotifyEnabled === false
 
   const pages = query.data?.pages

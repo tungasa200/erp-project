@@ -9,19 +9,12 @@ import { Skeleton } from '../components/Skeleton'
 import { useToast } from '../components/useToast'
 import { ConflictBanner, SaveError } from '../settings/parts'
 import settingsStyles from '../settings/settings.module.css'
-import {
-  useWorklogMe,
-  useWorklogSettingsSaver,
-  type SettingsPatch,
-  type SettingsSaveResult,
-} from '../settings/useWorklogSettings'
+import { useWorklogMe, useWorklogSettingsSaver, type SettingsSaveResult } from '../settings/useWorklogSettings'
 import { disablePush, enablePush, readPushState, type PushState } from './push'
 import styles from './notificationSettings.module.css'
 
 type Save = ReturnType<typeof useWorklogSettingsSaver>['save']
 type Failure = Extract<SettingsSaveResult, { ok: false }>
-// TODO(P4-01 생성 타입): WorklogSettings·Patch에 dailyCloseNotifyEnabled가 들어오면 이 확장을 뺀다
-type Settings = WorklogSettings & { dailyCloseNotifyEnabled?: boolean }
 
 export function NotificationSettings() {
   const { data, isPending, isError, refetch } = useWorklogMe()
@@ -64,9 +57,9 @@ export function NotificationSettings() {
   )
 }
 
-function NotificationForm({ settings, save }: { settings: Settings; save: Save }) {
+function NotificationForm({ settings, save }: { settings: WorklogSettings; save: Save }) {
   const id = useId()
-  const [on, setOn] = useState(settings.dailyCloseNotifyEnabled ?? false)
+  const [on, setOn] = useState(settings.dailyCloseNotifyEnabled)
   const [failure, setFailure] = useState<Failure | null>(null)
   const allowRef = useRef<HTMLButtonElement>(null)
   const [focusAllow, setFocusAllow] = useState(false)
@@ -76,7 +69,7 @@ function NotificationForm({ settings, save }: { settings: Settings; save: Save }
     setOn(next)
     // 켜면 바로 아래 [허용하기]로 포커스(자동으로 권한을 묻지는 않음)
     setFocusAllow(next)
-    const result = await save({ dailyCloseNotifyEnabled: next } as SettingsPatch)
+    const result = await save({ dailyCloseNotifyEnabled: next })
     setFailure(result.ok ? null : result)
     if (!result.ok && result.reason === 'conflict') setOn(before)
   }
