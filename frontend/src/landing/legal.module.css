@@ -1,0 +1,179 @@
+/* SCR-AUTH-06 처리방침 · SCR-AUTH-07 이용약관 (목업 AUTH-06·07) */
+.page {
+  min-height: 100vh;
+  background: var(--color-ground);
+  color: var(--color-text);
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+.header,
+.article {
+  max-width: 880px;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+.header {
+  padding: 24px;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--size-touch);
+  color: var(--color-text);
+  font-size: 18px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.logo {
+  width: 30px;
+  height: 30px;
+  flex: none;
+  border-radius: 9px;
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.article {
+  margin-bottom: 48px;
+  padding: 44px;
+  border-radius: 26px;
+  background: var(--color-surface);
+}
+
+.title {
+  margin: 0;
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.6px;
+}
+
+.meta {
+  margin: 10px 0 0;
+  font-size: 14px;
+  color: var(--color-text-muted);
+}
+
+.blank {
+  padding: 0 4px;
+  border-radius: 4px;
+  background: var(--color-warning-soft);
+  color: var(--color-warning-text);
+}
+
+.toc {
+  margin-top: 26px;
+  padding: 16px 22px;
+  border-radius: 18px;
+  background: var(--color-ground);
+  font-size: 14px;
+}
+
+.toc ol {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 2px 20px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.toc a {
+  display: flex;
+  align-items: center;
+  min-height: 32px;
+  color: var(--color-text-body);
+  text-decoration: none;
+}
+
+.section {
+  margin-top: 30px;
+  /* 목차로 건너뛸 때 제목이 화면 맨 위에 붙지 않게 */
+  scroll-margin-top: 16px;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 800;
+}
+
+.text,
+.list {
+  margin: 10px 0 0;
+  font-size: 15px;
+  line-height: 1.75;
+  color: var(--color-text-body);
+}
+
+.list {
+  padding-left: 22px;
+}
+
+.tableBox {
+  margin-top: 12px;
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  min-width: 540px;
+  border-collapse: collapse;
+  font-size: 13.5px;
+  line-height: 1.6;
+}
+
+.table th,
+.table td {
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--color-divider);
+  text-align: left;
+  vertical-align: top;
+}
+
+.table th {
+  border-top: 2px solid var(--color-text);
+  background: var(--color-ground);
+  white-space: nowrap;
+}
+
+.table td {
+  color: var(--color-text-body);
+}
+
+.brand:focus-visible,
+.toc a:focus-visible,
+.tableBox:focus-visible {
+  outline: 3px solid var(--color-accent-ink);
+  outline-offset: 3px;
+}
+
+@media (hover: hover) {
+  .toc a:hover {
+    color: var(--color-accent-ink);
+    text-decoration: underline;
+  }
+}
+
+@media (max-width: 767px) {
+  .header {
+    padding: 14px 16px;
+  }
+
+  .article {
+    margin-bottom: 0;
+    padding: 24px 16px 40px;
+    border-radius: 22px 22px 0 0;
+  }
+
+  .title {
+    font-size: 24px;
+  }
+}
