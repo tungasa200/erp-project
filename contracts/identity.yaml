@@ -348,10 +348,12 @@ paths:
         - version이 현재 값과 다르면 409(VERSION_CONFLICT)이며 아무것도 바꾸지 않는다.
           한 화면에서 여러 칸을 저장할 때 프론트는 저장 요청을 순서대로 보내고, 직전 응답의 version을 다음 요청에 쓴다.
         - 값이 실제로 바뀐 경우에만 version이 올라간다. Profile 칸이 바뀌었으면 사용자 변경 피드에 PROFILE_UPDATED(전체 Profile)를
-          같은 트랜잭션으로 남긴다(keyboardShortcutsEnabled만 바뀐 경우는 피드 없음). 바뀐 값이 없으면 200으로 현재 상태를 그대로 준다.
+          같은 트랜잭션으로 남긴다(keyboardShortcutsEnabled·테마만 바뀐 경우는 피드 없음). 바뀐 값이 없으면 200으로 현재 상태를 그대로 준다.
         - 문자열 칸(name·organization·position)은 앞뒤 공백을 지워 저장하고, 빈 문자열이나 null이면 값을 지운다(null 저장).
-        - timezone·weekStart·workDays·keyboardShortcutsEnabled는 지울 수 없다. null을 보내면 400(REQUIRED).
-        - 이메일·테마는 이 API로 바꾸지 않는다 (테마는 P4-09에서 칸을 추가한다).
+        - timezone·weekStart·workDays·keyboardShortcutsEnabled·themeAccent·themeGround는 지울 수 없다. null을 보내면 400(REQUIRED).
+        - 테마(UX-07, P4-09): themeAccent는 #RRGGBB 아무 색(직접 고르기), themeGround는 4종만. 대소문자 모두 받고 대문자로 저장한다.
+          틀리면 400 THEME_ACCENT_INVALID·THEME_GROUND_INVALID. 키 컬러 위 글자색(대비 4.5:1)은 화면이 고른다.
+        - 이메일은 이 API로 바꾸지 않는다.
         - worklog 사본은 피드로 약 30초 안에 갱신된다. 화면이 즉시 반영을 원하면 저장 후 worklog의 POST /api/worklog/me/profile/refresh를 호출한다 (contracts/worklog.yaml).
       security:
         - bearerAuth: []
@@ -970,6 +972,15 @@ components:
         keyboardShortcutsEnabled:
           type: boolean
           description: 키보드 단축키 사용 (UX-09). 피드에는 남기지 않는다.
+        themeAccent:
+          type: string
+          pattern: '^#[0-9A-Fa-f]{6}$'
+          example: '#4B3FD6'
+          description: 키 컬러 (UX-07). 프리셋이 아닌 색도 받는다. 대문자로 저장한다. 틀리면 THEME_ACCENT_INVALID.
+        themeGround:
+          type: string
+          enum: ['#F2F4FA', '#F6F2EA', '#EEF4EF', '#FFFFFF']
+          description: 배경 (UX-07) 쿨 그레이·웜 베이지·세이지·화이트. 이 4개만 받는다(대소문자 무관). 틀리면 THEME_GROUND_INVALID.
     VerificationCode:
       type: string
       pattern: '^[0-9]{6}$'

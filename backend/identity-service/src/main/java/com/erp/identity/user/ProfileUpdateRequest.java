@@ -17,5 +17,9 @@ public record ProfileUpdateRequest(@Schema(description = "마지막으로 받은
 		@Schema(description = "IANA 시간대 이름. 바꿔도 기존 기록 날짜는 그대로다 (D-40).", example = "Asia/Seoul") String timezone,
 		DayOfWeek weekStart,
 		@Schema(minimum = "1", maximum = "127", description = "비트마스크 월=1 … 일=64. 최소 하루는 골라야 한다.") Integer workDays,
-		@Schema(description = "키보드 단축키 사용 (UX-09). 피드에는 남기지 않는다.") Boolean keyboardShortcutsEnabled) {
+		@Schema(description = "키보드 단축키 사용 (UX-09). 피드에는 남기지 않는다.") Boolean keyboardShortcutsEnabled,
+		@Schema(pattern = "^#[0-9A-Fa-f]{6}$", example = "#4B3FD6",
+				description = "키 컬러 (UX-07). 프리셋이 아닌 색도 받는다. 대문자로 저장한다. 틀리면 THEME_ACCENT_INVALID.") String themeAccent,
+		@Schema(allowableValues = { "#F2F4FA", "#F6F2EA", "#EEF4EF", "#FFFFFF" },
+				description = "배경 (UX-07): 쿨 그레이·웜 베이지·세이지·화이트. 이 4개만 받는다(대소문자 무관). 틀리면 THEME_GROUND_INVALID.") String themeGround) {
 }
