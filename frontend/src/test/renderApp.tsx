@@ -142,7 +142,7 @@ export function renderApp(path: string, appRoutes: RouteObject[] = routes) {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <AppFrame>
-          <MaintenanceGate>
+          <MaintenanceGate router={router}>
             <ToastProvider>
               <RouterProvider router={router} />
             </ToastProvider>

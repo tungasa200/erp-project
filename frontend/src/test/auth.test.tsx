@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { api } from '../api'
 import { RequireAuth } from '../app/guards'
+import { routes } from '../app/router'
 import { useAuth } from '../auth/useAuth'
 import { LoginPage } from '../pages/LoginPage'
 import { json, ME, problem, renderApp, stubFetch } from './renderApp'
@@ -152,6 +153,18 @@ describe('SCR-SYS-02 점검', () => {
       text.split(' 기록은')[0],
     )
     expect(screen.queryByRole('heading', { name: '로그인' })).not.toBeInTheDocument()
+  })
+
+  it('점검 중에도 공개 화면(처리방침·약관)은 그대로 보이고, 다른 화면으로 가면 점검 화면 (D-177 ②)', async () => {
+    stubFetch({ 'GET /api/users/me': () => problem(503, 'MAINTENANCE') })
+    const publicRoutes = [{ path: '/privacy', element: <a href="/calendar">개인정보 처리방침 본문</a> }, ...routes]
+    const { router, queryClient } = renderApp('/privacy', publicRoutes)
+    // 내 정보 조회가 점검 응답을 받은 뒤에도 본문이 남는다
+    await waitFor(() => expect(queryClient.getQueryState(['me'])?.status).toBe('error'))
+    expect(screen.getByText('개인정보 처리방침 본문')).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: '서비스 점검 중이에요' })).not.toBeInTheDocument()
+    await act(() => router.navigate('/calendar'))
+    expect(await screen.findByRole('heading', { name: '서비스 점검 중이에요' })).toBeInTheDocument()
   })
 
   it('Retry-After가 없으면 "지금은 이용할 수 없어요"', async () => {

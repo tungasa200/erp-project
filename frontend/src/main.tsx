@@ -22,7 +22,7 @@ createRoot(document.getElementById('root')!).render(
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <AppFrame>
-          <MaintenanceGate>
+          <MaintenanceGate router={router}>
             <ToastProvider>
               <RouterProvider router={router} />
             </ToastProvider>
