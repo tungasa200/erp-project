@@ -104,6 +104,12 @@ function updateProfile(current: Me, body: ProfileUpdateRequest): Me | Response {
   }
   if (body.weekStart !== undefined) next.weekStart = body.weekStart
   if (body.keyboardShortcutsEnabled !== undefined) next.keyboardShortcutsEnabled = body.keyboardShortcutsEnabled
+  // 테마(SCR-SET-04): 키 컬러는 아무 #RRGGBB(대문자로 저장), 배경은 4종 중 하나
+  if (body.themeAccent !== undefined) {
+    if (/^#[0-9A-Fa-f]{6}$/.test(body.themeAccent)) next.themeAccent = body.themeAccent.toUpperCase()
+    else errors.push({ field: 'themeAccent', code: 'THEME_ACCENT_INVALID' })
+  }
+  if (body.themeGround !== undefined) next.themeGround = body.themeGround
   if (errors.length) return problem(400, 'VALIDATION_FAILED', { errors })
   const changed = JSON.stringify(next) !== JSON.stringify(current)
   return changed ? { ...next, version: current.version + 1 } : current

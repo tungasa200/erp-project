@@ -23,6 +23,7 @@ import { ProfileSettings } from '../settings/ProfileSettings'
 import { ProjectSettings } from '../settings/ProjectSettings'
 import { RecordingSettings } from '../settings/RecordingSettings'
 import { SettingsIndex, SettingsLayout } from '../settings/SettingsLayout'
+import { ThemeSettings } from '../settings/ThemeSettings'
 import { TaskDetailPanel } from '../tasks/TaskDetailPanel'
 import { TaskListPage } from '../tasks/TaskListPage'
 
@@ -80,6 +81,8 @@ export const routes = [
                   { path: 'general', element: <GeneralSettings /> },
                   { path: 'recording', element: <RecordingSettings /> },
                   { path: 'projects', element: <ProjectSettings /> },
+                  // SCR-SET-04 테마(P4-09)
+                  { path: 'theme', element: <ThemeSettings /> },
                   // SCR-SET-06 계정(P4-08 비밀번호 변경)
                   { path: 'account', element: <AccountSettings /> },
                 ],

@@ -1,0 +1,467 @@
+/* SCR-SET-04 테마 (목업 SET-04, 390은 SET-04m) */
+.layout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  align-items: flex-start;
+}
+
+.controls {
+  flex: 1 1 320px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+}
+
+.groupTitle {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.groupLead {
+  margin: 4px 0 14px;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+/* ① 키 컬러 4×2 */
+.swatches {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px 4px;
+}
+
+.swatch {
+  min-height: var(--size-touch);
+  padding: 4px 0;
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  color: #3b3f52;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.swatch[aria-pressed='true'] {
+  color: var(--color-text);
+  font-weight: 800;
+}
+
+.dot {
+  width: 44px;
+  height: 44px;
+  border-radius: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.custom {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid #eef0f6;
+}
+
+.customLabel {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.colorInput {
+  width: 52px;
+  height: var(--size-touch);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.hex {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.flipNote {
+  margin: 12px 0 0;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: #fff0c7;
+  color: #6b4500;
+  font-size: 12.5px;
+}
+
+/* ② 배경 */
+.grounds {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(104px, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.ground {
+  padding: 8px;
+  border: 2px solid #e4e6ee;
+  border-radius: 16px;
+  background: #ffffff;
+  color: var(--color-text);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ground[aria-pressed='true'] {
+  border-color: var(--color-accent);
+}
+
+.ground:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.groundSample {
+  position: relative;
+  display: block;
+  height: 48px;
+  margin-bottom: 8px;
+  border: 1px solid #e4e6ee;
+  border-radius: 10px;
+  box-sizing: border-box;
+}
+
+.groundSample > span {
+  position: absolute;
+  left: 10px;
+  top: 11px;
+  width: 38px;
+  height: 24px;
+  border-radius: 7px;
+}
+
+.groundDark {
+  background: #1a1c2b;
+}
+
+.groundDark > span {
+  background: #2a2d42;
+}
+
+/* ④ 기본값으로·저장 */
+.actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.reset,
+.save {
+  min-height: 46px;
+  border: 0;
+  border-radius: 23px;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.reset {
+  padding: 0 20px;
+  background: var(--color-ground);
+  color: var(--color-text);
+  font-weight: 700;
+}
+
+.save {
+  padding: 0 26px;
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  font-weight: 800;
+}
+
+.save[aria-busy='true'] {
+  cursor: progress;
+}
+
+.status:empty {
+  display: none;
+}
+
+.status {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text-muted);
+  text-align: right;
+}
+
+/* ③ 미리보기: 고른 색(--pv-*)만 이 안에서 쓴다 */
+.previewArea {
+  flex: 1.2 1 340px;
+  min-width: 0;
+}
+
+.previewTitle {
+  margin: 0 0 10px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+}
+
+.preview {
+  --pv-light: color-mix(in srgb, var(--pv-accent) 55%, white);
+  display: flex;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid #e1e4ee;
+  border-radius: 24px;
+  background: var(--pv-ground);
+  color: var(--color-text);
+}
+
+.pvNav {
+  width: 104px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pvNavActive,
+.pvNavItem {
+  height: 34px;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #3b3f52;
+}
+
+.pvNavActive {
+  border-radius: 17px;
+  background: var(--pv-accent);
+  color: var(--pv-on);
+  font-weight: 700;
+}
+
+.pvMain {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pvGreeting {
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.pvStats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.pvStat,
+.pvStatAccent {
+  padding: 12px;
+  border-radius: 16px;
+  background: #ffffff;
+}
+
+.pvStatAccent {
+  background: var(--pv-accent);
+  color: var(--pv-on);
+}
+
+.pvStatLabel {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.pvStatValue {
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.pvBlocks {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 12px;
+  border-radius: 18px;
+  background: #ffffff;
+}
+
+/* 기록 상태 색은 테마와 상관없이 고정(화면정의서 2.2) */
+.pvBlock {
+  padding: 7px 10px;
+  border-radius: 11px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.pvDone {
+  background: #2d5bd8;
+  color: #ffffff;
+}
+
+.pvPending {
+  border: 2px solid #e0a100;
+  background: #ffe9b8;
+  color: #4a3000;
+}
+
+.pvPlanned {
+  border: 2px dashed #c25a12;
+  background: #fcebdd;
+  color: #8a3d06;
+}
+
+.pvLog {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 18px;
+  background: #1a1c2b;
+  color: #ffffff;
+  font-size: 12.5px;
+  font-weight: 800;
+}
+
+.pvLog > span:first-child {
+  flex: 1;
+}
+
+.pvClose {
+  height: 32px;
+  line-height: 32px;
+  padding: 0 12px;
+  border-radius: 16px;
+  background: var(--pv-light);
+  color: #1a1c2b;
+  font-size: 12px;
+}
+
+.previewNote {
+  margin: 10px 4px 0;
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+}
+
+/* 390(SET-04m): 미리보기 위, 배경 가로 스크롤, [기본값으로][저장] 아래 고정 */
+@media (max-width: 767px) {
+  /* 여러 줄(wrap)이면 줄 폭이 내용 폭이 되어 넘친다. 한 줄로 쌓는다 */
+  .layout {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: stretch;
+  }
+
+  /* 세로로 쌓이면 flex-basis가 높이가 되므로 풀어 준다 */
+  .controls,
+  .previewArea {
+    flex: none;
+  }
+
+  .previewArea {
+    order: -1;
+  }
+
+  .previewTitle {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .preview {
+    padding: 12px;
+    border-radius: 20px;
+  }
+
+  .pvNav,
+  .pvGreeting {
+    display: none;
+  }
+
+  .pvBlocks {
+    padding: 0;
+    background: transparent;
+  }
+
+  .pvPending,
+  .pvPlanned {
+    display: none;
+  }
+
+  .previewNote {
+    display: none;
+  }
+
+  .grounds {
+    display: flex;
+    overflow-x: auto;
+    margin-right: -20px;
+    padding-right: 20px;
+    scroll-snap-type: x proximity;
+  }
+
+  .ground {
+    flex: none;
+    width: 104px;
+    scroll-snap-align: start;
+  }
+
+  .groundSample {
+    height: 40px;
+  }
+
+  /* 하단 탭(72px)과 위로 솟은 +(26px) 위에 붙인다 */
+  .actions {
+    position: sticky;
+    bottom: 104px;
+    z-index: 5;
+    margin: 0 -20px;
+    padding: 12px 20px;
+    background: var(--color-surface);
+    box-shadow: 0 -2px 10px rgba(40, 44, 90, 0.08);
+  }
+
+  .save {
+    flex: 1;
+    min-height: 48px;
+    font-size: 15px;
+  }
+
+  .reset {
+    min-height: 48px;
+  }
+
+  .status {
+    text-align: left;
+  }
+}
