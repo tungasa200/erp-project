@@ -129,3 +129,21 @@ describe('SCR-COM-03 ② 타이머 명령 (P2-06)', () => {
     expect(screen.queryByRole('dialog', { name: '다른 업무로 전환' })).not.toBeInTheDocument()
   })
 })
+
+describe('P4 화면 경로 연결 (통계·보관함)', () => {
+  it('/stats는 통계 화면, 업무 목록 아래 "보관함"은 /tasks/archive 보관함 화면', async () => {
+    const empty = { completedTaskCount: 0, recordCount: 0, confirmedLogCount: 0, daily: [], projects: [] }
+    stubFetch({
+      'GET /api/users/me': () => json(200, ME),
+      'GET /api/worklog/stats': () => json(200, { from: '', to: '', ...empty, firstRecordDate: null }),
+      'GET /api/worklog/stats/plan-vs-actual': () => json(200, { from: '', to: '', weeks: [], topDiffs: [] }),
+    })
+    const { router } = renderApp('/stats')
+    expect(await screen.findByRole('heading', { level: 1, name: '통계' })).toBeInTheDocument()
+
+    await router.navigate('/tasks')
+    await userEvent.click(await screen.findByRole('link', { name: '보관함' }))
+    expect(router.state.location.pathname).toBe('/tasks/archive')
+    expect(await screen.findByRole('heading', { level: 1, name: '보관함' })).toBeInTheDocument()
+  })
+})

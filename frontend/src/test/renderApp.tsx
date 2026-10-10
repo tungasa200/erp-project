@@ -125,6 +125,20 @@ export function stubFetch(handlers: Record<string, Handler>) {
     // 옵션이 켜진 홈 타임라인의 오늘 합계(SCR-HOME-01 ③). 등록하지 않았으면 0분
     if (key.split('?')[0] === 'GET /api/worklog/records/time-summary')
       return json(200, { from: '', to: '', totalMin: 0, recordCount: 0, projects: [], tasks: [] })
+    // 통계(SCR-STAT-01). 등록하지 않았으면 기록 없는 기간으로 답한다(팔레트로 /stats에 가는 시험이 로그아웃되지 않게)
+    if (key.split('?')[0] === 'GET /api/worklog/stats')
+      return json(200, {
+        from: '',
+        to: '',
+        completedTaskCount: 0,
+        recordCount: 0,
+        confirmedLogCount: 0,
+        daily: [],
+        projects: [],
+        firstRecordDate: null,
+      })
+    if (key.split('?')[0] === 'GET /api/worklog/stats/plan-vs-actual')
+      return json(200, { from: '', to: '', weeks: [], topDiffs: [] })
     // 일지 진행 현황 괄호가 업무 제목을 묻는다(업무 상세). 등록하지 않았으면 없음으로 답해 실적 줄 문구를 쓴다
     if (/^GET \/api\/worklog\/tasks\/[^/?]+$/.test(key) && key !== 'GET /api/worklog/tasks/frequent')
       return problem(404, 'NOT_FOUND')

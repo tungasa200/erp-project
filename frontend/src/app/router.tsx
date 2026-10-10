@@ -10,8 +10,9 @@ import { LogPage } from '../logs/LogPage'
 import { NotFoundPage } from '../pages/NotFoundPage'
 import { ForgotPasswordPage } from '../pages/password/ForgotPasswordPage'
 import { ResetPasswordPage } from '../pages/password/ResetPasswordPage'
-import { PlaceholderPage } from '../pages/PlaceholderPage'
 import { SignupPage } from '../pages/SignupPage'
+import { ArchivePage } from '../archive/ArchivePage'
+import { StatsPage } from '../stats/StatsPage'
 import { AccountDeletion } from '../settings/AccountDeletion'
 import { AccountSettings } from '../settings/AccountSettings'
 import { GeneralSettings } from '../settings/GeneralSettings'
@@ -47,6 +48,8 @@ export const routes = [
               { path: '/calendar/list', element: <CalendarPage /> },
               { path: '/calendar/:view/:date', element: <CalendarPage /> },
               // 업무 목록, 행을 누르면 오른쪽 상세 패널 (SCR-TASK-01·02)
+              // 보관함 SCR-TASK-04(P4-10, frontend2): /tasks/:taskId보다 먼저 맞도록 /tasks 밖 형제 경로
+              { path: '/tasks/archive', element: <ArchivePage /> },
               {
                 path: '/tasks',
                 element: <TaskListPage />,
@@ -55,7 +58,8 @@ export const routes = [
               // 업무일지(P3): 목록 SCR-LOG-01, 상세·편집 SCR-LOG-02
               { path: '/logs', element: <LogListPage /> },
               { path: '/logs/:type/:date', element: <LogPage /> },
-              { path: '/stats', element: <PlaceholderPage title="통계" /> },
+              // 통계 SCR-STAT-01(P4-02, frontend2)
+              { path: '/stats', element: <StatsPage /> },
               // SCR-SET-07 회원 탈퇴(P4-05): 설정 메뉴 없이 한 화면(목업 SET-07)
               { path: '/settings/account/deletion', element: <AccountDeletion /> },
               {

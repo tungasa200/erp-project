@@ -195,3 +195,55 @@ describe('가짜 빈 시간·시간 집계(P2-07)', () => {
     })
   })
 })
+
+describe('가짜 통계(P4-02, GET /stats·/stats/plan-vs-actual)', () => {
+  const get = async (url: string) => {
+    const res = handleWorklog('GET', url, {}, r)!
+    return { status: res.status, body: (await res.json()) as Record<string, unknown> }
+  }
+
+  it('daily는 기간의 모든 날을 0 포함으로 주고, 기간이 거꾸로면 400', async () => {
+    const { status, body } = await get('/api/worklog/stats?from=2026-10-01&to=2026-10-07')
+    expect(status).toBe(200)
+    expect((body.daily as { date: string }[]).map((d) => d.date)).toEqual([
+      '2026-10-01',
+      '2026-10-02',
+      '2026-10-03',
+      '2026-10-04',
+      '2026-10-05',
+      '2026-10-06',
+      '2026-10-07',
+    ])
+    expect((await get('/api/worklog/stats?from=2026-10-07&to=2026-10-01')).status).toBe(400)
+  })
+
+  it('예상은 업무에 연결된 시간 일정 길이, 실제는 그 업무의 확정 기록, 예상 없는 업무는 계획 밖', async () => {
+    const [first] = await tasks()
+    handleScheduleMock(
+      'POST',
+      '/api/worklog/schedules',
+      // 서울 10:00~12:00(월요일 2026-10-05)
+      {
+        title: first.title,
+        allDay: false,
+        startAt: '2026-10-05T01:00:00Z',
+        endAt: '2026-10-05T03:00:00Z',
+        taskId: first.id,
+      },
+      r,
+    )
+    handleWorklog(
+      'POST',
+      '/api/worklog/records',
+      { content: '작업', taskId: first.id, workDate: '2026-10-05', durationMin: 90 },
+      r,
+    )
+    handleWorklog('POST', '/api/worklog/records', { content: '잡무', workDate: '2026-10-06', durationMin: 30 }, r)
+
+    const { body } = await get('/api/worklog/stats/plan-vs-actual?from=2026-10-05&to=2026-10-11')
+    expect(body.weeks).toEqual([{ weekStart: '2026-10-05', plannedMin: 120, actualMin: 90, unplannedMin: 30 }])
+    expect(body.topDiffs).toEqual([
+      { taskId: first.id, title: first.title, projectId: first.projectId, plannedMin: 120, actualMin: 90 },
+    ])
+  })
+})

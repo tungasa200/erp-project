@@ -4,6 +4,7 @@
 import type { Occurrence } from '../calendar/api'
 import { handleScheduleMock, scheduledTaskIds } from '../calendar/mockSchedules'
 import { handleLogsMock, type LogsMockContext, type StoredLog } from '../logs/mockLogs'
+import { handleStatsMock } from './mockStats'
 import type { Project, Tag } from '../projects/api'
 import type { WorkRecord } from '../records/api'
 import type { PendingRecord } from '../records/pending'
@@ -376,6 +377,20 @@ export function handleWorklog(
 
   const timer = handleTimer(method, path, body, state, r, settings.timeTrackingEnabled)
   if (timer) return timer
+
+  const stats = handleStatsMock(
+    method,
+    url,
+    {
+      tasks: state.tasks,
+      records: (state.records ??= []),
+      logs: (state.logs ??= []),
+      weekStart: settings.weekStart ?? 1,
+      occurrencesBetween,
+    },
+    r,
+  )
+  if (stats) return stats
 
   const logs = handleLogsMock(
     method,
