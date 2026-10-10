@@ -470,6 +470,16 @@ export interface components {
             /** @description 표시용 직책 (권한용 역할과 별개) */
             position?: string | null;
             /**
+             * @description 키 컬러 (UX-07). 프리셋이 아닌 색도 받는다. 대문자로 저장한다. 틀리면 THEME_ACCENT_INVALID.
+             * @example #4B3FD6
+             */
+            themeAccent?: string;
+            /**
+             * @description 배경 (UX-07): 쿨 그레이·웜 베이지·세이지·화이트. 이 4개만 받는다(대소문자 무관). 틀리면 THEME_GROUND_INVALID.
+             * @enum {string}
+             */
+            themeGround?: "#F2F4FA" | "#F6F2EA" | "#EEF4EF" | "#FFFFFF";
+            /**
              * @description IANA 시간대 이름. 바꿔도 기존 기록 날짜는 그대로다 (D-40).
              * @example Asia/Seoul
              */
