@@ -1,4 +1,5 @@
 import { createApiClient } from './client'
+import { noteFailedTraceId } from './clientErrors'
 import { mockFetch } from './mockServer'
 import type {
   AccountDeletionRequest,
@@ -28,8 +29,15 @@ export function setMaintenanceHandler(handler: (retryAt: Date | null) => void) {
   maintenanceHandler = handler
 }
 
+const baseFetch: typeof fetch = useMock ? mockFetch : (...args) => fetch(...args)
+
 export const api = createApiClient({
-  fetchFn: useMock ? mockFetch : (...args) => fetch(...args),
+  // 실패한 응답의 traceId를 화면 오류 보고(P4-13)에 붙이려고 기억해 둔다
+  fetchFn: async (...args) => {
+    const res = await baseFetch(...args)
+    if (!res.ok) noteFailedTraceId(res.headers.get('X-Trace-Id'))
+    return res
+  },
   onSessionExpired: (code) => sessionExpiredHandler(code),
   onMaintenance: (retryAt) => maintenanceHandler(retryAt),
 })
