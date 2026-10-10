@@ -3,7 +3,6 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { api } from '../api'
 import { RequireAuth } from '../app/guards'
-import { routes } from '../app/router'
 import { useAuth } from '../auth/useAuth'
 import { LoginPage } from '../pages/LoginPage'
 import { json, ME, problem, renderApp, stubFetch } from './renderApp'
@@ -28,6 +27,19 @@ describe('라우팅', () => {
     const { router } = renderApp('/')
     expect(await screen.findByRole('heading', { level: 1, name: /일지가 써집니다/ })).toBeInTheDocument()
     expect(router.state.location.pathname).toBe('/')
+  })
+
+  it('/privacy·/terms는 로그인하지 않아도 보이고, 로그인한 채로도 홈으로 보내지 않는다 (SCR-AUTH-06·07)', async () => {
+    stubFetch({})
+    renderApp('/privacy')
+    expect(await screen.findByRole('heading', { level: 1, name: '개인정보 처리방침' })).toBeInTheDocument()
+    vi.unstubAllGlobals()
+
+    stubFetch({ 'GET /api/users/me': () => json(200, ME) })
+    const { router } = renderApp('/terms')
+    expect(await screen.findByRole('heading', { level: 1, name: '이용약관' })).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe('/terms')
+    expect(screen.queryByRole('navigation', { name: '하단 탭' })).not.toBeInTheDocument()
   })
 
   it('/notifications는 알림 전체 화면 (SCR-COM-05 ③)', async () => {
@@ -173,11 +185,10 @@ describe('SCR-SYS-02 점검', () => {
 
   it('점검 중에도 공개 화면(처리방침·약관)은 그대로 보이고, 다른 화면으로 가면 점검 화면 (D-177 ②)', async () => {
     stubFetch({ 'GET /api/users/me': () => problem(503, 'MAINTENANCE') })
-    const publicRoutes = [{ path: '/privacy', element: <a href="/calendar">개인정보 처리방침 본문</a> }, ...routes]
-    const { router, queryClient } = renderApp('/privacy', publicRoutes)
+    const { router, queryClient } = renderApp('/privacy')
     // 내 정보 조회가 점검 응답을 받은 뒤에도 본문이 남는다
     await waitFor(() => expect(queryClient.getQueryState(['me'])?.status).toBe('error'))
-    expect(screen.getByText('개인정보 처리방침 본문')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: '개인정보 처리방침' })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: '서비스 점검 중이에요' })).not.toBeInTheDocument()
     await act(() => router.navigate('/calendar'))
     expect(await screen.findByRole('heading', { name: '서비스 점검 중이에요' })).toBeInTheDocument()

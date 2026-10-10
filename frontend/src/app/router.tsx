@@ -9,6 +9,8 @@ import { LogListPage } from '../logs/LogListPage'
 import { LogPage } from '../logs/LogPage'
 import { NotFoundPage } from '../pages/NotFoundPage'
 import { NotificationsPage } from '../notifications/NotificationsPage'
+import { PrivacyPage } from '../landing/PrivacyPage'
+import { TermsPage } from '../landing/TermsPage'
 import { ForgotPasswordPage } from '../pages/password/ForgotPasswordPage'
 import { ResetPasswordPage } from '../pages/password/ResetPasswordPage'
 import { SignupPage } from '../pages/SignupPage'
@@ -28,6 +30,10 @@ export const routes = [
   {
     errorElement: <ErrorPage />,
     children: [
+      // 개인정보 처리방침 SCR-AUTH-06·이용약관 SCR-AUTH-07(P4-11, frontend2): 로그인과 상관없이 보이는 공개 화면, AppShell 밖.
+      // 점검 중에도 보인다(MaintenanceGate PUBLIC_PATHS, D-177 ②)
+      { path: '/privacy', element: <PrivacyPage /> },
+      { path: '/terms', element: <TermsPage /> },
       {
         element: <GuestOnly />,
         children: [
