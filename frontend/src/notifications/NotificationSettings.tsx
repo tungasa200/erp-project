@@ -214,8 +214,8 @@ function PushCard({
   } else if (state === 'ios-browser') {
     description = (
       <>
-        iPhone에서는 WY를 <b>홈 화면에 추가</b>해서 열어야 푸시 알림을 받을 수 있어요. Safari 공유 버튼 → 홈 화면에
-        추가.
+        iPhone에서는 WY Worklog를 <b>홈 화면에 추가</b>해서 열어야 푸시 알림을 받을 수 있어요. Safari 공유 버튼 → 홈
+        화면에 추가.
       </>
     )
   } else if (state === 'unsupported') {

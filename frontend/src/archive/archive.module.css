@@ -14,6 +14,8 @@
   /* 화살표 뒤 공백이 inline-flex에서 사라지므로 간격으로 띄운다 */
   gap: 4px;
   min-height: var(--size-touch);
+  /* '← 업무'는 글자가 짧아 너비가 40px 남짓이라 누르는 너비도 44px로 채운다 */
+  min-width: var(--size-touch);
   font-size: 14px;
   font-weight: 700;
   color: var(--color-accent-ink);
