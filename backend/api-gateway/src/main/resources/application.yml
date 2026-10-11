@@ -8,6 +8,20 @@ spring:
     gateway:
       server:
         webflux:
+          # 배포 직후 502 대비 (REL-05). 내부 서비스가 재배포되면 옛 컨테이너 주소로 맺은 연결이 죽는다.
+          # 풀 연결을 오래 두지 않고, 연결을 못 맺은 GET만 한 번 더 보낸다(응답을 받은 뒤 5xx는 재시도하지 않음).
+          httpclient:
+            connect-timeout: 3000 # ms
+            pool:
+              max-idle-time: 30s
+              max-life-time: 120s
+          default-filters:
+            - name: Retry
+              args:
+                retries: 1
+                methods: GET
+                series: "" # 기본값 5XX 재시도를 끈다
+                exceptions: java.net.ConnectException # 연결 거부·연결 시간 초과(netty ConnectTimeoutException 포함)
           # /internal/**, /.well-known/**, 내부 서비스의 /actuator/**는 라우트가 없어 외부로 나가지 않는다 (404)
           routes:
             - id: identity
