@@ -1,0 +1,21 @@
+name,n,median_ms,p95_ms,max_ms,bytes,verdict
+"users/me",100,125,174,303,302,PASS
+"worklog/me",100,121,151,226,367,PASS
+"tasks 기본(TODO·IN_PROGRESS, due)",100,142,180,330,45532,PASS
+"tasks 완료(DONE, created)",100,124,162,177,22608,PASS
+"tasks/frequent",100,125,157,348,678,PASS
+"schedules 월(2026-10)",100,151,188,246,106118,PASS
+"schedules 주(10-12~18)",100,121,156,309,19597,PASS
+"schedules 하루(10-14)",100,115,140,169,5273,PASS
+"records 하루(10-08)",100,140,171,180,8616,PASS
+"records 한 달(2026-09)",100,154,194,395,117216,PASS
+"records/pending",100,217,261,342,23176,PASS
+"logs DAILY 한 달(10월)",100,132,168,207,4586,PASS
+"logs WEEKLY(최근 3개월)",100,133,160,203,2265,PASS
+"logs/daily 평일(10-08)",100,136,170,235,6509,PASS
+"logs/daily 일지 카드(오늘)",100,171,229,331,115551,PASS
+"stats 이번 달",100,121,161,326,3228,PASS
+"stats 최근 3개월",100,127,163,255,6989,PASS
+"plan-vs-actual 이번 달",100,123,155,171,1189,PASS
+"plan-vs-actual 최근 3개월",100,120,147,211,1844,PASS
+"notifications limit=1",100,115,142,172,46,PASS
