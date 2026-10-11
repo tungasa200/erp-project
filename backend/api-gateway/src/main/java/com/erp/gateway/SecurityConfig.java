@@ -1,8 +1,10 @@
 package com.erp.gateway;
 
+import io.netty.channel.ChannelOption;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
@@ -15,12 +17,18 @@ import org.springframework.security.oauth2.jwt.NimbusReactiveJwtDecoder;
 import org.springframework.security.oauth2.jwt.ReactiveJwtDecoder;
 import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.security.web.server.context.NoOpServerSecurityContextRepository;
+import org.springframework.web.reactive.function.client.WebClient;
+import reactor.netty.http.client.HttpClient;
 
+import java.time.Duration;
 import java.util.List;
 
 @Configuration
 @EnableWebFluxSecurity
 public class SecurityConfig {
+
+	static final Duration JWKS_CONNECT_TIMEOUT = Duration.ofSeconds(2);
+	static final Duration JWKS_READ_TIMEOUT = Duration.ofSeconds(3);
 
 	@Bean
 	SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http) {
@@ -43,7 +51,13 @@ public class SecurityConfig {
 
 	@Bean
 	ReactiveJwtDecoder jwtDecoder(GatewayProperties props) {
-		NimbusReactiveJwtDecoder decoder = NimbusReactiveJwtDecoder.withJwkSetUri(props.jwkSetUri()).build();
+		// identity가 재기동 중이면 키 받기가 오래 매달리지 않게 짧게 끊는다(REL-05). 실패하면 다음 요청에서 다시 받는다.
+		HttpClient http = HttpClient.create()
+				.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, (int) JWKS_CONNECT_TIMEOUT.toMillis())
+				.responseTimeout(JWKS_READ_TIMEOUT);
+		NimbusReactiveJwtDecoder decoder = NimbusReactiveJwtDecoder.withJwkSetUri(props.jwkSetUri())
+				.webClient(WebClient.builder().clientConnector(new ReactorClientHttpConnector(http)).build())
+				.build();
 		decoder.setJwtValidator(userTokenValidator(props));
 		return decoder;
 	}
