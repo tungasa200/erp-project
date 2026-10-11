@@ -2,7 +2,7 @@ const path = require('path');
 const { Packer, Paragraph, TextRun, AlignmentType, PageBreak } = require('docx');
 const { p, h1, h2, bullet, gap, table, makeDoc, writeNew, ACCENT } = require('./lib');
 
-const VERSION = 'v2.3';
+const VERSION = 'v2.4';
 // 기능 요구사항 표: ID, 요구사항, 상세, 우선순위, 단계
 const frTable = (rows) => table(['ID', '요구사항', '상세 설명', '우선순위', '단계'], rows, [11, 20, 47, 11, 11], [0, 3, 4]);
 
@@ -17,7 +17,7 @@ const children = [
     ['작성일', '2026-10-12'],
     ['문서 상태', '확정 — 결정 사항은 docs/결정기록.md'],
     ['기술 스택', 'Spring Boot (MSA) / React / Railway / Vercel'],
-    ['관련 문서', '작업계획서_v2.5.docx, 화면정의서_v2.0.docx, docs/결정기록.md (결정 사항), docs/개정대기.md (개정 대기), contracts/*.yaml (API 계약), contracts/generated/*.json (명세 스냅샷), README (기술 버전)'],
+    ['관련 문서', '작업계획서_v2.6.docx, 화면정의서_v2.1.docx, docs/결정기록.md (결정 사항), docs/개정대기.md (개정 대기), contracts/*.yaml (API 계약), contracts/generated/*.json (명세 스냅샷), README (기술 버전)'],
   ], [30, 70]),
   new Paragraph({ children: [new PageBreak()] }),
 
@@ -38,6 +38,7 @@ const children = [
     ['v2.1', '2026-10-09', 'P3 단계 말 일괄 개정(D-107~D-109, D-111~D-113, D-115~D-117) — AUTH-08 내보내기 때 인증 확인 방법, LOG-04·06·07·08·13·14·15·16 수정(실적 자동/고정, 실적에 넣기 버튼, 확정 해제는 확정본 그대로 초안, 주간·월간은 확정 일간 우선, 하루 마감 1단계는 확인 대기 패널, 이월 후보와 이월 = 계획에 넣기, 진행 현황 완료 건수, 진행률은 원본에서만), 3.7 내보내기 공통 규칙(인증 확인, 파일명), NFR-11 글꼴 내장 범위, 6장 WorkLog(content JSONB, 변경 이력 표)'],
     ['v2.2', '2026-10-11', 'P4 단계 말 일괄 개정(D-123, D-172~D-179, D-182~D-184) — AUTH-01 만 14세 미만 가입 제한, AUTH-06 탈퇴 경로·비밀번호 재확인·파기 시간, AUTH-07 비밀번호 변경 경로·이 기기 유지·틀림 잠금, LOG-15 월간 완료 건수, NOTI-01 알림 센터·웹 푸시·기본 끔·구독 파기·30일 보관, UX-02 모바일 빠른 기록 문법, UX-05 계획 대비 실제 정의, NFR-05 탈퇴 재적용 방식, NFR-06 PWA 이름, NFR-09 화면 오류 수집, NFR-10 푸시 서비스 운영사, NFR-13 점검 중 공개 화면, 5.1 웹 푸시·PWA 라이브러리, 5.2·9장 요청 제한은 서버 메모리에서(Redis는 여러 인스턴스 때), 5.7 국외 이전 대상, 6장 PushSubscription·Notification 추가'],
     ['v2.3', '2026-10-12', 'REL 단계 말 일괄 개정(D-185, D-188, D-191, D-195, D-196, D-198) — UX-07 직접 고른 키 컬러 대비 검사, NFR-03 공개키 보관·받기 시간 제한·키 교체 때 재시작, NFR-10 출시 전 자체 점검·전문가 검토는 출시 후·국외 이전 고지에 이전받는 자 연락처, 5.7 운영 관측·9장 외부 감시 도구 재검토 결과(도입 안 함)'],
+    ['v2.4', '2026-10-12', '관련 문서 버전 갱신(작업계획서 v2.6, 화면정의서 v2.1), 본문 변경 없음'],
   ], [12, 18, 70], [0, 1]),
   gap(),
 
