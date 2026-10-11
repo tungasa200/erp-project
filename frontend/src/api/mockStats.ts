@@ -3,6 +3,7 @@
 import type { Occurrence } from '../calendar/api'
 import type { StoredLog } from '../logs/mockLogs'
 import type { WorkRecord } from '../records/api'
+import type { PlanVsActual, PlanVsActualWeek, Stats } from '../stats/api'
 import type { Task } from '../tasks/api'
 
 interface StatsContext {
@@ -78,7 +79,7 @@ export function handleStatsMock(method: string, url: string, ctx: StatsContext, 
           String(a.projectId).localeCompare(String(b.projectId)),
       )
     const first = confirmed.map((x) => x.workDate).sort()[0] ?? null
-    return r.json(200, {
+    const body: Stats = {
       from,
       to,
       completedTaskCount: completed.length,
@@ -87,7 +88,8 @@ export function handleStatsMock(method: string, url: string, ctx: StatsContext, 
       daily,
       projects,
       firstRecordDate: first,
-    })
+    }
+    return r.json(200, body)
   }
 
   // 예상 대비 실제: 업무에 연결된 시간 일정 회차 길이 vs 확정 기록 durationMin
@@ -113,7 +115,7 @@ export function handleStatsMock(method: string, url: string, ctx: StatsContext, 
     tasks.set(x.taskId ?? null, (tasks.get(x.taskId ?? null) ?? 0) + x.durationMin)
     actualByWeek.set(week, tasks)
   }
-  const weeks: { weekStart: string; plannedMin: number; actualMin: number; unplannedMin: number }[] = []
+  const weeks: PlanVsActualWeek[] = []
   for (let week = weekStartOf(from, ctx.weekStart); week <= to; week = addDays(week, 7)) {
     const planned = plannedByWeek.get(week) ?? new Map<string, number>()
     let actualMin = 0
@@ -153,5 +155,6 @@ export function handleStatsMock(method: string, url: string, ctx: StatsContext, 
         Math.abs(b.actualMin - b.plannedMin) - Math.abs(a.actualMin - a.plannedMin) || a.taskId.localeCompare(b.taskId),
     )
     .slice(0, 5)
-  return r.json(200, { from, to, weeks, topDiffs })
+  const body: PlanVsActual = { from, to, weeks, topDiffs }
+  return r.json(200, body)
 }

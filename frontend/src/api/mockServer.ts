@@ -7,6 +7,7 @@
 import { EMAIL_PATTERN, passwordViolations } from '../auth/passwordRules'
 import { handleScheduleMock } from '../calendar/mockSchedules'
 import { checkCode, codeStatus, issueCode } from './mockCodes'
+import { handleNotificationsMock } from './mockNotifications'
 import { weekStartNumber } from '../quickInput/dates'
 import { handleWorklog } from './mockWorklog'
 import type { FieldError, Problem } from './problem'
@@ -415,7 +416,9 @@ export const mockFetch: typeof fetch = async (input, init) => {
       weekStart: weekStartNumber(profile.weekStart),
     }
     const handled =
-      handleScheduleMock(method, path, body, respond) ?? handleWorklog(method, path, body, respond, settings)
+      handleScheduleMock(method, path, body, respond) ??
+      handleNotificationsMock(method, path, respond) ??
+      handleWorklog(method, path, body, respond, settings)
     if (handled) return handled
   }
 

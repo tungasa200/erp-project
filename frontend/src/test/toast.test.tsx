@@ -61,6 +61,16 @@ describe('되돌리기 토스트 [보기]', () => {
     expect(screen.queryByRole('link', { name: '보기' })).not.toBeInTheDocument()
   })
 
+  it('같은 group으로 두 건이 합쳐지면 [보기]를 숨긴다(마지막 항목만 가리키므로)', async () => {
+    setup()
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: '복원' }))
+    expect(screen.getByRole('link', { name: '보기' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '복원' }))
+    expect(screen.getByRole('button', { name: '되돌리기' })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: '보기' })).not.toBeInTheDocument()
+  })
+
   it('view가 없으면 링크를 그리지 않는다', async () => {
     stubFetch({})
     function Plain() {

@@ -9,6 +9,7 @@ import { LogListPage } from '../logs/LogListPage'
 import { LogPage } from '../logs/LogPage'
 import { NotFoundPage } from '../pages/NotFoundPage'
 import { NotificationsPage } from '../notifications/NotificationsPage'
+import { NotificationSettings } from '../notifications/NotificationSettings'
 import { PrivacyPage } from '../landing/PrivacyPage'
 import { TermsPage } from '../landing/TermsPage'
 import { ForgotPasswordPage } from '../pages/password/ForgotPasswordPage'
@@ -81,6 +82,8 @@ export const routes = [
                   { path: 'general', element: <GeneralSettings /> },
                   { path: 'recording', element: <RecordingSettings /> },
                   { path: 'projects', element: <ProjectSettings /> },
+                  // SCR-SET-05 알림(P4-01): 알림 센터 [알림 설정] 링크가 여기로 온다
+                  { path: 'notifications', element: <NotificationSettings /> },
                   // SCR-SET-04 테마(P4-09)
                   { path: 'theme', element: <ThemeSettings /> },
                   // SCR-SET-06 계정(P4-08 비밀번호 변경)

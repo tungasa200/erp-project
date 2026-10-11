@@ -246,7 +246,8 @@ export function ToastProvider({ children, navigate }: { children: ReactNode; nav
             }}
           >
             <span className={styles.message}>{undoItem.message(undoItem.count)}</span>
-            {undoItem.view && navigate && (
+            {/* 여러 건이 합쳐지면 [보기]가 마지막 항목만 가리키므로 숨긴다 */}
+            {undoItem.view && undoItem.count === 1 && navigate && (
               <a
                 href={undoItem.view.to}
                 className={styles.viewLink}

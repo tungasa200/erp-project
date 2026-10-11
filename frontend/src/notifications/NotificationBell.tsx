@@ -78,9 +78,14 @@ function DesktopBell({ className, label, badge }: { className?: string; label: s
     return () => window.removeEventListener('resize', place)
   }, [open])
 
+  // 위치를 잡기 전에는 visibility:hidden이라 focus()가 먹지 않는다. 자리를 잡은 뒤에 팝오버로 옮긴다
+  const placed = open && pos !== null
+  useEffect(() => {
+    if (placed) popoverRef.current?.focus()
+  }, [placed])
+
   useEffect(() => {
     if (!open) return
-    popoverRef.current?.focus()
     const onPointerDown = (e: PointerEvent) => {
       const target = e.target as Node
       if (popoverRef.current?.contains(target) || buttonRef.current?.contains(target)) return
@@ -100,6 +105,13 @@ function DesktopBell({ className, label, badge }: { className?: string; label: s
         aria-expanded={open}
         aria-controls={open ? id : undefined}
         onClick={() => (open ? close(false) : setOpenAt(pathname))}
+        onKeyDown={(e) => {
+          // 팝오버에서 Shift+Tab으로 종에 돌아온 뒤에도 Esc로 닫는다
+          if (open && e.key === 'Escape') {
+            e.stopPropagation()
+            close(true)
+          }
+        }}
       >
         <BellIcon />
         {badge}

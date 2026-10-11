@@ -99,7 +99,7 @@ describe('SCR-COM-05 알림 글자·경로', () => {
       sub: '확인 대기 3건이 있어요. 1분이면 끝나요',
     })
     expect(notificationText(n('a', { pendingCount: 0 }), '2026-10-10').sub).toBe(
-      '10/9(금) · 오늘 남긴 기록을 확정해 하루를 마감해요',
+      '10/9(금) · 그날 남긴 기록을 확정해 하루를 마감해요',
     )
   })
 
@@ -199,6 +199,21 @@ describe('SCR-COM-05 ② 종 버튼', () => {
     expect(bell).toHaveAttribute('aria-expanded', 'true')
     expect(dialog).toHaveFocus()
     expect(await within(dialog).findAllByRole('link', { name: /일지|마감/ })).toHaveLength(3)
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(bell).toHaveFocus()
+  })
+
+  it('키보드: Enter로 열고, Shift+Tab으로 종에 돌아와도 Esc로 닫힌다', async () => {
+    setup({ path: '/bell' })
+    const user = userEvent.setup()
+    const bell = await screen.findByRole('button', { name: '알림, 안 읽음 2개' })
+    bell.focus()
+    await user.keyboard('{Enter}')
+    expect(screen.getByRole('dialog', { name: '알림' })).toHaveFocus()
+    await user.tab({ shift: true })
+    expect(bell).toHaveFocus()
+    expect(screen.getByRole('dialog', { name: '알림' })).toBeInTheDocument()
     await user.keyboard('{Escape}')
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(bell).toHaveFocus()

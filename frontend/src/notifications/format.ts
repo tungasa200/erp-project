@@ -15,9 +15,13 @@ export interface NotificationText {
 export function notificationText(n: AppNotification, today: string): NotificationText {
   if (n.type === 'DAILY_CLOSE') {
     const count = n.pendingCount ?? 0
-    const sub = count > 0 ? `확인 대기 ${count}건이 있어요. 1분이면 끝나요` : '오늘 남긴 기록을 확정해 하루를 마감해요'
+    const past = n.date !== today
+    const sub =
+      count > 0
+        ? `확인 대기 ${count}건이 있어요. 1분이면 끝나요`
+        : `${past ? '그날' : '오늘'} 남긴 기록을 확정해 하루를 마감해요`
     // 지난 날 알림이면 어느 날 마감인지 붙인다
-    return { title: '하루 마감 시간이에요', sub: n.date === today ? sub : `${shortDate(n.date, today)} · ${sub}` }
+    return { title: '하루 마감 시간이에요', sub: past ? `${shortDate(n.date, today)} · ${sub}` : sub }
   }
   const start = n.periodStart ?? n.date
   if (n.logType === 'MONTHLY') {

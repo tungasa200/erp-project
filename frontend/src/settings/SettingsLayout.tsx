@@ -10,6 +10,7 @@ const TABS = [
   { to: 'general', label: '일반' },
   { to: 'recording', label: '기록 옵션' },
   { to: 'projects', label: '프로젝트·태그' },
+  { to: 'notifications', label: '알림' },
   { to: 'theme', label: '테마' },
   { to: 'account', label: '계정' },
 ]
