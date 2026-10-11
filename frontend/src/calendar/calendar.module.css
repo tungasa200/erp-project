@@ -266,6 +266,9 @@
   gap: 2px 3px;
   min-height: 24px;
   cursor: copy;
+  /* 길게 누를 때 글자 선택·메뉴가 뜨지 않게(손가락 끌기) */
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .allDayBar {
@@ -283,7 +286,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   cursor: grab;
-  touch-action: none;
+  touch-action: pan-y;
 }
 
 .allDayBar[data-dragging] {
@@ -316,8 +319,10 @@
   inset: 0;
   display: grid;
   gap: 0 3px;
-  touch-action: none;
+  /* 손가락으로 바로 밀면 세로 스크롤. 만들기·옮기기는 길게 누른 뒤에만(touchHold.ts) */
+  touch-action: pan-y;
   user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .column {
@@ -391,7 +396,7 @@ button.column {
   border: 2px dashed var(--block-base, var(--color-accent));
   color: var(--block-ink, var(--color-accent-ink));
   cursor: grab;
-  touch-action: none;
+  touch-action: pan-y;
 }
 
 .block[data-now] {
@@ -400,6 +405,14 @@ button.column {
 
 .block[data-dragging] {
   opacity: 0.4;
+}
+
+/* 길게 눌러 잡음(손가락 끌기 시작). 칸 강조로 알린다 */
+.block[data-held],
+.allDayBar[data-held],
+.chip[data-held] {
+  outline: 2px solid var(--block-base, var(--color-accent));
+  outline-offset: 1px;
 }
 
 .blockTitle {
@@ -478,6 +491,8 @@ button.column {
 .monthCells {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .monthHeads {
@@ -585,7 +600,7 @@ button.column {
   overflow: hidden;
   text-overflow: ellipsis;
   cursor: grab;
-  touch-action: none;
+  touch-action: pan-y;
   flex: none;
 }
 

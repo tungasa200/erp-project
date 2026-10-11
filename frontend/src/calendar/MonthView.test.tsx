@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type { Occurrence } from './api'
 import { MonthView } from './MonthView'
@@ -19,9 +19,15 @@ const occurrences = ['기획 회의', '디자인 검토', '배포 준비', '회�
     }) as Occurrence,
 )
 
-// jsdom에는 PointerEvent·포인터 캡처가 없다
+// jsdom에는 PointerEvent·포인터 캡처가 없다. 터치 규칙 시험을 위해 pointerType을 받는다
 window.PointerEvent ??= class extends MouseEvent {
-  pointerId = 1
+  pointerId: number
+  pointerType: string
+  constructor(type: string, init: PointerEventInit = {}) {
+    super(type, init)
+    this.pointerId = init.pointerId ?? 1
+    this.pointerType = init.pointerType ?? 'mouse'
+  }
 } as unknown as typeof PointerEvent
 Element.prototype.setPointerCapture ??= function () {}
 
@@ -118,5 +124,42 @@ describe('월 보기 (P1-07-11)', () => {
     fireEvent.click(cell)
     expect(onOpenDay).toHaveBeenCalledWith('2026-10-06')
     expect(onCreateAllDay).not.toHaveBeenCalled()
+  })
+})
+
+describe('월 보기 칩 터치 (SCR-CAL 공통 터치 규칙)', () => {
+  const touch = { button: 0, pointerType: 'touch', pointerId: 3 }
+
+  it('칩 위에서 바로 밀면(스크롤) 열지 않고, 짧게 누르면 연다', () => {
+    vi.useFakeTimers()
+    try {
+      const { onOpen } = renderMonth(false)
+      const chip = screen.getByRole('button', { name: '기획 회의' })
+      fireEvent.pointerDown(chip, { ...touch, clientX: 10, clientY: 10 })
+      fireEvent.pointerMove(chip, { ...touch, clientX: 10, clientY: 40 })
+      fireEvent.pointerUp(chip, { ...touch, clientX: 10, clientY: 40 })
+      act(() => void vi.advanceTimersByTime(450))
+      expect(onOpen).not.toHaveBeenCalled()
+
+      fireEvent.pointerDown(chip, { ...touch, clientX: 10, clientY: 10 })
+      fireEvent.pointerUp(chip, { ...touch, clientX: 10, clientY: 10 })
+      expect(onOpen).toHaveBeenCalledWith(occurrences[0])
+      expect(chip).toHaveFocus()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('칩을 길게 누르면 잡힘 표시가 뜬다(그 뒤 끌어서 옮김)', () => {
+    vi.useFakeTimers()
+    try {
+      renderMonth(false)
+      const chip = screen.getByRole('button', { name: '기획 회의' })
+      fireEvent.pointerDown(chip, { ...touch, clientX: 10, clientY: 10 })
+      act(() => void vi.advanceTimersByTime(450))
+      expect(chip).toHaveAttribute('data-held')
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })
