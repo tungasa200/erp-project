@@ -33,7 +33,7 @@ setSessionExpiredHandler((code) => handleSessionExpired(queryClient, code))
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
+      <AuthProvider router={router}>
         <AppFrame>
           <MaintenanceGate router={router}>
             <ToastProvider navigate={(to) => void router.navigate(to)}>

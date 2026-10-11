@@ -66,7 +66,7 @@ Railway 프로젝트 WY-ERP(싱가포르)에 백엔드 3개와 PostgreSQL, Verce
 | `DB_USERNAME` | `identity_app` | 입력 |
 | `DB_PASSWORD` | 🔒 db-setup.sql에 넣은 identity 비밀번호 | 입력 |
 | `JWT_PRIVATE_KEY` | 🔒 RSA 2048 PKCS#8 PEM 전문 (`openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out jwt.pem`). 한 줄로 붙일 때는 줄바꿈을 `\n`으로 | 입력 |
-| `JWT_KEY_ID` | 예: `2026-10` (키를 바꿀 때 함께 바꾼다) | 입력 |
+| `JWT_KEY_ID` | 예: `2026-10` (키를 바꿀 때 함께 바꾼다, 아래 "서명 키 교체") | 입력 |
 | `WORKLOG_CLIENT_SECRET` | 🔒 `openssl rand -base64 32`, worklog의 `IDENTITY_CLIENT_SECRET`과 같은 값 | 입력 |
 
 **worklog-service**
@@ -85,6 +85,14 @@ Railway 프로젝트 WY-ERP(싱가포르)에 백엔드 3개와 PostgreSQL, Verce
 | `IDENTITY_CLIENT_SECRET` | 🔒 identity의 `WORKLOG_CLIENT_SECRET`과 같은 값 | 입력 |
 
 `PORT`를 고정하는 이유: 내부 호출 주소(`*.railway.internal:포트`)에 포트가 들어간다.
+
+### 서명 키 교체 (D-195)
+
+worklog-service와 api-gateway는 identity의 서명 공개키(JWKS)를 한 번 받으면 재시작 전까지 계속 신뢰하고, 토큰의 kid를 모를 때만 다시 받는다.
+
+1. identity-service의 `JWT_PRIVATE_KEY`(새 키)와 `JWT_KEY_ID`(새 값)를 함께 바꾸고 배포한다.
+2. **키가 유출돼 바꾼 경우**: 이어서 worklog-service와 api-gateway를 재시작한다. 재시작하지 않으면 두 서비스가 옛 공개키를 계속 신뢰해 유출된 키로 서명한 토큰이 통과한다.
+3. **정기 교체만인 경우**: 재시작하지 않아도 된다. 새 kid의 토큰이 오면 두 서비스가 새 공개키를 자동으로 받아 온다.
 
 ## Vercel
 

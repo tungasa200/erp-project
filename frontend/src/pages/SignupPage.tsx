@@ -7,6 +7,7 @@ import { useAuth } from '../auth/useAuth'
 import { EMAIL_PATTERN, passwordViolations, type PasswordRuleCode } from '../auth/passwordRules'
 import { useToast } from '../components/useToast'
 import { AuthLayout } from './auth/AuthLayout'
+import { useFocusFirstError } from './auth/useFocusFirstError'
 import styles from './auth/auth.module.css'
 
 type Field = 'email' | 'password' | 'passwordConfirm' | 'agreements'
@@ -64,6 +65,7 @@ export function SignupPage() {
   const [emailTaken, setEmailTaken] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const { ref: formRef, focusFirstError } = useFocusFirstError<HTMLFormElement>()
 
   const violations = passwordViolations(password, email)
   // 72바이트 초과는 입력하는 동안 바로 알린다 (한글 약 24자)
@@ -87,7 +89,10 @@ export function SignupPage() {
     if (password && passwordConfirm !== password) next.passwordConfirm = MESSAGES.PASSWORD_MISMATCH
     if (!agreeAge || !agreeTerms || !agreePrivacy) next.agreements = MESSAGES.AGREEMENT_REQUIRED
     setErrors(next)
-    if (Object.values(next).some(Boolean)) return
+    if (Object.values(next).some(Boolean)) {
+      focusFirstError()
+      return
+    }
 
     setSubmitting(true)
     try {
@@ -96,9 +101,11 @@ export function SignupPage() {
       if (error instanceof ApiError && error.code === 'EMAIL_ALREADY_EXISTS') {
         setErrors({ email: MESSAGES.EMAIL_ALREADY_EXISTS })
         setEmailTaken(true)
+        focusFirstError()
       } else if (error instanceof ApiError && error.code === 'VALIDATION_FAILED') {
         const mapped = mapServerErrors(error.problem?.errors ?? [])
         setErrors(mapped.errors)
+        focusFirstError()
         if (mapped.unknown) showToast('입력 내용을 다시 확인해 주세요', { traceId: error.traceId })
       } else {
         const toast = toastForError(error)
@@ -110,6 +117,11 @@ export function SignupPage() {
   }
 
   const allAgreed = agreeAge && agreeTerms && agreePrivacy
+  // 동의 오류면 체크하지 않은 필수 항목이 오류 칸이다(첫 항목으로 포커스, 2.5)
+  const requiredCheck = (checked: boolean) =>
+    errors.agreements && !checked
+      ? { 'aria-invalid': true as const, 'aria-describedby': 'signup-agreements-error' }
+      : {}
 
   return (
     <AuthLayout
@@ -122,7 +134,7 @@ export function SignupPage() {
       }
       description="이름·소속 등 추가 정보는 첫 업무일지 작성 시 입력합니다."
     >
-      <form className={styles.form} onSubmit={onSubmit} noValidate>
+      <form ref={formRef} className={styles.form} onSubmit={onSubmit} noValidate>
         <h1 className={styles.title}>회원가입</h1>
 
         <div className={styles.field}>
@@ -225,18 +237,33 @@ export function SignupPage() {
             전체 동의
           </label>
           <label className={styles.check}>
-            <input type="checkbox" checked={agreeAge} onChange={(e) => setAgreeAge(e.target.checked)} />
+            <input
+              type="checkbox"
+              checked={agreeAge}
+              onChange={(e) => setAgreeAge(e.target.checked)}
+              {...requiredCheck(agreeAge)}
+            />
             <span className={styles.checkText}>[필수] 만 14세 이상입니다</span>
           </label>
           <label className={styles.check}>
-            <input type="checkbox" checked={agreeTerms} onChange={(e) => setAgreeTerms(e.target.checked)} />
+            <input
+              type="checkbox"
+              checked={agreeTerms}
+              onChange={(e) => setAgreeTerms(e.target.checked)}
+              {...requiredCheck(agreeTerms)}
+            />
             <span className={styles.checkText}>[필수] 이용약관 동의</span>
             <Link className={styles.checkLink} to="/terms" target="_blank">
               내용 보기
             </Link>
           </label>
           <label className={styles.check}>
-            <input type="checkbox" checked={agreePrivacy} onChange={(e) => setAgreePrivacy(e.target.checked)} />
+            <input
+              type="checkbox"
+              checked={agreePrivacy}
+              onChange={(e) => setAgreePrivacy(e.target.checked)}
+              {...requiredCheck(agreePrivacy)}
+            />
             <span className={styles.checkText}>[필수] 개인정보 수집·이용 동의</span>
             <Link className={styles.checkLink} to="/privacy" target="_blank">
               내용 보기

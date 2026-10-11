@@ -157,7 +157,7 @@ export function renderApp(path: string, appRoutes: RouteObject[] = routes) {
   const router = createMemoryRouter(appRoutes, { initialEntries: [path] })
   render(
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
+      <AuthProvider router={router}>
         <AppFrame>
           <MaintenanceGate router={router}>
             <ToastProvider navigate={(to) => void router.navigate(to)}>

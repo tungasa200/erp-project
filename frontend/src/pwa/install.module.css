@@ -32,13 +32,6 @@
   }
 }
 
-/* 아주 좁은 화면(320px)은 제목 자리를 위해 아이콘을 뺀다 */
-@media (max-width: 359px) {
-  .icon {
-    display: none;
-  }
-}
-
 .row {
   display: flex;
   align-items: center;
@@ -159,4 +152,42 @@
 .share {
   flex: none;
   color: #2d6be4;
+}
+
+/* 320px(REL-10, D-193): 카드 높이를 180px 이하로. 설명 줄은 제목과 뜻이 겹쳐 뺀다. [설치]·×는 44px 그대로.
+   위 기본 규칙보다 뒤에 둬야 같은 우선순위에서 이긴다 */
+@media (max-width: 359px) {
+  /* 제목 자리를 위해 아이콘을 뺀다 */
+  .icon {
+    display: none;
+  }
+
+  .card,
+  .ios {
+    padding: 14px;
+  }
+
+  .title,
+  .titleIos {
+    font-size: 15px;
+  }
+
+  .description {
+    display: none;
+  }
+
+  .steps {
+    margin-top: 10px;
+    gap: 6px;
+  }
+
+  .step {
+    padding: 8px 10px;
+    font-size: 13.5px;
+  }
+
+  .step::before {
+    width: 22px;
+    height: 22px;
+  }
 }

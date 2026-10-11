@@ -1,8 +1,11 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useMemo, type ReactNode } from 'react'
+import { useEffect, useMemo, useSyncExternalStore, type ReactNode } from 'react'
+import type { RouteObject } from 'react-router'
 import { authApi } from '../api'
 import { ApiError } from '../api/problem'
 import type { Me } from '../api/types'
+import type { LocationSource } from '../app/MaintenanceGate'
+import { isSessionFreePath } from '../app/sessionFreePaths'
 import { disablePush } from '../notifications/push'
 import { applyTheme, DEFAULT_THEME } from '../theme/theme'
 import { resetBanner } from '../verification/bannerState'
@@ -18,9 +21,25 @@ async function fetchMe(): Promise<Me | null> {
   }
 }
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+const noSubscribe = () => () => {}
+
+// router를 주면 처리방침·약관·404에서는 내 정보를 조회하지 않는다(D-189). 다른 화면으로 가면 그때 조회한다
+export function AuthProvider({
+  children,
+  router,
+}: {
+  children: ReactNode
+  router?: LocationSource & { routes: RouteObject[] }
+}) {
   const queryClient = useQueryClient()
-  const { data, isPending, error } = useQuery({ queryKey: ME_QUERY_KEY, queryFn: fetchMe, staleTime: Infinity })
+  const pathname = useSyncExternalStore(router?.subscribe ?? noSubscribe, () => router?.state.location.pathname)
+  const enabled = !router || pathname === undefined || !isSessionFreePath(router.routes, pathname)
+  const { data, isPending, error } = useQuery({
+    queryKey: ME_QUERY_KEY,
+    queryFn: fetchMe,
+    staleTime: Infinity,
+    enabled,
+  })
   const user = data ?? null
 
   useEffect(() => {

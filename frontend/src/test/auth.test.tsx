@@ -51,6 +51,22 @@ describe('라우팅', () => {
     expect(await screen.findByRole('heading', { level: 1, name: '알림' })).toBeInTheDocument()
   })
 
+  it('처리방침·약관·404에서는 내 정보를 조회하지 않아 비로그인 콘솔에 401이 남지 않는다 (D-189)', async () => {
+    const fetchMock = stubFetch({})
+    const { router } = renderApp('/privacy')
+    expect(await screen.findByRole('heading', { level: 1, name: '개인정보 처리방침' })).toBeInTheDocument()
+    await act(() => router.navigate('/terms'))
+    expect(await screen.findByRole('heading', { level: 1, name: '이용약관' })).toBeInTheDocument()
+    await act(() => router.navigate('/no-such-page'))
+    expect(await screen.findByRole('heading', { name: '페이지를 찾을 수 없어요' })).toBeInTheDocument()
+    expect(fetchMock).not.toHaveBeenCalled()
+
+    // 다른 화면으로 가면 그때 조회해 로그인 여부를 판단한다
+    await userEvent.click(screen.getByRole('link', { name: '홈으로' }))
+    expect(await screen.findByRole('heading', { level: 1, name: /일지가 써집니다/ })).toBeInTheDocument()
+    expect(fetchMock.mock.calls.map(([url]) => String(url))).toContain('/api/users/me')
+  })
+
   it('없는 주소는 404 화면', async () => {
     stubFetch({})
     renderApp('/no-such-page')
@@ -184,11 +200,15 @@ describe('SCR-SYS-02 점검', () => {
   })
 
   it('점검 중에도 공개 화면(처리방침·약관)은 그대로 보이고, 다른 화면으로 가면 점검 화면 (D-177 ②)', async () => {
-    stubFetch({ 'GET /api/users/me': () => problem(503, 'MAINTENANCE') })
-    const { router, queryClient } = renderApp('/privacy')
-    // 내 정보 조회가 점검 응답을 받은 뒤에도 본문이 남는다
-    await waitFor(() => expect(queryClient.getQueryState(['me'])?.status).toBe('error'))
-    expect(screen.getByRole('heading', { level: 1, name: '개인정보 처리방침' })).toBeInTheDocument()
+    const fetchMock = stubFetch({
+      'GET /api/users/me': () => problem(503, 'MAINTENANCE'),
+      'GET /api/worklog/projects': () => problem(503, 'MAINTENANCE'),
+    })
+    const { router } = renderApp('/privacy')
+    expect(await screen.findByRole('heading', { level: 1, name: '개인정보 처리방침' })).toBeInTheDocument()
+    // 처리방침에서는 내 정보를 조회하지 않는다(D-189). 다른 요청이 점검 응답을 받아도 본문이 남는다
+    expect(fetchMock).not.toHaveBeenCalled()
+    await act(() => api.request('/api/worklog/projects').catch(() => undefined))
     expect(screen.queryByRole('heading', { name: '서비스 점검 중이에요' })).not.toBeInTheDocument()
     await act(() => router.navigate('/calendar'))
     expect(await screen.findByRole('heading', { name: '서비스 점검 중이에요' })).toBeInTheDocument()

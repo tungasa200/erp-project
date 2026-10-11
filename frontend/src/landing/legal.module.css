@@ -124,7 +124,8 @@
 
 .table {
   width: 100%;
-  min-width: 540px;
+  /* 국외 이전 표 7칸(연락처 포함)이 좁은 화면에서 눌리지 않게, 상자 안에서 가로로 민다 */
+  min-width: 760px;
   border-collapse: collapse;
   font-size: 13.5px;
   line-height: 1.6;
@@ -148,8 +149,15 @@
   color: var(--color-text-body);
 }
 
+.link {
+  color: var(--color-accent-ink);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .brand:focus-visible,
 .toc a:focus-visible,
+.link:focus-visible,
 .tableBox:focus-visible {
   outline: 3px solid var(--color-accent-ink);
   outline-offset: 3px;

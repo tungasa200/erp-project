@@ -2,10 +2,14 @@
 // 원문의 [빈칸: …]은 "[확정 전]"으로 바꿨다(화면에서 노란 표시). 원문이 바뀌면 이 파일도 다시 옮긴다.
 import type { LegalDoc } from './LegalPage'
 
+// 문의 메일은 저장소에 적지 않고 빌드 환경변수로 받는다(D-187, Vercel Production에 설정).
+// 값이 없는 빌드(로컬·미리보기)에서는 [확정 전] 표시로 남긴다
+const CONTACT = (import.meta.env.VITE_CONTACT_EMAIL as string | undefined)?.trim() || '[확정 전]'
+
 export const PRIVACY: LegalDoc = {
   intro: [
     {
-      p: '[확정 전](이하 "운영자")는 WY Worklog(이하 "서비스", wy-worklog.com)를 이용하는 회원의 개인정보를 「개인정보 보호법」에 따라 다음과 같이 처리합니다.',
+      p: '김성우(이하 "운영자")는 WY Worklog(이하 "서비스", wy-worklog.com)를 이용하는 회원의 개인정보를 「개인정보 보호법」에 따라 다음과 같이 처리합니다.',
     },
   ],
   sections: [
@@ -81,10 +85,11 @@ export const PRIVACY: LegalDoc = {
         },
         {
           table: {
-            head: ['이전받는 자', '국가', '이전 항목', '목적', '시기·방법', '보유 기간'],
+            head: ['이전받는 자', '연락처', '국가', '이전 항목', '목적', '시기·방법', '보유 기간'],
             rows: [
               [
                 'Railway Corp.',
+                'privacy@railway.com',
                 '싱가포르(서버 위치)',
                 '1항의 모든 항목',
                 '서비스 서버·데이터베이스 운영, 백업',
@@ -93,6 +98,7 @@ export const PRIVACY: LegalDoc = {
               ],
               [
                 'Vercel Inc.',
+                'privacy@vercel.com',
                 '미국(회사 소재지). 국내 접속 요청은 서울 지역(icn1)에서 처리',
                 '접속 IP, 요청 정보(서비스 요청이 거쳐 감)',
                 '웹 화면 제공, 서버로 요청 전달',
@@ -101,6 +107,7 @@ export const PRIVACY: LegalDoc = {
               ],
               [
                 'Google LLC',
+                '개인정보 문의 양식 https://support.google.com/policies/contact/data_privacy_office',
                 '미국',
                 '이메일 주소, 인증·재설정 코드가 담긴 메일',
                 '인증번호·비밀번호 재설정 메일 발송(Gmail)',
@@ -109,6 +116,7 @@ export const PRIVACY: LegalDoc = {
               ],
               [
                 '회원이 쓰는 브라우저의 푸시 서비스 운영사(Google LLC, Apple Inc., Mozilla Corporation, Microsoft Corporation 등)',
+                'Google LLC: 개인정보 문의 양식 https://support.google.com/policies/contact/data_privacy_office · Apple Inc.: 개인정보 문의 양식 https://www.apple.com/legal/privacy/contact/ · Mozilla Corporation: compliance@mozilla.com · Microsoft Corporation: 개인정보 요청 페이지 https://go.microsoft.com/fwlink/?linkid=2126612',
                 '미국(회사 소재지)',
                 '푸시 구독 주소, 암호화된 알림(운영사는 내용을 읽을 수 없음)',
                 '하루 마감 알림 전달(알림을 허용한 경우만)',
@@ -135,7 +143,7 @@ export const PRIVACY: LegalDoc = {
       title: '5. 회원의 권리와 행사 방법',
       blocks: [
         {
-          p: '회원은 언제든지 설정 화면에서 프로필을 확인·수정하고, 회원 탈퇴로 개인정보 처리 정지와 삭제를 요청할 수 있습니다. 그 밖의 요청은 7항의 연락처로 할 수 있습니다.',
+          p: '회원은 언제든지 설정 화면에서 프로필을 확인·수정하고, 회원 탈퇴로 개인정보 처리 정지와 삭제를 요청할 수 있습니다. 그 밖의 요청은 8항의 연락처로 할 수 있습니다.',
         },
       ],
     },
@@ -165,7 +173,7 @@ export const PRIVACY: LegalDoc = {
       title: '8. 개인정보 보호책임자와 연락처',
       blocks: [
         {
-          ul: ['개인정보 보호책임자: [확정 전]', '연락처: [확정 전]'],
+          ul: ['개인정보 보호책임자: 김성우', `연락처: ${CONTACT}`],
         },
         {
           p: '개인정보 침해에 대한 신고·상담은 개인정보침해신고센터(privacy.kisa.or.kr, 국번 없이 118), 개인정보분쟁조정위원회(kopico.go.kr, 1833-6972) 등에 할 수 있습니다.',
@@ -201,7 +209,7 @@ export const TERMS: LegalDoc = {
       title: '제1조 (목적)',
       blocks: [
         {
-          p: '이 약관은 [확정 전](이하 "운영자")가 제공하는 업무 기록 서비스 WY Worklog(이하 "서비스", wy-worklog.com)의 이용 조건과 절차, 운영자와 회원의 권리·의무를 정합니다.',
+          p: '이 약관은 김성우(이하 "운영자")가 제공하는 업무 기록 서비스 WY Worklog(이하 "서비스", wy-worklog.com)의 이용 조건과 절차, 운영자와 회원의 권리·의무를 정합니다.',
         },
       ],
     },
@@ -280,7 +288,12 @@ export const TERMS: LegalDoc = {
       title: '제8조 (이용 제한)',
       blocks: [
         {
-          p: '회원이 제6조를 어기면 운영자는 서비스 이용을 제한하거나 계정을 정지할 수 있습니다. [확정 전]',
+          ol: [
+            '회원이 제6조를 어기면 운영자는 서비스 이용을 제한하거나 계정을 정지할 수 있습니다.',
+            '운영자는 제한하기 전에 회원의 이메일로 사유와 기간을 알리고, 회원은 알림을 받은 날부터 7일 안에 제12조의 문의 메일로 의견을 낼 수 있습니다. 운영자는 회원의 의견을 검토한 뒤 제한 여부를 정해 알립니다.',
+            '다른 회원의 데이터나 서비스 운영에 곧바로 피해가 생기는 경우(보안 장치 우회, 대량 요청 등)에는 먼저 제한하고 지체 없이 사유를 알리며, 이후 2항과 같이 의견을 낼 수 있습니다.',
+            '제한 사유가 없어지면 운영자는 지체 없이 제한을 풉니다.',
+          ],
         },
       ],
     },
@@ -304,7 +317,7 @@ export const TERMS: LegalDoc = {
           ol: [
             '운영자는 천재지변, 회원의 잘못, 운영자가 통제할 수 없는 외부 업체의 장애로 생긴 손해에 책임을 지지 않습니다. 다만 운영자의 고의나 중대한 과실이 있는 경우는 예외입니다.',
             '회원은 중요한 데이터를 내보내기로 따로 보관할 것을 권합니다.',
-            '[확정 전]',
+            '서비스는 무료로 제공되며, 운영자는 서비스를 계속 이용할 수 있도록 노력하지만 중단이나 오류가 전혀 없는 제공을 보장하지는 않습니다. 이 경우에도 운영자의 고의 또는 과실로 회원에게 손해가 생기면 관련 법령에 따라 책임을 집니다.',
           ],
         },
       ],
@@ -321,7 +334,7 @@ export const TERMS: LegalDoc = {
       title: '제12조 (문의)',
       blocks: [
         {
-          p: '[확정 전]',
+          p: `서비스 이용에 관한 문의는 ${CONTACT}로 할 수 있습니다.`,
         },
       ],
     },

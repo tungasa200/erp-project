@@ -189,3 +189,20 @@
     min-height: var(--size-touch);
   }
 }
+
+/* 320px(REL-10, D-193): 문구가 첫 줄 전체를 쓰고 [인증하기]·×는 둘째 줄 오른쪽. 줄바꿈은 단어 단위, 긴 이메일만 글자 단위 */
+@media (max-width: 359px) {
+  .banner {
+    padding-left: 14px;
+  }
+
+  .bannerText {
+    flex-basis: 100%;
+    word-break: keep-all;
+    overflow-wrap: break-word;
+  }
+
+  .bannerAction {
+    margin-left: auto;
+  }
+}

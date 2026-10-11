@@ -1,0 +1,5 @@
+closeapi 2026-10-05 GET=384ms POST=270ms(200) 후보=65 확인대기=0
+closeapi 2026-10-06 GET=329ms POST=238ms(200) 후보=67 확인대기=0
+closeapi 2026-10-07 GET=339ms POST=222ms(200) 후보=64 확인대기=0
+closeapi 2026-10-08 GET=359ms POST=256ms(200) 후보=72 확인대기=0
+closeapi 2026-10-09 GET=350ms POST=258ms(200) 후보=71 확인대기=0
