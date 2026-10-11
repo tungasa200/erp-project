@@ -15,6 +15,9 @@
     ".claude/agents/WY-qa.md": "1160c6649e95959b1ded7fc78fb98107595f7d6ec84cf487b5d442a53df9c116",
     ".claude/skills/pm-ops/SKILL.md": "618c1cf543703fa51f9796160ec3b7ab6d2e63af29c5d0d344a673a6378b5982",
     ".claude/skills/pm-ops/scripts/session.ps1": "4443aec9ffa9f2dbc3f78890a52f26db38b30ae9310e207c879bc16dba63a79e",
-    ".claude/agents/WY-qa2.md": "74727f524fe1400c924ac69637612cffec1e1a249bf05459ea5f903f5194ecbe"
+    ".claude/agents/WY-qa2.md": "74727f524fe1400c924ac69637612cffec1e1a249bf05459ea5f903f5194ecbe",
+    ".claude/agents/WY-ux.md": "5b82327a8be13d3f3b6f49a4a4fe86157d8f254ae66270cc678b182eeac19ff7",
+    ".claude/agents/WY-ux2.md": "699d512bb7f0d563d89b284238808da5f5c41918c36da73baaaf49bcb20c3975",
+    ".claude/agents/WY-ux3.md": "f7617e467b12e5fdba5545b05eb2c4bdccf2b9c64a4226947d4140ab0d3379d7"
   }
 }

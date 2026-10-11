@@ -19,7 +19,10 @@
     { "name": "WY-frontend2", "summary": "frontend/src/calendar/ 캘린더 영역", "agent": true },
     { "name": "WY-browser", "summary": "외부 서비스 콘솔 작업: Railway·Vercel 등 외부 도구 설정", "agent": true },
     { "name": "WY-qa", "summary": "사용성·기능 테스트: agent-browser로 구현 화면 검증", "agent": true },
-    { "name": "WY-qa2", "summary": "사용성·기능 테스트 병렬: WY-pm이 나눠 준 화면 영역만, dev 서버는 WY-qa 것을 함께 씀", "agent": true }
+    { "name": "WY-qa2", "summary": "사용성·기능 테스트 병렬: WY-pm이 나눠 준 화면 영역만, dev 서버는 WY-qa 것을 함께 씀", "agent": true },
+ { "name": "WY-ux", "summary": "디자인 평가 리드: 시각 위계·UX를 웹·모바일에서 분석, 평가 기준표와 보고서 통합(코드·문서 수정 안 함)", "agent": true },
+ { "name": "WY-ux2", "summary": "디자인 평가 보조: 기록·일지·내보내기·통계·보관함·하루 마감 영역, WY-ux 기준표만 씀", "agent": true },
+ { "name": "WY-ux3", "summary": "디자인 평가 보조: 캘린더·설정·알림·인증·랜딩·메일 영역, WY-ux 기준표만 씀", "agent": true }
   ],
   "rotation": { "transcriptMB": 2 },
   "memory": { "warnFreeMB": 1024, "blockFreeMB": 500 },
