@@ -81,6 +81,7 @@ describe('SCR-TASK-04 보관함', () => {
     await userEvent.click(await screen.findByRole('button', { name: '구 결제 모듈 정리 복원' }))
     await waitFor(() => expect(screen.queryByText('구 결제 모듈 정리')).not.toBeInTheDocument())
     expect(screen.getByText("'구 결제 모듈 정리'를 복원했어요")).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: '보기' })).toHaveAttribute('href', '/tasks/t-new')
     expect(
       fetchMock.mock.calls.some(([u, init]) => u === '/api/worklog/tasks/t-new/restore' && init?.method === 'POST'),
     ).toBe(true)

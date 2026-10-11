@@ -208,7 +208,14 @@ function useRestore(onFail?: () => void) {
   const run = async <T,>(
     key: string,
     action: () => Promise<T>,
-    done: { group: string; name: string; unit: string; undo: (restored: T) => Promise<void> },
+    done: {
+      group: string
+      name: string
+      unit: string
+      undo: (restored: T) => Promise<void>
+      /** 토스트 [보기]: 복원한 것으로 간다 */
+      view?: { label: string; to: string }
+    },
   ) => {
     if (sending.current) return
     sending.current = true
@@ -220,6 +227,7 @@ function useRestore(onFail?: () => void) {
         message: (n) =>
           n > 1 ? `${done.unit} ${n}개를 복원했어요` : `'${done.name}'${objectParticle(done.name)} 복원했어요`,
         undo: () => done.undo(restored),
+        view: done.view,
       })
     } catch (err) {
       const { message, traceId } = toastForError(err)
@@ -282,6 +290,7 @@ function TaskList(
                       group: 'archive-restore-task',
                       name: t.title,
                       unit: '업무',
+                      view: { label: '보기', to: `/tasks/${t.id}` },
                       undo: async () => {
                         await taskApi.remove(t.id)
                         refreshTasks(queryClient)

@@ -451,4 +451,9 @@
   .footer {
     padding: 16px;
   }
+
+  /* 터치 화면은 누르는 높이 44px(pm 결정 2026-10-11) */
+  .footerLink {
+    min-height: 44px;
+  }
 }
