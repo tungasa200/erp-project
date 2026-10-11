@@ -8,6 +8,7 @@ import { useAuth } from '../auth/useAuth'
 import { EMAIL_PATTERN } from '../auth/passwordRules'
 import { useToast } from '../components/useToast'
 import { AuthLayout } from './auth/AuthLayout'
+import { useFocusFirstError } from './auth/useFocusFirstError'
 import styles from './auth/auth.module.css'
 
 type Notice = { kind: 'invalid'; slowed: boolean } | { kind: 'locked' | 'throttled'; until: number }
@@ -35,6 +36,7 @@ export function LoginPage() {
   const [submitting, setSubmitting] = useState(false)
   const [now, setNow] = useState(() => Date.now())
   const [withdrawnShown, setWithdrawnShown] = useState(state.reason === 'withdrawn')
+  const { ref: formRef, focusFirstError } = useFocusFirstError<HTMLFormElement>()
 
   // 탈퇴 완료 띠는 새로 고치면 사라지게(SET-07s ④) 기록의 state에서 이유를 지운다. 띠는 위 state로 이미 잡아 둠
   useEffect(() => {
@@ -59,7 +61,10 @@ export function LoginPage() {
     else if (!EMAIL_PATTERN.test(email.trim())) next.email = '이메일 형식이 맞지 않아요'
     if (!password) next.password = '입력해 주세요'
     setErrors(next)
-    if (next.email || next.password) return
+    if (next.email || next.password) {
+      focusFirstError()
+      return
+    }
 
     setSubmitting(true)
     setNotice(null)
@@ -81,6 +86,7 @@ export function LoginPage() {
           email: message('email', '이메일 형식이 맞지 않아요'),
           password: message('password', '입력해 주세요'),
         })
+        focusFirstError()
       } else {
         const toast = toastForError(error)
         showToast(toast.message, { traceId: toast.traceId })
@@ -101,7 +107,7 @@ export function LoginPage() {
       }
       description="계획 → 확인 → 일지. 퇴근 전 1분이면 충분해요."
     >
-      <form className={styles.form} onSubmit={onSubmit} noValidate>
+      <form ref={formRef} className={styles.form} onSubmit={onSubmit} noValidate>
         <h1 className={styles.title}>로그인</h1>
 
         {state.reason === 'expired' && !notice && (
