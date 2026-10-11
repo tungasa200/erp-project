@@ -204,6 +204,17 @@ describe('SCR-STAT-01 통계', () => {
     expect(within(dialog).getByRole('alert')).toHaveTextContent('시작일을 종료일보다 앞으로 골라 주세요')
     expect(start).toHaveAttribute('aria-invalid', 'true')
     expect(start).toHaveAccessibleDescription('시작일을 종료일보다 앞으로 골라 주세요')
+    expect(start).toHaveFocus()
+
+    // 400일 초과는 틀린 칸이 종료일: 표시·설명·포커스 모두 종료일로
+    fireEvent.change(start, { target: { value: '2025-01-01' } })
+    await userEvent.click(within(dialog).getByRole('button', { name: '적용' }))
+    expect(within(dialog).getByRole('alert')).toHaveTextContent('기간은 400일까지 고를 수 있어요')
+    const end = within(dialog).getByLabelText('종료일')
+    expect(end).toHaveFocus()
+    expect(end).toHaveAttribute('aria-invalid', 'true')
+    expect(end).toHaveAccessibleDescription('기간은 400일까지 고를 수 있어요')
+    expect(start).not.toHaveAttribute('aria-invalid')
 
     await userEvent.click(within(dialog).getByRole('button', { name: '지난달' }))
     expect(within(dialog).getByRole('alert')).toBeEmptyDOMElement()

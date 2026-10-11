@@ -1,5 +1,5 @@
 // 기간 고르기 (SCR-STAT-01 ① 직접 선택, 목업 STAT-01s ④). 캘린더의 모달 틀을 쓴다(포커스 가두기·Esc·돌려주기). 모바일은 바텀시트.
-import { useId, useState } from 'react'
+import { useId, useRef, useState } from 'react'
 import { Modal } from '../calendar/Modal'
 import type { Weekday } from '../calendar/time'
 import { quickRanges, rangeError } from './period'
@@ -19,12 +19,15 @@ export function PeriodDialog({ from: initialFrom, to: initialTo, today, weekStar
   const id = useId()
   const [from, setFrom] = useState(initialFrom)
   const [to, setTo] = useState(initialTo)
+  const fromRef = useRef<HTMLInputElement>(null)
+  const toRef = useRef<HTMLInputElement>(null)
   // 고치는 동안은 빨간 글자를 띄우지 않고, 적용을 누른 뒤부터 보인다
   const [submitted, setSubmitted] = useState(false)
   const error = rangeError(from, to)
   const shown = submitted ? error : null
   // 틀린 칸: 시작이 늦으면 시작일, 길이가 넘으면 종료일
-  const badFrom = shown !== null && (!from || from > to)
+  const fromIsBad = !from || from > to
+  const badFrom = shown !== null && fromIsBad
   const badTo = shown !== null && !badFrom
   return (
     <Modal labelledBy={`${id}-title`} onClose={onClose} narrow sheet>
@@ -38,6 +41,8 @@ export function PeriodDialog({ from: initialFrom, to: initialTo, today, weekStar
           e.preventDefault()
           setSubmitted(true)
           if (error === null) onApply(from, to)
+          // 오류면 [적용]에 남지 않고 틀린 칸(aria-invalid)으로 간다. 그 칸이 오류 글을 읽어 준다
+          else (fromIsBad ? fromRef : toRef).current?.focus()
         }}
       >
         <div role="group" aria-label="빠른 선택" className={styles.quickRanges}>
@@ -60,6 +65,7 @@ export function PeriodDialog({ from: initialFrom, to: initialTo, today, weekStar
           <label className={styles.field}>
             시작일
             <input
+              ref={fromRef}
               type="date"
               value={from}
               max={to || undefined}
@@ -72,6 +78,7 @@ export function PeriodDialog({ from: initialFrom, to: initialTo, today, weekStar
           <label className={styles.field}>
             종료일
             <input
+              ref={toRef}
               type="date"
               value={to}
               min={from || undefined}
