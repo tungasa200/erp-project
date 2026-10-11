@@ -43,7 +43,7 @@ defined = {c[0] for c in rows(srs_path) if len(c) == 5 and re.match(PREFIX + r'-
 nfr = {c[0] for c in rows(srs_path) if len(c) == 3 and re.match(r'NFR-\d+$', c[0])}
 referenced = set()
 for c in rows(plan_path):
-    if len(c) in (4, 5) and re.match(r'(P\d|U\d)-\d+$', c[0]):
+    if len(c) in (4, 5) and re.match(r'(P\d|U\d|REL)-\d+$', c[0]):
         referenced |= expand(c[3])
 
 print('MVP 기능 요구사항:', len(required), '/ NFR:', len(nfr))
