@@ -2,6 +2,7 @@ import { createBrowserRouter } from 'react-router'
 import { CalendarIndexRedirect, CalendarPage } from '../calendar/CalendarPage'
 import { AppShell } from '../components/AppShell'
 import { GuestOnly, RequireAuth } from './guards'
+import { HashScroll } from './HashScroll'
 import { ErrorPage } from '../pages/ErrorPage'
 import { HomePage } from '../pages/HomePage'
 import { LoginPage } from '../pages/LoginPage'
@@ -30,6 +31,8 @@ import { TaskListPage } from '../tasks/TaskListPage'
 
 export const routes = [
   {
+    // 주소의 #id로 스크롤(처리방침 섹션 링크 등)
+    element: <HashScroll />,
     errorElement: <ErrorPage />,
     children: [
       // 개인정보 처리방침 SCR-AUTH-06·이용약관 SCR-AUTH-07(P4-11, frontend2): 로그인과 상관없이 보이는 공개 화면, AppShell 밖.
