@@ -1,11 +1,17 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Occurrence } from './api'
 import { TimeGrid } from './TimeGrid'
 
-// jsdom에는 PointerEvent·포인터 캡처가 없다
+// jsdom에는 PointerEvent·포인터 캡처가 없다. 터치 규칙 시험을 위해 pointerType을 받는다
 window.PointerEvent ??= class extends MouseEvent {
-  pointerId = 1
+  pointerId: number
+  pointerType: string
+  constructor(type: string, init: PointerEventInit = {}) {
+    super(type, init)
+    this.pointerId = init.pointerId ?? 1
+    this.pointerType = init.pointerType ?? 'mouse'
+  }
 } as unknown as typeof PointerEvent
 Element.prototype.setPointerCapture ??= function () {}
 
@@ -291,5 +297,129 @@ describe('오프라인 마우스 click (SCR-SYS-02 ③ 열어 보기)', () => {
     fireEvent.click(screen.getByRole('button', { name: /회의/ }), { detail: 1 })
     fireEvent.click(screen.getByRole('button', { name: /워크숍/ }), { detail: 1 })
     expect(onOpen).not.toHaveBeenCalled()
+  })
+})
+
+describe('손가락 터치 규칙 (SCR-CAL 공통: 바로 밀면 스크롤, 짧게 누르면 누르기, 길게 누른 뒤 끌기)', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+      left: 0,
+      top: 0,
+      width: 100,
+      height: 1152,
+    } as DOMRect)
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.restoreAllMocks()
+  })
+
+  const renderGrid = () => {
+    const onCreate = vi.fn()
+    const onOpen = vi.fn()
+    const onMove = vi.fn()
+    render(
+      <TimeGrid
+        days={[DAY]}
+        occurrences={[
+          {
+            scheduleId: 'a',
+            title: '회의',
+            allDay: false,
+            startAt: `${DAY}T09:00:00Z`,
+            endAt: `${DAY}T10:00:00Z`,
+          } as Occurrence,
+        ]}
+        timeZone="UTC"
+        today={DAY}
+        now={Date.parse(`${DAY}T00:00:00Z`)}
+        colorOf={() => null}
+        pending={null}
+        onCreate={onCreate}
+        onCreateAllDay={vi.fn()}
+        onOpen={onOpen}
+        onMove={onMove}
+      />,
+    )
+    const block = screen.getByRole('button', { name: /회의/ })
+    const column = block.parentElement!
+    const at = (minutes: number) => ({ clientX: 50, clientY: minutes * PX_PER_MINUTE })
+    const touch = { button: 0, pointerType: 'touch', pointerId: 7 }
+    return { onCreate, onOpen, onMove, block, column, at, touch }
+  }
+  const hold = () => act(() => void vi.advanceTimersByTime(450))
+  /** 브라우저가 스크롤에 쓰는 touchmove를 막았는지 */
+  const scrollBlocked = (el: Element) => {
+    const e = new Event('touchmove', { bubbles: true, cancelable: true })
+    el.dispatchEvent(e)
+    return e.defaultPrevented
+  }
+
+  it('빈 칸에서 바로 밀면(스크롤) 범위를 만들지 않고 스크롤을 막지 않는다', () => {
+    const { onCreate, column, at, touch } = renderGrid()
+    fireEvent.pointerDown(column, { ...touch, ...at(720) })
+    fireEvent.pointerMove(column, { ...touch, ...at(780) })
+    expect(scrollBlocked(column)).toBe(false)
+    fireEvent.pointerUp(column, { ...touch, ...at(780) })
+    hold()
+    expect(onCreate).not.toHaveBeenCalled()
+  })
+
+  it('빈 칸을 짧게 누르면 그 칸에서 1시간 일정을 만든다(클릭과 같음)', () => {
+    const { onCreate, column, at, touch } = renderGrid()
+    fireEvent.pointerDown(column, { ...touch, ...at(720) })
+    fireEvent.pointerMove(column, { ...touch, ...at(723) })
+    fireEvent.pointerUp(column, { ...touch, ...at(723) })
+    expect(onCreate).toHaveBeenCalledWith({ date: DAY, start: 720, end: 780 })
+  })
+
+  it('길게 누른 뒤 끌면 범위를 만들고, 그동안 스크롤을 막는다', () => {
+    const { onCreate, column, at, touch } = renderGrid()
+    fireEvent.pointerDown(column, { ...touch, ...at(720) })
+    hold()
+    expect(scrollBlocked(column)).toBe(true)
+    fireEvent.pointerMove(column, { ...touch, ...at(780) })
+    fireEvent.pointerUp(column, { ...touch, ...at(780) })
+    expect(onCreate).toHaveBeenCalledWith({ date: DAY, start: 720, end: 795 })
+    // 뗀 뒤에는 다시 스크롤된다
+    expect(scrollBlocked(column)).toBe(false)
+  })
+
+  it('블록 위에서 바로 밀면 옮기지도 열지도 않고, 짧게 누르면 연다', () => {
+    const { onOpen, onMove, block, at, touch } = renderGrid()
+    fireEvent.pointerDown(block, { ...touch, ...at(560) })
+    fireEvent.pointerMove(block, { ...touch, ...at(620) })
+    fireEvent.pointerUp(block, { ...touch, ...at(620) })
+    hold()
+    expect(onMove).not.toHaveBeenCalled()
+    expect(onOpen).not.toHaveBeenCalled()
+
+    fireEvent.pointerDown(block, { ...touch, ...at(560) })
+    fireEvent.pointerUp(block, { ...touch, ...at(560) })
+    expect(onOpen).toHaveBeenCalledTimes(1)
+    expect(block).toHaveFocus()
+  })
+
+  it('블록을 길게 누르면 잡힘 표시가 뜨고, 끌면 옮긴다', () => {
+    const { onMove, block, at, touch } = renderGrid()
+    fireEvent.pointerDown(block, { ...touch, ...at(560) })
+    expect(block).not.toHaveAttribute('data-held')
+    hold()
+    expect(block).toHaveAttribute('data-held')
+    fireEvent.pointerMove(block, { ...touch, ...at(620) })
+    fireEvent.pointerUp(block, { ...touch, ...at(620) })
+    expect(onMove).toHaveBeenCalledWith(expect.objectContaining({ title: '회의' }), {
+      startAt: '2026-10-07T10:00:00.000Z',
+      endAt: '2026-10-07T11:00:00.000Z',
+    })
+  })
+
+  it('마우스는 지금처럼 기다리지 않고 바로 끈다', () => {
+    const { onCreate, column, at } = renderGrid()
+    fireEvent.pointerDown(column, { button: 0, ...at(720) })
+    fireEvent.pointerMove(column, { button: 0, ...at(780) })
+    fireEvent.pointerUp(column, { button: 0, ...at(780) })
+    expect(onCreate).toHaveBeenCalledWith({ date: DAY, start: 720, end: 795 })
   })
 })

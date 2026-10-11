@@ -16,6 +16,7 @@ import { colorVars, type BlockColor } from './colors'
 import { focusGroup, occurrenceFocusId } from './focus'
 import { holidayName } from './holidays'
 import { allDayBars, drawnRange, timedSegments, type TimedSegment } from './layout'
+import { useTouchHold } from './touchHold'
 import type { TimeChange } from './useScheduleActions'
 import {
   MINUTES_PER_DAY,
@@ -111,6 +112,9 @@ export function TimeGrid(props: Props) {
   const allDayRef = useRef<HTMLDivElement>(null)
   const [drag, setDrag] = useState<Drag | null>(null)
   const [taskHover, setTaskHover] = useState<TimeRange | null>(null)
+  // 손가락은 길게 누른 뒤에만 끈다(바로 밀면 스크롤)
+  const gridHold = useTouchHold(columnsRef)
+  const allDayHold = useTouchHold(allDayRef)
 
   const segments = useMemo(() => timedSegments(occurrences, days, timeZone), [occurrences, days, timeZone])
   const bars = useMemo(() => allDayBars(occurrences, days), [occurrences, days])
@@ -164,32 +168,65 @@ export function TimeGrid(props: Props) {
       const [date, key] = blockEl.dataset.segment!.split('#')
       const segment = segments.get(date)?.find((s) => occurrenceKey(s.occurrence) === key)
       if (!segment) return
+      const next: Drag =
+        target.dataset.handle === 'resize'
+          ? { kind: 'resize', segment, end: segment.end }
+          : {
+              kind: 'move',
+              segment,
+              dayIndex,
+              anchor: minutes,
+              deltaDays: 0,
+              deltaMinutes: 0,
+              x: e.clientX,
+              y: e.clientY,
+              moved: false,
+            }
+      // 손가락: 짧게 누르면 열고, 길게 누르면 옮기기·늘리기. 기본 동작을 막지 않아야 블록 위에서 밀어도 스크롤된다
+      const focusBlock = () => blockEl.focus({ preventScroll: true })
+      const touch = gridHold.start(
+        e,
+        () => {
+          focusBlock()
+          setDrag(next)
+        },
+        () => {
+          focusBlock()
+          props.onOpen(segment.occurrence)
+        },
+      )
+      if (touch) return
       // 끌기를 위해 기본 동작을 막으면 블록이 포커스를 받지 못한다. 직접 옮겨 두어야 연 창을 닫을 때 이 블록으로 돌아온다
       e.preventDefault()
-      blockEl.focus({ preventScroll: true })
+      focusBlock()
       e.currentTarget.setPointerCapture(e.pointerId)
-      if (target.dataset.handle === 'resize') setDrag({ kind: 'resize', segment, end: segment.end })
-      else
-        setDrag({
-          kind: 'move',
-          segment,
-          dayIndex,
-          anchor: minutes,
-          deltaDays: 0,
-          deltaMinutes: 0,
-          x: e.clientX,
-          y: e.clientY,
-          moved: false,
-        })
+      setDrag(next)
       return
     }
     if (inBlockGap(dayIndex, minutes, xInDay)) return
-    e.currentTarget.setPointerCapture(e.pointerId)
     const slot = floorSlot(minutes)
-    setDrag({ kind: 'create', dayIndex, anchor: slot, current: slot, x: e.clientX, y: e.clientY, moved: false })
+    const next: Drag = {
+      kind: 'create',
+      dayIndex,
+      anchor: slot,
+      current: slot,
+      x: e.clientX,
+      y: e.clientY,
+      moved: false,
+    }
+    // 손가락: 짧게 누르면 그 칸에서 1시간 만들기(클릭과 같음), 길게 누른 뒤 끌면 범위 만들기
+    const touch = gridHold.start(
+      e,
+      () => setDrag(next),
+      () => props.onCreate({ date: days[dayIndex], start: slot, end: Math.min(MINUTES_PER_DAY, slot + 60) }),
+    )
+    if (touch) return
+    e.currentTarget.setPointerCapture(e.pointerId)
+    setDrag(next)
   }
 
   const onPointerMove = (e: PointerEvent<HTMLDivElement>) => {
+    if (gridHold.move(e)) return
     if (!drag || drag.kind === 'moveAllDay') return
     const { dayIndex, minutes } = locate(e.clientX, e.clientY)
     if (drag.kind === 'create') {
@@ -209,7 +246,8 @@ export function TimeGrid(props: Props) {
     }
   }
 
-  const onPointerUp = () => {
+  const onPointerUp = (e: PointerEvent<HTMLDivElement>) => {
+    if (gridHold.end(e)) return
     if (!drag || drag.kind === 'moveAllDay') return
     setDrag(null)
     if (drag.kind === 'create') {
@@ -247,29 +285,50 @@ export function TimeGrid(props: Props) {
     if (e.button !== 0) return
     const barEl = (e.target as HTMLElement).closest<HTMLElement>('[data-bar]')
     const dayIndex = locateAllDay(e.clientX)
-    if (!barEl) return props.onCreateAllDay(days[dayIndex])
+    if (!barEl) {
+      // 손가락은 떼었을 때 만든다(밀어서 스크롤하려던 것이면 만들지 않음)
+      const create = () => props.onCreateAllDay(days[dayIndex])
+      if (!allDayHold.start(e, () => {}, create)) create()
+      return
+    }
     const bar = bars.find((b) => occurrenceKey(b.occurrence) === barEl.dataset.bar)
     if (!bar) return
-    e.preventDefault()
-    barEl.focus({ preventScroll: true })
-    e.currentTarget.setPointerCapture(e.pointerId)
-    setDrag({
+    const next: Drag = {
       kind: 'moveAllDay',
       occurrence: bar.occurrence,
       anchorDay: dayIndex,
       deltaDays: 0,
       x: e.clientX,
       moved: false,
-    })
+    }
+    const focusBar = () => barEl.focus({ preventScroll: true })
+    const touch = allDayHold.start(
+      e,
+      () => {
+        focusBar()
+        setDrag(next)
+      },
+      () => {
+        focusBar()
+        props.onOpen(bar.occurrence)
+      },
+    )
+    if (touch) return
+    e.preventDefault()
+    focusBar()
+    e.currentTarget.setPointerCapture(e.pointerId)
+    setDrag(next)
   }
 
   const onAllDayPointerMove = (e: PointerEvent<HTMLDivElement>) => {
+    if (allDayHold.move(e)) return
     if (drag?.kind !== 'moveAllDay') return
     const moved = drag.moved || Math.abs(e.clientX - drag.x) > DRAG_THRESHOLD
     setDrag({ ...drag, moved, deltaDays: locateAllDay(e.clientX) - drag.anchorDay })
   }
 
-  const onAllDayPointerUp = () => {
+  const onAllDayPointerUp = (e: PointerEvent<HTMLDivElement>) => {
+    if (allDayHold.end(e)) return
     if (drag?.kind !== 'moveAllDay') return
     setDrag(null)
     const o = drag.occurrence
@@ -362,7 +421,10 @@ export function TimeGrid(props: Props) {
           onPointerDown={readOnly ? undefined : onAllDayPointerDown}
           onPointerMove={readOnly ? undefined : onAllDayPointerMove}
           onPointerUp={readOnly ? undefined : onAllDayPointerUp}
-          onPointerCancel={() => setDrag(null)}
+          onPointerCancel={() => {
+            allDayHold.cancel()
+            setDrag(null)
+          }}
           role="presentation"
         >
           {bars.map((bar) => {
@@ -392,6 +454,9 @@ export function TimeGrid(props: Props) {
                 data-focus-group={focusGroup(bar.occurrence, bar.occurrence.startDate!)}
                 className={styles.allDayBar}
                 data-dragging={shift !== 0 || undefined}
+                data-held={
+                  (drag?.kind === 'moveAllDay' && drag.occurrence === bar.occurrence && !drag.moved) || undefined
+                }
                 style={{
                   gridColumn: `${start + 1} / ${end + 1}`,
                   gridRow: bar.row + 1,
@@ -425,7 +490,10 @@ export function TimeGrid(props: Props) {
             onPointerDown={readOnly ? undefined : onPointerDown}
             onPointerMove={readOnly ? undefined : onPointerMove}
             onPointerUp={readOnly ? undefined : onPointerUp}
-            onPointerCancel={() => setDrag(null)}
+            onPointerCancel={() => {
+              gridHold.cancel()
+              setDrag(null)
+            }}
             onDragOver={readOnly ? undefined : onDragOver}
             onDragLeave={() => setTaskHover(null)}
             onDrop={readOnly ? undefined : onDrop}
@@ -527,6 +595,10 @@ function Block({
   const height = (drawnEnd - drawnStart) * PX_PER_MINUTE - 2
   const active = Date.parse(o.startAt!) <= now && now < Date.parse(o.endAt!)
   const dragging = drag?.kind === 'move' && drag.moved && drag.segment.occurrence === o
+  // 길게 눌러 잡았지만 아직 움직이지 않음(손가락 끌기 시작 표시)
+  const held =
+    (drag?.kind === 'move' && !drag.moved && drag.segment.occurrence === o) ||
+    (drag?.kind === 'resize' && drag.segment === segment)
   const content = (
     <span className={styles.blockTitle}>
       {o.recurring && <RepeatIcon />}
@@ -555,6 +627,7 @@ function Block({
       className={styles.block}
       data-now={active || undefined}
       data-dragging={dragging || undefined}
+      data-held={held || undefined}
       style={blockStyle(color, top, height, segment.column, segment.columns)}
       onClick={(e) => (e.detail === 0 || readOnly) && onOpen(o)}
       aria-label={`${o.title}, ${timeLabel(o, timeZone)}${o.recurring ? ', 반복' : ''}`}

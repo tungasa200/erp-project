@@ -177,7 +177,7 @@ components:
           description: 이 오류 직전에 실패한 API 응답의 traceId(있으면). 서버 로그와 잇는 데 쓴다. 형식이 다르면 버린다
       description: |
         User-Agent는 본문으로 받지 않고 요청 헤더에서 300자까지 로그에 남긴다.
-        로그 칸: traceId, kind, message, stack, url, release, relatedTraceId, userAgent, truncated.
+        로그 칸: traceId, kind, errorMessage(본문 message), errorStack(본문 stack), url, release, relatedTraceId, userAgent, truncated.
     RateLimitedProblem:
       allOf:
         - $ref: '#/components/schemas/Problem'

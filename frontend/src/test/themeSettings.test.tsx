@@ -69,19 +69,55 @@ describe('SCR-SET-04 테마', () => {
     expect(screen.getByRole('button', { name: '저장' })).toHaveFocus()
   })
 
-  it('직접 고른 색은 대문자로 저장하고, 밝은 색이면 버튼 글자를 진한 색으로 바꿨다고 알린다', async () => {
+  it('직접 고른 색은 대문자로 저장하고, 버튼 글자를 진한 색으로 바꿨으면 알린다', async () => {
     const { patches, user } = setup()
     const input = await screen.findByLabelText('직접 고르기')
     expect(screen.queryByRole('note')).not.toBeInTheDocument()
     // input[type=color]는 user-event로 고를 수 없어 change 이벤트를 직접 낸다
-    fireEvent.change(input, { target: { value: '#ffd84a' } })
-    expect(screen.getByText('#FFD84A')).toBeInTheDocument()
+    fireEvent.change(input, { target: { value: '#da5a0c' } })
+    expect(screen.getByText('#DA5A0C')).toBeInTheDocument()
     expect(screen.getByRole('note')).toHaveTextContent('밝은 색이라 버튼 글자를 진한 색으로 바꿨어요')
     expect(screen.getAllByRole('button', { pressed: true })).toHaveLength(1) // 프리셋은 하나도 안 눌림, 배경만
 
     await user.click(screen.getByRole('button', { name: '저장' }))
-    await waitFor(() => expect(patches[0]).toMatchObject({ themeAccent: '#FFD84A' }))
+    await waitFor(() => expect(patches[0]).toMatchObject({ themeAccent: '#DA5A0C' }))
     await waitFor(() => expect(rootVar('--color-on-accent')).toBe('#1A1C2B'))
+  })
+
+  it('배경·흰 표면과 대비 3:1 미만인 색은 미리보기만 하고 저장을 막는다(키보드로 눌러도)', async () => {
+    const { patches, user } = setup()
+    const input = await screen.findByLabelText('직접 고르기')
+    fireEvent.change(input, { target: { value: '#ffffff' } })
+
+    expect(input).toHaveAttribute('aria-invalid', 'true')
+    expect(input).toHaveAccessibleDescription(/이 색은 배경과 너무 비슷해서 선택 표시와 버튼이 잘 안 보여요/)
+    const save = screen.getByRole('button', { name: '저장' })
+    expect(save).toHaveAttribute('aria-disabled', 'true')
+    save.focus()
+    await user.keyboard('{Enter}')
+    expect(patches).toHaveLength(0)
+
+    // [기본값으로]로 빠져나간다
+    await user.click(screen.getByRole('button', { name: '기본값으로' }))
+    expect(input).not.toHaveAttribute('aria-invalid')
+    expect(screen.queryByText(/너무 비슷해서/)).not.toBeInTheDocument()
+    expect(save).not.toHaveAttribute('aria-disabled')
+  })
+
+  it('배경을 바꿔 직접 고른 색이 기준 미만이 되면 배경은 바뀌고 같은 안내·저장 막기, 키 컬러는 그대로', async () => {
+    const { patches, user } = setup()
+    await user.click(await screen.findByRole('button', { name: '화이트' }))
+    // #E8701A: 흰색과 3.1:1(통과), 쿨 그레이와 2.8:1(미달)
+    fireEvent.change(screen.getByLabelText('직접 고르기'), { target: { value: '#e8701a' } })
+    expect(screen.getByRole('button', { name: '저장' })).not.toHaveAttribute('aria-disabled')
+
+    await user.click(screen.getByRole('button', { name: '쿨 그레이' }))
+    expect(screen.getByRole('button', { name: '쿨 그레이' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByText('#E8701A')).toBeInTheDocument()
+    expect(screen.getByText(/너무 비슷해서/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '저장' })).toHaveAttribute('aria-disabled', 'true')
+    await user.click(screen.getByRole('button', { name: '저장' }))
+    expect(patches).toHaveLength(0)
   })
 
   it('[기본값으로]는 보라·쿨 그레이로 되돌린다(저장 전까지 미리보기만)', async () => {
@@ -109,5 +145,14 @@ describe('SCR-SET-04 테마', () => {
     const { user } = setup(() => problem(409, 'VERSION_CONFLICT'))
     await user.click(await screen.findByRole('button', { name: '저장' }))
     expect(await screen.findByText(/다른 곳에서 먼저 수정됐어요/)).toBeInTheDocument()
+  })
+
+  it('이미 저장된 값이 기준 미만이면 앱은 기본 보라로 그리고, 테마 화면은 저장값과 안내를 보여 준다', async () => {
+    stubFetch({ 'GET /api/users/me': () => json(200, { ...ME, themeAccent: '#FFFFFF', themeGround: '#F2F4FA' }) })
+    renderApp('/settings/theme', ROUTES)
+    expect(await screen.findByText('#FFFFFF')).toBeInTheDocument()
+    expect(screen.getByText(/너무 비슷해서/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '저장' })).toHaveAttribute('aria-disabled', 'true')
+    await waitFor(() => expect(rootVar('--color-accent')).toBe('#4B3FD6'))
   })
 })

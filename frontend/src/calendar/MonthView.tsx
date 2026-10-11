@@ -1,12 +1,13 @@
 // 월 보기 (SCR-CAL-03): 6주 × 7일, 칸마다 일정 칩 3개 + "+n개 더보기". 칩을 끌어 다른 날짜로 옮긴다.
 // 일지 상태 점(③)은 P2 데이터라 아직 없다.
-import { useEffect, useMemo, useState, type PointerEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react'
 import { occurrenceKey, type Occurrence } from './api'
 import { colorVars, type BlockColor } from './colors'
 import { focusGroup, markFocus, occurrenceFocusId, restoreFocus } from './focus'
 import { holidayName } from './holidays'
 import { occurrencesByDate } from './layout'
 import { RepeatIcon } from './TimeGrid'
+import { useTouchHold } from './touchHold'
 import { WEEKDAY_LABELS, diffDays, formatMinutes, toZoned, weekdayIndex } from './time'
 import styles from './calendar.module.css'
 
@@ -51,6 +52,9 @@ export function MonthView({
   const readOnly = overview || !editable
   const byDate = useMemo(() => occurrencesByDate(occurrences, days, timeZone), [occurrences, days, timeZone])
   const [drag, setDrag] = useState<Drag | null>(null)
+  const cellsRef = useRef<HTMLDivElement>(null)
+  // 손가락은 길게 누른 뒤에만 칩을 옮긴다(바로 밀면 스크롤)
+  const hold = useTouchHold(cellsRef)
   const [popover, setPopover] = useState<{ date: string; x: number; y: number; opener: HTMLElement } | null>(null)
 
   useEffect(() => {
@@ -76,20 +80,36 @@ export function MonthView({
     const [date, key] = chip.dataset.chip!.split('#')
     const occurrence = byDate.get(date)?.find((o) => occurrenceKey(o) === key)
     if (!occurrence) return
+    const next: Drag = { occurrence, from: date, over: date, x: e.clientX, y: e.clientY, moved: false }
+    const focusChip = () => chip.focus({ preventScroll: true })
+    const touch = hold.start(
+      e,
+      () => {
+        focusChip()
+        setDrag(next)
+      },
+      () => {
+        focusChip()
+        props.onOpen(occurrence)
+      },
+    )
+    if (touch) return
     // 끌기를 위해 기본 동작을 막으면 칩이 포커스를 받지 못한다. 직접 옮겨 두어야 연 창을 닫을 때 이 칩으로 돌아온다
     e.preventDefault()
-    chip.focus({ preventScroll: true })
+    focusChip()
     e.currentTarget.setPointerCapture(e.pointerId)
-    setDrag({ occurrence, from: date, over: date, x: e.clientX, y: e.clientY, moved: false })
+    setDrag(next)
   }
 
   const onPointerMove = (e: PointerEvent<HTMLDivElement>) => {
+    if (hold.move(e)) return
     if (!drag) return
     const moved = drag.moved || Math.hypot(e.clientX - drag.x, e.clientY - drag.y) > DRAG_THRESHOLD
     setDrag({ ...drag, moved, over: dateAt(e.clientX, e.clientY) ?? drag.over })
   }
 
-  const onPointerUp = () => {
+  const onPointerUp = (e: PointerEvent<HTMLDivElement>) => {
+    if (hold.end(e)) return
     if (!drag) return
     setDrag(null)
     if (!drag.moved) return props.onOpen(drag.occurrence)
@@ -110,11 +130,15 @@ export function MonthView({
           ))}
         </div>
         <div
+          ref={cellsRef}
           className={styles.monthCells}
           onPointerDown={readOnly ? undefined : onPointerDown}
           onPointerMove={readOnly ? undefined : onPointerMove}
           onPointerUp={readOnly ? undefined : onPointerUp}
-          onPointerCancel={() => setDrag(null)}
+          onPointerCancel={() => {
+            hold.cancel()
+            setDrag(null)
+          }}
           role="presentation"
         >
           {days.map((date) => {
@@ -176,6 +200,7 @@ export function MonthView({
                     data-focus-id={occurrenceFocusId(o)}
                     data-focus-group={focusGroup(o, date)}
                     className={styles.chip}
+                    data-held={(drag?.occurrence === o && drag.from === date && !drag.moved) || undefined}
                     style={colorVars(colorOf(o))}
                     // 오프라인이면 pointer 처리가 꺼지므로 마우스 click도 여기서 연다(SCR-SYS-02 ③ 열어 보기)
                     onClick={(e) => (e.detail === 0 || readOnly) && props.onOpen(o)}

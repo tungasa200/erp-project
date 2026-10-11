@@ -4,7 +4,7 @@
 import { useId, useState, type CSSProperties } from 'react'
 import type { Me } from '../api/types'
 import { useAuth } from '../auth/useAuth'
-import { DEFAULT_THEME, onColor } from '../theme/theme'
+import { DEFAULT_THEME, isAccentReadable, onColor } from '../theme/theme'
 import { ConflictBanner, SaveError } from './parts'
 import styles from './settings.module.css'
 import theme from './theme.module.css'
@@ -70,6 +70,8 @@ function ThemeForm({ user, save }: { user: Me; save: ReturnType<typeof useProfil
   const [saved, setSaved] = useState(false)
   const on = onColor(accent)
   const flipped = on !== '#FFFFFF'
+  // 배경·흰 표면과 3:1 미만이면 선택 표시·버튼이 안 보여 저장을 막는다. 미리보기는 그 색 그대로(키 컬러를 자동으로 바꾸지 않음)
+  const tooLight = !isAccentReadable(accent, ground)
 
   const pickAccent = (hex: string) => {
     setAccent(hex.toUpperCase())
@@ -81,7 +83,7 @@ function ThemeForm({ user, save }: { user: Me; save: ReturnType<typeof useProfil
   }
 
   const submit = async () => {
-    if (saving) return
+    if (saving || tooLight) return
     setSaving(true)
     setSaved(false)
     const result = await save({ themeAccent: accent, themeGround: ground })
@@ -136,14 +138,19 @@ function ThemeForm({ user, save }: { user: Me; save: ReturnType<typeof useProfil
               type="color"
               className={theme.colorInput}
               value={accent.toLowerCase()}
-              aria-describedby={`${id}-hex`}
+              aria-describedby={tooLight ? `${id}-hex ${id}-contrast` : `${id}-hex`}
+              aria-invalid={tooLight || undefined}
               onChange={(e) => pickAccent(e.target.value)}
             />
             <span id={`${id}-hex`} className={theme.hex}>
               {accent}
             </span>
           </div>
-          {flipped && (
+          {/* 늘 두어야 바뀔 때 읽어 준다 */}
+          <p id={`${id}-contrast`} aria-live="polite" className={tooLight ? styles.error : theme.contrastEmpty}>
+            {tooLight ? '이 색은 배경과 너무 비슷해서 선택 표시와 버튼이 잘 안 보여요. 더 진한 색을 골라 주세요.' : ''}
+          </p>
+          {flipped && !tooLight && (
             <p role="note" className={theme.flipNote}>
               밝은 색이라 버튼 글자를 진한 색으로 바꿨어요
             </p>
@@ -192,7 +199,8 @@ function ThemeForm({ user, save }: { user: Me; save: ReturnType<typeof useProfil
           <button
             type="button"
             className={theme.save}
-            aria-describedby={failure ? `${id}-error` : undefined}
+            aria-describedby={tooLight ? `${id}-contrast` : failure ? `${id}-error` : undefined}
+            aria-disabled={tooLight || undefined}
             aria-busy={saving}
             onClick={() => void submit()}
           >
