@@ -1,0 +1,321 @@
+{
+  "startedAt": "2026-10-11T14:14:10.827Z",
+  "runs": [
+    {
+      "label": "주 보기 10-14 첫 렌더링",
+      "cpu": 1,
+      "renderMs": 499,
+      "items": 54,
+      "longTasks": 0,
+      "longTaskMaxMs": 0,
+      "longTaskTotalMs": 0,
+      "domContentLoaded": 44,
+      "api": [
+        {
+          "url": "/api/users/me",
+          "ms": 139
+        },
+        {
+          "url": "/api/worklog/notifications",
+          "ms": 251
+        },
+        {
+          "url": "/api/worklog/projects",
+          "ms": 113
+        },
+        {
+          "url": "/api/worklog/me",
+          "ms": 241
+        },
+        {
+          "url": "/api/worklog/tasks",
+          "ms": 148
+        },
+        {
+          "url": "/api/worklog/schedules",
+          "ms": 236
+        }
+      ]
+    },
+    {
+      "label": "주→월 전환(전부 그림)",
+      "cpu": 1,
+      "renderMs": 429,
+      "items": 63,
+      "longTasks": 0,
+      "longTaskMaxMs": 0
+    },
+    {
+      "label": "월→주 전환(10-01 주, 전부 그림)",
+      "cpu": 1,
+      "renderMs": 81,
+      "items": 40,
+      "longTasks": 0,
+      "longTaskMaxMs": 0
+    },
+    {
+      "label": "주 보기 10-14 첫 렌더링",
+      "cpu": 1,
+      "renderMs": 531,
+      "items": 54,
+      "longTasks": 0,
+      "longTaskMaxMs": 0,
+      "longTaskTotalMs": 0,
+      "domContentLoaded": 35,
+      "api": [
+        {
+          "url": "/api/users/me",
+          "ms": 107
+        },
+        {
+          "url": "/api/worklog/notifications",
+          "ms": 222
+        },
+        {
+          "url": "/api/worklog/projects",
+          "ms": 119
+        },
+        {
+          "url": "/api/worklog/me",
+          "ms": 112
+        },
+        {
+          "url": "/api/worklog/tasks",
+          "ms": 139
+        },
+        {
+          "url": "/api/worklog/schedules",
+          "ms": 324
+        }
+      ]
+    },
+    {
+      "label": "주→월 전환(전부 그림)",
+      "cpu": 1,
+      "renderMs": 364,
+      "items": 63,
+      "longTasks": 0,
+      "longTaskMaxMs": 0
+    },
+    {
+      "label": "월→주 전환(10-01 주, 전부 그림)",
+      "cpu": 1,
+      "renderMs": 80,
+      "items": 40,
+      "longTasks": 0,
+      "longTaskMaxMs": 0
+    },
+    {
+      "label": "주 보기 10-14 첫 렌더링",
+      "cpu": 1,
+      "renderMs": 596,
+      "items": 54,
+      "longTasks": 0,
+      "longTaskMaxMs": 0,
+      "longTaskTotalMs": 0,
+      "domContentLoaded": 33,
+      "api": [
+        {
+          "url": "/api/users/me",
+          "ms": 241
+        },
+        {
+          "url": "/api/worklog/notifications",
+          "ms": 119
+        },
+        {
+          "url": "/api/worklog/projects",
+          "ms": 116
+        },
+        {
+          "url": "/api/worklog/me",
+          "ms": 101
+        },
+        {
+          "url": "/api/worklog/tasks",
+          "ms": 125
+        },
+        {
+          "url": "/api/worklog/schedules",
+          "ms": 262
+        }
+      ]
+    },
+    {
+      "label": "주→월 전환(전부 그림)",
+      "cpu": 1,
+      "renderMs": 297,
+      "items": 63,
+      "longTasks": 0,
+      "longTaskMaxMs": 0
+    },
+    {
+      "label": "월→주 전환(10-01 주, 전부 그림)",
+      "cpu": 1,
+      "renderMs": 81,
+      "items": 40,
+      "longTasks": 0,
+      "longTaskMaxMs": 0
+    },
+    {
+      "label": "주 보기 10-14 첫 렌더링",
+      "cpu": 4,
+      "renderMs": 680,
+      "items": 54,
+      "longTasks": 4,
+      "longTaskMaxMs": 119,
+      "longTaskTotalMs": 365,
+      "domContentLoaded": 87,
+      "api": [
+        {
+          "url": "/api/users/me",
+          "ms": 134
+        },
+        {
+          "url": "/api/worklog/notifications",
+          "ms": 117
+        },
+        {
+          "url": "/api/worklog/projects",
+          "ms": 119
+        },
+        {
+          "url": "/api/worklog/me",
+          "ms": 235
+        },
+        {
+          "url": "/api/worklog/tasks",
+          "ms": 220
+        },
+        {
+          "url": "/api/worklog/schedules",
+          "ms": 148
+        }
+      ]
+    },
+    {
+      "label": "주→월 전환(전부 그림)",
+      "cpu": 4,
+      "renderMs": 301,
+      "items": 63,
+      "longTasks": 0,
+      "longTaskMaxMs": 0
+    },
+    {
+      "label": "월→주 전환(10-01 주, 전부 그림)",
+      "cpu": 4,
+      "renderMs": 134,
+      "items": 40,
+      "longTasks": 0,
+      "longTaskMaxMs": 0
+    },
+    {
+      "label": "주 보기 10-14 첫 렌더링",
+      "cpu": 4,
+      "renderMs": 683,
+      "items": 54,
+      "longTasks": 4,
+      "longTaskMaxMs": 124,
+      "longTaskTotalMs": 400,
+      "domContentLoaded": 99,
+      "api": [
+        {
+          "url": "/api/users/me",
+          "ms": 122
+        },
+        {
+          "url": "/api/worklog/notifications",
+          "ms": 106
+        },
+        {
+          "url": "/api/worklog/projects",
+          "ms": 117
+        },
+        {
+          "url": "/api/worklog/me",
+          "ms": 120
+        },
+        {
+          "url": "/api/worklog/tasks",
+          "ms": 146
+        },
+        {
+          "url": "/api/worklog/schedules",
+          "ms": 111
+        }
+      ]
+    },
+    {
+      "label": "주→월 전환(전부 그림)",
+      "cpu": 4,
+      "renderMs": 427,
+      "items": 63,
+      "longTasks": 0,
+      "longTaskMaxMs": 0
+    },
+    {
+      "label": "월→주 전환(10-01 주, 전부 그림)",
+      "cpu": 4,
+      "renderMs": 113,
+      "items": 40,
+      "longTasks": 0,
+      "longTaskMaxMs": 0
+    },
+    {
+      "label": "주 보기 10-14 첫 렌더링",
+      "cpu": 4,
+      "renderMs": 646,
+      "items": 54,
+      "longTasks": 4,
+      "longTaskMaxMs": 128,
+      "longTaskTotalMs": 392,
+      "domContentLoaded": 82,
+      "api": [
+        {
+          "url": "/api/users/me",
+          "ms": 106
+        },
+        {
+          "url": "/api/worklog/notifications",
+          "ms": 105
+        },
+        {
+          "url": "/api/worklog/projects",
+          "ms": 99
+        },
+        {
+          "url": "/api/worklog/me",
+          "ms": 99
+        },
+        {
+          "url": "/api/worklog/tasks",
+          "ms": 107
+        },
+        {
+          "url": "/api/worklog/schedules",
+          "ms": 111
+        }
+      ]
+    },
+    {
+      "label": "주→월 전환(전부 그림)",
+      "cpu": 4,
+      "renderMs": 280,
+      "items": 63,
+      "longTasks": 0,
+      "longTaskMaxMs": 0
+    },
+    {
+      "label": "월→주 전환(10-01 주, 전부 그림)",
+      "cpu": 4,
+      "renderMs": 112,
+      "items": 40,
+      "longTasks": 0,
+      "longTaskMaxMs": 0
+    }
+  ],
+  "drags": [],
+  "notes": [],
+  "error": "Error: switch-only 끝\n    at file:///C:/Users/ksoun/qa-tools/rel06/calendar/measure.mjs:243:11",
+  "endedAt": "2026-10-11T14:14:18.622Z"
+}
