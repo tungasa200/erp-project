@@ -3,8 +3,24 @@
 import type { LegalDoc } from './LegalPage'
 
 // 문의 메일은 저장소에 적지 않고 빌드 환경변수로 받는다(D-187, Vercel Production에 설정).
-// 값이 없는 빌드(로컬·미리보기)에서는 [확정 전] 표시로 남긴다
-const CONTACT = (import.meta.env.VITE_CONTACT_EMAIL as string | undefined)?.trim() || '[확정 전]'
+// 값이 없는 빌드(로컬·미리보기)에서는 [확정 전] 표시로 남긴다. 화면은 이 주소를 메일 링크로 바꾼다(LegalPage)
+export const CONTACT_EMAIL = (import.meta.env.VITE_CONTACT_EMAIL as string | undefined)?.trim() ?? ''
+const CONTACT = CONTACT_EMAIL || '[확정 전]'
+
+// 주소 뒤 조사 '로/으로'는 끝 도메인을 읽는 소리로 정한다: com(컴)·net(넷)·app(앱)은 받침이 있어 '으로',
+// kr(케이알 — ㄹ 받침은 '로')·io·co·me·org·dev는 '로'. 모르는 끝이면 둘 다 맞는 '(으)로'
+const RO: Record<string, string> = {
+  com: '으로',
+  net: '으로',
+  app: '으로',
+  kr: '로',
+  io: '로',
+  co: '로',
+  me: '로',
+  org: '로',
+  dev: '로',
+}
+const contactRo = RO[CONTACT_EMAIL.split('.').at(-1)?.toLowerCase() ?? ''] ?? '(으)로'
 
 export const PRIVACY: LegalDoc = {
   intro: [
@@ -195,7 +211,7 @@ export const PRIVACY: LegalDoc = {
           p: '이 방침을 바꾸면 시행 7일 전에 서비스 안에 알립니다.',
         },
         {
-          ul: ['공고일: [확정 전]', '시행일: [확정 전]'],
+          ul: ['공고일: 2026-10-12', '시행일: 2026-10-12'],
         },
       ],
     },
@@ -334,7 +350,7 @@ export const TERMS: LegalDoc = {
       title: '제12조 (문의)',
       blocks: [
         {
-          p: `서비스 이용에 관한 문의는 ${CONTACT}로 할 수 있습니다.`,
+          p: `서비스 이용에 관한 문의는 ${CONTACT}${contactRo} 할 수 있습니다.`,
         },
       ],
     },
@@ -342,7 +358,7 @@ export const TERMS: LegalDoc = {
       title: '부칙',
       blocks: [
         {
-          ul: ['공고일: [확정 전]', '시행일: [확정 전]'],
+          ul: ['공고일: 2026-10-12', '시행일: 2026-10-12'],
         },
       ],
     },

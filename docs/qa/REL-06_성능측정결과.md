@@ -120,6 +120,8 @@
 - 한계: headless라 화면 합성(GPU) 끊김은 덜 드러남. 실기기는 REL-07에서.
 - 운영 데이터 영향: 끌기 6번 모두 같은 거리로 되돌려 저장(200). verify-restore.mjs로 2026-10 단일 일정 161개를 시드 값과 대조해 불일치 0(나머지 50개는 하루 마감 측정용, 반복·종일은 끌지 않음).
 
-## 5. 정리 예정
+## 5. 정리(2026-10-11 밤)
 
-캘린더 측정이 끝나면 WY-pm에 한 줄 알리고 탈퇴(`POST /api/users/me/deletion`), 로그인 실패 확인, 20분 뒤 WY-browser가 DB 행 수 확인, run 파일 삭제.
+- 탈퇴: 23:16 KST, 사용자가 승인 센터 카드로 실행(자동 권한 분류기가 운영 계정 삭제를 막아 사용자가 직접 승인). 탈퇴 직후 시험 계정 로그인 401.
+- DB 행 수(WY-browser, 읽기만, 약 25분 뒤, 운영 Postgres Stats 추정치): worklog task 643→29, schedule 456→18, work_record 2.7K→30, work_log 38→9 — 시험 데이터 정리됨. identity users·user_credentials는 7→7로 그대로 보이나 Stats 행 수는 추정치(autovacuum 갱신 전)로 보고, 로그인 401과 worklog 데이터 삭제로 탈퇴 반영을 확인함. 정확한 users 행 수는 SQL이 필요해 확인하지 못함(콘솔 SQL 불가).
+- run 파일(.perf-account.env)·탈퇴 스크립트 삭제함. 이 문서에는 계정 값 없음.

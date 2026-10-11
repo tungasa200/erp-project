@@ -3,6 +3,7 @@ import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { toastForError } from '../../api/errorToast'
 import { EMAIL_PATTERN } from '../../auth/passwordRules'
+import { useFocusFirstError } from '../auth/useFocusFirstError'
 import { passwordResetApi, sendLimitMessage, timesOf, type CodeTimes } from '../../verification/api'
 import { PasswordLayout } from './PasswordLayout'
 import styles from './password.module.css'
@@ -19,6 +20,7 @@ export function ForgotPasswordPage() {
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const { ref: formRef, focusFirstError } = useFocusFirstError<HTMLFormElement>()
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
@@ -26,6 +28,7 @@ export function ForgotPasswordPage() {
     const value = email.trim()
     if (!EMAIL_PATTERN.test(value)) {
       setError(value ? '이메일 형식이 맞지 않아요' : '입력해 주세요')
+      focusFirstError()
       return
     }
     setError(null)
@@ -48,7 +51,7 @@ export function ForgotPasswordPage() {
 
   return (
     <PasswordLayout>
-      <form className={styles.form} onSubmit={(e) => void submit(e)} noValidate>
+      <form ref={formRef} className={styles.form} onSubmit={(e) => void submit(e)} noValidate>
         <span className={styles.icon} aria-hidden="true">
           <svg
             width="24"
