@@ -14,9 +14,9 @@ public final class CodeMails {
 	}
 
 	public static Mail emailVerification(String to, String code) {
-		String intro = "아래 6자리 숫자를 worklog 인증 화면에 입력해 주세요.";
+		String intro = "아래 6자리 숫자를 WY Worklog 인증 화면에 입력해 주세요.";
 		String ignore = "직접 요청하지 않았다면 이 메일을 무시하세요. 누군가 이메일 주소를 잘못 입력했을 수 있어요.";
-		return new Mail(to, "[worklog] 이메일 인증번호 안내",
+		return new Mail(to, "[WY Worklog] 이메일 인증번호 안내",
 				text("이메일 인증번호", intro, code, null, ignore),
 				html("이메일 인증번호", intro, code, "#F1F0FC", "#292376", null, ignore));
 	}
@@ -25,14 +25,14 @@ public final class CodeMails {
 		String intro = "비밀번호 재설정 화면에 아래 6자리 숫자를 입력하고 새 비밀번호를 정해 주세요.";
 		String notice = "재설정을 마치면 모든 기기에서 로그아웃돼요.";
 		String ignore = "직접 요청하지 않았다면 이 메일을 무시하세요. 비밀번호는 바뀌지 않아요.";
-		return new Mail(to, "[worklog] 비밀번호 재설정 안내",
+		return new Mail(to, "[WY Worklog] 비밀번호 재설정 안내",
 				text("비밀번호 재설정", intro, code, notice, ignore),
 				html("비밀번호 재설정", intro, code, "#F2F4FA", "#1A1C2B", notice, ignore));
 	}
 
 	private static String text(String title, String intro, String code, String notice, String ignore) {
 		return title + "\n\n" + intro + "\n\n" + code + "\n\n이 번호는 10분 동안만 쓸 수 있어요.\n"
-				+ (notice == null ? "" : "\n" + notice + "\n") + "\n" + ignore + "\n\n이 메일은 발신 전용이에요. · worklog\n";
+				+ (notice == null ? "" : "\n" + notice + "\n") + "\n" + ignore + "\n\n이 메일은 발신 전용이에요. · WY Worklog\n";
 	}
 
 	private static String html(String title, String intro, String code, String codeBg, String codeColor,
@@ -65,7 +65,7 @@ public final class CodeMails {
 				</table>
 				</td></tr>
 				</table>
-				<p style="max-width:520px;margin:16px auto 0;font-size:12px;line-height:1.6;color:#8A8FA3;text-align:center">이 메일은 발신 전용이에요. · worklog</p>
+				<p style="max-width:520px;margin:16px auto 0;font-size:12px;line-height:1.6;color:#8A8FA3;text-align:center">이 메일은 발신 전용이에요. · WY Worklog</p>
 				</td></tr>
 				</table>
 				</body></html>

@@ -87,3 +87,16 @@
   font-size: 12px;
   color: #6e7387;
 }
+
+.legal {
+  display: flex;
+  gap: 16px;
+  font-size: 13px;
+}
+
+.legal a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--size-touch);
+  color: var(--color-text-body);
+}

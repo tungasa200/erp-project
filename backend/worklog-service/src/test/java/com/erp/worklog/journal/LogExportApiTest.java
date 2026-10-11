@@ -137,6 +137,7 @@ class LogExportApiTest {
 					"업무일지_" + start + "_홍_길_동.pdf");
 			PdfReader reader = new PdfReader(pdf);
 			assertThat(reader.getNumberOfPages()).isPositive();
+			assertThat(new PdfTextExtractor(reader).getTextFromPage(1)).contains("WY Worklog");
 			reader.close();
 
 			byte[] docx = export(path, "DOCX", "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -145,6 +146,7 @@ class LogExportApiTest {
 				assertThat(doc.getStyles().getStyleWithName("업무일지 구분")).isNotNull();
 				assertThat(doc.getTables()).hasSizeGreaterThanOrEqualTo(3);
 				assertThat(doc.getFooterList()).hasSize(1);
+				assertThat(doc.getFooterList().get(0).getText()).contains("WY Worklog"); // 앱 이름 (카드 0450)
 			}
 
 			byte[] xlsx = export(path, "XLSX", XLSX, "worklog_" + start + ".xlsx", "업무일지_" + start + "_홍_길_동.xlsx");

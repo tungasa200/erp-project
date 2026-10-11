@@ -363,6 +363,11 @@ export function TaskListPage() {
               )}
             </div>
           )}
+          {/* SCR-TASK-04 보관함(P4-10)으로 가는 길 */}
+          <Link to="/tasks/archive" className={styles.archiveLink}>
+            보관함
+            <span aria-hidden="true">›</span>
+          </Link>
         </section>
       </div>
       <Outlet context={outletContext} />

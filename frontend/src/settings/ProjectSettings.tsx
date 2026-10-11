@@ -1,6 +1,7 @@
 // SCR-SET-08 설정 — 프로젝트·태그 (TASK-04). 프로젝트는 삭제 없이 보관만 하고(되돌리기 토스트), 태그는 이름 변경과 사용 수를 보여 준다.
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
+import { Link } from 'react-router'
 import { toastForError } from '../api/errorToast'
 import { ApiError } from '../api/problem'
 import { focusSectionHeading } from '../components/focusFallback'
@@ -92,7 +93,12 @@ function ProjectSection() {
         <h2 id="settings-projects" ref={headingRef} tabIndex={-1} className={styles.title}>
           프로젝트
         </h2>
-        {archivedCount > 0 && <span className={styles.meta}>보관한 프로젝트 {archivedCount}</span>}
+        {archivedCount > 0 && (
+          // SCR-TASK-04 보관함의 프로젝트 탭(P4-10)
+          <Link to="/tasks/archive?type=projects" className={`${styles.meta} ${styles.metaLink}`}>
+            보관한 프로젝트 {archivedCount}
+          </Link>
+        )}
       </div>
 
       {isPending && <Skeleton count={3} />}

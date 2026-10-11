@@ -58,6 +58,8 @@ export function SignupPage() {
   const [passwordConfirm, setPasswordConfirm] = useState('')
   const [agreeTerms, setAgreeTerms] = useState(false)
   const [agreePrivacy, setAgreePrivacy] = useState(false)
+  // 만 14세 확인은 화면에서만(D-172 ①). 가입 요청에는 보내지 않는다 — 서버 기록은 REL 법률 검토 때
+  const [agreeAge, setAgreeAge] = useState(false)
   const [errors, setErrors] = useState<Errors>({})
   const [emailTaken, setEmailTaken] = useState(false)
   const [submitted, setSubmitted] = useState(false)
@@ -83,7 +85,7 @@ export function SignupPage() {
     if (!EMAIL_PATTERN.test(email.trim())) next.email = email.trim() ? MESSAGES.EMAIL_INVALID : MESSAGES.REQUIRED
     next.password = password ? passwordMessage(violations) : MESSAGES.REQUIRED
     if (password && passwordConfirm !== password) next.passwordConfirm = MESSAGES.PASSWORD_MISMATCH
-    if (!agreeTerms || !agreePrivacy) next.agreements = MESSAGES.AGREEMENT_REQUIRED
+    if (!agreeAge || !agreeTerms || !agreePrivacy) next.agreements = MESSAGES.AGREEMENT_REQUIRED
     setErrors(next)
     if (Object.values(next).some(Boolean)) return
 
@@ -107,7 +109,7 @@ export function SignupPage() {
     }
   }
 
-  const allAgreed = agreeTerms && agreePrivacy
+  const allAgreed = agreeAge && agreeTerms && agreePrivacy
 
   return (
     <AuthLayout
@@ -215,11 +217,16 @@ export function SignupPage() {
               type="checkbox"
               checked={allAgreed}
               onChange={(e) => {
+                setAgreeAge(e.target.checked)
                 setAgreeTerms(e.target.checked)
                 setAgreePrivacy(e.target.checked)
               }}
             />
             전체 동의
+          </label>
+          <label className={styles.check}>
+            <input type="checkbox" checked={agreeAge} onChange={(e) => setAgreeAge(e.target.checked)} />
+            <span className={styles.checkText}>[필수] 만 14세 이상입니다</span>
           </label>
           <label className={styles.check}>
             <input type="checkbox" checked={agreeTerms} onChange={(e) => setAgreeTerms(e.target.checked)} />

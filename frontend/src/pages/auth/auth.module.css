@@ -259,6 +259,36 @@
   font-weight: 700;
 }
 
+.alertDone {
+  align-items: center;
+  padding-right: 6px;
+  background: var(--color-text);
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.alertBody {
+  flex: 1;
+}
+
+.alertClose {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: var(--size-touch);
+  height: var(--size-touch);
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.alertClose:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: -4px;
+}
+
 .alertMark {
   flex: none;
   font-weight: 800;

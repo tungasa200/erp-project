@@ -104,6 +104,30 @@ class ProfileUpdateTest {
 	}
 
 	@Test
+	void 테마는_대문자로_저장하고_version은_오르며_피드는_남기지_않는다() throws Exception {
+		Account a = newAccount();
+		// 프리셋이 아닌 키 컬러도 받는다(직접 고르기). 색 선택기는 소문자를 준다.
+		patchMe(a, "{\"version\":0,\"themeAccent\":\"#12ab9c\",\"themeGround\":\"#eef4ef\"}")
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.themeAccent").value("#12AB9C"))
+			.andExpect(jsonPath("$.themeGround").value("#EEF4EF"))
+			.andExpect(jsonPath("$.version").value(1));
+		assertThat(profileEvents(a)).isZero();
+
+		// 같은 값이면 바뀐 것으로 보지 않는다
+		patchMe(a, "{\"version\":1,\"themeAccent\":\"#12AB9C\"}").andExpect(jsonPath("$.version").value(1));
+
+		// 배경은 4종만, 키 컬러는 #RRGGBB만
+		patchMe(a, "{\"version\":1,\"themeAccent\":\"#12AB9\",\"themeGround\":\"#1A1C2B\"}")
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.errors[*].field").value(containsInAnyOrder("themeAccent", "themeGround")))
+			.andExpect(jsonPath("$.errors[*].code")
+				.value(containsInAnyOrder("THEME_ACCENT_INVALID", "THEME_GROUND_INVALID")));
+		patchMe(a, "{\"version\":1,\"themeAccent\":null}").andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.errors[0].code").value("REQUIRED"));
+	}
+
+	@Test
 	void 칸별_검증_오류를_모두_돌려준다() throws Exception {
 		Account a = newAccount();
 		patchMe(a, """

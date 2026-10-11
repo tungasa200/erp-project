@@ -25,7 +25,7 @@ public class HeaderSanitizingFilter implements WebFilter, Ordered {
 
 	@Override
 	public int getOrder() {
-		return Ordered.HIGHEST_PRECEDENCE + 10;
+		return Ordered.HIGHEST_PRECEDENCE + 18; // 비밀 헤더(+10)·점검(+15) 뒤, Origin 검사(+20)·Spring Security 앞
 	}
 
 	@Override

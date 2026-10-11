@@ -18,7 +18,7 @@ public record MailProperties(String username, String password, String fromName, 
 			throw new IllegalStateException("MAIL_USERNAME·MAIL_PASSWORD 환경 변수가 비어 있습니다.");
 		}
 		if (blank(fromName) || unresolved(fromName)) {
-			fromName = "worklog";
+			fromName = "WY Worklog";
 		}
 	}
 

@@ -13,6 +13,28 @@
   gap: 16px;
 }
 
+.heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* 종은 모바일에서만(데스크톱·태블릿은 사이드바에 있다) */
+.bell {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .heading {
+    flex: 1 1 100%;
+  }
+
+  .bell {
+    display: flex;
+  }
+}
+
 .date {
   margin: 0;
   font-size: 14px;

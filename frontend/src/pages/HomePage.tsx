@@ -5,6 +5,8 @@ import { useLocation } from 'react-router'
 import { useAuth } from '../auth/useAuth'
 import { useOnline } from '../components/useOnline'
 import { HomeDashboard } from '../home/HomeDashboard'
+import { NotificationBell } from '../notifications/NotificationBell'
+import { InstallGuide } from '../pwa/InstallGuide'
 import { EXAMPLES } from '../quickInput/examples'
 import { QuickInput } from '../quickInput/QuickInput'
 import { useQuickSave } from '../tasks/useQuickSave'
@@ -58,12 +60,18 @@ export function HomePage() {
   return (
     <div className={styles.page}>
       <header className={styles.header}>
-        <div>
-          <p className={styles.date}>{dateLabel}</p>
-          <h1 className={styles.title}>
-            {greeting(hour)}
-            {user?.name ? `, ${user.name}님` : ''}
-          </h1>
+        <div className={styles.heading}>
+          <div>
+            <p className={styles.date}>{dateLabel}</p>
+            <h1 className={styles.title}>
+              {greeting(hour)}
+              {user?.name ? `, ${user.name}님` : ''}
+            </h1>
+          </div>
+          {/* SCR-COM-05 ② 종: 모바일은 홈 머리 오른쪽(데스크톱·태블릿은 사이드바) */}
+          <span className={styles.bell}>
+            <NotificationBell />
+          </span>
         </div>
         {/* 끊긴 동안에는 기록을 막는다(SCR-SYS-02 ③) */}
         <fieldset className={styles.quick} disabled={!online}>
@@ -95,6 +103,8 @@ export function HomePage() {
           </section>
         }
       />
+      {/* SCR-MOB-02 설치 안내: 모바일 홈에서만(넓은 화면은 CSS로 숨김) */}
+      <InstallGuide />
     </div>
   )
 }

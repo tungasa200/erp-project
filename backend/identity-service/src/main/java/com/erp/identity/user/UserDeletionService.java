@@ -6,6 +6,9 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.UUID;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,6 +21,8 @@ import com.erp.identity.feed.UserFeed;
  */
 @Service
 public class UserDeletionService {
+
+	private static final Logger log = LoggerFactory.getLogger(UserDeletionService.class);
 
 	private final JdbcTemplate jdbc;
 
@@ -44,6 +49,8 @@ public class UserDeletionService {
 		jdbc.update("INSERT INTO deleted_users (user_id, deleted_at) VALUES (?, ?)", userId,
 				OffsetDateTime.ofInstant(now, ZoneOffset.UTC));
 		feed.deleted(userId, now);
+		// 백업 복원 뒤 탈퇴 재적용의 근거 (D-34, infra/railway/restore-drill.md). 식별 정보 없이 ID만 남긴다.
+		log.info("USER_DELETED userId={}", userId);
 	}
 
 }

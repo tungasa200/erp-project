@@ -1,0 +1,353 @@
+/* SCR-COM-05 알림 센터 */
+
+/* ② 종 버튼: 44px 원, 배지는 오른쪽 위 */
+.bell {
+  position: relative;
+  width: var(--size-touch);
+  height: var(--size-touch);
+  flex: none;
+  border: 0;
+  border-radius: 22px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.bell:hover {
+  background: var(--color-accent-faint);
+}
+
+.bell[aria-expanded='true'] {
+  background: var(--color-accent-soft);
+  color: var(--color-accent-ink);
+}
+
+.badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  box-sizing: border-box;
+  border-radius: 9px;
+  background: var(--color-danger);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 18px;
+  text-align: center;
+}
+
+/* 데스크톱 팝오버 (위치는 NotificationBell이 fixed로 정한다) */
+.popover {
+  position: fixed;
+  z-index: 40;
+  width: min(400px, calc(100vw - 16px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--color-surface);
+  border-radius: 22px;
+  box-shadow: 0 18px 44px rgba(40, 44, 90, 0.18);
+}
+
+/* 컨테이너는 프로그램으로만 포커스를 받는다(열 때·모두 읽음 뒤). 테두리는 안의 요소가 그린다 */
+.popover:focus,
+.page:focus {
+  outline: none;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 18px 20px 12px;
+}
+
+.heading {
+  flex: 1;
+  margin: 0;
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.readAll {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 17px;
+  background: var(--color-ground);
+  color: var(--color-text-body);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  position: relative;
+}
+
+/* 보이는 높이 34px, 누르는 영역은 44px */
+.readAll::after {
+  content: '';
+  position: absolute;
+  inset: -5px 0;
+}
+
+.readAll:disabled {
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+}
+
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: flex;
+  gap: 14px;
+  padding: 14px 20px;
+  border-top: 1px solid var(--color-divider);
+  color: var(--color-text);
+  text-decoration: none;
+  background: var(--color-surface);
+}
+
+.item.unread {
+  background: var(--color-accent-faint);
+}
+
+.item:hover {
+  background: var(--color-accent-softer);
+}
+
+.item:focus-visible {
+  outline-offset: -2px;
+}
+
+.icon {
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+}
+
+.daily {
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+.weekly {
+  background: var(--color-accent-soft);
+  color: var(--color-accent-ink);
+}
+
+.monthly {
+  background: var(--color-ground);
+  color: var(--color-text-body);
+}
+
+.body {
+  flex: 1;
+  min-width: 0;
+}
+
+.title {
+  display: block;
+  font-size: 14.5px;
+  font-weight: 700;
+}
+
+.sub {
+  display: block;
+  margin-top: 3px;
+  font-size: 13px;
+  color: var(--color-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.time {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.dot {
+  width: 9px;
+  height: 9px;
+  flex: none;
+  margin-top: 6px;
+  border-radius: 5px;
+  background: var(--color-accent);
+}
+
+.state {
+  padding: 20px;
+  border-top: 1px solid var(--color-divider);
+}
+
+.empty {
+  padding: 36px 24px 40px;
+  border-top: 1px solid var(--color-divider);
+  text-align: center;
+}
+
+.emptyIcon {
+  color: var(--color-disabled);
+}
+
+.stateTitle {
+  margin: 10px 0 0;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.state .stateTitle {
+  margin-top: 0;
+}
+
+.stateText {
+  margin: 6px 0 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--color-text-muted);
+}
+
+.primary {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--size-touch);
+  margin-top: 14px;
+  padding: 0 18px;
+  border-radius: 22px;
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  font-size: 14px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.retry {
+  min-height: var(--size-touch);
+  margin-top: 10px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 22px;
+  background: var(--color-danger-soft);
+  color: var(--color-danger-text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.more {
+  padding: 8px 20px;
+  border-top: 1px solid var(--color-divider);
+  text-align: center;
+}
+
+.moreButton {
+  min-height: var(--size-touch);
+  padding: 0 16px;
+  border: 0;
+  border-radius: 22px;
+  background: transparent;
+  color: var(--color-accent-ink);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.moreButton:disabled {
+  color: var(--color-text-muted);
+  cursor: progress;
+}
+
+.moreError {
+  margin: 0;
+  padding: 0 20px 12px;
+  font-size: 13px;
+  color: var(--color-danger);
+  text-align: center;
+}
+
+.footer {
+  padding: 4px 20px;
+  border-top: 1px solid var(--color-divider);
+}
+
+.settingsLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--size-touch);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-accent-ink);
+}
+
+/* ③ 모바일 전체 화면 */
+.page {
+  min-height: 100%;
+  background: var(--color-surface);
+}
+
+.pageHead {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 10px 8px;
+}
+
+.back {
+  width: var(--size-touch);
+  height: var(--size-touch);
+  border: 0;
+  border-radius: 22px;
+  background: transparent;
+  color: var(--color-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.pageTitle {
+  flex: 1;
+  margin: 0;
+  font-size: 19px;
+  font-weight: 800;
+}
+
+.page .readAll {
+  min-height: var(--size-touch);
+  background: transparent;
+  color: var(--color-accent-ink);
+}
+
+.page .readAll::after {
+  content: none;
+}
+
+.page .item {
+  padding: 14px 18px;
+}
+
+@media (min-width: 768px) {
+  .page {
+    max-width: 640px;
+    margin: 24px auto;
+    border-radius: 22px;
+    min-height: 0;
+    overflow: hidden;
+  }
+}

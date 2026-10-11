@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: worklog-service API
-  version: 0.5.0
+  version: 0.6.0
   description: |
     구현 전 합의용 계약. P0 범위(GET /api/worklog/me)는 구현 완료, P1-01~03 범위는 2026-10-05 확정(구현 전).
     P3 업무일지(logs)·기간 기록 내보내기(records/export)는 2026-10-08 확정(사용자 카드 20261008-1130·1131 추천안). 파일 생성 라이브러리는 P3-01 뒤 정한다.
@@ -11,6 +11,15 @@ info:
     P2-03 확인 대기 목록·모두 했어요(records/pending)는 2026-10-07 확정.
     P2-06 타이머(timer)·P2-07 집계·빈 시간(records/time-summary, records/gaps)과 기록 생성·수정의 "진행 중" 규칙 변경은 2026-10-07 확정(D-101·D-102).
     업무 시간대 설정(TIME-11)은 P1-01의 PATCH /me/settings(workHoursStart·End)로 이미 있다.
+    P4 통계(stats, P4-02), 알림 센터·웹 푸시(notifications·push, P4-01), 설정 dailyCloseNotifyEnabled, 탈퇴 파기 지연 상한(P4-05)은 2026-10-10 확정(사용자 카드 20261011-0400·0401, D-176).
+
+    탈퇴 파기 지연 상한 (P4-05, AUTH-06·NFR-10, D-45 — identity.yaml 탈퇴 API·처리방침과 같은 수치, 카드 0330):
+    - worklog는 identity 사용자 변경 피드를 30초 간격(앞 읽기가 끝난 뒤부터)으로 읽고, 한 번에 밀린 페이지를 모두 따라잡는다.
+      DELETED 이벤트를 받으면 그 자리에서 사용자 데이터를 실제로 지우고 탈퇴 사용자 목록에 올린다 → 보통 탈퇴 후 1분 이내 파기.
+    - 반영 뒤에는 남은 Access Token(최대 10분)의 요청을 401 USER_DELETED로 거부한다. 반영 전(최대 약 1분)의 요청으로 생긴 데이터는
+      탈퇴 15분 뒤 재파기(5분 간격 작업)로 지운다 → 늦어도 탈퇴 후 20분 이내 완료.
+    - identity나 worklog가 멈춰 있었다면 복구(재기동) 뒤 첫 읽기(30초 안)에서 파기한다.
+    - 알림·푸시 구독(P4-01)도 파기 대상이다.
     구현 후에는 springdoc 출력(contracts/generated/worklog.json)이 기준이다 (D-47).
     규약은 요구사항정의서 5.5를 따른다: /api/worklog/ 접두사, 버전 없음,
     시각은 UTC ISO-8601, 날짜는 YYYY-MM-DD, 시간대는 IANA 이름, camelCase,
@@ -46,6 +55,10 @@ tags:
     description: 업무 기록 — P2-01 (REC-01, SCR-REC-01), 확인 대기 생성·모두 했어요는 P2-03 (REC-03, SCR-HOME-02)
   - name: timer
     description: '타이머 — P2-06 (TIME-03·10, SCR-COM-06). 실행 중 타이머는 endAt 없는 업무 기록이다'
+  - name: stats
+    description: 통계 — P4-02 (STAT-01·UX-05, SCR-STAT-01)
+  - name: notifications
+    description: 알림 센터·웹 푸시 — P4-01 (NOTI-01·LOG-16, SCR-COM-05·SET-05)
   - name: logs
     description: |
       업무일지 — P3. 도메인·확정·이력 P3-02 (LOG-05·06, SCR-LOG-04), 일간 생성기 P3-03 (LOG-01~03·15, SCR-LOG-02),
@@ -111,9 +124,18 @@ paths:
       operationId: updateMySettings
       summary: worklog 전용 설정 수정 (P1-01, 항목별 자동 저장)
       description: |
-        SCR-SET-02의 ④ 업무 시간대 ⑤ 하루 마감 시각과 SCR-SET-03의 시간 기록 사용 여부.
+        SCR-SET-02의 ④ 업무 시간대 ⑤ 하루 마감 시각과 SCR-SET-03의 시간 기록 사용 여부, SCR-SET-05 ① 하루 마감 알림 켜기(P4-01).
         설정 행이 아직 없으면 version=0으로 보내고, 이 요청이 기본값 위에 보낸 칸을 반영해 행을 만든다.
-        dailyCloseTime이 바뀌면 다음 알림 시각(next_notify_at)을 다시 계산한다 (5.6, 알림 발송은 P4).
+        dailyCloseTime·dailyCloseNotifyEnabled가 바뀌면 다음 알림 시각(next_notify_at)을 다시 계산한다 (5.6). 프로필 시간대·업무 요일이 바뀌어도
+        (피드로 사본이 바뀔 때) 다시 계산한다.
+        하루 마감 알림 발송(P4-01): 1분마다(ShedLock) next_notify_at이 지난 사용자에게 보낸다.
+        - 근무일(D-37)이 아닌 날은 보내지 않는다. next_notify_at은 다음 근무일의 dailyCloseTime(사용자 시간대)이다.
+        - 그날 일간 일지가 이미 확정(CONFIRMED)이면 보내지 않는다(이미 마감함).
+        - 서버가 멈춰 1시간 넘게 지난 알림은 보내지 않고 다음 시각만 다시 계산한다.
+        - 보내기 = 알림 센터 항목(DAILY_CLOSE, 확인 대기 수 포함) + 그 사용자의 모든 푸시 구독에 웹 푸시. 그날이 주(월)의 마지막 근무일이면
+          LOG_SUGGESTION(WEEKLY → MONTHLY)도 같은 때 만든다(푸시는 하루 마감 한 통만).
+        - 푸시 내용: 제목 "하루 마감 시간이에요", 본문 확인 대기 n건 안내(0이면 생략), 누르면 앱 화면 /logs/daily/{date}?close=1(마감 창이 열림, 알림 읽음 처리, pm 결정 2026-10-10). TTL 1시간.
+          기록·업무 제목 같은 내용은 넣지 않는다.
       requestBody:
         required: true
         content:
@@ -1659,6 +1681,228 @@ paths:
         '503':
           $ref: '#/components/responses/IdentityUnavailable'
 
+  /api/worklog/stats:
+    get:
+      tags: [stats]
+      operationId: getStats
+      summary: '업무 통계 (P4-02, STAT-01 — SCR-STAT-01 ②③④)'
+      description: |
+        화면이 차트를 직접 그리므로 숫자만 준다.
+        - 기간 [from, to] 양끝 포함, 최대 400일. 날짜는 사용자의 현재 시간대 기준.
+        - 완료 업무: 보관하지 않은 업무 중 완료 시각(completedAt)의 날짜가 기간 안인 것. 지금 DONE이 아니면(완료 취소) 세지 않는다.
+        - 기록: 보관하지 않은 확정(CONFIRMED) 기록, workDate 기준(확인 대기 제외).
+        - 확정 일지: 상태 CONFIRMED이고 기간 시작일이 [from, to] 안인 일지(일간·주간·월간 합).
+        - daily: from부터 to까지 하루도 빠짐없이(0 포함) 날짜순. 주·월 막대는 화면이 프로필 주 시작 요일로 묶는다.
+        - projects: 프로젝트별 완료 업무 수·기록 수. 프로젝트는 업무의 지금 프로젝트, 업무 없는 기록·프로젝트 없는 업무는 projectId=null 한 줄.
+          둘 다 0인 프로젝트는 넣지 않는다. 정렬: completedTaskCount 내림차순 → recordCount 내림차순 → projectId.
+          소요시간 비중(⑤)은 기존 GET /records/time-summary를 같은 기간으로 부른다.
+        - firstRecordDate: 이 사용자의 첫 확정 기록 workDate(기간과 무관, 없으면 null). "1주일 기록이 쌓이면" 판단은 화면이 한다.
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: 통계
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Stats'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          $ref: '#/components/responses/ProfileUnavailable'
+  /api/worklog/stats/plan-vs-actual:
+    get:
+      tags: [stats]
+      operationId: getPlanVsActual
+      summary: '예상 대비 실제 회고 (P4-02, UX-05 — SCR-STAT-01 ⑥)'
+      description: |
+        업무 단위로 비교한다(계획 시간 정의는 카드 0401).
+        - 예상(plannedMin): 업무에 연결된 시간 일정(allDay=false) 회차 중 취소하지 않은 것의 길이(분). 회차가 속한 주는 회차 시작 시각을 사용자 시간대 날짜로 바꿔 정한다.
+          종일 일정·업무 없는 일정은 예상에 넣지 않는다.
+        - 실제(actualMin): 보관하지 않은 확정 기록의 durationMin(시간 없는 기록 제외), workDate 기준. 기록의 업무로 묶는다(계획에서 온 기록인지와 무관).
+        - 주: 프로필 주 시작 요일 기준. 기간 [from, to](최대 400일)와 겹치는 주를 모두 주되, 각 주는 기간 안 날짜만 센다(화면은 주 단위로 맞춰 보낸다).
+        - weeks[]: 주마다 plannedMin(그 주 예상 합), actualMin(그 주 예상이 있는 업무의 실제 합), unplannedMin(그 주 예상이 없는 업무·업무 없는 기록의 실제 합).
+        - topDiffs: 기간 전체에서 예상이 있는 업무를 |actualMin − plannedMin| 내림차순 → taskId로 최대 5개. 업무 제목은 지금 제목(보관 업무 포함).
+        시간 기록 옵션과 관계없이 응답한다(꺼져 있으면 화면이 영역을 숨긴다).
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: 주별 비교와 차이 큰 업무
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlanVsActual'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          $ref: '#/components/responses/ProfileUnavailable'
+  /api/worklog/notifications:
+    get:
+      tags: [notifications]
+      operationId: listNotifications
+      summary: '알림 센터 목록 (P4-01, NOTI-01·LOG-16 — SCR-COM-05)'
+      description: |
+        최신순(createdAt 내림차순 → id). 30일이 지난 알림은 하루 1회 정리 작업이 지운다.
+        unreadCount는 전체(페이지와 무관) 읽지 않은 수로, 사이드바 배지에 쓴다(배지는 limit=1로 불러도 된다).
+      parameters:
+        - name: cursor
+          in: query
+          description: 이전 응답의 nextCursor. 처음이면 생략.
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 30
+      responses:
+        '200':
+          description: 알림 목록
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, unreadCount]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Notification'
+                  unreadCount:
+                    type: integer
+                  nextCursor:
+                    type: [string, 'null']
+                    description: 다음 페이지가 없으면 null
+        '400':
+          description: cursor 형식이 틀림(code=INVALID_CURSOR) 또는 값 형식 오류(code=VALIDATION_FAILED)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/worklog/notifications/{notificationId}/read:
+    post:
+      tags: [notifications]
+      operationId: markNotificationRead
+      summary: 알림 하나 읽음 (항목 클릭, 웹 푸시 클릭으로 열 때)
+      description: 이미 읽었으면 그대로 204(멱등).
+      parameters:
+        - name: notificationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: 읽음
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/worklog/notifications/read-all:
+    post:
+      tags: [notifications]
+      operationId: markAllNotificationsRead
+      summary: 모두 읽음 (SCR-COM-05 ②)
+      responses:
+        '204':
+          description: 읽지 않은 알림을 모두 읽음으로
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/worklog/push/public-key:
+    get:
+      tags: [notifications]
+      operationId: getPushPublicKey
+      summary: 웹 푸시 VAPID 공개 키 (P4-01, SCR-SET-05 ③)
+      description: |
+        PushManager.subscribe의 applicationServerKey에 넣는 값(base64url, 비압축 P-256 공개 키 65바이트).
+        공개 키라 비밀이 아니지만 서버 환경변수 하나(VAPID_PUBLIC_KEY)로 관리하려고 API로 준다.
+      responses:
+        '200':
+          description: 공개 키
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [publicKey]
+                properties:
+                  publicKey:
+                    type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/worklog/push/subscriptions:
+    put:
+      tags: [notifications]
+      operationId: savePushSubscription
+      summary: 이 브라우저의 푸시 구독 등록 (권한 허용 직후, 그리고 앱을 열 때마다 다시 보냄)
+      description: |
+        PushSubscription.toJSON()의 endpoint·keys를 그대로 보낸다. endpoint가 같으면 덮어쓴다(다른 사용자 것이었으면 이 사용자로 옮긴다 — 같은 브라우저에서 계정을 바꾼 경우).
+        사용자당 최대 10개, 넘으면 가장 오래 쓰지 않은 구독을 지운다.
+        보안(SSRF 방지): endpoint는 https이고 호스트가 알려진 푸시 서비스여야 한다 —
+        fcm.googleapis.com, updates.push.services.mozilla.com, *.notify.windows.com, web.push.apple.com, *.push.apple.com. 아니면 400(errors[].field=endpoint).
+        발송 때 푸시 서비스가 404·410을 주면 그 구독을 지운다.
+        푸시 메시지 본문(서비스 워커 push 이벤트의 data.json()): {"type":"DAILY_CLOSE","notificationId":uuid,"title":string,"body":string|null,"url":"/logs/daily/{date}?close=1"}.
+        서비스 워커는 title·body로 알림을 띄우고(tag=type), 누르면 notificationId를 읽음 처리하고 url을 연다.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PushSubscription'
+      responses:
+        '204':
+          description: 저장됨
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    delete:
+      tags: [notifications]
+      operationId: deletePushSubscription
+      summary: 이 브라우저의 푸시 구독 해제 (알림 끄기·로그아웃 때)
+      description: 없는 endpoint여도 204(멱등). 다른 사용자의 구독은 지우지 않는다.
+      parameters:
+        - name: endpoint
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: 지움
+        '401':
+          $ref: '#/components/responses/Unauthorized'
 components:
   securitySchemes:
     accessTokenCookie:
@@ -1876,8 +2120,14 @@ components:
       description: |
         worklog 전용 설정 (UserSetting). 행이 없으면 기본값과 version=0.
         P1에서 바뀐 점: 시각 칸은 null 없이 기본값을 준다(화면정의서 SCR-SET-02 기본값), version 추가.
-      required: [timeTrackingEnabled, workHoursStart, workHoursEnd, dailyCloseTime, version]
+      required: [timeTrackingEnabled, workHoursStart, workHoursEnd, dailyCloseTime, dailyCloseNotifyEnabled, version]
       properties:
+        dailyCloseNotifyEnabled:
+          type: boolean
+          default: false
+          description: |
+            하루 마감 알림 켜기(SCR-SET-05 ①). 기본 꺼짐(카드 0401, 기존 사용자도 꺼짐). 켜면 앱 안 알림을 만들고, 푸시 구독이 있으면 웹 푸시도 보낸다.
+            웹 푸시 권한은 브라우저마다 따로라 여기서 다루지 않는다(구독 API).
         timeTrackingEnabled:
           type: boolean
           default: false
@@ -1908,6 +2158,8 @@ components:
           type: integer
           format: int64
           description: 마지막으로 받은 version (행이 없으면 0)
+        dailyCloseNotifyEnabled:
+          type: boolean
         timeTrackingEnabled:
           type: boolean
         workHoursStart:
@@ -2988,7 +3240,9 @@ components:
           description: 기간 안에 완료한 업무 수
         done:
           type: integer
-          description: 결과 칩 "완료" 기록 수
+          description: |
+            '완료' 건수. 일간·주간: 결과 '완료' 기록 수 + 완료한 날 그 업무의 기록이 없는 완료 업무 수(그날 '완료' 기록이 있는 업무는 한 번만, D-113).
+            월간: 기간 안에 완료한 업무 수(D-123)
         reviewRequested:
           type: integer
         inProgress:
@@ -3221,6 +3475,148 @@ components:
           items:
             type: string
             format: date
+    Stats:
+      type: object
+      required: [from, to, completedTaskCount, recordCount, confirmedLogCount, daily, projects, firstRecordDate]
+      properties:
+        from:
+          type: string
+          format: date
+        to:
+          type: string
+          format: date
+        completedTaskCount:
+          type: integer
+        recordCount:
+          type: integer
+        confirmedLogCount:
+          type: integer
+        daily:
+          type: array
+          items:
+            type: object
+            required: [date, completedTaskCount, recordCount]
+            properties:
+              date:
+                type: string
+                format: date
+              completedTaskCount:
+                type: integer
+              recordCount:
+                type: integer
+        projects:
+          type: array
+          items:
+            type: object
+            required: [projectId, completedTaskCount, recordCount]
+            properties:
+              projectId:
+                type: [string, 'null']
+                format: uuid
+              completedTaskCount:
+                type: integer
+              recordCount:
+                type: integer
+        firstRecordDate:
+          type: [string, 'null']
+          format: date
+    PlanVsActual:
+      type: object
+      required: [from, to, weeks, topDiffs]
+      properties:
+        from:
+          type: string
+          format: date
+        to:
+          type: string
+          format: date
+        weeks:
+          type: array
+          items:
+            type: object
+            required: [weekStart, plannedMin, actualMin, unplannedMin]
+            properties:
+              weekStart:
+                type: string
+                format: date
+                description: 그 주의 시작일(기간 앞으로 나갈 수 있음)
+              plannedMin:
+                type: integer
+              actualMin:
+                type: integer
+              unplannedMin:
+                type: integer
+        topDiffs:
+          type: array
+          maxItems: 5
+          items:
+            type: object
+            required: [taskId, title, projectId, plannedMin, actualMin]
+            properties:
+              taskId:
+                type: string
+                format: uuid
+              title:
+                type: string
+              projectId:
+                type: [string, 'null']
+                format: uuid
+              plannedMin:
+                type: integer
+              actualMin:
+                type: integer
+    NotificationType:
+      type: string
+      enum: [DAILY_CLOSE, LOG_SUGGESTION]
+      description: |
+        DAILY_CLOSE 하루 마감 시간(이동: SCR-LOG-03, date), LOG_SUGGESTION 주간·월간 일지 만들 차례(이동: 그 일지, logType·periodStart).
+    Notification:
+      type: object
+      required: [id, type, date, createdAt, readAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          $ref: '#/components/schemas/NotificationType'
+        date:
+          type: string
+          format: date
+          description: 알림이 가리키는 날(하루 마감 대상일, 제안을 만든 날)
+        pendingCount:
+          type: [integer, 'null']
+          description: DAILY_CLOSE일 때 보낼 때의 확인 대기 기록 수(스냅샷). 다른 종류는 null
+        logType:
+          type: [string, 'null']
+          enum: [WEEKLY, MONTHLY, null]
+          description: LOG_SUGGESTION일 때만
+        periodStart:
+          type: [string, 'null']
+          format: date
+          description: LOG_SUGGESTION일 때만
+        createdAt:
+          type: string
+          format: date-time
+        readAt:
+          type: [string, 'null']
+          format: date-time
+    PushSubscription:
+      type: object
+      required: [endpoint, keys]
+      properties:
+        endpoint:
+          type: string
+          maxLength: 1000
+        keys:
+          type: object
+          required: [p256dh, auth]
+          properties:
+            p256dh:
+              type: string
+              maxLength: 200
+            auth:
+              type: string
+              maxLength: 100
     Problem:
       type: object
       description: RFC 9457 Problem Details + 확장 필드 (P0-10 공통 모듈 형식)

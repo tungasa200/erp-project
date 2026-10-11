@@ -1,0 +1,162 @@
+/* SCR-MOB-02 보드 MOB-02a. 하단 탭(72px)과 위로 솟은 + 버튼 위에 뜬다 */
+.card {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .card {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: calc(
+      108px + env(safe-area-inset-bottom, 0px)
+    ); /* 탭(72px) + 솟은 + 버튼(26px) + 틈. 타이머 미니 플레이어와 같은 높이 */
+    z-index: 21;
+    display: block;
+    padding: 18px;
+    border-radius: 24px;
+    background: var(--color-surface);
+    box-shadow: 0 18px 44px rgba(26, 28, 43, 0.25);
+  }
+
+  .ios {
+    padding: 20px;
+  }
+}
+
+/* 글자를 키우거나 키보드가 올라와 화면이 낮으면 카드 안에서 스크롤한다 */
+@media (max-width: 767px) and (max-height: 560px) {
+  .card {
+    max-height: calc(100dvh - 140px);
+    overflow-y: auto;
+  }
+}
+
+/* 아주 좁은 화면(320px)은 제목 자리를 위해 아이콘을 뺀다 */
+@media (max-width: 359px) {
+  .icon {
+    display: none;
+  }
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.icon {
+  flex: none;
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #4b3fd6; /* 앱 아이콘 색 그대로(테마 키 컬러를 따르지 않음) */
+  color: #fff;
+  font-size: 17px;
+  font-weight: 900;
+}
+
+.text {
+  flex: 1;
+  min-width: 0;
+}
+
+.title {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.titleIos {
+  font-size: 17px;
+}
+
+.description {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.install {
+  flex: none;
+  height: var(--size-touch);
+  padding: 0 18px;
+  border: 0;
+  border-radius: 22px;
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.close {
+  flex: none;
+  width: var(--size-touch);
+  height: var(--size-touch);
+  border: 0;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-ground);
+  color: var(--color-text-body);
+  cursor: pointer;
+}
+
+.install:focus-visible,
+.close:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.steps {
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.step {
+  counter-increment: step;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 14px;
+  background: #f7f8fc;
+  font-size: 14.5px;
+  font-weight: 600;
+}
+
+.step::before {
+  content: counter(step);
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #e9e8fa;
+  color: #3c32ab;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.step > span {
+  flex: 1;
+}
+
+.share {
+  flex: none;
+  color: #2d6be4;
+}

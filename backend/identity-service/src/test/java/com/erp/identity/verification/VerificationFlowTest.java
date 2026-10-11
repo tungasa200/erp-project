@@ -64,7 +64,7 @@ class VerificationFlowTest {
 		String token = cookieValue(signup(mvc, email), "access_token");
 		Mail mail = lastMail();
 		assertThat(mail.to()).isEqualTo(email);
-		assertThat(mail.subject()).isEqualTo("[worklog] 이메일 인증번호 안내");
+		assertThat(mail.subject()).isEqualTo("[WY Worklog] 이메일 인증번호 안내");
 		String code = code(mail);
 		assertThat(mail.subject()).doesNotContain(code);
 		assertThat(mail.html()).contains(code).contains("이 메일은 발신 전용이에요.");
@@ -215,7 +215,7 @@ class VerificationFlowTest {
 
 		requestReset(email, newIp()).andExpect(status().isAccepted());
 		Mail mail = lastMail(2);
-		assertThat(mail.subject()).isEqualTo("[worklog] 비밀번호 재설정 안내");
+		assertThat(mail.subject()).isEqualTo("[WY Worklog] 비밀번호 재설정 안내");
 		assertThat(mail.html()).contains("재설정을 마치면 모든 기기에서 로그아웃돼요.");
 		String code = code(mail);
 

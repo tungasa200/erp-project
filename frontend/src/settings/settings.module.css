@@ -556,3 +556,26 @@
   color: var(--color-text-body);
   font-size: 12.5px;
 }
+
+/* SCR-MOB-02 데스크톱 설치 버튼 */
+.installApp {
+  min-height: var(--size-touch);
+  padding: 0 18px;
+  border: 1.5px solid var(--color-border);
+  border-radius: 22px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.installApp:hover {
+  border-color: var(--color-accent);
+}
+
+.installApp:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}

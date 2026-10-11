@@ -32,6 +32,12 @@ worklog:
     base-uri: ${IDENTITY_URI:http://localhost:8081}
     client-id: ${IDENTITY_CLIENT_ID:worklog}
     client-secret: ${IDENTITY_CLIENT_SECRET:worklog-local-secret} # identity non-prod 기본값과 같다. 운영은 Railway 환경변수
+  push:
+    # 웹 푸시 VAPID 키 (P4-01). 공개 키는 base64url 비압축 65바이트, 비밀 키는 base64url 32바이트(npx web-push generate-vapid-keys 형식).
+    # 운영은 Railway 비밀값이고 비어 있으면 기동을 막는다. 개발·테스트는 비우면 기동할 때 임시 키를 만든다.
+    vapid-public-key: ${VAPID_PUBLIC_KEY:}
+    vapid-private-key: ${VAPID_PRIVATE_KEY:}
+    vapid-subject: ${VAPID_SUBJECT:https://wy-worklog.com}
 
 management:
   endpoints:

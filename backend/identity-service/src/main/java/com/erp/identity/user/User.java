@@ -2,6 +2,7 @@ package com.erp.identity.user;
 
 import java.time.DayOfWeek;
 import java.time.Instant;
+import java.util.Set;
 import java.util.UUID;
 
 import jakarta.persistence.Column;
@@ -32,6 +33,9 @@ public class User {
 	public static final String DEFAULT_THEME_ACCENT = "#4B3FD6";
 
 	public static final String DEFAULT_THEME_GROUND = "#F2F4FA";
+
+	/** 고를 수 있는 배경 4종: 쿨 그레이·웜 베이지·세이지·화이트 (UX-07, SCR-SET-04 목업). */
+	public static final Set<String> THEME_GROUNDS = Set.of(DEFAULT_THEME_GROUND, "#F6F2EA", "#EEF4EF", "#FFFFFF");
 
 	@Id
 	@GeneratedValue
@@ -126,16 +130,25 @@ public class User {
 		if (update.workDays() != null) {
 			workDays = update.workDays().shortValue();
 		}
-		boolean shortcutsChanged = update.keyboardShortcutsEnabled() != null
-				&& update.keyboardShortcutsEnabled() != keyboardShortcutsEnabled;
-		if (shortcutsChanged) {
+		// 단축키·테마는 피드로 전달하지 않는 화면 설정이다.
+		boolean settingsChanged = false;
+		if (update.keyboardShortcutsEnabled() != null && update.keyboardShortcutsEnabled() != keyboardShortcutsEnabled) {
 			keyboardShortcutsEnabled = update.keyboardShortcutsEnabled();
+			settingsChanged = true;
+		}
+		if (update.themeAccent() != null && !update.themeAccent().equals(themeAccent)) {
+			themeAccent = update.themeAccent();
+			settingsChanged = true;
+		}
+		if (update.themeGround() != null && !update.themeGround().equals(themeGround)) {
+			themeGround = update.themeGround();
+			settingsChanged = true;
 		}
 		boolean profileChanged = !profile().equals(before);
-		if (profileChanged || shortcutsChanged) {
+		if (profileChanged || settingsChanged) {
 			updatedAt = now;
 		}
-		return new Changes(profileChanged, profileChanged || shortcutsChanged);
+		return new Changes(profileChanged, profileChanged || settingsChanged);
 	}
 
 	public boolean isKeyboardShortcutsEnabled() {

@@ -2,9 +2,11 @@ package com.erp.worklog.user;
 
 import com.erp.common.error.ApiException;
 import com.erp.worklog.identity.IdentityClient;
+import com.erp.worklog.notification.NotifyScheduleChanged;
 import com.erp.worklog.user.UserSnapshotRepository.UserSnapshot;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
@@ -17,10 +19,12 @@ public class UserProfileService {
 
 	private final UserSnapshotRepository snapshots;
 	private final IdentityClient identity;
+	private final ApplicationEventPublisher events;
 
-	UserProfileService(UserSnapshotRepository snapshots, IdentityClient identity) {
+	UserProfileService(UserSnapshotRepository snapshots, IdentityClient identity, ApplicationEventPublisher events) {
 		this.snapshots = snapshots;
 		this.identity = identity;
+		this.events = events;
 	}
 
 	/**
@@ -38,7 +42,9 @@ public class UserProfileService {
 	 * 피드가 먼저 더 새 값을 넣었으면 그것을 둔다.
 	 */
 	public UserSnapshot refresh(UUID userId, String userToken) {
-		snapshots.upsert(userId, fetch(userToken, "프로필 즉시 갱신 중 identity 조회 실패"), 0);
+		if (snapshots.upsert(userId, fetch(userToken, "프로필 즉시 갱신 중 identity 조회 실패"), 0)) {
+			events.publishEvent(new NotifyScheduleChanged(userId)); // 시간대·업무 요일이 바뀌면 알림 시각도 바뀐다
+		}
 		return snapshots.find(userId).orElseThrow();
 	}
 

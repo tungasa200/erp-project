@@ -20,11 +20,16 @@ public final class Problems {
 		var response = exchange.getResponse();
 		response.setStatusCode(status);
 		response.getHeaders().setContentType(MediaType.APPLICATION_PROBLEM_JSON);
-		String traceId = TraceIdFilter.traceId(exchange);
-		String body = "{\"type\":\"about:blank\",\"title\":\"" + status.getReasonPhrase() + "\",\"status\":" + status.value()
-				+ ",\"detail\":\"" + detail + "\",\"code\":\"" + code + "\",\"traceId\":"
-				+ (traceId == null ? "null" : "\"" + traceId + "\"") + "}";
+		String body = body(exchange, status, code, detail, "");
 		var buffer = response.bufferFactory().wrap(body.getBytes(StandardCharsets.UTF_8));
 		return response.writeWith(Mono.just(buffer));
+	}
+
+	/** detail은 따옴표·역슬래시 없는 고정 문구만 넣는다. extra는 ",\"이름\":값" 꼴의 추가 칸(없으면 빈 문자열). */
+	static String body(ServerWebExchange exchange, HttpStatus status, String code, String detail, String extra) {
+		String traceId = TraceIdFilter.traceId(exchange);
+		return "{\"type\":\"about:blank\",\"title\":\"" + status.getReasonPhrase() + "\",\"status\":" + status.value()
+				+ ",\"detail\":\"" + detail + "\",\"code\":\"" + code + "\",\"traceId\":"
+				+ (traceId == null ? "null" : "\"" + traceId + "\"") + extra + "}";
 	}
 }

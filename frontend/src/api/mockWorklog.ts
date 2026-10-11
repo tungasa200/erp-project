@@ -2,8 +2,11 @@
 // 목업 SET-08·TASK-01과 같은 예시 데이터로 시작하고, 고친 내용은 localStorage에 남는다.
 // 예전 저장본에 tasks가 없으면 예시 업무를 채워 넣는다.
 import type { Occurrence } from '../calendar/api'
+import { holidayName } from '../calendar/holidays'
 import { handleScheduleMock, scheduledTaskIds } from '../calendar/mockSchedules'
-import { handleLogsMock, type LogsMockContext, type StoredLog } from '../logs/mockLogs'
+import { isWorkday } from '../logs/api'
+import { handleLogsMock, seedConfirmedLog, type LogsMockContext, type StoredLog } from '../logs/mockLogs'
+import { handleStatsMock } from './mockStats'
 import type { Project, Tag } from '../projects/api'
 import type { WorkRecord } from '../records/api'
 import type { PendingRecord } from '../records/pending'
@@ -33,6 +36,8 @@ interface WorklogState {
   pendingSeeded?: boolean
   /** 업무일지(P3). 예전 저장본에는 없다 */
   logs?: StoredLog[]
+  /** 지난 2주 확정 기록·완료 업무·확정 일지 예시를 만들었는지(통계·일지 목록 데모) */
+  historySeeded?: boolean
 }
 
 /** 확인 대기 기록은 계획(회차) 값을 붙여 둔다. 진짜 서버는 일정에서 읽지만 mock은 일정과 따로 논다 */
@@ -96,6 +101,97 @@ function seedPending(state: WorklogState, records: MockRecord[]) {
       },
     })
   })
+}
+
+// 지난 근무일마다 확정 기록 3건씩: [한 일, 시작, 끝, 업무 키, 결과]
+const HISTORY: [string, string, string, string | null, WorkRecord['outcome']][] = [
+  ['데일리 스탠드업', '09:30', '10:00', null, 'DONE'],
+  ['결제 API 설계 검토', '10:00', '12:00', 'api-doc', 'IN_PROGRESS'],
+  ['한빛상사 견적 협의', '13:30', '15:00', 'quote', 'REVIEW_REQUESTED'],
+  ['PR 리뷰', '15:00', '16:30', 'review', 'DONE'],
+  ['매출 자료 정리', '16:30', '18:00', 'report', 'IN_PROGRESS'],
+  ['온보딩 문서 손보기', '14:00', '15:30', 'onboarding', 'DONE'],
+]
+
+// 지난 근무일에 끝낸 업무(통계 '완료한 업무')
+const HISTORY_DONE: [string, string, number, string][] = [
+  ['history-1', '로그인 오류 수정', -2, 'mock-project-dev'],
+  ['history-2', '주간 영업 보고', -3, 'mock-project-sales'],
+  ['history-3', '배포 체크리스트 정리', -6, 'mock-project-dev'],
+  ['history-4', '신규 고객 미팅 준비', -8, 'mock-project-sales'],
+  ['history-5', '사내 위키 정리', -10, 'mock-project-common'],
+]
+
+// 시험은 빈 기록에서 시작하는 것이 많아 기본으로 끈다(시드 자체는 mockWorklog.test가 켜서 본다)
+let historyEnabled = import.meta.env.MODE !== 'test'
+export function setMockHistorySeed(on: boolean) {
+  historyEnabled = on
+}
+
+/** 데모 계정이 통계·일지 목록을 바로 볼 수 있게 지난 14일(오늘 제외)의 근무일(공휴일 제외)을 채운다. 가장 최근 근무일 일지는 확정하지 않고 둔다 */
+function seedHistory(state: WorklogState, ctx: LogsMockContext) {
+  if (state.historySeeded) return
+  state.historySeeded = true
+  const today = seoulToday()
+  const days = Array.from({ length: 14 }, (_, i) => shiftDate(today, -14 + i)).filter((date) =>
+    isWorkday(date, ctx.workDays, holidayName(date)),
+  )
+  const taskBy = (key: string | null) => (key ? state.tasks.find((t) => t.id === `mock-task-${key}`) : undefined)
+
+  days.forEach((date, d) => {
+    for (let k = 0; k < 3; k++) {
+      const [content, start, end, key, outcome] = HISTORY[(d + k * 2) % HISTORY.length]
+      const task = taskBy(key)
+      const startAt = new Date(`${date}T${start}:00+09:00`).toISOString()
+      const endAt = new Date(`${date}T${end}:00+09:00`).toISOString()
+      ctx.records.push({
+        id: `mock-record-history-${date}-${k}`,
+        status: 'CONFIRMED',
+        workDate: date,
+        content,
+        taskId: task?.id ?? null,
+        projectId: task?.projectId ?? null,
+        tagIds: task?.tagIds ?? [],
+        scheduleId: null,
+        occurrenceStart: null,
+        result: null,
+        outcome,
+        progress: outcome === 'IN_PROGRESS' ? 30 + ((d * 10) % 60) : null,
+        startAt,
+        endAt,
+        durationMin: (Date.parse(endAt) - Date.parse(startAt)) / 60_000,
+        deletedAt: null,
+        createdAt: now(),
+        updatedAt: now(),
+        version: 0,
+      })
+    }
+  })
+
+  for (const [key, title, offset, projectId] of HISTORY_DONE) {
+    if (state.tasks.some((t) => t.id === `mock-task-${key}`)) continue
+    const completedAt = new Date(`${shiftDate(today, offset)}T17:00:00+09:00`).toISOString()
+    state.tasks.push({
+      id: `mock-task-${key}`,
+      title,
+      status: 'DONE',
+      priority: 'NORMAL',
+      dueDate: null,
+      progress: 100,
+      completedAt,
+      projectId,
+      tagIds: [],
+      hasSchedule: false,
+      memo: null,
+      carriedOverFromId: null,
+      deletedAt: null,
+      createdAt: completedAt,
+      updatedAt: completedAt,
+      version: 0,
+    })
+  }
+
+  for (const date of days.slice(0, -1)) seedConfirmedLog(ctx, 'DAILY', date)
 }
 
 /** 끝난 회차(최근 7일)마다 확인 대기 기록을 만든다 — 서버가 조회 때 하는 일(D-100). 회차는 mock 캘린더에서 읽고, plan은 회차의 지금 값 */
@@ -304,6 +400,23 @@ export function handleWorklog(
 ): Response | null {
   const path = url.split('?')[0]
   const state = load()
+  const logsContext: LogsMockContext = {
+    records: (state.records ??= []),
+    tasks: state.tasks,
+    projects: state.projects,
+    logs: (state.logs ??= []),
+    today: seoulToday(),
+    author: settings.author ?? { name: null, organization: null, position: null },
+    workDays: settings.workDays ?? 31,
+    weekStart: settings.weekStart ?? 1,
+    save: () => save(state),
+  }
+  // 처음 불러올 때 지난 2주 예시를 채운다(목록·통계·일지가 같은 데이터를 보게 맨 앞에서)
+  if (historyEnabled && !state.historySeeded) {
+    seedHistory(state, logsContext)
+    save(state)
+  }
+
   // 남은 업무 수는 업무 목록으로 매번 계산한다(보관·완료 제외)
   for (const p of state.projects) {
     p.openTaskCount = state.tasks.filter((t) => t.projectId === p.id && !t.deletedAt && t.status !== 'DONE').length
@@ -377,23 +490,21 @@ export function handleWorklog(
   const timer = handleTimer(method, path, body, state, r, settings.timeTrackingEnabled)
   if (timer) return timer
 
-  const logs = handleLogsMock(
+  const stats = handleStatsMock(
     method,
     url,
-    body,
     {
-      records: (state.records ??= []),
       tasks: state.tasks,
-      projects: state.projects,
+      records: (state.records ??= []),
       logs: (state.logs ??= []),
-      today: seoulToday(),
-      author: settings.author ?? { name: null, organization: null, position: null },
-      workDays: settings.workDays ?? 31,
       weekStart: settings.weekStart ?? 1,
-      save: () => save(state),
+      occurrencesBetween,
     },
     r,
   )
+  if (stats) return stats
+
+  const logs = handleLogsMock(method, url, body, logsContext, r)
   if (logs) return logs
 
   const tagMatch = /^\/api\/worklog\/tags\/([^/]+)$/.exec(path)

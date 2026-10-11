@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { handleScheduleMock } from '../calendar/mockSchedules'
 import type { Task } from '../tasks/api'
-import { handleWorklog } from './mockWorklog'
+import { handleWorklog, setMockHistorySeed } from './mockWorklog'
 
 const r = {
   json: (status: number, body: unknown) => new Response(JSON.stringify(body), { status }),
@@ -193,5 +193,90 @@ describe('가짜 빈 시간·시간 집계(P2-07)', () => {
       totalMin: 130,
       recordCount: 3,
     })
+  })
+})
+
+describe('가짜 통계(P4-02, GET /stats·/stats/plan-vs-actual)', () => {
+  const get = async (url: string) => {
+    const res = handleWorklog('GET', url, {}, r)!
+    return { status: res.status, body: (await res.json()) as Record<string, unknown> }
+  }
+
+  it('daily는 기간의 모든 날을 0 포함으로 주고, 기간이 거꾸로면 400', async () => {
+    const { status, body } = await get('/api/worklog/stats?from=2026-10-01&to=2026-10-07')
+    expect(status).toBe(200)
+    expect((body.daily as { date: string }[]).map((d) => d.date)).toEqual([
+      '2026-10-01',
+      '2026-10-02',
+      '2026-10-03',
+      '2026-10-04',
+      '2026-10-05',
+      '2026-10-06',
+      '2026-10-07',
+    ])
+    expect((await get('/api/worklog/stats?from=2026-10-07&to=2026-10-01')).status).toBe(400)
+  })
+
+  it('예상은 업무에 연결된 시간 일정 길이, 실제는 그 업무의 확정 기록, 예상 없는 업무는 계획 밖', async () => {
+    const [first] = await tasks()
+    handleScheduleMock(
+      'POST',
+      '/api/worklog/schedules',
+      // 서울 10:00~12:00(월요일 2026-10-05)
+      {
+        title: first.title,
+        allDay: false,
+        startAt: '2026-10-05T01:00:00Z',
+        endAt: '2026-10-05T03:00:00Z',
+        taskId: first.id,
+      },
+      r,
+    )
+    handleWorklog(
+      'POST',
+      '/api/worklog/records',
+      { content: '작업', taskId: first.id, workDate: '2026-10-05', durationMin: 90 },
+      r,
+    )
+    handleWorklog('POST', '/api/worklog/records', { content: '잡무', workDate: '2026-10-06', durationMin: 30 }, r)
+
+    const { body } = await get('/api/worklog/stats/plan-vs-actual?from=2026-10-05&to=2026-10-11')
+    expect(body.weeks).toEqual([{ weekStart: '2026-10-05', plannedMin: 120, actualMin: 90, unplannedMin: 30 }])
+    expect(body.topDiffs).toEqual([
+      { taskId: first.id, title: first.title, projectId: first.projectId, plannedMin: 120, actualMin: 90 },
+    ])
+  })
+})
+
+describe('데모 시드: 지난 2주 확정 기록·완료 업무·확정 일지', () => {
+  const get = async (url: string) => (await handleWorklog('GET', url, {}, r)!.json()) as Record<string, unknown>
+  const seoul = (offset: number) =>
+    new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(new Date(Date.now() + offset * 86_400_000))
+
+  it('처음 불러오면 지난 근무일마다 확정 기록 3건, 가장 최근 근무일만 빼고 일지 확정, 통계에 숫자가 찬다', async () => {
+    setMockHistorySeed(true)
+    try {
+      const from = seoul(-14)
+      const to = seoul(-1)
+      const stats = await get(`/api/worklog/stats?from=${from}&to=${to}`)
+      const daily = stats.daily as { date: string; completedTaskCount: number; recordedMin?: number }[]
+      expect(daily.reduce((n, d) => n + d.completedTaskCount, 0)).toBeGreaterThanOrEqual(5)
+
+      const logs = (await get(`/api/worklog/logs?type=DAILY&from=${from}&to=${to}`)) as {
+        items: { periodStart: string; status: string; workday: boolean }[]
+        unconfirmedDays: number
+      }
+      // 목록은 최근 날짜가 먼저일 수 있어 날짜 순으로 본다
+      const workdays = logs.items.filter((i) => i.workday).sort((a, b) => a.periodStart.localeCompare(b.periodStart))
+      expect(workdays.length).toBeGreaterThanOrEqual(8)
+      expect(workdays.slice(0, -1).every((i) => i.status === 'CONFIRMED')).toBe(true)
+      expect(workdays.at(-1)!.status).not.toBe('CONFIRMED')
+
+      // 다시 불러와도 두 번 채우지 않는다
+      const again = (await get(`/api/worklog/logs?type=DAILY&from=${from}&to=${to}`)) as typeof logs
+      expect(again.items.filter((i) => i.status === 'CONFIRMED')).toHaveLength(workdays.length - 1)
+    } finally {
+      setMockHistorySeed(false)
+    }
   })
 })

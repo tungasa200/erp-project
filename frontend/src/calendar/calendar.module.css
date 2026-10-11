@@ -1531,4 +1531,18 @@ fieldset.fieldset:disabled {
   .overlay:has(.dialog:not(.dialogNarrow)) {
     padding: 0;
   }
+
+  /* 바텀시트: 화면 아래에 붙어 내용만큼 높이를 갖는다 */
+  .overlay:has(.dialogSheet) {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .dialog.dialogSheet {
+    width: 100%;
+    height: auto;
+    max-height: calc(100vh - 24px);
+    border-radius: 24px 24px 0 0;
+    padding-bottom: calc(24px + env(safe-area-inset-bottom));
+  }
 }
