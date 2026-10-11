@@ -76,10 +76,12 @@
 }
 
 .undoButton {
-  height: 40px;
+  /* 누르는 영역 44px(QA P4 운영 390) */
+  height: var(--size-touch);
+  min-width: var(--size-touch);
   padding: 0 16px;
   border: 0;
-  border-radius: 20px;
+  border-radius: 22px;
   background: var(--color-accent-light);
   color: var(--color-text);
   font: inherit;
@@ -92,7 +94,9 @@
 .viewLink {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   min-height: var(--size-touch);
+  min-width: var(--size-touch);
   padding: 0 8px;
   border-radius: 12px;
   color: #b7b1f2;
