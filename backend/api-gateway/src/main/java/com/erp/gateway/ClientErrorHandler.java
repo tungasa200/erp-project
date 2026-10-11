@@ -2,6 +2,8 @@ package com.erp.gateway;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
+import org.slf4j.spi.LoggingEventBuilder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -35,6 +37,7 @@ public class ClientErrorHandler {
 	static final int MAX_BODY = 16 * 1024;
 
 	private static final Logger log = LoggerFactory.getLogger("client-error");
+	static final String TRACE_ID_KEY = "traceId";
 	private static final Pattern EMAIL = Pattern.compile("[\\w.+-]+@[\\w-]+(\\.[\\w-]+)+");
 	private static final Pattern JWT = Pattern.compile("eyJ[\\w-]*\\.[\\w-]*\\.[\\w-]*");
 	private static final Pattern TRACE_ID = Pattern.compile("^[0-9a-f]{16,32}$");
@@ -97,11 +100,16 @@ public class ClientErrorHandler {
 		Truncation t = new Truncation();
 		String kind = text(node, "kind");
 		String relatedTraceId = text(node, "relatedTraceId");
-		log.atWarn()
-				.addKeyValue("traceId", TraceIdFilter.traceId(request.exchange()))
-				.addKeyValue("kind", kind != null && KINDS.contains(kind) ? kind : "ERROR")
-				.addKeyValue("message", t.cut(mask(text(node, "message")), 500))
-				.addKeyValue("stack", t.cut(mask(text(node, "stack")), 4000))
+		// 운영 JSON 로그(logstash)는 message·level·stack_trace 등 기본 칸과 MDC 칸을 먼저 쓰고, 같은 이름의 키가 또 오면
+		// 그 줄을 통째로 버린다(IllegalStateException). 그래서 오류 내용은 errorMessage·errorStack으로 쓰고,
+		// traceId는 MDC에 이미 있으면(Micrometer Tracing) 그것을 쓴다.
+		LoggingEventBuilder event = log.atWarn();
+		if (MDC.get(TRACE_ID_KEY) == null) {
+			event = event.addKeyValue(TRACE_ID_KEY, TraceIdFilter.traceId(request.exchange()));
+		}
+		event.addKeyValue("kind", kind != null && KINDS.contains(kind) ? kind : "ERROR")
+				.addKeyValue("errorMessage", t.cut(mask(text(node, "message")), 500))
+				.addKeyValue("errorStack", t.cut(mask(text(node, "stack")), 4000))
 				.addKeyValue("url", t.cut(stripQuery(text(node, "url")), 300))
 				.addKeyValue("release", t.cut(text(node, "release"), 40))
 				.addKeyValue("relatedTraceId", relatedTraceId != null && TRACE_ID.matcher(relatedTraceId).matches() ? relatedTraceId : null)
