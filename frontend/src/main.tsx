@@ -12,6 +12,7 @@ import { AuthProvider } from './auth/AuthContext'
 import { handleSessionExpired } from './auth/session'
 import { AppFrame } from './components/AppFrame'
 import { ToastProvider } from './components/Toast'
+import { listenForInstallPrompt } from './pwa/install'
 import './theme/global.css'
 
 const queryClient = new QueryClient({
@@ -23,6 +24,9 @@ installClientErrorReporting()
 
 // 서비스 워커(P4-03). 개발 서버에서는 플러그인이 빈 함수를 줘서 등록하지 않는다
 registerSW({ immediate: true })
+
+// PWA 설치 안내(SCR-MOB-02). 브라우저가 설치 창을 줄 수 있다고 알리는 이벤트는 일찍 오므로 화면보다 먼저 듣는다
+listenForInstallPrompt()
 
 setSessionExpiredHandler((code) => handleSessionExpired(queryClient, code))
 

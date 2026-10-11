@@ -3,6 +3,7 @@ import { useEffect, useMemo, type ReactNode } from 'react'
 import { authApi } from '../api'
 import { ApiError } from '../api/problem'
 import type { Me } from '../api/types'
+import { disablePush } from '../notifications/push'
 import { applyTheme, DEFAULT_THEME } from '../theme/theme'
 import { resetBanner } from '../verification/bannerState'
 import { AuthContext, ME_QUERY_KEY, setUser, type AuthValue, type SessionEndReason } from './session'
@@ -49,6 +50,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return me
       },
       logout: async () => {
+        // 처리방침: 로그아웃하면 이 기기 푸시 구독을 지체 없이 파기(D-184 ①). 세션이 살아 있을 때 먼저 지우고, 실패해도 로그아웃은 계속
+        await disablePush().catch(() => undefined)
         await authApi.logout().catch(() => undefined)
         clearSession('loggedOut')
       },

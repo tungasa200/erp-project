@@ -211,6 +211,16 @@ describe('SCR-SYS-02 점검', () => {
     expect(await screen.findByRole('heading', { name: '서비스 점검 중이에요' })).toBeInTheDocument()
   })
 
+  it('점검 화면에 [다시 확인]과 이용약관·개인정보 처리방침 링크가 있다 (D-177 ②)', async () => {
+    stubFetch({ 'GET /api/users/me': () => problem(503, 'MAINTENANCE') })
+    renderApp('/login')
+    expect(await screen.findByRole('heading', { name: '서비스 점검 중이에요' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '다시 확인' })).toBeInTheDocument()
+    const legal = screen.getByRole('navigation', { name: '약관' })
+    expect(within(legal).getByRole('link', { name: '이용약관' })).toHaveAttribute('href', '/terms')
+    expect(within(legal).getByRole('link', { name: '개인정보 처리방침' })).toHaveAttribute('href', '/privacy')
+  })
+
   it('Retry-After가 없으면 "지금은 이용할 수 없어요"', async () => {
     stubFetch({ 'GET /api/users/me': () => problem(503, 'MAINTENANCE') })
     renderApp('/login')
@@ -299,6 +309,25 @@ describe('SCR-AUTH-03 회원가입', () => {
     expect(body).toEqual({ email: 'New@Example.com', password: 'worklog20', agreeTerms: true, agreePrivacy: true })
   })
 
+  it('만 14세 확인이 빠지면 동의 오류를 보이고 요청하지 않는다, 전체 동의에 포함된다 (D-172 ①)', async () => {
+    const fetchMock = stubFetch({})
+    renderApp('/signup')
+    const user = userEvent.setup()
+    await user.type(await screen.findByLabelText('이메일'), 'new@example.com')
+    await user.type(screen.getByLabelText('비밀번호'), 'worklog20')
+    await user.type(screen.getByLabelText('비밀번호 확인'), 'worklog20')
+    // 전체 동의로 모두 켠 뒤 만 14세 확인만 끈다
+    await user.click(screen.getByLabelText('전체 동의'))
+    const age = screen.getByRole('checkbox', { name: '[필수] 만 14세 이상입니다' })
+    expect(age).toBeChecked()
+    await user.click(age)
+    expect(screen.getByRole('checkbox', { name: '전체 동의' })).not.toBeChecked()
+    await user.click(screen.getByRole('button', { name: '회원가입' }))
+
+    expect(screen.getByText('필수 항목에 모두 동의해야 가입할 수 있습니다.')).toBeInTheDocument()
+    expect(fetchMock).not.toHaveBeenCalledWith('/api/auth/signup', expect.anything())
+  })
+
   it('EMAIL_ALREADY_EXISTS면 이메일 칸에 안내와 로그인 링크', async () => {
     stubFetch({ 'POST /api/auth/signup': () => problem(409, 'EMAIL_ALREADY_EXISTS') })
     renderApp('/signup')
@@ -373,6 +402,57 @@ describe('세션', () => {
     expect(fetchMock).toHaveBeenCalledWith('/api/auth/logout', expect.objectContaining({ method: 'POST' }))
     expect(queryClient.getQueryData(['me'])).toBeNull()
     expect(queryClient.getQueryData(['worklog', 'me'])).toBeUndefined()
+  })
+
+  describe('로그아웃 때 이 기기 웹 푸시 구독 해제 (D-184 ①)', () => {
+    const endpoint = 'https://push.example/sub-1'
+    function stubPushSubscription() {
+      const unsubscribe = vi.fn(async () => true)
+      Object.defineProperty(navigator, 'serviceWorker', {
+        configurable: true,
+        value: {
+          getRegistration: async () => ({ pushManager: { getSubscription: async () => ({ endpoint, unsubscribe }) } }),
+        },
+      })
+      return unsubscribe
+    }
+    afterEach(() => {
+      delete (navigator as { serviceWorker?: unknown }).serviceWorker
+    })
+    const deleteUrl = `/api/worklog/push/subscriptions?endpoint=${encodeURIComponent(endpoint)}`
+
+    it('구독이 있으면 POST /api/auth/logout 전에 DELETE로 지운다', async () => {
+      const unsubscribe = stubPushSubscription()
+      const fetchMock = stubFetch({
+        'GET /api/users/me': () => json(200, ME),
+        [`DELETE ${deleteUrl}`]: () => new Response(null, { status: 204 }),
+        'POST /api/auth/logout': () => new Response(null, { status: 204 }),
+      })
+      const { router } = renderApp('/', probeRoutes)
+      const user = userEvent.setup()
+      await user.click(await screen.findByRole('button', { name: 'logout' }))
+
+      await waitFor(() => expect(router.state.location.pathname).toBe('/login'))
+      expect(unsubscribe).toHaveBeenCalled()
+      const urls = fetchMock.mock.calls.map(([url]) => String(url))
+      expect(urls.indexOf(deleteUrl)).toBeGreaterThan(-1)
+      expect(urls.indexOf(deleteUrl)).toBeLessThan(urls.indexOf('/api/auth/logout'))
+    })
+
+    it('구독 삭제가 실패해도 로그아웃은 계속한다', async () => {
+      stubPushSubscription()
+      const fetchMock = stubFetch({
+        'GET /api/users/me': () => json(200, ME),
+        [`DELETE ${deleteUrl}`]: () => problem(500, 'INTERNAL_ERROR'),
+        'POST /api/auth/logout': () => new Response(null, { status: 204 }),
+      })
+      const { router } = renderApp('/', probeRoutes)
+      const user = userEvent.setup()
+      await user.click(await screen.findByRole('button', { name: 'logout' }))
+
+      await waitFor(() => expect(router.state.location.pathname).toBe('/login'))
+      expect(fetchMock).toHaveBeenCalledWith('/api/auth/logout', expect.objectContaining({ method: 'POST' }))
+    })
   })
 
   it('refresh까지 실패하면 로그인 화면에서 "다시 로그인해 주세요"를 보여 주고 원래 경로를 기억한다', async () => {

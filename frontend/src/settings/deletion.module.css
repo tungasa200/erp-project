@@ -11,6 +11,8 @@
   display: inline-flex;
   align-items: center;
   min-height: var(--size-touch);
+  /* "← 계정" 글자 폭이 44px보다 좁아(≤767px QA) 누르는 너비를 맞춘다 */
+  min-width: var(--size-touch);
   color: var(--color-accent-ink);
   font-size: 14px;
   font-weight: 700;

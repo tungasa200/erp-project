@@ -1,4 +1,4 @@
-// SCR-SYS-02 ② 점검 안내 페이지
+// SCR-SYS-02 ② 점검 안내 페이지. 라우터 대신 그려진다(MaintenanceGate)
 import styles from './system.module.css'
 
 function formatTime(date: Date) {
@@ -28,6 +28,16 @@ export function MaintenancePage({ retryAt }: { retryAt: Date | null }) {
           {retryAt ? `${formatTime(retryAt)} 이후 다시 이용할 수 있어요.` : '지금은 이용할 수 없어요.'} 기록은 안전하게
           보관돼 있어요.
         </p>
+        <div className={styles.actions}>
+          <button type="button" className={styles.primary} onClick={() => window.location.reload()}>
+            다시 확인
+          </button>
+        </div>
+        {/* 점검 중에도 약관·처리방침은 열린다(D-177 ②). 라우터 밖에서 그려지므로 <Link> 대신 <a> */}
+        <nav className={styles.legal} aria-label="약관">
+          <a href="/terms">이용약관</a>
+          <a href="/privacy">개인정보 처리방침</a>
+        </nav>
       </div>
     </main>
   )

@@ -6,6 +6,7 @@ import { useAuth } from '../auth/useAuth'
 import { useOnline } from '../components/useOnline'
 import { HomeDashboard } from '../home/HomeDashboard'
 import { NotificationBell } from '../notifications/NotificationBell'
+import { InstallGuide } from '../pwa/InstallGuide'
 import { EXAMPLES } from '../quickInput/examples'
 import { QuickInput } from '../quickInput/QuickInput'
 import { useQuickSave } from '../tasks/useQuickSave'
@@ -102,6 +103,8 @@ export function HomePage() {
           </section>
         }
       />
+      {/* SCR-MOB-02 설치 안내: 모바일 홈에서만(넓은 화면은 CSS로 숨김) */}
+      <InstallGuide />
     </div>
   )
 }

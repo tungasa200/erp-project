@@ -3,6 +3,9 @@
 import { useId, useState, type ReactNode } from 'react'
 import type { Me } from '../api/types'
 import { useAuth } from '../auth/useAuth'
+import { useToast } from '../components/useToast'
+import { isStandalone, promptInstall, useCanInstall } from '../pwa/install'
+import { INSTALLED_TOAST } from '../pwa/InstallGuide'
 import { WEEKDAY_NAMES } from '../quickInput/dates'
 import { ConflictBanner, Row, SaveError } from './parts'
 import { TimeZoneCombobox } from './TimeZoneCombobox'
@@ -64,6 +67,7 @@ export function GeneralSettings() {
         save={save}
         workHours={<WorkHoursSetting save={worklog.save} reloadKey={worklogReloads} />}
       />
+      <InstallAppRow />
     </section>
   )
 }
@@ -177,5 +181,25 @@ function GeneralForm({ user, save, workHours }: { user: Me; save: Save; workHour
       </Row>
       <SaveError id={`${id}-sc-error`} failure={shortcuts.failure} onRetry={shortcuts.retry} />
     </>
+  )
+}
+
+/** SCR-MOB-02: 데스크톱 Chrome·Edge는 카드 대신 여기서 설치한다. 브라우저가 설치 창을 줄 수 있을 때만 보인다 */
+function InstallAppRow() {
+  const canInstall = useCanInstall()
+  const { showToast } = useToast()
+  if (!canInstall || isStandalone()) return null
+  return (
+    <Row title="앱 설치" description="브라우저 탭 없이 따로 열고 알림도 받아요">
+      <button
+        type="button"
+        className={styles.installApp}
+        onClick={async () => {
+          if ((await promptInstall()) === 'accepted') showToast(INSTALLED_TOAST)
+        }}
+      >
+        WY Worklog 앱 설치
+      </button>
+    </Row>
   )
 }
