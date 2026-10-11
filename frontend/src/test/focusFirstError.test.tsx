@@ -1,8 +1,8 @@
-// REL-09 화면정의서 2.5: 제출 때 오류가 있으면 화면 순서상 첫 오류 칸으로 포커스(가입·로그인)
+// REL-09 화면정의서 2.5: 제출 때 오류가 있으면 화면 순서상 첫 오류 칸으로 포커스(가입·로그인·비밀번호 찾기·재설정)
 import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { problem, renderApp, stubFetch } from './renderApp'
+import { json, problem, renderApp, stubFetch } from './renderApp'
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -109,5 +109,72 @@ describe('SCR-AUTH-02 로그인 실패 시 첫 오류 칸으로 포커스', () =
     await user.click(submit)
     expect(await screen.findByRole('alert')).toHaveTextContent('이메일 또는 비밀번호가 맞지 않아요')
     expect(submit).toHaveFocus()
+  })
+})
+
+describe('SCR-AUTH-04 비밀번호 찾기 실패 시 이메일 칸으로 포커스(R15-12)', () => {
+  it('빈 채로 내면 이메일 칸으로', async () => {
+    stubFetch({})
+    renderApp('/password/forgot')
+    const user = userEvent.setup()
+    await user.click(await screen.findByRole('button', { name: '인증번호 받기' }))
+    const email = screen.getByLabelText('이메일')
+    await waitFor(() => expect(email).toHaveFocus())
+    expect(email).toHaveAccessibleDescription('입력해 주세요')
+  })
+
+  it('형식이 틀리면 Enter로 내도 이메일 칸에 남고 문구를 읽는다', async () => {
+    stubFetch({})
+    renderApp('/password/forgot')
+    const user = userEvent.setup()
+    const email = await screen.findByLabelText('이메일')
+    await user.type(email, 'not-an-email')
+    await user.tab()
+    await user.keyboard('{Enter}')
+    await waitFor(() => expect(email).toHaveFocus())
+    expect(email).toHaveAccessibleDescription('이메일 형식이 맞지 않아요')
+  })
+})
+
+describe('SCR-AUTH-05 비밀번호 재설정 저장 실패 시 첫 오류 칸으로 포커스(R15-12)', () => {
+  async function toPasswordStep(confirmHandler?: () => Response) {
+    const later = (s: number) => new Date(Date.now() + s * 1000).toISOString()
+    stubFetch({
+      'POST /api/auth/password-reset': () => json(202, { expiresAt: later(600), resendAvailableAt: later(60) }),
+      'POST /api/auth/password-reset/verify': () => new Response(null, { status: 204 }),
+      ...(confirmHandler ? { 'POST /api/auth/password-reset/confirm': confirmHandler } : {}),
+    })
+    renderApp('/password/forgot')
+    const user = userEvent.setup()
+    await user.type(await screen.findByLabelText('이메일'), 'me@example.com{Enter}')
+    await user.type(await screen.findByRole('textbox', { name: '인증번호' }), '123456')
+    await waitFor(() => expect(screen.getByLabelText('새 비밀번호')).toHaveFocus())
+    return user
+  }
+
+  it('규칙에 안 맞으면 새 비밀번호 칸으로', async () => {
+    const user = await toPasswordStep()
+    await user.type(screen.getByLabelText('새 비밀번호'), 'short')
+    await user.click(screen.getByRole('button', { name: '저장하고 다시 로그인' }))
+    await waitFor(() => expect(screen.getByLabelText('새 비밀번호')).toHaveFocus())
+  })
+
+  it('확인이 다르면 Enter로 내도 확인 칸으로', async () => {
+    const user = await toPasswordStep()
+    await user.type(screen.getByLabelText('새 비밀번호'), 'worklog20')
+    await user.type(screen.getByLabelText('새 비밀번호 확인'), 'worklog21{Enter}')
+    const confirm = screen.getByLabelText('새 비밀번호 확인')
+    await waitFor(() => expect(confirm).toHaveFocus())
+    expect(confirm).toHaveAccessibleDescription('비밀번호가 일치하지 않아요')
+  })
+
+  it('서버가 비밀번호 규칙 오류를 돌려주면 새 비밀번호 칸으로', async () => {
+    const user = await toPasswordStep(() =>
+      problem(400, 'VALIDATION_FAILED', { errors: [{ field: 'newPassword', code: 'PASSWORD_LENGTH' }] }),
+    )
+    await user.type(screen.getByLabelText('새 비밀번호'), 'worklog20')
+    await user.type(screen.getByLabelText('새 비밀번호 확인'), 'worklog20')
+    await user.click(screen.getByRole('button', { name: '저장하고 다시 로그인' }))
+    await waitFor(() => expect(screen.getByLabelText('새 비밀번호')).toHaveFocus())
   })
 })

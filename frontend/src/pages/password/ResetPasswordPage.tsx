@@ -6,6 +6,7 @@ import { toastForError } from '../../api/errorToast'
 import { ApiError } from '../../api/problem'
 import { passwordViolations, type PasswordRuleCode } from '../../auth/passwordRules'
 import { useToast } from '../../components/useToast'
+import { useFocusFirstError } from '../auth/useFocusFirstError'
 import { codeFailure, passwordResetApi, type CodeTimes } from '../../verification/api'
 import { CodeStep } from '../../verification/CodeStep'
 import type { ResetState } from './ForgotPasswordPage'
@@ -36,6 +37,7 @@ function ResetForm({ email, times }: { email: string; times: CodeTimes }) {
   const [confirm, setConfirm] = useState('')
   const [errors, setErrors] = useState<{ password?: string; confirm?: string; form?: string }>({})
   const [busy, setBusy] = useState(false)
+  const { ref: formRef, focusFirstError } = useFocusFirstError<HTMLFormElement>()
 
   // 코드를 확인하면 코드 칸이 잠기므로 새 비밀번호 칸으로 포커스를 옮긴다 (SCR-AUTH-05)
   useEffect(() => {
@@ -53,7 +55,10 @@ function ResetForm({ email, times }: { email: string; times: CodeTimes }) {
     else if (violations.length) next.password = '비밀번호 규칙을 확인해 주세요.'
     if (!next.password && confirm !== password) next.confirm = '비밀번호가 일치하지 않아요'
     setErrors(next)
-    if (next.password || next.confirm) return
+    if (next.password || next.confirm) {
+      focusFirstError()
+      return
+    }
 
     setBusy(true)
     try {
@@ -69,6 +74,7 @@ function ResetForm({ email, times }: { email: string; times: CodeTimes }) {
       } else if (err instanceof ApiError && err.code === 'VALIDATION_FAILED') {
         const codes = err.problem?.errors?.filter((x) => x.field === 'newPassword').map((x) => x.code) ?? []
         setErrors({ password: codes.includes('PASSWORD_TOO_LONG_BYTES') ? TOO_LONG : '비밀번호 규칙을 확인해 주세요.' })
+        focusFirstError()
       } else setErrors({ form: toastForError(err).message })
     } finally {
       setBusy(false)
@@ -77,7 +83,7 @@ function ResetForm({ email, times }: { email: string; times: CodeTimes }) {
 
   return (
     <PasswordLayout>
-      <form className={styles.form} onSubmit={(e) => void submit(e)} noValidate>
+      <form ref={formRef} className={styles.form} onSubmit={(e) => void submit(e)} noValidate>
         <h1 className={styles.title}>비밀번호 재설정</h1>
         <p className={styles.lead}>
           <b className={styles.email}>{email}</b>으로 보낸 6자리 숫자를 입력하세요.
