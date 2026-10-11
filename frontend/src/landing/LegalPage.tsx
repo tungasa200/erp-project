@@ -14,6 +14,26 @@ export interface LegalDoc {
 
 const BLANK = '[확정 전]'
 
+const URL_RE = /(https:\/\/[^\s]+)/
+
+/** 문구 속 주소(https://…)는 새 탭으로 여는 링크로 */
+function Linked({ children }: { children: string }) {
+  return (
+    <>
+      {children.split(URL_RE).map((part, i) =>
+        i % 2 === 1 ? (
+          <a key={i} href={part} target="_blank" rel="noopener noreferrer" className={styles.link}>
+            {part}
+            <span className="visually-hidden"> (새 탭에서 열림)</span>
+          </a>
+        ) : (
+          part
+        ),
+      )}
+    </>
+  )
+}
+
 /** 확정되지 않은 자리를 노란 표시로 */
 function Text({ children }: { children: string }) {
   const parts = children.split(BLANK)
@@ -22,7 +42,7 @@ function Text({ children }: { children: string }) {
       {parts.map((part, i) => (
         <Fragment key={i}>
           {i > 0 && <mark className={styles.blank}>{BLANK}</mark>}
-          {part}
+          <Linked>{part}</Linked>
         </Fragment>
       ))}
     </>

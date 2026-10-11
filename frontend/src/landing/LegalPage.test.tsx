@@ -20,6 +20,25 @@ describe('SCR-AUTH-06 처리방침 · SCR-AUTH-07 이용약관', () => {
     const box = screen.getByRole('region', { name: '3. 개인정보의 국외 이전(처리 위탁·보관) 표' })
     expect(box).toHaveAttribute('tabindex', '0')
     expect(within(box).getByRole('cell', { name: 'Railway Corp.' })).toBeInTheDocument()
+    // 연락처 칸(REL-01 3차): 메일은 글자, 문의 양식 주소는 새 탭 링크
+    expect(
+      within(box)
+        .getAllByRole('columnheader')
+        .map((h) => h.textContent)[1],
+    ).toBe('연락처')
+    expect(within(box).getByRole('cell', { name: 'privacy@railway.com' })).toBeInTheDocument()
+    const links = within(box).getAllByRole('link')
+    expect(links.map((a) => a.getAttribute('href'))).toEqual([
+      'https://support.google.com/policies/contact/data_privacy_office',
+      'https://support.google.com/policies/contact/data_privacy_office',
+      'https://www.apple.com/legal/privacy/contact/',
+      'https://go.microsoft.com/fwlink/?linkid=2126612',
+    ])
+    links.forEach((a) => {
+      expect(a).toHaveAttribute('target', '_blank')
+      expect(a).toHaveAttribute('rel', 'noopener noreferrer')
+      expect(a).toHaveAccessibleName(/새 탭에서 열림/)
+    })
   })
 
   it('정해지지 않은 자리는 [확정 전]으로 표시하고 원문의 작업 메모는 보이지 않는다', () => {
@@ -38,6 +57,9 @@ describe('SCR-AUTH-06 처리방침 · SCR-AUTH-07 이용약관', () => {
     expect(titles).toHaveLength(13)
     expect(screen.getByRole('link', { name: /처음 화면으로/ })).toHaveAttribute('href', '/')
     expect(screen.getByText(/초안 ·/)).toHaveTextContent('시행일: [확정 전]')
+    // 이용 제한(제8조)은 통지·소명 절차까지 4개 항. 남은 빈칸은 머리·부칙의 공고일·시행일과 문의 메일(값 없는 빌드)뿐
+    expect(within(screen.getByRole('region', { name: '제8조 (이용 제한)' })).getAllByRole('listitem')).toHaveLength(4)
+    expect(document.querySelectorAll('main mark')).toHaveLength(4)
   })
 
   describe('운영자·문의 메일(REL-01)', () => {
@@ -61,7 +83,7 @@ describe('SCR-AUTH-06 처리방침 · SCR-AUTH-07 이용약관', () => {
       document.body.innerHTML = ''
       setup(<Terms />)
       const q = screen.getByRole('region', { name: '제12조 (문의)' })
-      expect(q).toHaveTextContent('contact@example.test')
+      expect(q).toHaveTextContent('서비스 이용에 관한 문의는 contact@example.test로 할 수 있습니다.')
       expect(within(q).queryByText('[확정 전]')).toBeNull()
     })
 
