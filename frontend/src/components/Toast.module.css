@@ -88,6 +88,23 @@
   cursor: pointer;
 }
 
+/* 되돌리기 토스트의 이동 링크(목업 TASK-04s ②): 되돌리기와 같은 굵기, 어두운 띠 위 연보라 */
+.viewLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--size-touch);
+  padding: 0 8px;
+  border-radius: 12px;
+  color: #b7b1f2;
+  font-size: 14px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.viewLink:hover {
+  text-decoration: underline;
+}
+
 .progress {
   position: absolute;
   left: 0;

@@ -1,8 +1,12 @@
 import { createApiClient } from './client'
+import { noteFailedTraceId } from './clientErrors'
 import { mockFetch } from './mockServer'
 import type {
+  AccountDeletionRequest,
   LoginRequest,
   Me,
+  PasswordChangeRequest,
+  PasswordChanged,
   ProfileUpdateRequest,
   SignupRequest,
   WorklogMe,
@@ -25,8 +29,15 @@ export function setMaintenanceHandler(handler: (retryAt: Date | null) => void) {
   maintenanceHandler = handler
 }
 
+const baseFetch: typeof fetch = useMock ? mockFetch : (...args) => fetch(...args)
+
 export const api = createApiClient({
-  fetchFn: useMock ? mockFetch : (...args) => fetch(...args),
+  // 실패한 응답의 traceId를 화면 오류 보고(P4-13)에 붙이려고 기억해 둔다
+  fetchFn: async (...args) => {
+    const res = await baseFetch(...args)
+    if (!res.ok) noteFailedTraceId(res.headers.get('X-Trace-Id'))
+    return res
+  },
   onSessionExpired: (code) => sessionExpiredHandler(code),
   onMaintenance: (retryAt) => maintenanceHandler(retryAt),
 })
@@ -36,6 +47,12 @@ export const authApi = {
   login: (body: LoginRequest) => api.request<Me>('/api/auth/login', { method: 'POST', body }),
   logout: () => api.request<void>('/api/auth/logout', { method: 'POST' }),
   me: () => api.request<Me>('/api/users/me'),
+  /** SCR-SET-06 ② (D-173). currentSessionKept=false면 서버가 쿠키를 지웠다 */
+  changePassword: (body: PasswordChangeRequest) =>
+    api.request<PasswordChanged>('/api/auth/password-change', { method: 'POST', body }),
+  /** SCR-SET-07 회원 탈퇴 (D-176). 204면 서버가 쿠키를 지웠다 */
+  deleteAccount: (body: AccountDeletionRequest) =>
+    api.request<void>('/api/users/me/deletion', { method: 'POST', body }),
   updateMe: (body: ProfileUpdateRequest) => api.request<Me>('/api/users/me', { method: 'PATCH', body }),
 }
 

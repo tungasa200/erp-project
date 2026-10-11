@@ -10,7 +10,7 @@ afterEach(() => {
 
 // 모바일 하단 탭은 CSS로만 숨겨 jsdom에서는 늘 있다
 describe('SCR-COM-01 ⑤ 모바일 하단 탭 (P1-X-01)', () => {
-  it('더보기를 누르면 업무·설정 메뉴가 열려 첫 항목으로 포커스가 가고, Esc로 닫으면 더보기로 돌아온다', async () => {
+  it('더보기를 누르면 업무·통계·보관함·설정 메뉴가 열려 첫 항목으로 포커스가 가고, Esc로 닫으면 더보기로 돌아온다', async () => {
     stubFetch({ 'GET /api/users/me': () => json(200, ME) })
     renderApp('/')
     const tabs = await screen.findByRole('navigation', { name: '하단 탭' })
@@ -25,7 +25,7 @@ describe('SCR-COM-01 ⑤ 모바일 하단 탭 (P1-X-01)', () => {
       within(menu)
         .getAllByRole('link')
         .map((a) => a.textContent),
-    ).toEqual(['업무', '설정'])
+    ).toEqual(['업무', '통계', '보관함', '설정'])
     expect(within(menu).getByRole('link', { name: '업무' })).toHaveFocus()
 
     await userEvent.keyboard('{Escape}')
@@ -43,26 +43,7 @@ describe('SCR-COM-01 ⑤ 모바일 하단 탭 (P1-X-01)', () => {
     expect(within(tabs).queryByRole('list', { name: '더보기 메뉴' })).not.toBeInTheDocument()
     expect(within(tabs).getByRole('button', { name: '더보기' })).toHaveFocus()
   })
-
-  it('가운데 +는 홈으로 가서 빠른 입력칸에 포커스한다', async () => {
-    stubFetch({ 'GET /api/users/me': () => json(200, ME) })
-    const { router } = renderApp('/tasks')
-    const tabs = await screen.findByRole('navigation', { name: '하단 탭' })
-    await userEvent.click(within(tabs).getByRole('button', { name: '빠른 기록' }))
-    expect(router.state.location.pathname).toBe('/')
-    await waitFor(() => expect(screen.getByRole('textbox', { name: '빠른 기록' })).toHaveFocus())
-  })
-
-  it('오프라인이면 가운데 +를 막는다 (SCR-SYS-02 ③)', async () => {
-    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
-    stubFetch({ 'GET /api/users/me': () => json(200, ME) })
-    const { router } = renderApp('/tasks')
-    const tabs = await screen.findByRole('navigation', { name: '하단 탭' })
-    const quick = within(tabs).getByRole('button', { name: '빠른 기록' })
-    expect(quick).toBeDisabled()
-    await userEvent.click(quick)
-    expect(router.state.location.pathname).toBe('/tasks')
-  })
+  // 가운데 +(빠른 기록 시트, 끊긴 동안 입력 막힘)는 quickSheet.test.tsx (P4-03)
 })
 
 describe('SCR-COM-03 ② 타이머 명령 (P2-06)', () => {
@@ -127,5 +108,38 @@ describe('SCR-COM-03 ② 타이머 명령 (P2-06)', () => {
     await userEvent.click(within(palette).getByRole('option', { name: /다른 업무로 전환/ }))
     expect(await screen.findByText('연결되면 타이머를 바꿀 수 있어요')).toBeInTheDocument()
     expect(screen.queryByRole('dialog', { name: '다른 업무로 전환' })).not.toBeInTheDocument()
+  })
+})
+
+describe('P4 화면 경로 연결 (통계·보관함)', () => {
+  it('/stats는 통계 화면, 업무 목록 아래 "보관함"은 /tasks/archive 보관함 화면', async () => {
+    const empty = { completedTaskCount: 0, recordCount: 0, confirmedLogCount: 0, daily: [], projects: [] }
+    stubFetch({
+      'GET /api/users/me': () => json(200, ME),
+      'GET /api/worklog/stats': () => json(200, { from: '', to: '', ...empty, firstRecordDate: null }),
+      'GET /api/worklog/stats/plan-vs-actual': () => json(200, { from: '', to: '', weeks: [], topDiffs: [] }),
+    })
+    const { router } = renderApp('/stats')
+    expect(await screen.findByRole('heading', { level: 1, name: '통계' })).toBeInTheDocument()
+
+    await router.navigate('/tasks')
+    await userEvent.click(await screen.findByRole('link', { name: '보관함' }))
+    expect(router.state.location.pathname).toBe('/tasks/archive')
+    expect(await screen.findByRole('heading', { level: 1, name: '보관함' })).toBeInTheDocument()
+  })
+})
+
+describe('SCR-COM-05 ② 알림 종 배치 (P4-01)', () => {
+  it('사이드바 위(브랜드 줄)에 종이 있고 안 읽은 수를 이름으로 읽는다. 홈 머리에도 모바일용 종이 있다', async () => {
+    stubFetch({
+      'GET /api/users/me': () => json(200, ME),
+      'GET /api/worklog/notifications': () => json(200, { items: [], nextCursor: null, unreadCount: 12 }),
+    })
+    renderApp('/')
+    const sidebar = await screen.findByRole('navigation', { name: '주 메뉴' })
+    expect(await within(sidebar).findByRole('button', { name: '알림, 안 읽음 12개' })).toHaveTextContent('9+')
+    // 홈 머리의 종은 CSS로 모바일에서만 보인다(jsdom은 둘 다 그린다)
+    const header = screen.getByRole('heading', { level: 1 }).closest('header')!
+    expect(within(header).getByRole('button', { name: '알림, 안 읽음 12개' })).toBeInTheDocument()
   })
 })

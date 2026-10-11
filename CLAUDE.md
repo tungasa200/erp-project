@@ -17,7 +17,7 @@ MSA ERP 프로젝트. 이 파일은 git으로 공유되는 작업 규칙이다. 
 | `WY-backend2` | worklog-service, api-gateway, 개발 도구(`tools/`: VS Code 세션 현황 대시보드 등) |
 | `WY-backend3` | 개발 도구(`tools/`) 병렬 작업 보조: `WY-pm`이 배정한 범위만. 공용 연결 파일은 `WY-backend2`에 요청 |
 | `WY-frontend` | `frontend/` (공용 파일: 라우터, AppShell, API 연결·mock, 생성 타입, 디자인 토큰 포함) |
-| `WY-frontend2` | `frontend/`의 캘린더 영역(`frontend/src/calendar/`). 공용 파일 변경은 `WY-frontend`에 요청 |
+| `WY-frontend2` | `frontend/`의 캘린더 영역(`frontend/src/calendar/`)과 P4 새 화면 폴더(통계 `src/stats/`, 보관함, 알림 센터 화면, 랜딩·공개 화면 `src/landing/`: 랜딩·처리방침·약관, E2E 시험 `frontend/e2e/`). 공용 파일 변경은 `WY-frontend`에 요청 |
 | `WY-browser` | 외부 서비스 콘솔 작업: Railway·Vercel 등 외부 도구 설정 |
 | `WY-qa` | 사용성·기능 테스트: agent-browser로 구현 화면 검증, 코드를 읽어 요구사항·화면정의서와 대조 |
 | `WY-qa2` | `WY-qa`와 같은 테스트를 화면 영역으로 나눠 병렬로: `WY-pm`이 나눠 준 영역만, dev 서버는 `WY-qa` 것을 함께 씀 |

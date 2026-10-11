@@ -129,7 +129,7 @@ final class LogDocx {
 		small(p.createRun(), " / ");
 		field(p, "NUMPAGES");
 		small(p.createRun(), "\t");
-		small(p.createRun(), "worklog");
+		small(p.createRun(), "WY Worklog");
 	}
 
 	private static void field(XWPFParagraph p, String instr) {

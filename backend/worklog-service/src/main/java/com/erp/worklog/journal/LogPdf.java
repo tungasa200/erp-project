@@ -374,7 +374,7 @@ final class LogPdf {
 			PdfContentByte cb = writer.getDirectContent();
 			float y = mm(8);
 			ColumnText.showTextAligned(cb, Element.ALIGN_LEFT, text(left, 8, false, GRAY), document.left(), y, 0);
-			ColumnText.showTextAligned(cb, Element.ALIGN_RIGHT, text("worklog", 8, false, GRAY), document.right(), y, 0);
+			ColumnText.showTextAligned(cb, Element.ALIGN_RIGHT, text("WY Worklog", 8, false, GRAY), document.right(), y, 0);
 			Phrase page = text(writer.getPageNumber() + " / ", 8, false, GRAY);
 			float center = (document.left() + document.right()) / 2;
 			float width = regular.getWidthPoint(writer.getPageNumber() + " / ", 8);

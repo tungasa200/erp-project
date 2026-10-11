@@ -1,6 +1,6 @@
 // SCR-AUTH-02 로그인
 import { useEffect, useState, type FormEvent } from 'react'
-import { Link, useLocation } from 'react-router'
+import { Link, useLocation, useNavigate } from 'react-router'
 import { toastForError } from '../api/errorToast'
 import { ApiError } from '../api/problem'
 import type { LoginLocationState } from '../app/guards'
@@ -23,7 +23,9 @@ function formatRemaining(ms: number) {
 export function LoginPage() {
   const { login } = useAuth()
   const { showToast } = useToast()
-  const state = (useLocation().state ?? {}) as LoginLocationState
+  const location = useLocation()
+  const navigate = useNavigate()
+  const state = (location.state ?? {}) as LoginLocationState
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -32,6 +34,13 @@ export function LoginPage() {
   const [notice, setNotice] = useState<Notice | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [now, setNow] = useState(() => Date.now())
+  const [withdrawnShown, setWithdrawnShown] = useState(state.reason === 'withdrawn')
+
+  // 탈퇴 완료 띠는 새로 고치면 사라지게(SET-07s ④) 기록의 state에서 이유를 지운다. 띠는 위 state로 이미 잡아 둠
+  useEffect(() => {
+    const kept = (location.state ?? {}) as LoginLocationState
+    if (kept.reason === 'withdrawn') void navigate('.', { replace: true, state: { ...kept, reason: undefined } })
+  }, [location, navigate])
 
   const waitUntil = notice && notice.kind !== 'invalid' ? notice.until : 0
   const waiting = waitUntil > now
@@ -98,6 +107,39 @@ export function LoginPage() {
         {state.reason === 'expired' && !notice && (
           <div role="status" className={`${styles.alert} ${styles.alertInfo}`}>
             다시 로그인해 주세요. 로그인 후 보던 화면으로 돌아가요.
+          </div>
+        )}
+        {state.reason === 'passwordChanged' && !notice && (
+          <div role="status" className={`${styles.alert} ${styles.alertInfo}`}>
+            비밀번호를 바꿨어요. 새 비밀번호로 다시 로그인해 주세요.
+          </div>
+        )}
+        {/* SCR-SET-07 ④ 탈퇴 완료. 닫기 전까지 남는다(로그인 실패 안내와 함께 보일 수 있음) */}
+        {withdrawnShown && (
+          <div role="status" className={`${styles.alert} ${styles.alertDone}`}>
+            <span className={styles.alertBody}>회원 탈퇴가 완료되었습니다. 그동안 이용해 주셔서 감사합니다.</span>
+            <button
+              type="button"
+              className={styles.alertClose}
+              aria-label="안내 닫기"
+              onClick={() => {
+                setWithdrawnShown(false)
+                document.getElementById('login-email')?.focus()
+              }}
+            >
+              <svg
+                aria-hidden="true"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.6"
+                strokeLinecap="round"
+              >
+                <path d="M6 6l12 12M18 6L6 18" />
+              </svg>
+            </button>
           </div>
         )}
         {state.reason === 'deleted' && !notice && (

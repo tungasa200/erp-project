@@ -30,6 +30,8 @@ class UserSetting {
 	private LocalTime workHoursEnd;
 	@JdbcType(LocalTimeJdbcType.class)
 	private LocalTime dailyCloseTime;
+	/** 하루 마감 알림 (P4-01). 다음 알림 시각(next_notify_at)은 알림 작업이 JDBC로 관리해 여기 두지 않는다. */
+	private boolean dailyCloseNotifyEnabled;
 	/** 새 행은 null이라 Spring Data가 persist로 넣고, Hibernate가 0부터 센다. */
 	@Version
 	private Long version;
@@ -46,14 +48,17 @@ class UserSetting {
 		s.workHoursStart = DEFAULT_WORK_HOURS_START;
 		s.workHoursEnd = DEFAULT_WORK_HOURS_END;
 		s.dailyCloseTime = DEFAULT_DAILY_CLOSE_TIME;
+		s.dailyCloseNotifyEnabled = false;
 		s.createdAt = now;
 		s.updatedAt = now;
 		return s;
 	}
 
-	void update(Boolean timeTrackingEnabled, LocalTime workHoursStart, LocalTime workHoursEnd, LocalTime dailyCloseTime,
-			Instant now) {
+	/** 바꾼 칸 중 하루 마감 알림 시각에 영향이 있는 것(마감 시각·알림 켜기)이 있으면 true. */
+	boolean update(Boolean timeTrackingEnabled, LocalTime workHoursStart, LocalTime workHoursEnd, LocalTime dailyCloseTime,
+			Boolean dailyCloseNotifyEnabled, Instant now) {
 		boolean changed = false;
+		boolean scheduleChanged = false;
 		if (timeTrackingEnabled != null && timeTrackingEnabled != this.timeTrackingEnabled) {
 			this.timeTrackingEnabled = timeTrackingEnabled;
 			changed = true;
@@ -69,10 +74,17 @@ class UserSetting {
 		if (dailyCloseTime != null && !dailyCloseTime.equals(this.dailyCloseTime)) {
 			this.dailyCloseTime = dailyCloseTime;
 			changed = true;
+			scheduleChanged = true;
+		}
+		if (dailyCloseNotifyEnabled != null && dailyCloseNotifyEnabled != this.dailyCloseNotifyEnabled) {
+			this.dailyCloseNotifyEnabled = dailyCloseNotifyEnabled;
+			changed = true;
+			scheduleChanged = true;
 		}
 		if (changed) {
 			this.updatedAt = now;
 		}
+		return scheduleChanged;
 	}
 
 	boolean timeTrackingEnabled() {
@@ -89,6 +101,10 @@ class UserSetting {
 
 	LocalTime dailyCloseTime() {
 		return dailyCloseTime;
+	}
+
+	boolean dailyCloseNotifyEnabled() {
+		return dailyCloseNotifyEnabled;
 	}
 
 	long version() {

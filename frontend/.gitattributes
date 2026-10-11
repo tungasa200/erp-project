@@ -1,1 +1,7 @@
 * text eol=lf
+# 그림·글꼴은 줄바꿈을 바꾸면 깨지므로 이진 파일로 둔다(P4-03 PWA 아이콘)
+*.png binary
+*.jpg binary
+*.ico binary
+*.woff binary
+*.woff2 binary

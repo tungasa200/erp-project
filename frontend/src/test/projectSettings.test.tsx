@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { MemoryRouter } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ToastProvider } from '../components/Toast'
 import type { Project, Tag } from '../projects/api'
@@ -75,7 +76,9 @@ function setup(options: { createProblem?: string } = {}) {
   render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
       <ToastProvider>
-        <ProjectSettings />
+        <MemoryRouter>
+          <ProjectSettings />
+        </MemoryRouter>
       </ToastProvider>
     </QueryClientProvider>,
   )
@@ -91,7 +94,10 @@ describe('SCR-SET-08 프로젝트', () => {
         .getAllByRole('listitem')
         .map((li) => li.textContent),
     ).toEqual(['개발업무 2보관', '영업업무 2보관', '공통업무 2보관'])
-    expect(screen.getByText('보관한 프로젝트 1')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: '보관한 프로젝트 1' })).toHaveAttribute(
+      'href',
+      '/tasks/archive?type=projects',
+    )
   })
 
   it('보관하면 목록에서 빠지고 되돌리기로 보관을 푼다', async () => {

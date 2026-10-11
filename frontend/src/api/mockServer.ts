@@ -7,6 +7,7 @@
 import { EMAIL_PATTERN, passwordViolations } from '../auth/passwordRules'
 import { handleScheduleMock } from '../calendar/mockSchedules'
 import { checkCode, codeStatus, issueCode } from './mockCodes'
+import { handleNotificationsMock } from './mockNotifications'
 import { weekStartNumber } from '../quickInput/dates'
 import { handleWorklog } from './mockWorklog'
 import type { FieldError, Problem } from './problem'
@@ -104,10 +105,19 @@ function updateProfile(current: Me, body: ProfileUpdateRequest): Me | Response {
   }
   if (body.weekStart !== undefined) next.weekStart = body.weekStart
   if (body.keyboardShortcutsEnabled !== undefined) next.keyboardShortcutsEnabled = body.keyboardShortcutsEnabled
+  // 테마(SCR-SET-04): 키 컬러는 아무 #RRGGBB(대문자로 저장), 배경은 4종 중 하나
+  if (body.themeAccent !== undefined) {
+    if (/^#[0-9A-Fa-f]{6}$/.test(body.themeAccent)) next.themeAccent = body.themeAccent.toUpperCase()
+    else errors.push({ field: 'themeAccent', code: 'THEME_ACCENT_INVALID' })
+  }
+  if (body.themeGround !== undefined) next.themeGround = body.themeGround
   if (errors.length) return problem(400, 'VALIDATION_FAILED', { errors })
   const changed = JSON.stringify(next) !== JSON.stringify(current)
   return changed ? { ...next, version: current.version + 1 } : current
 }
+
+// 비밀번호 변경: 현재 비밀번호를 5번 틀리면 15분 동안 막는다(429 PASSWORD_CHANGE_LOCKED). 새로 고침하면 풀린다.
+let passwordChangeLock = { fails: 0, until: 0 }
 
 function startSession(state: MockState, email: string) {
   state.session = { email, accessExpiresAt: Date.now() + ACCESS_TTL_MS }
@@ -227,6 +237,57 @@ export const mockFetch: typeof fetch = async (input, init) => {
     return new Response(null, { status: 204 })
   }
 
+  // SCR-SET-07 회원 탈퇴(D-176). 틀린 횟수는 비밀번호 변경과 함께 센다
+  if (method === 'POST' && path === '/api/users/me/deletion') {
+    const account = state.session && state.accounts[state.session.email]
+    if (!state.session || !account) return problem(401, 'UNAUTHENTICATED')
+    if (passwordChangeLock.until > Date.now()) {
+      return problem(429, 'PASSWORD_CHANGE_LOCKED', {
+        retryAfterSeconds: Math.ceil((passwordChangeLock.until - Date.now()) / 1000),
+      })
+    }
+    const password = String(body.password ?? '')
+    if (!password) return problem(400, 'VALIDATION_FAILED', { errors: [{ field: 'password', code: 'REQUIRED' }] })
+    if (password !== account.password) {
+      passwordChangeLock.fails += 1
+      if (passwordChangeLock.fails >= 5) passwordChangeLock = { fails: 0, until: Date.now() + 15 * 60 * 1000 }
+      return problem(400, 'PASSWORD_MISMATCH', { errors: [{ field: 'password', code: 'PASSWORD_MISMATCH' }] })
+    }
+    passwordChangeLock = { fails: 0, until: 0 }
+    delete state.accounts[state.session.email]
+    state.session = null
+    save(state)
+    return new Response(null, { status: 204 })
+  }
+
+  if (method === 'POST' && path === '/api/auth/password-change') {
+    const account = state.session && state.accounts[state.session.email]
+    if (!state.session || !account) return problem(401, 'UNAUTHENTICATED')
+    const email = state.session.email
+    if (passwordChangeLock.until > Date.now()) {
+      return problem(429, 'PASSWORD_CHANGE_LOCKED', {
+        retryAfterSeconds: Math.ceil((passwordChangeLock.until - Date.now()) / 1000),
+      })
+    }
+    const current = String(body.currentPassword ?? '')
+    const next = String(body.newPassword ?? '')
+    if (!current) return problem(400, 'VALIDATION_FAILED', { errors: [{ field: 'currentPassword', code: 'REQUIRED' }] })
+    if (current !== account.password) {
+      passwordChangeLock.fails += 1
+      if (passwordChangeLock.fails >= 5) passwordChangeLock = { fails: 0, until: Date.now() + 15 * 60 * 1000 }
+      return problem(400, 'CURRENT_PASSWORD_MISMATCH', {
+        errors: [{ field: 'currentPassword', code: 'CURRENT_PASSWORD_MISMATCH' }],
+      })
+    }
+    const errors: FieldError[] = passwordViolations(next, email).map((code) => ({ field: 'newPassword', code }))
+    if (next === current) errors.push({ field: 'newPassword', code: 'PASSWORD_SAME_AS_CURRENT' })
+    if (errors.length) return problem(400, 'VALIDATION_FAILED', { errors })
+    passwordChangeLock = { fails: 0, until: 0 }
+    account.password = next
+    save(state)
+    return json(200, { currentSessionKept: true })
+  }
+
   if (path.startsWith('/api/users/me/email-verification')) {
     const session = state.session
     const account = session && state.accounts[session.email]
@@ -267,6 +328,7 @@ export const mockFetch: typeof fetch = async (input, init) => {
     if (!session || !account || session.accessExpiresAt < Date.now()) return problem(401, 'UNAUTHENTICATED')
     const current: WorklogSettings = account.settings ?? {
       timeTrackingEnabled: false,
+      dailyCloseNotifyEnabled: false,
       workHoursStart: '09:00',
       workHoursEnd: '18:00',
       dailyCloseTime: '18:00',
@@ -354,7 +416,9 @@ export const mockFetch: typeof fetch = async (input, init) => {
       weekStart: weekStartNumber(profile.weekStart),
     }
     const handled =
-      handleScheduleMock(method, path, body, respond) ?? handleWorklog(method, path, body, respond, settings)
+      handleScheduleMock(method, path, body, respond) ??
+      handleNotificationsMock(method, path, respond) ??
+      handleWorklog(method, path, body, respond, settings)
     if (handled) return handled
   }
 

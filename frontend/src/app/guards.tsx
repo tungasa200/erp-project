@@ -1,6 +1,8 @@
 import { Navigate, Outlet, useLocation } from 'react-router'
+import { ApiError } from '../api/problem'
 import { sessionEndReason, type SessionEndReason } from '../auth/session'
 import { useAuth } from '../auth/useAuth'
+import { LandingPage } from '../landing/LandingPage'
 
 export interface LoginLocationState {
   from?: string
@@ -12,12 +14,18 @@ export function RequireAuth() {
   const { user, isLoading, error } = useAuth()
   const location = useLocation()
   if (isLoading) return null
+  // 점검 중(D-177 ②)에도 첫 화면 /는 랜딩을 보인다. 로그인 여부는 알 수 없지만 로그인 뒤 화면은 어차피 쓸 수 없다
+  if (error instanceof ApiError && error.code === 'MAINTENANCE' && location.pathname === '/') return <LandingPage />
   // 로그인 여부를 알 수 없으면 로그인 화면으로 보내지 않고 서버 오류 페이지(SCR-SYS-02 ①)를 보여 준다.
   if (error) throw error
   if (!user) {
+    const reason = sessionEndReason() ?? undefined
+    // 로그인하지 않은 방문자의 첫 화면 /는 랜딩(SCR-AUTH-01, P4-11). 세션이 끝나 쫓겨난 경우는 이유를 알리는 로그인 화면으로
+    if (location.pathname === '/' && !reason) return <LandingPage />
     const state: LoginLocationState = {
-      from: location.pathname + location.search + location.hash,
-      reason: sessionEndReason() ?? undefined,
+      // 탈퇴한 뒤에는 보던 화면(탈퇴 화면)으로 돌아갈 일이 없다
+      from: reason === 'withdrawn' ? undefined : location.pathname + location.search + location.hash,
+      reason,
     }
     return <Navigate to="/login" replace state={state} />
   }

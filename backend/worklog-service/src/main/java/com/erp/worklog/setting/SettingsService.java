@@ -4,6 +4,8 @@ import com.erp.common.error.ApiException;
 import com.erp.common.error.FieldErrorDetail;
 import com.erp.common.error.Problems;
 import com.erp.worklog.error.Conflicts;
+import com.erp.worklog.notification.NotifyScheduleChanged;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -20,21 +22,23 @@ import java.util.UUID;
 public class SettingsService {
 
 	public record Settings(boolean timeTrackingEnabled, LocalTime workHoursStart, LocalTime workHoursEnd,
-			LocalTime dailyCloseTime, long version) {
+			LocalTime dailyCloseTime, boolean dailyCloseNotifyEnabled, long version) {
 	}
 
 	public record Change(long version, Boolean timeTrackingEnabled, LocalTime workHoursStart, LocalTime workHoursEnd,
-			LocalTime dailyCloseTime) {
+			LocalTime dailyCloseTime, Boolean dailyCloseNotifyEnabled) {
 	}
 
 	private static final Settings DEFAULTS = new Settings(false, UserSetting.DEFAULT_WORK_HOURS_START,
-			UserSetting.DEFAULT_WORK_HOURS_END, UserSetting.DEFAULT_DAILY_CLOSE_TIME, 0);
+			UserSetting.DEFAULT_WORK_HOURS_END, UserSetting.DEFAULT_DAILY_CLOSE_TIME, false, 0);
 
 	private final UserSettingRepository settings;
+	private final ApplicationEventPublisher events;
 	private final Clock clock;
 
-	SettingsService(UserSettingRepository settings, Clock clock) {
+	SettingsService(UserSettingRepository settings, ApplicationEventPublisher events, Clock clock) {
 		this.settings = settings;
+		this.events = events;
 		this.clock = clock;
 	}
 
@@ -56,8 +60,8 @@ public class SettingsService {
 		} else if (setting.version() != change.version()) {
 			throw Conflicts.versionConflict();
 		}
-		setting.update(change.timeTrackingEnabled(), change.workHoursStart(), change.workHoursEnd(),
-				change.dailyCloseTime(), clock.instant());
+		boolean scheduleChanged = setting.update(change.timeTrackingEnabled(), change.workHoursStart(),
+				change.workHoursEnd(), change.dailyCloseTime(), change.dailyCloseNotifyEnabled(), clock.instant());
 		if (!setting.workHoursEnd().isAfter(setting.workHoursStart())) {
 			throw new ApiException(HttpStatus.BAD_REQUEST, Problems.VALIDATION_FAILED, "입력값을 확인해 주세요.",
 					List.of(new FieldErrorDetail("workHoursEnd", "INVALID_ORDER", "업무 종료 시각은 시작 시각보다 늦어야 해요.")),
@@ -72,11 +76,15 @@ public class SettingsService {
 			}
 			throw e;
 		}
+		if (scheduleChanged) {
+			// 같은 트랜잭션에서 다음 알림 시각을 다시 계산한다 (5.6)
+			events.publishEvent(new NotifyScheduleChanged(ownerId));
+		}
 		return view(setting);
 	}
 
 	private static Settings view(UserSetting s) {
 		return new Settings(s.timeTrackingEnabled(), s.workHoursStart(), s.workHoursEnd(), s.dailyCloseTime(),
-				s.version());
+				s.dailyCloseNotifyEnabled(), s.version());
 	}
 }

@@ -116,7 +116,7 @@ export function LogPaper(props: Props) {
 
       <footer className={styles.foot}>
         <span>{draft ? '초안 — 확정 전 일지' : `확정 ${stamp(props.confirmedAt, props.timeZone)}`}</span>
-        <span>worklog</span>
+        <span>WY Worklog</span>
       </footer>
     </article>
   )

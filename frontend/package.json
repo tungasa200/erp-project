@@ -10,6 +10,7 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "test": "vitest run",
+    "test:e2e": "playwright test -c e2e",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "gen:api": "openapi-typescript ../contracts/generated/identity.json -o src/api/generated/identity.ts --default-non-nullable false && openapi-typescript ../contracts/generated/worklog.json -o src/api/generated/worklog.ts --default-non-nullable false"
@@ -23,6 +24,7 @@
     "react-router": "^8.4.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.0",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
     "@testing-library/user-event": "^14.6.7",
@@ -36,7 +38,11 @@
     "prettier": "^3.9.9",
     "typescript": "~6.0.2",
     "vite": "^8.3.0",
-    "vitest": "^5.0.3"
+    "vite-plugin-pwa": "^2.0.0",
+    "vitest": "^5.0.3",
+    "workbox-build": "^7.4.1",
+    "workbox-precaching": "^7.4.1",
+    "workbox-window": "^7.4.1"
   },
   "overrides": {
     "openapi-typescript": {

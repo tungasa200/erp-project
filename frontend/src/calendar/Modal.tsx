@@ -41,11 +41,13 @@ interface Props {
   labelledBy: string
   onClose: () => void
   narrow?: boolean
+  /** 모바일(~767px)에서 아래에서 올라오는 시트로 띄운다(통계 기간 고르기) */
+  sheet?: boolean
   role?: 'dialog' | 'alertdialog'
   children: ReactNode
 }
 
-export function Modal({ labelledBy, onClose, narrow, role = 'dialog', children }: Props) {
+export function Modal({ labelledBy, onClose, narrow, sheet, role = 'dialog', children }: Props) {
   const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -75,7 +77,7 @@ export function Modal({ labelledBy, onClose, narrow, role = 'dialog', children }
         role={role}
         aria-modal="true"
         aria-labelledby={labelledBy}
-        className={`${styles.dialog} ${narrow ? styles.dialogNarrow : ''}`}
+        className={`${styles.dialog} ${narrow ? styles.dialogNarrow : ''} ${sheet ? styles.dialogSheet : ''}`}
         onKeyDown={(e) => {
           if (e.key === 'Escape') {
             e.stopPropagation()

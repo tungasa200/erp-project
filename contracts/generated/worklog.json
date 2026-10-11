@@ -368,7 +368,7 @@
             "type" : "integer"
           },
           "done" : {
-            "description" : "결과 칩 \"완료\" 기록 수",
+            "description" : "'완료' 건수. 일간·주간: 결과 '완료' 기록 수 + 완료한 날 그 업무의 기록이 없는 완료 업무 수(그날 '완료' 기록이 있는 업무는 한 번만, D-113).\n월간: 기간 안에 완료한 업무 수(D-123)",
             "format" : "int32",
             "type" : "integer"
           },
@@ -627,6 +627,69 @@
           }
         },
         "required" : [ "logStatus", "periodEnd", "periodStart", "type", "unconfirmedDates" ],
+        "type" : "object"
+      },
+      "Notification" : {
+        "properties" : {
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "date" : {
+            "description" : "알림이 가리키는 날(하루 마감 대상일, 제안을 만든 날)",
+            "format" : "date",
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "logType" : {
+            "description" : "LOG_SUGGESTION일 때만",
+            "enum" : [ "WEEKLY", "MONTHLY" ],
+            "type" : [ "string", "null" ]
+          },
+          "pendingCount" : {
+            "description" : "DAILY_CLOSE일 때 보낼 때의 확인 대기 기록 수(스냅샷). 다른 종류는 null",
+            "format" : "int32",
+            "type" : [ "integer", "null" ]
+          },
+          "periodStart" : {
+            "description" : "LOG_SUGGESTION일 때만",
+            "format" : "date",
+            "type" : [ "string", "null" ]
+          },
+          "readAt" : {
+            "format" : "date-time",
+            "type" : [ "string", "null" ]
+          },
+          "type" : {
+            "description" : "DAILY_CLOSE 하루 마감 시간(이동: SCR-LOG-03, date), LOG_SUGGESTION 주간·월간 일지 만들 차례(이동: 그 일지, logType·periodStart).",
+            "enum" : [ "DAILY_CLOSE", "LOG_SUGGESTION" ],
+            "type" : "string"
+          }
+        },
+        "required" : [ "createdAt", "date", "id", "readAt", "type" ],
+        "type" : "object"
+      },
+      "NotificationList" : {
+        "properties" : {
+          "items" : {
+            "items" : {
+              "$ref" : "#/components/schemas/Notification"
+            },
+            "type" : "array"
+          },
+          "nextCursor" : {
+            "description" : "다음 페이지가 없으면 null",
+            "type" : [ "string", "null" ]
+          },
+          "unreadCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "items", "unreadCount" ],
         "type" : "object"
       },
       "Occurrence" : {
@@ -950,6 +1013,81 @@
         "required" : [ "dueDate", "progress", "reason", "status", "taskId", "title" ],
         "type" : "object"
       },
+      "PlanVsActual" : {
+        "properties" : {
+          "from" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "to" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "topDiffs" : {
+            "items" : {
+              "$ref" : "#/components/schemas/PlanVsActualTask"
+            },
+            "maxItems" : 5,
+            "type" : "array"
+          },
+          "weeks" : {
+            "items" : {
+              "$ref" : "#/components/schemas/PlanVsActualWeek"
+            },
+            "type" : "array"
+          }
+        },
+        "required" : [ "from", "to", "topDiffs", "weeks" ],
+        "type" : "object"
+      },
+      "PlanVsActualTask" : {
+        "properties" : {
+          "actualMin" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "plannedMin" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "projectId" : {
+            "format" : "uuid",
+            "type" : [ "string", "null" ]
+          },
+          "taskId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "title" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "actualMin", "plannedMin", "projectId", "taskId", "title" ],
+        "type" : "object"
+      },
+      "PlanVsActualWeek" : {
+        "properties" : {
+          "actualMin" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "plannedMin" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "unplannedMin" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "weekStart" : {
+            "description" : "그 주의 시작일(기간 앞으로 나갈 수 있음)",
+            "format" : "date",
+            "type" : "string"
+          }
+        },
+        "required" : [ "actualMin", "plannedMin", "unplannedMin", "weekStart" ],
+        "type" : "object"
+      },
       "Problem" : {
         "description" : "RFC 9457 Problem Details + 확장 필드 (P0-10 공통 모듈 형식)",
         "properties" : {
@@ -1128,6 +1266,45 @@
           }
         },
         "required" : [ "version" ],
+        "type" : "object"
+      },
+      "PublicKey" : {
+        "properties" : {
+          "publicKey" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "publicKey" ],
+        "type" : "object"
+      },
+      "PushSubscription" : {
+        "properties" : {
+          "endpoint" : {
+            "maxLength" : 1000,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "keys" : {
+            "$ref" : "#/components/schemas/PushSubscriptionKeys"
+          }
+        },
+        "required" : [ "endpoint", "keys" ],
+        "type" : "object"
+      },
+      "PushSubscriptionKeys" : {
+        "properties" : {
+          "auth" : {
+            "maxLength" : 100,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "p256dh" : {
+            "maxLength" : 200,
+            "minLength" : 0,
+            "type" : "string"
+          }
+        },
+        "required" : [ "auth", "p256dh" ],
         "type" : "object"
       },
       "Recurrence" : {
@@ -1324,6 +1501,85 @@
           }
         },
         "required" : [ "version" ],
+        "type" : "object"
+      },
+      "Stats" : {
+        "properties" : {
+          "completedTaskCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "confirmedLogCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "daily" : {
+            "items" : {
+              "$ref" : "#/components/schemas/StatsDay"
+            },
+            "type" : "array"
+          },
+          "firstRecordDate" : {
+            "description" : "첫 확정 기록 workDate(기간과 무관), 없으면 null",
+            "format" : "date",
+            "type" : [ "string", "null" ]
+          },
+          "from" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "projects" : {
+            "items" : {
+              "$ref" : "#/components/schemas/StatsProject"
+            },
+            "type" : "array"
+          },
+          "recordCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "to" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        },
+        "required" : [ "completedTaskCount", "confirmedLogCount", "daily", "firstRecordDate", "from", "projects", "recordCount", "to" ],
+        "type" : "object"
+      },
+      "StatsDay" : {
+        "properties" : {
+          "completedTaskCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "date" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "recordCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "completedTaskCount", "date", "recordCount" ],
+        "type" : "object"
+      },
+      "StatsProject" : {
+        "properties" : {
+          "completedTaskCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "projectId" : {
+            "format" : "uuid",
+            "type" : [ "string", "null" ]
+          },
+          "recordCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "completedTaskCount", "projectId", "recordCount" ],
         "type" : "object"
       },
       "Tag" : {
@@ -2199,6 +2455,11 @@
       },
       "WorklogSettings" : {
         "properties" : {
+          "dailyCloseNotifyEnabled" : {
+            "default" : false,
+            "description" : "하루 마감 알림 켜기(SCR-SET-05 ①). 기본 꺼짐(카드 0401, 기존 사용자도 꺼짐). 켜면 앱 안 알림을 만들고, 푸시 구독이 있으면 웹 푸시도 보낸다.\n웹 푸시 권한은 브라우저마다 따로라 여기서 다루지 않는다(구독 API).",
+            "type" : "boolean"
+          },
           "dailyCloseTime" : {
             "description" : "사용자 시간대 기준 하루 마감 시각",
             "example" : "18:00",
@@ -2225,11 +2486,14 @@
             "type" : "string"
           }
         },
-        "required" : [ "dailyCloseTime", "timeTrackingEnabled", "version", "workHoursEnd", "workHoursStart" ],
+        "required" : [ "dailyCloseNotifyEnabled", "dailyCloseTime", "timeTrackingEnabled", "version", "workHoursEnd", "workHoursStart" ],
         "type" : "object"
       },
       "WorklogSettingsPatch" : {
         "properties" : {
+          "dailyCloseNotifyEnabled" : {
+            "type" : "boolean"
+          },
           "dailyCloseTime" : {
             "pattern" : "^([01]\\d|2[0-3]):[0-5]\\d$",
             "type" : "string"
@@ -3162,7 +3426,7 @@
     },
     "/api/worklog/me/settings" : {
       "patch" : {
-        "description" : "보낸 칸만 바꾼다. 설정 행이 없으면 version=0으로 보낸다.",
+        "description" : "SCR-SET-02의 ④ 업무 시간대 ⑤ 하루 마감 시각과 SCR-SET-03의 시간 기록 사용 여부, SCR-SET-05 ① 하루 마감 알림 켜기(P4-01).\n보낸 칸만 바꾼다. 설정 행이 없으면 version=0으로 보낸다.\ndailyCloseTime·dailyCloseNotifyEnabled가 바뀌면 다음 알림 시각(next_notify_at)을 다시 계산한다 (5.6). 프로필 시간대·업무 요일이 바뀌어도\n(피드로 사본이 바뀔 때) 다시 계산한다.\n하루 마감 알림 발송(P4-01): 1분마다(ShedLock) next_notify_at이 지난 사용자에게 보낸다.\n- 근무일(D-37)이 아닌 날은 보내지 않는다. next_notify_at은 다음 근무일의 dailyCloseTime(사용자 시간대)이다.\n- 그날 일간 일지가 이미 확정(CONFIRMED)이면 보내지 않는다(이미 마감함).\n- 서버가 멈춰 1시간 넘게 지난 알림은 보내지 않고 다음 시각만 다시 계산한다.\n- 보내기 = 알림 센터 항목(DAILY_CLOSE, 확인 대기 수 포함) + 그 사용자의 모든 푸시 구독에 웹 푸시. 그날이 주(월)의 마지막 근무일이면\n  LOG_SUGGESTION(WEEKLY → MONTHLY)도 같은 때 만든다(푸시는 하루 마감 한 통만).\n- 푸시 내용: 제목 \"하루 마감 시간이에요\", 본문 확인 대기 n건 안내(0이면 생략), 누르면 앱 화면 /logs/daily/{date}?close=1(마감 창이 열림, 알림 읽음 처리, pm 결정 2026-10-10). TTL 1시간.\n  기록·업무 제목 같은 내용은 넣지 않는다.",
         "operationId" : "updateMySettings",
         "requestBody" : {
           "content" : {
@@ -3214,6 +3478,118 @@
         } ],
         "summary" : "worklog 전용 설정 수정 (P1-01, 항목별 자동 저장)",
         "tags" : [ "me" ]
+      }
+    },
+    "/api/worklog/notifications" : {
+      "get" : {
+        "description" : "최신순(createdAt 내림차순 → id). 30일이 지난 알림은 하루 1회 정리 작업이 지운다.\nunreadCount는 전체(페이지와 무관) 읽지 않은 수로, 사이드바 배지에 쓴다(배지는 limit=1로 불러도 된다).",
+        "operationId" : "listNotifications",
+        "parameters" : [ {
+          "description" : "이전 응답의 nextCursor. 처음이면 생략.",
+          "in" : "query",
+          "name" : "cursor",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "default" : 30,
+            "format" : "int32",
+            "maximum" : 100,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/NotificationList"
+                }
+              }
+            },
+            "description" : "알림 목록"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "cursor 형식이 틀림(code=INVALID_CURSOR) 또는 값 형식 오류(code=VALIDATION_FAILED)"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/Unauthorized"
+          }
+        },
+        "security" : [ {
+          "accessTokenCookie" : [ ]
+        } ],
+        "summary" : "알림 센터 목록 (P4-01, NOTI-01·LOG-16 — SCR-COM-05)",
+        "tags" : [ "notifications" ]
+      }
+    },
+    "/api/worklog/notifications/read-all" : {
+      "post" : {
+        "operationId" : "markAllNotificationsRead",
+        "responses" : {
+          "204" : {
+            "description" : "읽지 않은 알림을 모두 읽음으로"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/Unauthorized"
+          }
+        },
+        "security" : [ {
+          "accessTokenCookie" : [ ]
+        } ],
+        "summary" : "모두 읽음 (SCR-COM-05 ②)",
+        "tags" : [ "notifications" ]
+      }
+    },
+    "/api/worklog/notifications/{notificationId}/read" : {
+      "post" : {
+        "description" : "이미 읽었으면 그대로 204(멱등).",
+        "operationId" : "markNotificationRead",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "notificationId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "읽음"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/Unauthorized"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "없거나 내 알림이 아님 (code=NOT_FOUND)"
+          }
+        },
+        "security" : [ {
+          "accessTokenCookie" : [ ]
+        } ],
+        "summary" : "알림 하나 읽음 (항목 클릭, 웹 푸시 클릭으로 열 때)",
+        "tags" : [ "notifications" ]
       }
     },
     "/api/worklog/projects" : {
@@ -3420,6 +3796,96 @@
         } ],
         "summary" : "프로젝트 수정·보관·보관 해제",
         "tags" : [ "projects" ]
+      }
+    },
+    "/api/worklog/push/public-key" : {
+      "get" : {
+        "description" : "PushManager.subscribe의 applicationServerKey에 넣는 값(base64url, 비압축 P-256 공개 키 65바이트).\n공개 키라 비밀이 아니지만 서버 환경변수 하나(VAPID_PUBLIC_KEY)로 관리하려고 API로 준다.",
+        "operationId" : "getPushPublicKey",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PublicKey"
+                }
+              }
+            },
+            "description" : "공개 키"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/Unauthorized"
+          }
+        },
+        "security" : [ {
+          "accessTokenCookie" : [ ]
+        } ],
+        "summary" : "웹 푸시 VAPID 공개 키 (P4-01, SCR-SET-05 ③)",
+        "tags" : [ "notifications" ]
+      }
+    },
+    "/api/worklog/push/subscriptions" : {
+      "delete" : {
+        "description" : "없는 endpoint여도 204(멱등). 다른 사용자의 구독은 지우지 않는다.",
+        "operationId" : "deletePushSubscription",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "endpoint",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "지움"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/Unauthorized"
+          }
+        },
+        "security" : [ {
+          "accessTokenCookie" : [ ]
+        } ],
+        "summary" : "이 브라우저의 푸시 구독 해제 (알림 끄기·로그아웃 때)",
+        "tags" : [ "notifications" ]
+      },
+      "put" : {
+        "description" : "PushSubscription.toJSON()의 endpoint·keys를 그대로 보낸다. endpoint가 같으면 덮어쓴다(다른 사용자 것이었으면 이 사용자로 옮긴다 — 같은 브라우저에서 계정을 바꾼 경우).\n사용자당 최대 10개, 넘으면 가장 오래 쓰지 않은 구독을 지운다.\n보안(SSRF 방지): endpoint는 https이고 호스트가 알려진 푸시 서비스여야 한다 —\nfcm.googleapis.com, updates.push.services.mozilla.com, *.notify.windows.com, web.push.apple.com, *.push.apple.com. 아니면 400(errors[].field=endpoint, code=NOT_ALLOWED).\n발송 때 푸시 서비스가 404·410을 주면 그 구독을 지운다.\n푸시 메시지 본문(서비스 워커 push 이벤트의 data.json()): {\"type\":\"DAILY_CLOSE\",\"notificationId\":uuid,\"title\":string,\"body\":string|null,\"url\":\"/logs/daily/{date}?close=1\"}.\n서비스 워커는 title·body로 알림을 띄우고(tag=type), 누르면 notificationId를 읽음 처리하고 url을 연다.",
+        "operationId" : "savePushSubscription",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/PushSubscription"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "204" : {
+            "description" : "저장됨"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "입력 오류 (code=VALIDATION_FAILED). errors[].code: REQUIRED, TOO_LONG, NOT_ALLOWED"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/Unauthorized"
+          }
+        },
+        "security" : [ {
+          "accessTokenCookie" : [ ]
+        } ],
+        "summary" : "이 브라우저의 푸시 구독 등록 (권한 허용 직후, 그리고 앱을 열 때마다 다시 보냄)",
+        "tags" : [ "notifications" ]
       }
     },
     "/api/worklog/records" : {
@@ -4460,6 +4926,134 @@
         } ],
         "summary" : "반복 일정의 한 회차만 수정 — \"이 일정만\" (SCR-CAL-08, 블록 이동 포함)",
         "tags" : [ "schedules" ]
+      }
+    },
+    "/api/worklog/stats" : {
+      "get" : {
+        "description" : "화면이 차트를 직접 그리므로 숫자만 준다. 기간 [from, to] 양끝 포함, 최대 400일. 날짜는 사용자의 현재 시간대 기준.\n- 완료 업무: 보관하지 않은 업무 중 완료 시각(completedAt)의 날짜가 기간 안인 것. 지금 DONE이 아니면(완료 취소) 세지 않는다.\n- 기록: 보관하지 않은 확정(CONFIRMED) 기록, workDate 기준(확인 대기 제외).\n- 확정 일지: 상태 CONFIRMED이고 기간 시작일이 [from, to] 안인 일지(일간·주간·월간 합).\n- daily: from부터 to까지 하루도 빠짐없이(0 포함) 날짜순. 주·월 막대는 화면이 프로필 주 시작 요일로 묶는다.\n- projects: 프로젝트별 완료 업무 수·기록 수. 프로젝트는 업무의 지금 프로젝트, 업무 없는 기록·프로젝트 없는 업무는 projectId=null 한 줄.\n  둘 다 0인 프로젝트는 넣지 않는다. 정렬: completedTaskCount 내림차순 → recordCount 내림차순 → projectId.\n  소요시간 비중(⑤)은 GET /records/time-summary를 같은 기간으로 부른다.\n- firstRecordDate: 이 사용자의 첫 확정 기록 workDate(기간과 무관, 없으면 null). \"1주일 기록이 쌓이면\" 판단은 화면이 한다.",
+        "operationId" : "getStats",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "from",
+          "required" : true,
+          "schema" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        }, {
+          "description" : "from 이후(같아도 됨), from + 400일 이내",
+          "in" : "query",
+          "name" : "to",
+          "required" : true,
+          "schema" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Stats"
+                }
+              }
+            },
+            "description" : "통계"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "값 형식 오류 (code=VALIDATION_FAILED)"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/Unauthorized"
+          },
+          "503" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "identity 조회 실패 (code=PROFILE_UNAVAILABLE)"
+          }
+        },
+        "security" : [ {
+          "accessTokenCookie" : [ ]
+        } ],
+        "summary" : "업무 통계 (P4-02, STAT-01 — SCR-STAT-01 ②③④)",
+        "tags" : [ "stats" ]
+      }
+    },
+    "/api/worklog/stats/plan-vs-actual" : {
+      "get" : {
+        "description" : "업무 단위로 비교한다(계획 시간 정의는 카드 0401).\n- 예상(plannedMin): 업무에 연결된 시간 일정(allDay=false) 회차 중 취소하지 않은 것의 길이(분). 회차가 속한 주는 회차 시작 시각을 사용자 시간대 날짜로 바꿔 정한다.\n  종일 일정·업무 없는 일정은 예상에 넣지 않는다.\n- 실제(actualMin): 보관하지 않은 확정 기록의 durationMin(시간 없는 기록 제외), workDate 기준. 기록의 업무로 묶는다(계획에서 온 기록인지와 무관).\n- 주: 프로필 주 시작 요일 기준. 기간 [from, to](최대 400일)와 겹치는 주를 모두 주되, 각 주는 기간 안 날짜만 센다.\n- weeks[]: 주마다 plannedMin(그 주 예상 합), actualMin(그 주 예상이 있는 업무의 실제 합), unplannedMin(그 주 예상이 없는 업무·업무 없는 기록의 실제 합).\n- topDiffs: 기간 전체에서 예상이 있는 업무를 |actualMin − plannedMin| 내림차순 → taskId로 최대 5개. actualMin은 그 업무의 기간 전체 실제.\n  업무 제목은 지금 제목(보관 업무 포함).\n시간 기록 옵션과 관계없이 응답한다(꺼져 있으면 화면이 영역을 숨긴다).",
+        "operationId" : "getPlanVsActual",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "from",
+          "required" : true,
+          "schema" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        }, {
+          "description" : "from 이후(같아도 됨), from + 400일 이내",
+          "in" : "query",
+          "name" : "to",
+          "required" : true,
+          "schema" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PlanVsActual"
+                }
+              }
+            },
+            "description" : "주별 비교와 차이 큰 업무"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "값 형식 오류 (code=VALIDATION_FAILED)"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/Unauthorized"
+          },
+          "503" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "identity 조회 실패 (code=PROFILE_UNAVAILABLE)"
+          }
+        },
+        "security" : [ {
+          "accessTokenCookie" : [ ]
+        } ],
+        "summary" : "예상 대비 실제 회고 (P4-02, UX-05 — SCR-STAT-01 ⑥)",
+        "tags" : [ "stats" ]
       }
     },
     "/api/worklog/tags" : {

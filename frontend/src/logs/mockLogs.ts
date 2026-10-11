@@ -387,6 +387,14 @@ function newLog(type: LogType, start: string): StoredLog {
   }
 }
 
+/** 예시 데이터: 그 기간 일지를 지금 기록으로 만들어 확정해 둔다(mock 데모 계정 시드) */
+export function seedConfirmedLog(ctx: LogsMockContext, type: LogType, start: string) {
+  if (ctx.logs.some((l) => l.type === type && l.periodStart === start)) return
+  const stored = newLog(type, start)
+  ctx.logs.push(stored)
+  confirm(ctx, stored)
+}
+
 /** 처리한 요청이면 응답, 아니면 null */
 export function handleLogsMock(
   method: string,

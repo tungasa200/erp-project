@@ -14,6 +14,8 @@ dependencies {
 	// 일지 내보내기 (D-111): PDF는 OpenPDF(MPL-2.0 선택), Word·Excel은 Apache POI
 	implementation 'com.github.librepdf:openpdf:3.0.5'
 	implementation 'org.apache.poi:poi-ooxml:5.5.1'
+	// 웹 푸시 (P4-01, 카드 0400): VAPID 서명·메시지 암호화. MIT, 런타임 의존성 없음(JDK HttpClient로 보낸다)
+	implementation 'com.zerodeplibs:zerodep-web-push-java:2.1.5'
 	runtimeOnly 'org.flywaydb:flyway-database-postgresql'
 	runtimeOnly 'org.postgresql:postgresql'
 

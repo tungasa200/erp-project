@@ -103,6 +103,9 @@ export function stubFetch(handlers: Record<string, Handler>) {
     // 업무를 완료하면 결과 팝오버(SCR-TASK-03)가 닫힐 때 기록을 만든다. 등록하지 않았으면 만든 것으로 답한다
     if (key === 'POST /api/worklog/records') return json(201, { id: 'r-auto', status: 'CONFIRMED' })
     if (key === 'POST /api/auth/refresh') return problem(401, 'REFRESH_INVALID')
+    // 알림 종(SCR-COM-05 ②)은 사이드바·홈 머리에 늘 있다. 등록하지 않았으면 알림 없음
+    if (key.split('?')[0] === 'GET /api/worklog/notifications')
+      return json(200, { items: [], nextCursor: null, unreadCount: 0 })
     // worklog 설정(시간 기록 옵션·업무 시간대). 등록하지 않았으면 기본값(꺼짐, 09:00~18:00)으로 답한다
     if (key === 'GET /api/worklog/me')
       return json(200, {
@@ -125,6 +128,20 @@ export function stubFetch(handlers: Record<string, Handler>) {
     // 옵션이 켜진 홈 타임라인의 오늘 합계(SCR-HOME-01 ③). 등록하지 않았으면 0분
     if (key.split('?')[0] === 'GET /api/worklog/records/time-summary')
       return json(200, { from: '', to: '', totalMin: 0, recordCount: 0, projects: [], tasks: [] })
+    // 통계(SCR-STAT-01). 등록하지 않았으면 기록 없는 기간으로 답한다(팔레트로 /stats에 가는 시험이 로그아웃되지 않게)
+    if (key.split('?')[0] === 'GET /api/worklog/stats')
+      return json(200, {
+        from: '',
+        to: '',
+        completedTaskCount: 0,
+        recordCount: 0,
+        confirmedLogCount: 0,
+        daily: [],
+        projects: [],
+        firstRecordDate: null,
+      })
+    if (key.split('?')[0] === 'GET /api/worklog/stats/plan-vs-actual')
+      return json(200, { from: '', to: '', weeks: [], topDiffs: [] })
     // 일지 진행 현황 괄호가 업무 제목을 묻는다(업무 상세). 등록하지 않았으면 없음으로 답해 실적 줄 문구를 쓴다
     if (/^GET \/api\/worklog\/tasks\/[^/?]+$/.test(key) && key !== 'GET /api/worklog/tasks/frequent')
       return problem(404, 'NOT_FOUND')
@@ -142,8 +159,8 @@ export function renderApp(path: string, appRoutes: RouteObject[] = routes) {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <AppFrame>
-          <MaintenanceGate>
-            <ToastProvider>
+          <MaintenanceGate router={router}>
+            <ToastProvider navigate={(to) => void router.navigate(to)}>
               <RouterProvider router={router} />
             </ToastProvider>
           </MaintenanceGate>

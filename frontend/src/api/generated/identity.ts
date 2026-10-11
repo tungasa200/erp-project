@@ -55,6 +55,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/auth/password-change": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 비밀번호 변경 (AUTH-07, P4-08, SCR-SET-06)
+         * @description 현재 비밀번호 확인 뒤 새 비밀번호(D-38)로 바꾼다. 현재 기기의 세션만 남기고 다른 기기의 로그인 세션을 폐기한다.
+         */
+        post: operations["changePassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/password-reset": {
         parameters: {
             query?: never;
@@ -168,6 +188,26 @@ export interface paths {
          * @description 보낸 칸만 바꾼다. version이 현재 값과 다르면 409. 프로필 칸이 바뀌면 사용자 변경 피드에 PROFILE_UPDATED를 남긴다.
          */
         patch: operations["updateMe"];
+        trace?: never;
+    };
+    "/api/users/me/deletion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 회원 탈퇴 (AUTH-06, P4-05, SCR-SET-07)
+         * @description 비밀번호를 다시 확인한 뒤 즉시 실제로 삭제한다(D-49). 모든 기기의 로그인 세션도 함께 지운다. 다른 모듈은 사용자 변경 피드로 보통 1분, 늦어도 20분 안에 파기한다.
+         */
+        post: operations["deleteMe"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/users/me/email-verification": {
@@ -292,6 +332,10 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        AccountDeletionRequest: {
+            /** @description 현재 비밀번호. errors[].field는 password */
+            password: string;
+        };
         CodeCheckRequest: {
             code: string;
             email: string;
@@ -369,6 +413,15 @@ export interface components {
             /** Format: int32 */
             workDays: number;
         };
+        PasswordChangeRequest: {
+            currentPassword: string;
+            /** @description 8~64자, UTF-8 72바이트 이하, 영문·숫자 포함, 이메일과 다른 문자열 (D-38), 현재 비밀번호와 다른 문자열. errors[].field는 newPassword */
+            newPassword: string;
+        };
+        PasswordChanged: {
+            /** @description true: 현재 기기는 로그인 유지, 다른 기기의 로그인 세션은 폐기. false: 현재 기기를 가려낼 수 없어 모든 로그인 세션을 폐기하고 쿠키를 지움 */
+            currentSessionKept: boolean;
+        };
         PasswordResetConfirmRequest: {
             code: string;
             email: string;
@@ -416,6 +469,16 @@ export interface components {
             organization?: string | null;
             /** @description 표시용 직책 (권한용 역할과 별개) */
             position?: string | null;
+            /**
+             * @description 키 컬러 (UX-07). 프리셋이 아닌 색도 받는다. 대문자로 저장한다. 틀리면 THEME_ACCENT_INVALID.
+             * @example #4B3FD6
+             */
+            themeAccent?: string;
+            /**
+             * @description 배경 (UX-07): 쿨 그레이·웜 베이지·세이지·화이트. 이 4개만 받는다(대소문자 무관). 틀리면 THEME_GROUND_INVALID.
+             * @enum {string}
+             */
+            themeGround?: "#F2F4FA" | "#F6F2EA" | "#EEF4EF" | "#FFFFFF";
             /**
              * @description IANA 시간대 이름. 바꿔도 기존 기록 날짜는 그대로다 (D-40).
              * @example Asia/Seoul
@@ -585,6 +648,60 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    changePassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                refresh_token?: string;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordChangeRequest"];
+            };
+        };
+        responses: {
+            /** @description 변경 완료. currentSessionKept=false이면 쿠키 2종을 지운다 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PasswordChanged"];
+                };
+            };
+            /** @description CURRENT_PASSWORD_MISMATCH(errors[].field=currentPassword) 또는 VALIDATION_FAILED(REQUIRED, 비밀번호 규칙, PASSWORD_SAME_AS_CURRENT) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description UNAUTHENTICATED 또는 USER_DELETED */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description PASSWORD_CHANGE_LOCKED: 비밀번호 재확인 불일치(회원 탈퇴와 합산) 15분 안에 5회 → 15분 동안 비밀번호 변경·탈퇴를 막음. 남은 시간은 Retry-After(초)와 retryAfterSeconds */
+            429: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["RateLimitedProblem"];
+                };
             };
         };
     };
@@ -842,6 +959,56 @@ export interface operations {
                 };
                 content: {
                     "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    deleteMe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AccountDeletionRequest"];
+            };
+        };
+        responses: {
+            /** @description 탈퇴 완료. 쿠키 2종을 지운다 */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description PASSWORD_MISMATCH(errors[].field=password) 또는 VALIDATION_FAILED(REQUIRED) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description UNAUTHENTICATED 또는 USER_DELETED */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description PASSWORD_CHANGE_LOCKED: 비밀번호 재확인 불일치(비밀번호 변경과 합산) 15분 안에 5회 → 15분 동안 막음. 남은 시간은 Retry-After(초)와 retryAfterSeconds */
+            429: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["RateLimitedProblem"];
                 };
             };
         };

@@ -22,6 +22,35 @@ describe('라우팅', () => {
     expect(screen.queryByText(/다시 로그인해 주세요/)).not.toBeInTheDocument()
   })
 
+  it('비로그인 상태로 /에 오면 로그인으로 보내지 않고 랜딩을 보인다 (SCR-AUTH-01)', async () => {
+    stubFetch({})
+    const { router } = renderApp('/')
+    expect(await screen.findByRole('heading', { level: 1, name: /일지가 써집니다/ })).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe('/')
+  })
+
+  it('/privacy·/terms는 로그인하지 않아도 보이고, 로그인한 채로도 홈으로 보내지 않는다 (SCR-AUTH-06·07)', async () => {
+    stubFetch({})
+    renderApp('/privacy')
+    expect(await screen.findByRole('heading', { level: 1, name: '개인정보 처리방침' })).toBeInTheDocument()
+    vi.unstubAllGlobals()
+
+    stubFetch({ 'GET /api/users/me': () => json(200, ME) })
+    const { router } = renderApp('/terms')
+    expect(await screen.findByRole('heading', { level: 1, name: '이용약관' })).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe('/terms')
+    expect(screen.queryByRole('navigation', { name: '하단 탭' })).not.toBeInTheDocument()
+  })
+
+  it('/notifications는 알림 전체 화면 (SCR-COM-05 ③)', async () => {
+    stubFetch({
+      'GET /api/users/me': () => json(200, ME),
+      'GET /api/worklog/notifications': () => json(200, { items: [], nextCursor: null }),
+    })
+    renderApp('/notifications')
+    expect(await screen.findByRole('heading', { level: 1, name: '알림' })).toBeInTheDocument()
+  })
+
   it('없는 주소는 404 화면', async () => {
     stubFetch({})
     renderApp('/no-such-page')
@@ -152,6 +181,34 @@ describe('SCR-SYS-02 점검', () => {
       text.split(' 기록은')[0],
     )
     expect(screen.queryByRole('heading', { name: '로그인' })).not.toBeInTheDocument()
+  })
+
+  it('점검 중에도 공개 화면(처리방침·약관)은 그대로 보이고, 다른 화면으로 가면 점검 화면 (D-177 ②)', async () => {
+    stubFetch({ 'GET /api/users/me': () => problem(503, 'MAINTENANCE') })
+    const { router, queryClient } = renderApp('/privacy')
+    // 내 정보 조회가 점검 응답을 받은 뒤에도 본문이 남는다
+    await waitFor(() => expect(queryClient.getQueryState(['me'])?.status).toBe('error'))
+    expect(screen.getByRole('heading', { level: 1, name: '개인정보 처리방침' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: '서비스 점검 중이에요' })).not.toBeInTheDocument()
+    await act(() => router.navigate('/calendar'))
+    expect(await screen.findByRole('heading', { name: '서비스 점검 중이에요' })).toBeInTheDocument()
+  })
+
+  it('점검 중에 /로 오면 랜딩을 보인다 (D-177 ②)', async () => {
+    stubFetch({ 'GET /api/users/me': () => problem(503, 'MAINTENANCE') })
+    const { queryClient } = renderApp('/')
+    await waitFor(() => expect(queryClient.getQueryState(['me'])?.status).toBe('error'))
+    expect(await screen.findByRole('heading', { level: 1, name: /일지가 써집니다/ })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: '서비스 점검 중이에요' })).not.toBeInTheDocument()
+  })
+
+  it('로그인한 채 홈(/)에서 점검 응답을 받으면 점검 화면을 띄운다', async () => {
+    stubFetch({
+      'GET /api/users/me': () => json(200, ME),
+      'GET /api/worklog/projects': () => problem(503, 'MAINTENANCE'),
+    })
+    renderApp('/')
+    expect(await screen.findByRole('heading', { name: '서비스 점검 중이에요' })).toBeInTheDocument()
   })
 
   it('Retry-After가 없으면 "지금은 이용할 수 없어요"', async () => {

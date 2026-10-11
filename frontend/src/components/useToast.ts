@@ -9,6 +9,9 @@ export interface UndoOptions {
    *  되돌릴 수 없는 API(태그·일정 삭제)는 이때 보낸다(P1-02 결정 A안). 새로 고침·탭 닫기·탭 숨김에서도
    *  한 번만 실행하며, 그때는 keepalive=true이므로 요청에 keepalive를 넘겨야 끝까지 간다(P1-02-07) */
   commit?: (options: { keepalive: boolean }) => void
+  /** 메시지와 [되돌리기] 사이의 이동 링크(예: 복원한 업무 '보기'). 누르면 토스트를 닫아 동작을 확정하고 그 화면으로 간다.
+   *  같은 group으로 합쳐져 2건 이상이 되면 보이지 않는다 */
+  view?: { label: string; to: string }
 }
 
 export interface ToastValue {
