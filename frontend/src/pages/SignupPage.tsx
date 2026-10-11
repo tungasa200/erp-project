@@ -272,7 +272,7 @@ export function SignupPage() {
           <p className={styles.overseas}>
             회원 정보와 서비스 이용 기록은 싱가포르 소재 서버(Railway)에 보관되며, 메일 발송 등 일부 업무는 국외 업체에
             위탁하여 처리합니다.{' '}
-            <Link to="/privacy#overseas" target="_blank">
+            <Link to="/privacy#legal-3" target="_blank">
               자세히 보기
             </Link>
           </p>

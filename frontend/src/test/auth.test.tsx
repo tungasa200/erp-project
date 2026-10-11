@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { api } from '../api'
 import { RequireAuth } from '../app/guards'
 import { useAuth } from '../auth/useAuth'
+import { PRIVACY } from '../landing/legalText'
 import { LoginPage } from '../pages/LoginPage'
 import { json, ME, problem, renderApp, stubFetch } from './renderApp'
 
@@ -278,7 +279,18 @@ describe('SCR-AUTH-03 회원가입', () => {
     expect(
       await screen.findByText(/회원 정보와 서비스 이용 기록은 싱가포르 소재 서버\(Railway\)에 보관되며/),
     ).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: '자세히 보기' })).toHaveAttribute('href', '/privacy#overseas')
+    expect(screen.getByRole('link', { name: '자세히 보기' })).toHaveAttribute('href', '/privacy#legal-3')
+    // 처리방침 섹션 id는 순번(legal-n)이라 섹션 순서가 바뀌면 링크도 같이 바꿔야 한다
+    expect(PRIVACY.sections[2].title).toMatch(/국외 이전/)
+  })
+
+  it('자세히 보기로 연 처리방침은 그린 뒤 국외 이전 절로 스크롤한다(새 탭은 브라우저가 #id를 찾을 때 아직 화면이 없음)', async () => {
+    stubFetch({})
+    const scroll = vi.spyOn(Element.prototype, 'scrollIntoView')
+    renderApp('/privacy#legal-3')
+    await screen.findByRole('heading', { level: 1, name: '개인정보 처리방침' })
+    expect(scroll.mock.contexts).toEqual([document.getElementById('legal-3')])
+    scroll.mockRestore()
   })
 
   it('비밀번호 규칙 충족 여부를 입력하는 동안 표시한다', async () => {
