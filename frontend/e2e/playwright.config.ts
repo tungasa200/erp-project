@@ -25,8 +25,10 @@ export default defineConfig({
   },
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
-    { name: 'webkit', use: { ...devices['Desktop Safari'] } },
+    // WebKit은 http://localhost에서 Secure 인증 쿠키를 저장하지 않아 webkit-cookies.ts가 /api 응답을 고쳐 넘긴다.
+    // 서비스 워커가 페이지를 잡으면 그 요청은 page.route를 거치지 않고 쿠키 없이 나가므로(401) WebKit에서는 막는다.
+    { name: 'webkit', use: { ...devices['Desktop Safari'], serviceWorkers: 'block' } },
     // 모바일 크기(≤767px): 하단 탭·빠른 기록 시트. Safari(WebKit) 모바일로 본다
-    { name: 'mobile', use: { ...devices['iPhone 13'] } },
+    { name: 'mobile', use: { ...devices['iPhone 13'], serviceWorkers: 'block' } },
   ],
 })

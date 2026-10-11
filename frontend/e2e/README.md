@@ -24,4 +24,8 @@ CI(`.github/workflows/ci.yml`의 e2e job)는 Chromium·WebKit·모바일 크기(
 | 이메일 인증 | 대화상자 `이메일 인증` | 레이블 `인증번호`(6자리를 넣으면 바로 확인). 코드는 Mailpit에서 가장 새 메일                   |
 | 내보내기    | 대화상자 `내보내기`    | 라디오 `PDF`(기본), 버튼 `내려받기`. 미인증이면 `이메일 인증이 필요해요` → `인증 코드 받기`    |
 
+## WebKit(webkit·mobile 프로젝트)
+
+WebKit은 `http://localhost`에서 Secure 쿠키를 저장하지 않는다. 인증 쿠키는 늘 Secure라 그대로면 가입 직후 401 → 로그인 화면으로 튕긴다. 그래서 `webkit-cookies.ts`가 WebKit에서만 `/api` 응답 Set-Cookie의 Secure를 떼고, 설정에서 서비스 워커를 막는다(서비스 워커가 잡은 요청은 `page.route`를 거치지 않음). 로컬에서 돌리려면 `npx playwright install webkit` 뒤 `--project=webkit` 또는 `--project=mobile`.
+
 서울 시각 0시 32분 전에는 오늘 안에 끝난 계획을 만들 수 없어 시험을 건너뛴다.

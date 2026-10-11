@@ -2,6 +2,7 @@
 // 실제 서버(gateway·identity·worklog)와 Mailpit을 쓴다. 매번 새 이메일로 가입하므로 DB를 비우지 않아도 된다.
 import { expect, test, type Page } from '@playwright/test'
 import { latestCode } from './mailpit'
+import { allowInsecureAuthCookies } from './webkit-cookies'
 
 const PASSWORD = 'e2eFlow2026pw'
 
@@ -49,9 +50,10 @@ async function quickAdd(page: Page, line: string, mobile: boolean) {
   }
 }
 
-test('가입부터 내보내기까지', async ({ page, request, isMobile }) => {
+test('가입부터 내보내기까지', async ({ page, request, isMobile, browserName }) => {
   const slot = pastSlotToday()
   test.skip(slot === null, '서울 0시 32분 전에는 오늘 안에 끝난 계획을 만들 수 없음')
+  await allowInsecureAuthCookies(page, browserName)
   const email = `e2e-${Date.now()}-${letters(4)}@worklog.test`
   const title = `시험 회의 ${letters(6)}`
 
