@@ -1,6 +1,6 @@
 import { render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { PrivacyPage } from './PrivacyPage'
 import { TermsPage } from './TermsPage'
 
@@ -38,5 +38,37 @@ describe('SCR-AUTH-06 처리방침 · SCR-AUTH-07 이용약관', () => {
     expect(titles).toHaveLength(13)
     expect(screen.getByRole('link', { name: /처음 화면으로/ })).toHaveAttribute('href', '/')
     expect(screen.getByText(/초안 ·/)).toHaveTextContent('시행일: [확정 전]')
+  })
+
+  describe('운영자·문의 메일(REL-01)', () => {
+    afterEach(() => {
+      vi.unstubAllEnvs()
+      vi.resetModules()
+    })
+
+    async function load(email: string) {
+      vi.stubEnv('VITE_CONTACT_EMAIL', email)
+      vi.resetModules()
+      return { ...(await import('./PrivacyPage')), ...(await import('./TermsPage')) }
+    }
+
+    it('문의 메일은 빌드 환경변수에서 읽어 처리방침 연락처·약관 제12조에 보인다', async () => {
+      const { PrivacyPage: Privacy, TermsPage: Terms } = await load('contact@example.test')
+      setup(<Privacy />)
+      expect(screen.getByText('개인정보 보호책임자: 김성우')).toBeInTheDocument()
+      expect(screen.getByText('연락처: contact@example.test')).toBeInTheDocument()
+      expect(document.body).toHaveTextContent('김성우(이하 "운영자")는')
+      document.body.innerHTML = ''
+      setup(<Terms />)
+      const q = screen.getByRole('region', { name: '제12조 (문의)' })
+      expect(q).toHaveTextContent('contact@example.test')
+      expect(within(q).queryByText('[확정 전]')).toBeNull()
+    })
+
+    it('값이 없는 빌드(로컬·미리보기)에서는 문의 메일 자리를 [확정 전]으로 남긴다', async () => {
+      const { PrivacyPage: Privacy } = await load('  ')
+      setup(<Privacy />)
+      expect(screen.getByText('연락처:', { exact: false })).toHaveTextContent('연락처: [확정 전]')
+    })
   })
 })

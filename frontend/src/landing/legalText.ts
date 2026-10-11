@@ -2,10 +2,14 @@
 // 원문의 [빈칸: …]은 "[확정 전]"으로 바꿨다(화면에서 노란 표시). 원문이 바뀌면 이 파일도 다시 옮긴다.
 import type { LegalDoc } from './LegalPage'
 
+// 문의 메일은 저장소에 적지 않고 빌드 환경변수로 받는다(D-187, Vercel Production에 설정).
+// 값이 없는 빌드(로컬·미리보기)에서는 [확정 전] 표시로 남긴다
+const CONTACT = (import.meta.env.VITE_CONTACT_EMAIL as string | undefined)?.trim() || '[확정 전]'
+
 export const PRIVACY: LegalDoc = {
   intro: [
     {
-      p: '[확정 전](이하 "운영자")는 WY Worklog(이하 "서비스", wy-worklog.com)를 이용하는 회원의 개인정보를 「개인정보 보호법」에 따라 다음과 같이 처리합니다.',
+      p: '김성우(이하 "운영자")는 WY Worklog(이하 "서비스", wy-worklog.com)를 이용하는 회원의 개인정보를 「개인정보 보호법」에 따라 다음과 같이 처리합니다.',
     },
   ],
   sections: [
@@ -165,7 +169,7 @@ export const PRIVACY: LegalDoc = {
       title: '8. 개인정보 보호책임자와 연락처',
       blocks: [
         {
-          ul: ['개인정보 보호책임자: [확정 전]', '연락처: [확정 전]'],
+          ul: ['개인정보 보호책임자: 김성우', `연락처: ${CONTACT}`],
         },
         {
           p: '개인정보 침해에 대한 신고·상담은 개인정보침해신고센터(privacy.kisa.or.kr, 국번 없이 118), 개인정보분쟁조정위원회(kopico.go.kr, 1833-6972) 등에 할 수 있습니다.',
@@ -201,7 +205,7 @@ export const TERMS: LegalDoc = {
       title: '제1조 (목적)',
       blocks: [
         {
-          p: '이 약관은 [확정 전](이하 "운영자")가 제공하는 업무 기록 서비스 WY Worklog(이하 "서비스", wy-worklog.com)의 이용 조건과 절차, 운영자와 회원의 권리·의무를 정합니다.',
+          p: '이 약관은 김성우(이하 "운영자")가 제공하는 업무 기록 서비스 WY Worklog(이하 "서비스", wy-worklog.com)의 이용 조건과 절차, 운영자와 회원의 권리·의무를 정합니다.',
         },
       ],
     },
@@ -321,7 +325,7 @@ export const TERMS: LegalDoc = {
       title: '제12조 (문의)',
       blocks: [
         {
-          p: '[확정 전]',
+          p: CONTACT,
         },
       ],
     },

@@ -7,6 +7,11 @@ import { VitePWA } from 'vite-plugin-pwa'
 const commit = process.env.VERCEL_GIT_COMMIT_SHA
 if (commit && !process.env.VITE_RELEASE) process.env.VITE_RELEASE = commit.slice(0, 7)
 
+// 처리방침·약관의 문의 메일(REL-01, D-187)은 비면 '[확정 전]'으로 보인다. 운영 빌드에서는 그 표시가 나가지 않게 막는다
+// (미리보기·로컬·CI는 VERCEL_ENV가 production이 아니라 막지 않음)
+if (process.env.VERCEL_ENV === 'production' && !process.env.VITE_CONTACT_EMAIL?.trim())
+  throw new Error('VITE_CONTACT_EMAIL이 비어 있습니다(운영 빌드 문의 메일, D-187)')
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
