@@ -3,6 +3,7 @@
 import { Fragment } from 'react'
 import { Link } from 'react-router'
 import styles from './legal.module.css'
+import { CONTACT_EMAIL } from './legalText'
 
 export type LegalBlock =
   { p: string } | { ol: string[] } | { ul: string[] } | { table: { head: string[]; rows: string[][] } }
@@ -14,20 +15,26 @@ export interface LegalDoc {
 
 const BLANK = '[확정 전]'
 
-const URL_RE = /(https:\/\/[^\s]+)/
+const escape = (t: string) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+// 문구 속 웹 주소(https://…)와 운영자 문의 메일(빌드 환경변수)을 찾는다
+const LINK_RE = new RegExp(`(https://[^\\s]+${CONTACT_EMAIL ? `|${escape(CONTACT_EMAIL)}` : ''})`)
 
-/** 문구 속 주소(https://…)는 새 탭으로 여는 링크로 */
+/** 웹 주소는 새 탭으로 여는 링크, 문의 메일은 메일 앱을 여는 링크로 */
 function Linked({ children }: { children: string }) {
   return (
     <>
-      {children.split(URL_RE).map((part, i) =>
-        i % 2 === 1 ? (
+      {children.split(LINK_RE).map((part, i) =>
+        i % 2 === 0 ? (
+          part
+        ) : part === CONTACT_EMAIL ? (
+          <a key={i} href={`mailto:${part}`} className={styles.link}>
+            {part}
+          </a>
+        ) : (
           <a key={i} href={part} target="_blank" rel="noopener noreferrer" className={styles.link}>
             {part}
             <span className="visually-hidden"> (새 탭에서 열림)</span>
           </a>
-        ) : (
-          part
         ),
       )}
     </>
@@ -116,7 +123,7 @@ export function LegalPage({ title, doc }: { title: string; doc: LegalDoc }) {
       <main className={styles.article}>
         <h1 className={styles.title}>{title}</h1>
         <p className={styles.meta}>
-          초안 · <Text>{effective ?? `시행일: ${BLANK}`}</Text>
+          <Text>{effective ?? `시행일: ${BLANK}`}</Text>
         </p>
         {doc.intro.map((b, i) => (
           <Block key={i} block={b} label={title} />

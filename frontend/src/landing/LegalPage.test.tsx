@@ -46,6 +46,8 @@ describe('SCR-AUTH-06 처리방침 · SCR-AUTH-07 이용약관', () => {
     expect(document.querySelectorAll('mark').length).toBeGreaterThan(0)
     document.querySelectorAll('mark').forEach((m) => expect(m).toHaveTextContent('[확정 전]'))
     expect(document.body).not.toHaveTextContent(/빈칸|D-\d|WY-|docs\//)
+    expect(document.body).not.toHaveTextContent('초안')
+    expect(screen.getAllByText('시행일: 2026-10-12')).toHaveLength(2)
   })
 
   it('이용약관: 12개 조와 부칙, 머리의 로고는 처음 화면으로', () => {
@@ -56,10 +58,18 @@ describe('SCR-AUTH-06 처리방침 · SCR-AUTH-07 이용약관', () => {
     expect(titles.at(-1)).toBe('부칙')
     expect(titles).toHaveLength(13)
     expect(screen.getByRole('link', { name: /처음 화면으로/ })).toHaveAttribute('href', '/')
-    expect(screen.getByText(/초안 ·/)).toHaveTextContent('시행일: [확정 전]')
-    // 이용 제한(제8조)은 통지·소명 절차까지 4개 항. 남은 빈칸은 머리·부칙의 공고일·시행일과 문의 메일(값 없는 빌드)뿐
+    // 공고일·시행일은 출시일(D-199). 머리에는 초안 표시 없이 시행일만
+    expect(document.body).not.toHaveTextContent('초안')
+    expect(screen.getAllByText('시행일: 2026-10-12')).toHaveLength(2)
+    const appendix = screen.getByRole('region', { name: '부칙' })
+    expect(
+      within(appendix)
+        .getAllByRole('listitem')
+        .map((li) => li.textContent),
+    ).toEqual(['공고일: 2026-10-12', '시행일: 2026-10-12'])
+    // 이용 제한(제8조)은 통지·소명 절차까지 4개 항. 남은 빈칸은 문의 메일(값 없는 빌드)뿐
     expect(within(screen.getByRole('region', { name: '제8조 (이용 제한)' })).getAllByRole('listitem')).toHaveLength(4)
-    expect(document.querySelectorAll('main mark')).toHaveLength(4)
+    expect(document.querySelectorAll('main mark')).toHaveLength(1)
   })
 
   describe('운영자·문의 메일(REL-01)', () => {
@@ -75,22 +85,43 @@ describe('SCR-AUTH-06 처리방침 · SCR-AUTH-07 이용약관', () => {
     }
 
     it('문의 메일은 빌드 환경변수에서 읽어 처리방침 연락처·약관 제12조에 보인다', async () => {
-      const { PrivacyPage: Privacy, TermsPage: Terms } = await load('contact@example.test')
+      const { PrivacyPage: Privacy, TermsPage: Terms } = await load('contact@example.com')
       setup(<Privacy />)
       expect(screen.getByText('개인정보 보호책임자: 김성우')).toBeInTheDocument()
-      expect(screen.getByText('연락처: contact@example.test')).toBeInTheDocument()
+      const mail = within(screen.getByText(/^연락처:/)).getByRole('link', { name: 'contact@example.com' })
+      expect(mail).toHaveAttribute('href', 'mailto:contact@example.com')
+      expect(mail).not.toHaveAttribute('target')
       expect(document.body).toHaveTextContent('김성우(이하 "운영자")는')
       document.body.innerHTML = ''
       setup(<Terms />)
       const q = screen.getByRole('region', { name: '제12조 (문의)' })
-      expect(q).toHaveTextContent('서비스 이용에 관한 문의는 contact@example.test로 할 수 있습니다.')
+      // com은 '컴'으로 읽혀 받침이 있으므로 '으로'
+      expect(q).toHaveTextContent('서비스 이용에 관한 문의는 contact@example.com으로 할 수 있습니다.')
+      expect(within(q).getByRole('link', { name: 'contact@example.com' })).toHaveAttribute(
+        'href',
+        'mailto:contact@example.com',
+      )
       expect(within(q).queryByText('[확정 전]')).toBeNull()
+    })
+
+    it.each([
+      ['help@example.kr', '로'],
+      ['help@example.io', '로'],
+      ['help@example.net', '으로'],
+      ['help@example.test', '(으)로'],
+    ])('제12조 조사는 주소 끝을 읽는 소리로: %s → %s', async (email, ro) => {
+      const { TermsPage: Terms } = await load(email)
+      setup(<Terms />)
+      expect(screen.getByRole('region', { name: '제12조 (문의)' })).toHaveTextContent(
+        `문의는 ${email}${ro} 할 수 있습니다.`,
+      )
     })
 
     it('값이 없는 빌드(로컬·미리보기)에서는 문의 메일 자리를 [확정 전]으로 남긴다', async () => {
       const { PrivacyPage: Privacy } = await load('  ')
       setup(<Privacy />)
       expect(screen.getByText('연락처:', { exact: false })).toHaveTextContent('연락처: [확정 전]')
+      expect(screen.queryByRole('link', { name: /@/ })).toBeNull()
     })
   })
 })
