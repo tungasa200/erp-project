@@ -215,12 +215,13 @@ export function AppShell() {
       <div ref={contentRef} className={styles.content}>
         <UnverifiedBanner />
         {/* 끊긴 동안에는 화면마다 저장·편집 영역만 막는다(SCR-SYS-02 ③, 오프라인 기록은 범위 밖). 이동·열람은 된다 */}
-        <div className={styles.main}>
+        {/* 앱 화면의 본문 랜드마크. 페이지 컴포넌트는 <main>을 따로 두지 않는다(오류·404·점검·인증 화면은 셸 밖이라 각자 둔다) */}
+        <main className={styles.main}>
           {/* 업무 완료 결과 입력(SCR-TASK-03)은 목록·홈·상세 어디서 완료해도 같은 팝오버를 띄운다 */}
           <CompletionResultHost>
             <Outlet />
           </CompletionResultHost>
-        </div>
+        </main>
       </div>
 
       <div ref={timerMobileRef} className={styles.timerMobile}>

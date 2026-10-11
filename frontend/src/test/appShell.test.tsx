@@ -120,7 +120,10 @@ describe('P4 화면 경로 연결 (통계·보관함)', () => {
       'GET /api/worklog/stats/plan-vs-actual': () => json(200, { from: '', to: '', weeks: [], topDiffs: [] }),
     })
     const { router } = renderApp('/stats')
-    expect(await screen.findByRole('heading', { level: 1, name: '통계' })).toBeInTheDocument()
+    const title = await screen.findByRole('heading', { level: 1, name: '통계' })
+    // 본문 랜드마크는 셸의 <main> 하나뿐이고 화면 제목이 그 안에 있다
+    expect(screen.getAllByRole('main')).toHaveLength(1)
+    expect(screen.getByRole('main')).toContainElement(title)
 
     await router.navigate('/tasks')
     await userEvent.click(await screen.findByRole('link', { name: '보관함' }))
