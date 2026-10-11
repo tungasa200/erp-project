@@ -20,3 +20,16 @@ docs/trashcan/
 # WY Ops: PC마다 다른 Claude 설정(훅 경로에 개인 홈 경로)과 설치 명령이 남기는 백업(U-12)
 .claude/settings.local.json
 .claude/*.bak-*
+
+# QA 증거 이미지는 로컬에만 둔다(D-207, 저장소 공개). 시트·문서는 커밋한다
+docs/qa/evidence/**/*.png
+docs/qa/evidence/**/*.jpg
+docs/qa/evidence/**/*.jpeg
+docs/qa/evidence/**/*.webp
+docs/qa/evidence/**/*.gif
+docs/qa/evidence/**/.gradle/
+docs/ux/**/*.png
+docs/ux/**/*.jpg
+docs/ux/**/*.jpeg
+docs/ux/**/*.webp
+docs/ux/**/*.gif
