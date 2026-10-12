@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   매뉴얼 웹 페이지 틀 (WY-design). 생성 스크립트(WY-planner)가 자리 표시를 바꿔 docs/manual/web/index.html로 낸다.
-  자리 표시: {{TITLE}} {{EDITION}} {{COVER}} {{TOC}} {{BODY}} {{PDF_HREF}}
+  자리 표시: {{TITLE}} {{EDITION}} {{COVER}} {{TOC}} {{BODY}} {{PDF_HREF}} {{PDF_SIZE}}(PDF 크기, 웹 만들 때 채움)
   같은 폴더에 web.css, fonts/pretendardvariable.css(+ fonts/woff2/), images/가 함께 놓인다.
   장 앵커: #ch-NN (빠른 입력 도움말 → #ch-07)
 -->
@@ -26,7 +26,7 @@
       </a>
       <span class="topbar-title">사용 설명서</span>
       <button type="button" class="toc-button" aria-expanded="false" aria-controls="toc">차례</button>
-      <a class="pdf-link" href="{{PDF_HREF}}" download>PDF 내려받기</a>
+      <a class="pdf-link" href="{{PDF_HREF}}" download>PDF 내려받기 <span class="pdf-size">{{PDF_SIZE}}</span></a>
     </header>
 
     <div class="layout">
@@ -39,9 +39,6 @@
         <section class="cover">
           <p class="cover-kicker">사용 설명서 · 판 {{EDITION}}</p>
           {{COVER}}
-          <p class="cover-actions">
-            <a class="pdf-button" href="{{PDF_HREF}}" download>PDF 내려받기</a>
-          </p>
         </section>
         {{BODY}}
         <footer class="foot">
@@ -64,7 +61,17 @@
           set(button.getAttribute('aria-expanded') !== 'true')
         })
         nav.addEventListener('click', function (e) {
-          if (e.target.closest('a')) set(false)
+          var a = e.target.closest('a')
+          if (!a) return
+          set(false)
+          // 이동한 장 제목으로 포커스를 옮긴다(화면 읽기 사용자가 위치를 잃지 않게, UX-M-MAN-63)
+          var target = document.getElementById(a.getAttribute('href').slice(1))
+          if (!target) return
+          var heading = target.querySelector('h1, h2') || target
+          setTimeout(function () {
+            heading.setAttribute('tabindex', '-1')
+            heading.focus({ preventScroll: true })
+          }, 0)
         })
         document.addEventListener('keydown', function (e) {
           if (e.key === 'Escape' && nav.classList.contains('open')) {

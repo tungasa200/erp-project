@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // 사용 설명서 생성 (D-216 ①·보완): docs/manual/00~10 Markdown → HTML(WY-design 틀) → headless Chrome 인쇄 PDF + 웹 페이지.
-// 사용: node manual/build-manual.js [--edition YYYY-MM-DD] [--keep-html]
+// 사용: node manual/build-manual.js [--edition YYYY-MM-DD] [--keep-html] [--web-only]
 // 결과: docs/manual/worklog-manual.pdf, docs/manual/web/(index.html·web.css·images·fonts·PDF).
 // 발행 때 docs/manual/web/을 통째로 frontend/public/manual/에 복사한다.
 'use strict';
@@ -259,6 +259,19 @@ function pdfInfo(file) {
 
 // ---------- 웹 페이지 (D-216 보완): 그림은 images/… 상대경로, 쪽 번호 없음 ----------
 
+// 웹 그림(UX-M-MAN-62·63): 누르면 원본 크기로 새 탭, 지연 로딩, 자리를 미리 잡도록 크기 속성
+function pngSize(file) {
+  const b = fs.readFileSync(file);
+  return b.toString('ascii', 12, 16) === 'IHDR' ? { w: b.readUInt32BE(16), h: b.readUInt32BE(20) } : null;
+}
+function webImg(_, src, alt) {
+  const size = /\.png$/i.test(src) ? pngSize(path.join(MANUAL, src)) : null;
+  const dim = size ? ` width="${size.w}" height="${size.h}"` : '';
+  const img = `<img src="${src}" alt="${alt}"${dim} loading="lazy" decoding="async">`;
+  if (/\.svg$/i.test(src)) return img;
+  return `<a class="shot-open" href="${src}" target="_blank" rel="noopener">${img}<span class="shot-open-hint">크게 보기<span class="sr-only">, 원본 크기로 새 탭에서 열림</span> ↗</span></a>`;
+}
+
 function buildWeb(edition, doc) {
   if (!fs.existsSync(WEB_TEMPLATE)) {
     console.warn('[주의] 웹 틀이 없어 웹 페이지를 건너뜀: docs/manual/print/web.html (WY-design)');
@@ -266,7 +279,11 @@ function buildWeb(edition, doc) {
   }
   fs.rmSync(WEB_OUT, { recursive: true, force: true });
   fs.mkdirSync(WEB_OUT, { recursive: true });
-  const html = render(fs.readFileSync(WEB_TEMPLATE, 'utf8'), edition, doc, {}).replace(/(src|href)="\.\.\/images\//g, '$1="images/');
+  const pdfMB = (fs.statSync(PDF_OUT).size / 1048576).toFixed(1) + 'MB';
+  const html = render(fs.readFileSync(WEB_TEMPLATE, 'utf8'), edition, doc, {})
+    .replace(/(src|href)="\.\.\/images\//g, '$1="images/')
+    .replace(/\{\{PDF_SIZE\}\}/g, pdfMB)
+    .replace(/<img src="(images\/[^"]+)" alt="([^"]*)">/g, webImg);
   fs.writeFileSync(path.join(WEB_OUT, 'index.html'), html);
   const copy = (from, to) => {
     fs.mkdirSync(path.dirname(to), { recursive: true });
@@ -292,6 +309,13 @@ function main() {
   const template = fs.readFileSync(TEMPLATE, 'utf8');
   const chrome = chromePath();
   const doc = build(edition);
+
+  // --web-only: PDF는 다시 찍지 않고 지금 PDF로 웹 페이지만 다시 만든다(웹 틀·CSS만 바뀐 판)
+  if (process.argv.includes('--web-only')) {
+    if (!fs.existsSync(PDF_OUT)) fail('PDF가 없습니다: --web-only 없이 먼저 만드세요');
+    buildWeb(edition, doc);
+    return;
+  }
 
   // 1차: 목차 쪽 번호 자리를 채워 인쇄해 장 위치를 읽고, 2차: 실제 쪽 번호로 다시 인쇄
   fs.writeFileSync(HTML_OUT, render(template, edition, doc, null));

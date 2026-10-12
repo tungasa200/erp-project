@@ -135,6 +135,20 @@ a {
 .pdf-link:hover {
   background: var(--sunken);
 }
+.pdf-size {
+  margin-left: 6px;
+  font-weight: 400;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
 .toc-button {
   display: none;
 }
@@ -229,26 +243,9 @@ main {
   font-weight: 500;
   color: var(--text-body);
 }
-.cover p:last-of-type:not(.cover-actions) {
+.cover p:last-of-type {
   font-size: 14px;
   color: var(--text-muted);
-}
-.cover-actions {
-  margin: 20px 0 0;
-}
-.pdf-button {
-  display: inline-flex;
-  align-items: center;
-  min-height: 44px;
-  padding: 0 20px;
-  border-radius: var(--radius-input);
-  background: var(--accent);
-  color: var(--on-accent);
-  font-weight: 600;
-  text-decoration: none;
-}
-.pdf-button:hover {
-  background: var(--accent-ink);
 }
 
 /* ── 장 ─────────────────────────────────────────── */
@@ -397,6 +394,18 @@ figure.shot img {
 figure.shot-M img {
   width: 280px;
 }
+/* 그림을 누르면 원본 크기로 새 탭(UX-M-MAN-62). 넓은 화면에서는 단서를 숨기고, 좁은 화면 웹 그림에만 보인다 */
+.shot-open {
+  position: relative;
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0 auto;
+  border-radius: var(--radius-input);
+}
+.shot-open-hint {
+  display: none;
+}
 figure.shot img[src$='.svg'],
 figure.shot svg {
   width: 100%;
@@ -450,10 +459,16 @@ figure.shot-M.pending .shot-pending {
 .foot {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   gap: 12px;
   padding: 8px 4px;
   font-size: 14px;
   color: var(--text-muted);
+}
+.foot a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
 }
 
 /* ── 좁은 화면 (태블릿·휴대폰) ──────────────────── */
@@ -545,6 +560,20 @@ figure.shot-M.pending .shot-pending {
   figure.shot-M img {
     width: 240px;
   }
+  figure.shot-W .shot-open-hint {
+    position: absolute;
+    right: 8px;
+    bottom: 8px;
+    display: inline-flex;
+    align-items: center;
+    min-height: 28px;
+    padding: 0 10px;
+    border-radius: 999px;
+    background: rgba(26, 28, 43, 0.82);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+  }
   .foot {
     flex-direction: column;
   }
@@ -560,7 +589,6 @@ figure.shot-M.pending .shot-pending {
   /* 웹 페이지를 그대로 인쇄할 때: 메뉴를 빼고 본문만 */
   .topbar,
   .sidebar,
-  .cover-actions,
   .foot {
     display: none !important;
   }

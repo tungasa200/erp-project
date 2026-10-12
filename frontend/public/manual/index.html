@@ -21,7 +21,7 @@
       </a>
       <span class="topbar-title">사용 설명서</span>
       <button type="button" class="toc-button" aria-expanded="false" aria-controls="toc">차례</button>
-      <a class="pdf-link" href="worklog-manual.pdf" download>PDF 내려받기</a>
+      <a class="pdf-link" href="worklog-manual.pdf" download>PDF 내려받기 <span class="pdf-size">6.8MB</span></a>
     </header>
 
     <div class="layout">
@@ -36,9 +36,6 @@
           <h1>WY Worklog 사용 설명서</h1>
 <p>계획한 일정이 끝나면 확인 한 번, 퇴근 전 1분이면 하루 마감.</p>
 <p>기준 화면: 2026-10-13 운영 화면 · wy-worklog.com</p>
-          <p class="cover-actions">
-            <a class="pdf-button" href="worklog-manual.pdf" download>PDF 내려받기</a>
-          </p>
         </section>
         <section class="chapter" id="ch-00">
 <h1>이 설명서 읽는 법</h1>
@@ -63,7 +60,7 @@
 <ol><li><strong>이메일</strong>에 쓰는 주소를 적어요. 인증번호가 이 주소로 가요.</li><li><strong>비밀번호</strong>를 정해요. 칸 아래의 규칙이 지켜지면 ✓로 바뀌어요.
 <ul><li>8~64자</li><li>영문·숫자 포함</li><li>이메일과 다른 문자열</li></ul></li><li><strong>비밀번호 확인</strong>에 같은 비밀번호를 한 번 더 적어요.</li><li>동의 항목을 눌러요. <strong>전체 동의</strong>를 누르면 세 개가 한 번에 켜져요.
 <ul><li>[필수] 만 14세 이상입니다</li><li>[필수] 이용약관 동의 (내용 보기로 읽어 볼 수 있어요)</li><li>[필수] 개인정보 수집·이용 동의 (내용 보기로 읽어 볼 수 있어요)</li></ul></li><li><strong>회원가입</strong>을 눌러요.</li></ol>
-<figure class="shot shot-W"><img src="images/01/SCR-AUTH-03_W.png" alt="회원가입 화면"><figcaption>회원가입 화면</figcaption></figure>
+<figure class="shot shot-W"><a class="shot-open" href="images/01/SCR-AUTH-03_W.png" target="_blank" rel="noopener"><img src="images/01/SCR-AUTH-03_W.png" alt="회원가입 화면" width="1280" height="960" loading="lazy" decoding="async"><span class="shot-open-hint">크게 보기<span class="sr-only">, 원본 크기로 새 탭에서 열림</span> ↗</span></a><figcaption>회원가입 화면</figcaption></figure>
 <blockquote class="note"><p>한글 비밀번호는 한 글자가 영문보다 자리를 더 차지해요. 너무 길면 입력하는 동안 바로 알려 줘요.</p></blockquote>
 <p>회원 정보와 이용 기록은 싱가포르에 있는 서버에 보관돼요. 가입 화면 아래에 같은 안내가 있고, <strong>자세히 보기</strong>로 처리방침의 해당 부분을 볼 수 있어요.</p>
 <h3 id="ch-01-s3">가입이 안 될 때</h3>
@@ -71,12 +68,12 @@
 <h2 id="ch-01-s4">2. 이메일 인증</h2>
 <p><strong>회원가입</strong>을 누르면 입력한 이메일로 6자리 인증번호가 가고, 가입 화면에서 인증번호를 넣는 단계로 넘어가요. 인증번호를 맞혀야 계정이 만들어져요.</p>
 <ol><li>메일을 열어 6자리 숫자를 확인해요. 메일이 안 보이면 스팸함도 봐요.</li><li>가입 화면에 6자리를 입력해요.</li><li>맞으면 계정이 만들어지고 바로 로그인돼 홈 화면으로 들어가요.</li></ol>
-<ul><li>인증번호는 10분 동안 쓸 수 있고, 화면에 남은 시간이 보여요.</li><li>틀리면 &quot;코드가 맞지 않아요(남은 시도 n회)&quot;로 알려 줘요. 5번 틀리거나 10분이 지나면 입력이 잠기고 <strong>새 코드 받기</strong>만 남아요.</li><li><strong>다시 받기</strong>는 60초 간격으로 눌러야 해요.</li><li>계정 화면에는 <strong>인증됨</strong>이 보여요.</li></ul>
+<ul><li>인증번호는 10분 동안 쓸 수 있고, 화면에 남은 시간이 보여요.</li><li>틀리면 &quot;코드가 맞지 않아요 · 남은 시도 n회&quot;로 알려 줘요. 5번 틀리거나 10분이 지나면 입력이 잠겨요. 이때는 <strong>새 코드 받기</strong>로 새 번호를 받아요.</li><li><strong>새 코드 받기</strong>는 60초 간격으로 누를 수 있어요. 기다리는 동안은 버튼에 남은 초가 보여요.</li><li>계정 화면에는 <strong>인증됨</strong>이 보여요.</li></ul>
 <p>이메일 주소를 잘못 적었다면 <strong>이메일 고치기</strong>로 돌아가 주소를 고쳐요. 인증번호를 넣기 전에 창을 닫으면 계정이 만들어지지 않아요. 처음부터 다시 가입해요.</p>
 <h2 id="ch-01-s5">3. 로그인</h2>
 <ol><li><strong>이메일</strong>과 <strong>비밀번호</strong>를 입력하고 <strong>로그인</strong>을 눌러요.</li><li>로그인하면 홈 화면으로 가요. 오래 쓰지 않아 다시 로그인하라는 안내가 뜬 경우에는 보던 화면으로 돌아가요.</li></ol>
-<figure class="shot shot-W"><img src="images/01/SCR-AUTH-02_W.png" alt="로그인 화면 (웹)"><figcaption>로그인 화면 (웹)</figcaption></figure>
-<figure class="shot shot-M"><img src="images/01/SCR-AUTH-02_M.png" alt="로그인 화면 (모바일)"><figcaption>로그인 화면 (모바일)</figcaption></figure>
+<figure class="shot shot-W"><a class="shot-open" href="images/01/SCR-AUTH-02_W.png" target="_blank" rel="noopener"><img src="images/01/SCR-AUTH-02_W.png" alt="로그인 화면 (웹)" width="1280" height="800" loading="lazy" decoding="async"><span class="shot-open-hint">크게 보기<span class="sr-only">, 원본 크기로 새 탭에서 열림</span> ↗</span></a><figcaption>로그인 화면 (웹)</figcaption></figure>
+<figure class="shot shot-M"><a class="shot-open" href="images/01/SCR-AUTH-02_M.png" target="_blank" rel="noopener"><img src="images/01/SCR-AUTH-02_M.png" alt="로그인 화면 (모바일)" width="390" height="844" loading="lazy" decoding="async"><span class="shot-open-hint">크게 보기<span class="sr-only">, 원본 크기로 새 탭에서 열림</span> ↗</span></a><figcaption>로그인 화면 (모바일)</figcaption></figure>
 <ul><li>이메일이나 비밀번호가 틀리면 &quot;이메일 또는 비밀번호가 맞지 않아요&quot;가 보여요.</li><li>비밀번호를 10번 잘못 입력하면 15분 동안 로그인할 수 없어요. 남은 시간이 화면에 보여요.</li></ul>
 <h3 id="ch-01-s6">비밀번호를 잊었어요</h3>
 <ol><li>로그인 화면의 <strong>비밀번호 찾기</strong>를 눌러요.</li><li>가입한 이메일을 적으면 6자리 인증번호가 메일로 가요.</li><li>인증번호를 넣고 새 비밀번호를 정해요.</li><li>새 비밀번호로 다시 로그인해요.</li></ol>
@@ -98,13 +95,13 @@
 <p>이 장을 읽으면 어느 화면에서든 원하는 곳으로 가는 길과, 키보드로 빨리 움직이는 명령 팔레트를 알 수 있어요.</p>
 <h2 id="ch-02-s1">큰 화면: 왼쪽 사이드바</h2>
 <p>컴퓨터처럼 화면이 넓으면 왼쪽에 사이드바가 있어요. 위에서 아래로 이렇게 놓여 있어요.</p>
-<figure class="shot shot-W"><img src="images/02/SCR-COM-01_W.png" alt="사이드바와 홈 (웹)"><figcaption>사이드바와 홈 (웹)</figcaption></figure>
+<figure class="shot shot-W"><a class="shot-open" href="images/02/SCR-COM-01_W.png" target="_blank" rel="noopener"><img src="images/02/SCR-COM-01_W.png" alt="사이드바와 홈 (웹)" width="1280" height="800" loading="lazy" decoding="async"><span class="shot-open-hint">크게 보기<span class="sr-only">, 원본 크기로 새 탭에서 열림</span> ↗</span></a><figcaption>사이드바와 홈 (웹)</figcaption></figure>
 <table><thead><tr><th>자리</th><th>하는 일</th></tr></thead><tbody><tr><td><strong>worklog</strong> 이름 옆 종</td><td>알림 센터를 열어요. 안 읽은 알림이 있으면 개수가 보여요(9장)</td></tr><tr><td>내 이름</td><td>누르면 <strong>설정 › 계정</strong>으로 가요</td></tr><tr><td><strong>홈</strong></td><td>오늘 할 일과 하루 마감이 모인 첫 화면(4장)</td></tr><tr><td><strong>캘린더</strong></td><td>일정을 잡고 옮기는 곳(6장)</td></tr><tr><td><strong>업무</strong></td><td>업무 목록(5장)</td></tr><tr><td><strong>통계</strong></td><td>기간별로 끝낸 일과 기록을 돌아봐요(4장 끝)</td></tr><tr><td><strong>프로젝트</strong> 목록</td><td>프로젝트 이름과 남은 업무 수. 누르면 그 프로젝트의 업무만 거른 업무 목록이 열려요</td></tr><tr><td>타이머</td><td>시간 기록을 켜고 타이머를 돌릴 때만 보여요(8장)</td></tr><tr><td><strong>설정</strong></td><td>맨 아래에 있어요(9장)</td></tr></tbody></table>
 <p>보관함은 사이드바에 따로 없어요. 업무 목록 맨 아래의 <strong>보관함 ›</strong>으로 들어가요(5장).</p>
 <p>화면이 조금 좁으면(태블릿 정도) 사이드바가 아이콘만 남기고 좁아져요. 이름과 프로젝트 목록은 숨겨지고, 아이콘에 마우스를 올리면 이름이 보여요.</p>
 <h2 id="ch-02-s2">휴대폰: 아래쪽 탭</h2>
 <p>휴대폰에서는 사이드바 대신 화면 아래에 탭 다섯 칸이 있어요.</p>
-<figure class="shot shot-M"><img src="images/02/SCR-COM-01_M.png" alt="하단 탭 (모바일)"><figcaption>하단 탭 (모바일)</figcaption></figure>
+<figure class="shot shot-M"><a class="shot-open" href="images/02/SCR-COM-01_M.png" target="_blank" rel="noopener"><img src="images/02/SCR-COM-01_M.png" alt="하단 탭 (모바일)" width="390" height="844" loading="lazy" decoding="async"><span class="shot-open-hint">크게 보기<span class="sr-only">, 원본 크기로 새 탭에서 열림</span> ↗</span></a><figcaption>하단 탭 (모바일)</figcaption></figure>
 <table><thead><tr><th>탭</th><th>하는 일</th></tr></thead><tbody><tr><td><strong>홈</strong></td><td>첫 화면</td></tr><tr><td><strong>캘린더</strong></td><td>처음엔 일 보기로 열려요</td></tr><tr><td>가운데 <strong>+</strong></td><td><strong>빠른 기록</strong> 시트를 열어요. 한 줄로 업무·일정을 만들고, 남은 확인 대기를 바로 처리해요(4장)</td></tr><tr><td><strong>업무</strong></td><td>업무 목록</td></tr><tr><td><strong>더보기</strong></td><td><strong>통계 · 보관함 · 설정</strong></td></tr></tbody></table>
 <ul><li>알림 종은 휴대폰에서는 <strong>홈</strong> 화면 머리 오른쪽에 있어요.</li><li>타이머를 돌리는 중이면 탭 바로 위에 작은 플레이어가 떠요(8장).</li></ul>
 <h2 id="ch-02-s3">어느 화면에서든 쓰는 단축키</h2>
@@ -112,7 +109,7 @@
 <p>한 글자 단축키(N, 캘린더의 D·W·M 등)는 글자를 입력하는 칸에 있을 때는 동작하지 않아요. <strong>설정 › 일반</strong>에서 끌 수 있어요(9장).</p>
 <h2 id="ch-02-s4">명령 팔레트</h2>
 <p><strong>Ctrl+K</strong>를 누르면 화면 가운데에 검색창 하나가 떠요. 마우스로 메뉴를 찾아가지 않고, 이름을 몇 글자 적어 바로 실행해요. 키보드로 여는 기능이라 휴대폰에서는 쓰지 않아요.</p>
-<figure class="shot shot-W"><img src="images/02/SCR-COM-03_W.png" alt="명령 팔레트 (웹)"><figcaption>명령 팔레트 (웹)</figcaption></figure>
+<figure class="shot shot-W"><a class="shot-open" href="images/02/SCR-COM-03_W.png" target="_blank" rel="noopener"><img src="images/02/SCR-COM-03_W.png" alt="명령 팔레트 (웹)" width="1280" height="800" loading="lazy" decoding="async"><span class="shot-open-hint">크게 보기<span class="sr-only">, 원본 크기로 새 탭에서 열림</span> ↗</span></a><figcaption>명령 팔레트 (웹)</figcaption></figure>
 <p>아무것도 적지 않으면 전체 목록이 보여요. <strong>최근 사용</strong>한 명령이 맨 위에 와요.</p>
 <table><thead><tr><th>묶음</th><th>명령</th></tr></thead><tbody><tr><td>동작</td><td>업무 추가 · 일정 추가 · 하루 마감 · 빠른 마감 (시간 기록을 켜면 타이머 시작·타이머 정지도)</td></tr><tr><td>이동</td><td>홈 · 캘린더 · 업무 목록 · 통계 · 설정 · 기록 옵션</td></tr></tbody></table>
 <p>적은 글자에 따라 이런 것도 나와요.</p>
@@ -244,24 +241,24 @@
 <table><thead><tr><th>시각</th><th>하는 일</th><th>쓰는 화면</th></tr></thead><tbody><tr><td>09:00</td><td>오늘 볼 것 확인, 할 일 적기</td><td>홈</td></tr><tr><td>09:20</td><td>오늘 시간표 짜기</td><td>캘린더</td></tr><tr><td>낮</td><td>끝낸 업무 완료, 계획에 없던 일 기록</td><td>업무·캘린더·휴대폰</td></tr><tr><td>일정이 끝날 때마다</td><td>확인 대기 처리</td><td>홈</td></tr><tr><td>18:00</td><td>하루 마감</td><td>홈</td></tr><tr><td>금요일 오후</td><td>한 주 돌아보기</td><td>통계</td></tr></tbody></table>
 <h2 id="ch-04-s1">1. 아침: 홈에서 오늘 보기</h2>
 <p>로그인하면 <strong>홈</strong>이 열려요. 맨 위에 날짜와 인사, 그 아래 큰 입력창이 있어요.</p>
-<figure class="shot shot-W"><img src="images/04/SCR-HOME-01_W.png" alt="홈 (웹)"><figcaption>홈 (웹)</figcaption></figure>
+<figure class="shot shot-W"><a class="shot-open" href="images/04/SCR-HOME-01_W.png" target="_blank" rel="noopener"><img src="images/04/SCR-HOME-01_W.png" alt="홈 (웹)" width="1280" height="800" loading="lazy" decoding="async"><span class="shot-open-hint">크게 보기<span class="sr-only">, 원본 크기로 새 탭에서 열림</span> ↗</span></a><figcaption>홈 (웹)</figcaption></figure>
 <p>위에서 아래로 이렇게 놓여 있어요.</p>
 <table><thead><tr><th>자리</th><th>보이는 것</th></tr></thead><tbody><tr><td>빠른 입력창</td><td>&quot;무엇을 할지 한 줄로 적어 보세요&quot;. 하루 마감 시각이 지나면 &quot;무엇을 했는지 한 줄로 적어 보세요&quot;로 바뀌어요</td></tr><tr><td>요약 한 줄</td><td><strong>남은 업무</strong>(마감 지난 것은 '초과 n') · <strong>오늘 일정</strong>(남은 n) · <strong>확인 대기</strong> · <strong>이번 주 완료</strong>. 누르면 그 목록으로 가요</td></tr><tr><td>오늘 일정</td><td>오늘 잡힌 일정이 시간순으로. 지금 하는 일정에는 '진행 중'이 붙어요</td></tr><tr><td>남은 업무</td><td>마감순 또는 프로젝트로 묶어 10개까지. 동그란 체크로 바로 완료해요</td></tr><tr><td>오른쪽 열</td><td><strong>오늘 마감</strong> 카드 · <strong>다가오는 일정</strong>(내일부터 7일) · <strong>이번 주 마감</strong>(요일마다 마감함·마감 전)</td></tr></tbody></table>
 <p>휴대폰에서는 같은 내용이 한 줄로 이어져요.</p>
-<figure class="shot shot-M"><img src="images/04/SCR-HOME-01_M.png" alt="홈 (모바일)"><figcaption>홈 (모바일)</figcaption></figure>
+<figure class="shot shot-M"><a class="shot-open" href="images/04/SCR-HOME-01_M.png" target="_blank" rel="noopener"><img src="images/04/SCR-HOME-01_M.png" alt="홈 (모바일)" width="390" height="844" loading="lazy" decoding="async"><span class="shot-open-hint">크게 보기<span class="sr-only">, 원본 크기로 새 탭에서 열림</span> ↗</span></a><figcaption>홈 (모바일)</figcaption></figure>
 <blockquote class="note"><p>요약 줄의 <strong>확인 대기</strong>에 숫자가 있으면, 어제까지 끝난 일정 중 아직 확인하지 않은 것이 있다는 뜻이에요. 먼저 눌러서 정리해요(아래 4절).</p></blockquote>
 <h3 id="ch-04-s2">오늘 할 일 적기</h3>
 <p>빠른 입력창에 한 줄씩 적고 Enter를 눌러요(문법은 7장).</p>
 <pre><code>주간 보고 정리 @팀운영 #보고 ~금
 14-16 행사장 견적 비교 @행사 #예산</code></pre>
-<figure class="shot shot-W"><img src="images/04/SCR-COM-02_W.png" alt="빠른 입력에 적는 중"><figcaption>빠른 입력에 적는 중</figcaption></figure>
+<figure class="shot shot-W"><a class="shot-open" href="images/04/SCR-COM-02_W.png" target="_blank" rel="noopener"><img src="images/04/SCR-COM-02_W.png" alt="빠른 입력에 적는 중" width="1280" height="800" loading="lazy" decoding="async"><span class="shot-open-hint">크게 보기<span class="sr-only">, 원본 크기로 새 탭에서 열림</span> ↗</span></a><figcaption>빠른 입력에 적는 중</figcaption></figure>
 <ul><li>첫 줄은 시간이 없어서 <strong>업무</strong>만 생겨요. 마감은 이번 주 금요일이에요.</li><li>둘째 줄은 시간이 있어서 <strong>업무와 오늘 14:00–16:00 일정</strong>이 함께 생기고 서로 연결돼요.</li></ul>
 <p>적는 동안 입력창 아래에 &quot;업무가 만들어져요&quot; 또는 &quot;일정과 업무가 함께 만들어져요&quot;가 보여서, 무엇이 생길지 미리 알 수 있어요.</p>
 <h2 id="ch-04-s3">2. 계획: 캘린더에서 시간표 짜기</h2>
 <p>사이드바의 <strong>캘린더</strong>를 열고 <strong>일</strong> 보기(단축키 D)로 오늘을 봐요. 오른쪽에 <strong>업무 패널</strong>(맨 위 이름 '할 일 상자', 3장)이 있어요. 아직 일정을 잡지 않은 업무가 마감이 가까운 순서로 보여요.</p>
-<figure class="shot shot-W"><img src="images/04/SCR-CAL-09_W.png" alt="캘린더 일 보기와 업무 패널"><figcaption>캘린더 일 보기와 업무 패널</figcaption></figure>
+<figure class="shot shot-W"><a class="shot-open" href="images/04/SCR-CAL-09_W.png" target="_blank" rel="noopener"><img src="images/04/SCR-CAL-09_W.png" alt="캘린더 일 보기와 업무 패널" width="1280" height="800" loading="lazy" decoding="async"><span class="shot-open-hint">크게 보기<span class="sr-only">, 원본 크기로 새 탭에서 열림</span> ↗</span></a><figcaption>캘린더 일 보기와 업무 패널</figcaption></figure>
 <ol><li>업무 패널의 &quot;초대장 시안 검토&quot;를 끌어서 10시 줄에 놓아요. 10:00–11:00에 그 업무가 연결된 일정이 생겨요.</li><li>16시 빈 칸을 눌러 빠른 만들기 창을 열고 <code>외부 협력사 미팅</code>이라고 적은 뒤 <strong>저장</strong>을 눌러요. 업무가 없는 일정이에요.</li></ol>
-<figure class="shot shot-W"><img src="images/04/SCR-CAL-06_W.png" alt="일정 빠른 만들기"><figcaption>일정 빠른 만들기</figcaption></figure>
+<figure class="shot shot-W"><a class="shot-open" href="images/04/SCR-CAL-06_W.png" target="_blank" rel="noopener"><img src="images/04/SCR-CAL-06_W.png" alt="일정 빠른 만들기" width="1280" height="800" loading="lazy" decoding="async"><span class="shot-open-hint">크게 보기<span class="sr-only">, 원본 크기로 새 탭에서 열림</span> ↗</span></a><figcaption>일정 빠른 만들기</figcaption></figure>
 <p>반복 일정 &quot;매일 17:30 메일 정리&quot;는 미리 만들어 두었어요(반복 만들기는 6장).</p>
 <p>이제 오늘 시간표는 이래요.</p>
 <table><thead><tr><th>시간</th><th>일정</th><th>연결 업무</th><th>끝나면 확인 대기가 생기나요</th></tr></thead><tbody><tr><td>10:00–11:00</td><td>초대장 시안 검토</td><td>있음</td><td>생겨요</td></tr><tr><td>14:00–16:00</td><td>행사장 견적 비교</td><td>있음</td><td>생겨요</td></tr><tr><td>16:00–17:00</td><td>외부 협력사 미팅</td><td>없음</td><td>안 생겨요</td></tr><tr><td>17:30–18:00</td><td>메일 정리(매일 반복)</td><td>있음</td><td>생겨요</td></tr></tbody></table>
@@ -270,26 +267,26 @@
 <h3 id="ch-04-s5">업무를 끝냈을 때</h3>
 <p>어제부터 하던 &quot;설문 문항 초안&quot;을 끝냈어요. 홈이나 업무 목록에서 그 업무의 동그란 체크를 눌러요.</p>
 <p>화면 아래에 <strong>결과 한 줄</strong> 창이 떠요.</p>
-<figure class="shot shot-W"><img src="images/04/SCR-TASK-03_W.png" alt="완료할 때 결과 한 줄"><figcaption>완료할 때 결과 한 줄</figcaption></figure>
+<figure class="shot shot-W"><a class="shot-open" href="images/04/SCR-TASK-03_W.png" target="_blank" rel="noopener"><img src="images/04/SCR-TASK-03_W.png" alt="완료할 때 결과 한 줄" width="1280" height="800" loading="lazy" decoding="async"><span class="shot-open-hint">크게 보기<span class="sr-only">, 원본 크기로 새 탭에서 열림</span> ↗</span></a><figcaption>완료할 때 결과 한 줄</figcaption></figure>
 <ol><li>결과를 한 줄 적어요. 예: <code>초안 공유, 금요일에 확정</code></li><li>칩을 골라요: <strong>완료</strong> · <strong>검토 요청</strong> · <strong>진행 중</strong>(진행 중을 고르면 진행률도 골라요). 이번엔 <strong>검토 요청</strong>.</li><li><strong>저장</strong>(Enter)을 눌러요.</li></ol>
 <p>결과를 적기 귀찮으면 <strong>건너뛰기</strong>(Esc)를 눌러요. 결과 없이 '완료' 기록이 남아요. 업무를 완료하면 어느 쪽이든 오늘 기록이 하나 생겨요.</p>
 <h3 id="ch-04-s6">계획에 없던 일을 했을 때</h3>
 <p>오전에 협력사에서 전화가 와서 30분 동안 일정 조정을 했어요. 일정에 없던 일이라 확인 대기가 생기지 않아요. 직접 기록을 남겨요.</p>
 <ol><li>캘린더 일 보기 오른쪽 <strong>이날의 기록</strong>에서 <strong>기록 추가</strong>를 눌러요.</li><li><strong>한 일</strong>에 <code>협력사 일정 조정 통화</code>를 적어요.</li><li>필요하면 업무를 연결하고, <strong>결과 한 줄</strong>과 칩을 골라요.</li><li><strong>날짜</strong>가 오늘인지 보고 <strong>저장</strong>을 눌러요. &quot;기록을 남겼어요&quot;가 떠요.</li></ol>
-<figure class="shot shot-W"><img src="images/04/SCR-REC-01_W.png" alt="기록 추가 창"><figcaption>기록 추가 창</figcaption></figure>
+<figure class="shot shot-W"><a class="shot-open" href="images/04/SCR-REC-01_W.png" target="_blank" rel="noopener"><img src="images/04/SCR-REC-01_W.png" alt="기록 추가 창" width="1280" height="800" loading="lazy" decoding="async"><span class="shot-open-hint">크게 보기<span class="sr-only">, 원본 크기로 새 탭에서 열림</span> ↗</span></a><figcaption>기록 추가 창</figcaption></figure>
 <p>직접 남긴 기록은 처음부터 '했어요' 기록이에요. 확인할 필요가 없어요.</p>
 <h3 id="ch-04-s7">휴대폰에서</h3>
 <p>밖에 있을 때는 하단 탭 가운데 <strong>+</strong>를 눌러 <strong>빠른 기록</strong> 시트를 열어요.</p>
-<figure class="shot shot-M"><img src="images/04/SCR-MOB-01_M.png" alt="빠른 기록 시트 (모바일)"><figcaption>빠른 기록 시트 (모바일)</figcaption></figure>
+<figure class="shot shot-M"><a class="shot-open" href="images/04/SCR-MOB-01_M.png" target="_blank" rel="noopener"><img src="images/04/SCR-MOB-01_M.png" alt="빠른 기록 시트 (모바일)" width="390" height="844" loading="lazy" decoding="async"><span class="shot-open-hint">크게 보기<span class="sr-only">, 원본 크기로 새 탭에서 열림</span> ↗</span></a><figcaption>빠른 기록 시트 (모바일)</figcaption></figure>
 <ul><li><strong>한 줄 입력</strong>에 홈과 같은 문법으로 적고 <strong>저장</strong>을 눌러요.</li><li>확인 대기가 있으면 시트 안에 첫 건이 보여요. <strong>했어요</strong>로 바로 처리하거나, <strong>n건 더 보기</strong>로 전체 목록을 열어요.</li></ul>
 <h2 id="ch-04-s8">4. 일정이 끝나면: 확인 대기 처리</h2>
 <p>10:00–11:00 &quot;초대장 시안 검토&quot; 일정이 끝나면, 앱이 &quot;이 일을 했나요?&quot; 하고 <strong>확인 대기</strong>를 만들어 둬요(3장). 아직 기록은 아니에요.</p>
 <p>홈의 <strong>오늘 일정</strong>에서 끝난 일정 옆에 '확인 대기'와 버튼 세 개가 보여요. 끝난 직후 잠깐은 '끝남'으로 보이다가 확인 대기로 바뀌어요.</p>
 <table><thead><tr><th>버튼</th><th>이럴 때</th><th>결과</th></tr></thead><tbody><tr><td><strong>했어요</strong></td><td>계획대로 했어요</td><td>계획한 시각대로 기록이 돼요</td></tr><tr><td><strong>수정</strong></td><td>하긴 했는데 내용이나 시간이 달랐어요</td><td>&quot;확인 대기 수정&quot; 창에서 고쳐 저장하면 '했어요' 기록이 돼요</td></tr><tr><td><strong>안 했어요</strong></td><td>못 했어요</td><td>'안 했어요'로 표시돼요. 실적에는 들어가지 않아요</td></tr></tbody></table>
 <p>확인 대기가 여러 건이면 요약 줄의 <strong>확인 대기</strong>를 눌러 한 창에서 처리해요.</p>
-<figure class="shot shot-W"><img src="images/04/SCR-HOME-02_W.png" alt="확인 대기 패널 (웹)"><figcaption>확인 대기 패널 (웹)</figcaption></figure>
+<figure class="shot shot-W"><a class="shot-open" href="images/04/SCR-HOME-02_W.png" target="_blank" rel="noopener"><img src="images/04/SCR-HOME-02_W.png" alt="확인 대기 패널 (웹)" width="1280" height="800" loading="lazy" decoding="async"><span class="shot-open-hint">크게 보기<span class="sr-only">, 원본 크기로 새 탭에서 열림</span> ↗</span></a><figcaption>확인 대기 패널 (웹)</figcaption></figure>
 <ul><li>창 제목은 &quot;확인 대기 n건&quot;이고, 날짜별(오늘·어제…)로 묶여 있어요.</li><li>항목마다 <strong>했어요 · 수정 · 안 했어요</strong>, 아래에는 한꺼번에 처리하는 <strong>n건 모두 했어요</strong>가 있어요.</li><li>처리하면 화면 아래에 &quot;1건을 했어요로 기록했어요&quot; 같은 알림과 <strong>되돌리기</strong>가 잠깐 떠요.</li><li>다 처리하면 창이 저절로 닫혀요.</li></ul>
-<figure class="shot shot-M"><img src="images/04/SCR-HOME-02_M.png" alt="확인 대기 패널 (모바일)"><figcaption>확인 대기 패널 (모바일)</figcaption></figure>
+<figure class="shot shot-M"><a class="shot-open" href="images/04/SCR-HOME-02_M.png" target="_blank" rel="noopener"><img src="images/04/SCR-HOME-02_M.png" alt="확인 대기 패널 (모바일)" width="390" height="844" loading="lazy" decoding="async"><span class="shot-open-hint">크게 보기<span class="sr-only">, 원본 크기로 새 탭에서 열림</span> ↗</span></a><figcaption>확인 대기 패널 (모바일)</figcaption></figure>
 <blockquote class="note"><p>14:00–16:00 견적 비교는 했지만 업체를 하나로 정하지는 못했어요. 이럴 땐 <strong>수정</strong>을 눌러 <strong>결과 한 줄</strong>에 <code>두 곳으로 좁힘</code>을 적고 칩을 <strong>진행 중</strong>으로 골라 저장해요. 시간까지 고치는 칸은 시간 기록 옵션을 켰을 때만 보여요(8장).</p></blockquote>
 <ul><li>홈에는 오늘을 포함한 <strong>최근 7일</strong>의 확인 대기만 보여요. 더 지난 것은 캘린더 일 보기에서 그날을 열어 처리해요.</li><li>지금 진행 중인 일정의 확인 대기는 일정이 끝난 뒤에 나타나요.</li></ul>
 <h2 id="ch-04-s9">5. 18:00: 하루 마감</h2>
@@ -299,32 +296,32 @@
 <ul><li>하루 마감 알림을 켜 두었다면(9장) 알림을 눌러도 돼요. 알림 센터에서 누르든 휴대폰·PC 푸시를 누르든, 홈으로 가서 그날의 하루 마감 창이 열려요.</li><li>18시 전에는 오른쪽 <strong>오늘 마감</strong> 카드의 <strong>하루 마감</strong> 버튼으로 열어요.</li><li>명령 팔레트(Ctrl+K)의 <strong>하루 마감</strong>(2장). 같은 곳의 <strong>빠른 마감</strong>은 단계를 건너뛰고 바로 마감해요(확인 대기는 그대로 두고, 넘길 업무는 처음 골라진 대로, 이슈는 비운 채).</li></ul>
 <p>창은 세 단계예요. 제목에 &quot;하루 마감 1/3&quot;처럼 단계가 보여요. 확인 대기가 없으면 1단계를 건너뛰고 두 단계가 돼요.</p>
 <h3 id="ch-04-s10">1단계: 확인 대기</h3>
-<figure class="shot shot-W"><img src="images/04/SCR-LOG-03_W_1.png" alt="하루 마감 1단계"><figcaption>하루 마감 1단계</figcaption></figure>
+<figure class="shot shot-W"><a class="shot-open" href="images/04/SCR-LOG-03_W_1.png" target="_blank" rel="noopener"><img src="images/04/SCR-LOG-03_W_1.png" alt="하루 마감 1단계" width="1280" height="800" loading="lazy" decoding="async"><span class="shot-open-hint">크게 보기<span class="sr-only">, 원본 크기로 새 탭에서 열림</span> ↗</span></a><figcaption>하루 마감 1단계</figcaption></figure>
 <p>&quot;확인 대기 기록이 n건 있어요. 확정한 기록만 오늘 실적으로 남아요.&quot;라는 안내와 남은 확인 대기 이름이 5개까지 보여요(더 있으면 &quot;외 n건&quot;). 오늘 것만이 아니라 <strong>최근 7일</strong>의 확인 대기가 모두 나오고, 다른 날 것에는 날짜가 붙어요.</p>
 <table><thead><tr><th>버튼</th><th>하는 일</th></tr></thead><tbody><tr><td><strong>모두 했어요</strong></td><td>위에 나온 최근 7일 확인 대기를 계획한 시각대로 모두 '했어요'로 기록하고 다음 단계로 가요. 5초 동안 되돌릴 수 있어요(그 안에 마감까지 하면 되돌리기는 사라지고, 마감 취소로 돌려요)</td></tr><tr><td><strong>하나씩 확인</strong></td><td>4절의 확인 대기 창을 열어 하나씩 처리해요. 다 처리하면 다음 단계로 가요</td></tr><tr><td><strong>그대로 다음</strong></td><td>처리하지 않고 넘어가요. 남은 건 확인 대기로 그대로 남고, 오늘 실적에 들어가지 않아요</td></tr></tbody></table>
 <h3 id="ch-04-s11">2단계: 다음 근무일 계획</h3>
-<figure class="shot shot-W"><img src="images/04/SCR-LOG-03_W_2.png" alt="하루 마감 2단계"><figcaption>하루 마감 2단계</figcaption></figure>
+<figure class="shot shot-W"><a class="shot-open" href="images/04/SCR-LOG-03_W_2.png" target="_blank" rel="noopener"><img src="images/04/SCR-LOG-03_W_2.png" alt="하루 마감 2단계" width="1280" height="800" loading="lazy" decoding="async"><span class="shot-open-hint">크게 보기<span class="sr-only">, 원본 크기로 새 탭에서 열림</span> ↗</span></a><figcaption>하루 마감 2단계</figcaption></figure>
 <p>다음 근무일로 넘길 업무를 골라요. 처음엔 모두 골라져 있으니, 넘기지 않을 것만 체크를 풀어요.</p>
 <ul><li>목록에 나오는 업무: 아직 끝내지 않은 업무(할 일·진행 중) 가운데 오늘 기록이 있거나, 마감이 다음 근무일까지이거나, 진행 중인 업무예요. 보류한 업무는 나오지 않아요.</li><li>줄마다 상태(할 일 / 진행 n%)와 마감일이 보여요.</li><li>넘겨도 업무의 상태와 마감일은 바뀌지 않아요.</li><li>금요일처럼 다음 근무일이 다음 주이면 단계 이름이 <strong>다음 주 계획</strong>이 돼요.</li><li>넘길 업무가 없으면 &quot;넘길 업무가 없어요&quot;가 보여요.</li></ul>
 <p><strong>다음</strong>을 눌러요. 앞 단계로 돌아가려면 <strong>이전</strong>(확인 대기가 없어 1단계를 건너뛰었으면 이 단계에는 <strong>이전</strong>이 없어요).</p>
 <h3 id="ch-04-s12">3단계: 이슈 및 특이사항</h3>
-<figure class="shot shot-W"><img src="images/04/SCR-LOG-03_W_3.png" alt="하루 마감 3단계"><figcaption>하루 마감 3단계</figcaption></figure>
+<figure class="shot shot-W"><a class="shot-open" href="images/04/SCR-LOG-03_W_3.png" target="_blank" rel="noopener"><img src="images/04/SCR-LOG-03_W_3.png" alt="하루 마감 3단계" width="1280" height="800" loading="lazy" decoding="async"><span class="shot-open-hint">크게 보기<span class="sr-only">, 원본 크기로 새 탭에서 열림</span> ↗</span></a><figcaption>하루 마감 3단계</figcaption></figure>
 <ol><li>오늘 남길 이슈가 있으면 한 줄 적어요. 비워도 돼요. 예: <code>협력사 견적 회신이 수요일로 늦어짐</code></li><li>아래 요약 &quot;확정 기록 n건 · 다음 근무일 계획 n건&quot;을 확인해요.</li><li><strong>오늘 마감</strong>을 눌러요(Ctrl+Enter, Mac은 ⌘Enter). 지난 날을 마감할 때는 버튼 이름이 <strong>마감</strong>이에요.</li></ol>
 <h3 id="ch-04-s13">마감한 뒤</h3>
-<figure class="shot shot-W"><img src="images/04/SCR-LOG-03_W_완료.png" alt="하루 마감 완료"><figcaption>하루 마감 완료</figcaption></figure>
+<figure class="shot shot-W"><a class="shot-open" href="images/04/SCR-LOG-03_W_완료.png" target="_blank" rel="noopener"><img src="images/04/SCR-LOG-03_W_완료.png" alt="하루 마감 완료" width="1280" height="800" loading="lazy" decoding="async"><span class="shot-open-hint">크게 보기<span class="sr-only">, 원본 크기로 새 탭에서 열림</span> ↗</span></a><figcaption>하루 마감 완료</figcaption></figure>
 <ul><li>창에 &quot;✓ 오늘 하루를 마감했어요&quot;와 요약이 보여요. <strong>닫기</strong>를 눌러요.</li><li>홈의 띠가 &quot;✓ 오늘 하루를 마감했어요 · 18:05 마감 · 다음 근무일 계획 3건&quot;처럼 바뀌고, <strong>오늘 마감</strong> 카드에 '마감함'이 붙어요.</li><li>잘못 마감했으면 창 아래 <strong>잘못 마감했나요? 마감 취소</strong>를 눌러요. &quot;마감을 취소할까요? 넘긴 계획은 그대로예요.&quot;에서 <strong>마감 취소</strong>를 고르면 마감 전으로 돌아가고, <strong>다시 마감</strong>으로 처음부터 다시 할 수 있어요.</li></ul>
-<figure class="shot shot-M"><img src="images/04/SCR-LOG-03_M.png" alt="하루 마감 (모바일)"><figcaption>하루 마감 (모바일)</figcaption></figure>
+<figure class="shot shot-M"><a class="shot-open" href="images/04/SCR-LOG-03_M.png" target="_blank" rel="noopener"><img src="images/04/SCR-LOG-03_M.png" alt="하루 마감 (모바일)" width="390" height="844" loading="lazy" decoding="async"><span class="shot-open-hint">크게 보기<span class="sr-only">, 원본 크기로 새 탭에서 열림</span> ↗</span></a><figcaption>하루 마감 (모바일)</figcaption></figure>
 <blockquote class="note"><p>넘긴 계획을 나중에 다시 보거나 고치는 화면은 아직 없어요. 넘기기 전에 2단계에서 골라 주세요.</p></blockquote>
 <h3 id="ch-04-s14">이럴 땐 이렇게</h3>
 <ul><li><strong>마감을 깜빡했어요</strong>: 캘린더 일 보기에서 그날을 열고 <strong>이날의 기록</strong>의 <strong>하루 마감</strong>을 눌러요. 지난 날도 마감할 수 있어요(이 버튼은 오늘과 지난 날에만 있어요).</li><li><strong>이미 마감한 날을 다시 열었어요</strong>: &quot;오늘은 이미 마감했어요&quot;(지난 날이면 &quot;10월 6일은 …&quot;)가 보여요. 바꾸려면 같은 창의 <strong>마감 취소</strong>를 누른 뒤 다시 마감해요.</li><li><strong>근무일이 아닌 날</strong>: 주말에 일했다면 그날도 마감할 수 있어요. 홈의 마감 띠는 그날 기록이 있을 때만 떠요. 넘긴 업무는 다음 근무일로 가요.</li></ul>
 <h2 id="ch-04-s15">6. 돌아보기</h2>
 <h3 id="ch-04-s16">그날의 기록</h3>
 <p>캘린더 <strong>일</strong> 보기 오른쪽 <strong>이날의 기록</strong>에 그날 남긴 기록이 모여요. 일정에서 온 기록은 &quot;계획 14:00–16:00&quot;처럼 계획 시간이 함께 보이고, 누르면 고칠 수 있어요. 접어 두면 &quot;3건 · 대기 1 · 마감함&quot;처럼 요약만 보여요.</p>
-<figure class="shot shot-W"><img src="images/04/SCR-CAL-02_W.png" alt="이날의 기록 (웹)"><figcaption>이날의 기록 (웹)</figcaption></figure>
+<figure class="shot shot-W"><a class="shot-open" href="images/04/SCR-CAL-02_W.png" target="_blank" rel="noopener"><img src="images/04/SCR-CAL-02_W.png" alt="이날의 기록 (웹)" width="1280" height="800" loading="lazy" decoding="async"><span class="shot-open-hint">크게 보기<span class="sr-only">, 원본 크기로 새 탭에서 열림</span> ↗</span></a><figcaption>이날의 기록 (웹)</figcaption></figure>
 <p>한 업무에 쌓인 기록은 업무 상세의 <strong>기록 이력</strong>에서 봐요(5장).</p>
 <h3 id="ch-04-s17">통계</h3>
 <p>사이드바의 <strong>통계</strong>(휴대폰은 더보기 › 통계)에서 기간을 골라 돌아봐요.</p>
-<figure class="shot shot-W"><img src="images/04/SCR-STAT-01_W.png" alt="통계 (웹)"><figcaption>통계 (웹)</figcaption></figure>
+<figure class="shot shot-W"><a class="shot-open" href="images/04/SCR-STAT-01_W.png" target="_blank" rel="noopener"><img src="images/04/SCR-STAT-01_W.png" alt="통계 (웹)" width="1280" height="800" loading="lazy" decoding="async"><span class="shot-open-hint">크게 보기<span class="sr-only">, 원본 크기로 새 탭에서 열림</span> ↗</span></a><figcaption>통계 (웹)</figcaption></figure>
 <ul><li>기간: <strong>이번 주 · 이번 달 · 직접 선택</strong>.</li><li>맨 위 요약: <strong>이번 주 완료</strong>(고른 기간에 끝낸 업무 수. 기간에 따라 '이번 달 완료'·'기간 안 완료') · <strong>마감한 날</strong>(하루 마감을 한 날 수) · <strong>업무 기록</strong>(기록 수).</li><li>그 아래 주별(또는 달별) 완료 업무 그래프와 <strong>프로젝트별 완료</strong>.</li><li>추이 그래프와 기간 고르기는 첫 기록을 남기고 7일이 지나야 쓸 수 있어요. 그 전에는 위 숫자로 봐요.</li><li>시간 기록을 켜면 소요시간 비중과 '주간 회고 · 예상 대비 실제'가 더 보여요(8장).</li></ul>
 <h2 id="ch-04-s18">7. (옵션) 시간 기록을 켠 하루</h2>
 <p><strong>설정 › 기록 옵션</strong>에서 시간 기록을 켜면 같은 하루가 조금 달라져요. 자세한 것은 8장이에요.</p>
@@ -335,14 +332,14 @@
 <p>이 장을 읽으면 업무를 만들고, 훑어보고, 고치고, 치우는 방법을 알 수 있어요.</p>
 <h2 id="ch-05-s1">업무 목록 한눈에</h2>
 <p>사이드바(모바일은 하단 탭)의 <strong>업무</strong>를 누르면 업무 목록이 열려요. 앞으로 해야 할 일이 마감이 가까운 순서로 모여 있어요.</p>
-<figure class="shot shot-W"><img src="images/05/SCR-TASK-01_W.png" alt="업무 목록 — 웹"><figcaption>업무 목록 — 웹</figcaption></figure>
+<figure class="shot shot-W"><a class="shot-open" href="images/05/SCR-TASK-01_W.png" target="_blank" rel="noopener"><img src="images/05/SCR-TASK-01_W.png" alt="업무 목록 — 웹" width="1280" height="800" loading="lazy" decoding="async"><span class="shot-open-hint">크게 보기<span class="sr-only">, 원본 크기로 새 탭에서 열림</span> ↗</span></a><figcaption>업무 목록 — 웹</figcaption></figure>
 <p>위에서 아래로 이렇게 이어져요.</p>
 <ol><li><strong>입력창</strong> — 한 줄로 적고 Enter를 누르면 업무가 만들어져요(적는 법은 7장).</li><li><strong>검색·필터·묶기</strong> — 제목 검색, 상태·프로젝트·태그·마감 기간 필터, 마감순·프로젝트·상태 묶기.</li><li><strong>목록</strong> — 업무 한 줄이 하나의 업무예요.</li></ol>
 <p>처음 열면 <strong>할 일</strong>과 <strong>진행 중</strong> 업무만 보여요. <strong>완료</strong>한 업무는 목록 맨 아래의 &quot;완료 n개 (최근 7일) 펼치기&quot;에, <strong>보류</strong>한 업무는 상태 필터에서 '보류'를 켜야 보여요.</p>
 <h3 id="ch-05-s2">한 줄에 보이는 것</h3>
 <table><thead><tr><th>칸</th><th>뜻</th></tr></thead><tbody><tr><td>동그란 체크</td><td>누르면 업무를 완료해요</td></tr><tr><td>제목</td><td>누르면 업무 상세가 열려요</td></tr><tr><td>우선순위</td><td>'높음'과 '낮음'만 적혀요. '보통'은 비워 둬서 눈에 띄는 것만 보여요</td></tr><tr><td>프로젝트</td><td>프로젝트 이름 칩(프로젝트마다 색이 달라요)</td></tr><tr><td>태그</td><td>#보고 #회의처럼 이어서 적혀요</td></tr><tr><td>마감</td><td>오늘·내일 또는 날짜. 마감이 지났으면 붉은 글씨예요</td></tr><tr><td>진행률</td><td>막대로 보여요. 0%면 비워 둬요</td></tr><tr><td>◷</td><td>이 업무가 캘린더 일정에 놓여 있어요</td></tr></tbody></table>
 <p>화면이 좁으면(태블릿·모바일) 체크·제목·프로젝트·마감만 남아요. 우선순위가 '높음'이면 제목 앞에 작은 점이 붙어 알려 줘요.</p>
-<figure class="shot shot-M"><img src="images/05/SCR-TASK-01_M.png" alt="업무 목록 — 모바일"><figcaption>업무 목록 — 모바일</figcaption></figure>
+<figure class="shot shot-M"><a class="shot-open" href="images/05/SCR-TASK-01_M.png" target="_blank" rel="noopener"><img src="images/05/SCR-TASK-01_M.png" alt="업무 목록 — 모바일" width="390" height="844" loading="lazy" decoding="async"><span class="shot-open-hint">크게 보기<span class="sr-only">, 원본 크기로 새 탭에서 열림</span> ↗</span></a><figcaption>업무 목록 — 모바일</figcaption></figure>
 <h3 id="ch-05-s3">묶어 보기</h3>
 <p>목록 위의 <strong>마감순 · 프로젝트 · 상태</strong> 버튼으로 묶는 기준을 바꿔요.</p>
 <table><thead><tr><th>묶기</th><th>이렇게 나뉘어요</th></tr></thead><tbody><tr><td>마감순</td><td>마감 초과 → 오늘 → 이번 주 → 다음 → 날짜 없음</td></tr><tr><td>프로젝트</td><td>프로젝트별, 프로젝트가 없는 업무는 맨 뒤</td></tr><tr><td>상태</td><td>할 일 → 진행 중 → 완료 → 보류</td></tr></tbody></table>
@@ -365,12 +362,12 @@
 <blockquote class="note"><p>예: &quot;행사장 견적 비교&quot;는 프로젝트가 '행사' 하나이고, 태그는 #예산 #외부 두 개를 붙일 수 있어요.</p></blockquote>
 <h3 id="ch-05-s8">프로젝트</h3>
 <ul><li>만들기: <strong>설정 › 프로젝트·태그</strong>의 '새 프로젝트'에 이름을 적고 색을 골라 <strong>추가</strong>를 눌러요. 이름은 50자까지, 같은 이름은 둘 수 없어요.</li><li>쓰기: 업무 상세의 <strong>프로젝트</strong> 칸에서 고르거나, 입력창에 <code>@이름</code>으로 적어요.</li><li>사이드바의 프로젝트 이름을 누르면 그 프로젝트의 업무만 거른 목록이 열려요. 옆 숫자는 남은 업무 수예요.</li><li>보관: 설정의 프로젝트 줄에서 <strong>보관</strong>을 눌러요. 보관한 프로젝트의 업무는 업무 목록에서 빠져요(프로젝트 필터로는 볼 수 있어요). 보관함에서 복원하면 다시 보여요.</li><li>프로젝트 색은 테마를 바꿔도 그대로예요.</li></ul>
-<figure class="shot shot-W"><img src="images/05/SCR-SET-08_W.png" alt="설정 › 프로젝트·태그"><figcaption>설정 › 프로젝트·태그</figcaption></figure>
+<figure class="shot shot-W"><a class="shot-open" href="images/05/SCR-SET-08_W.png" target="_blank" rel="noopener"><img src="images/05/SCR-SET-08_W.png" alt="설정 › 프로젝트·태그" width="1280" height="800" loading="lazy" decoding="async"><span class="shot-open-hint">크게 보기<span class="sr-only">, 원본 크기로 새 탭에서 열림</span> ↗</span></a><figcaption>설정 › 프로젝트·태그</figcaption></figure>
 <h3 id="ch-05-s9">태그</h3>
 <ul><li>만들기: 입력창에 <code>#이름</code>으로 적으면 저장할 때 자동으로 만들어져요. 업무 상세의 <strong>+ 태그</strong> 칸에 적어도 돼요.</li><li>이름 규칙: 공백과 <code>#</code> 없이 30자까지예요.</li><li>이름 바꾸기·지우기: 설정 › 프로젝트·태그의 태그 칩에서 ✎를 눌러요. 태그 옆 숫자는 그 태그를 쓴 업무 수예요.</li><li>태그를 지우면 모든 업무에서 떨어져요. 아래에 &quot;태그 1개를 지웠어요 · 되돌리기&quot;가 떠 있는 동안은 되돌릴 수 있어요.</li></ul>
 <h2 id="ch-05-s10">업무 상세</h2>
 <p>목록에서 업무 제목을 누르면 오른쪽에 상세가 열려요(모바일은 화면 전체). 닫을 때는 ×나 Esc를 눌러요.</p>
-<figure class="shot shot-W"><img src="images/05/SCR-TASK-02_W.png" alt="업무 상세 — 웹"><figcaption>업무 상세 — 웹</figcaption></figure>
+<figure class="shot shot-W"><a class="shot-open" href="images/05/SCR-TASK-02_W.png" target="_blank" rel="noopener"><img src="images/05/SCR-TASK-02_W.png" alt="업무 상세 — 웹" width="1280" height="800" loading="lazy" decoding="async"><span class="shot-open-hint">크게 보기<span class="sr-only">, 원본 크기로 새 탭에서 열림</span> ↗</span></a><figcaption>업무 상세 — 웹</figcaption></figure>
 <p><strong>저장 버튼이 없어요.</strong> 칸을 고치면 바로 저장되고, 아래에 &quot;변경 사항은 자동 저장돼요&quot;라고 적혀 있어요.</p>
 <p>위에서 아래로 이런 칸이 있어요.</p>
 <table><thead><tr><th>칸</th><th>내용</th></tr></thead><tbody><tr><td>제목</td><td>눌러서 고쳐요</td></tr><tr><td>상태·우선순위·마감일·프로젝트·태그</td><td>각각 고르거나 적어요</td></tr><tr><td>진행률</td><td>막대를 끌어요(10% 단위)</td></tr><tr><td>메모</td><td>5,000자까지 적을 수 있어요</td></tr><tr><td>연결된 일정</td><td>이 업무가 놓인 일정을 앞으로 90일 안에서 최대 5개 보여 줘요. 없으면 <strong>캘린더에 배치</strong>로 바로 잡을 수 있어요</td></tr><tr><td>기록 이력</td><td>이 업무로 남긴 '했어요' 기록이 최근 날짜부터 나와요. 눌러서 고칠 수 있어요</td></tr><tr><td>보관</td><td>업무를 목록에서 치워요</td></tr></tbody></table>
@@ -381,7 +378,7 @@
 <p>보관하면 목록에서 사라지고 &quot;업무 1개를 보관했어요 · 되돌리기&quot;가 떠요. 보관해도 업무의 상태·마감일은 바뀌지 않아요. 보관한 업무에 연결된 일정에는 새 확인 대기가 생기지 않아요.</p>
 <h3 id="ch-05-s12">보관함에서 복원하기</h3>
 <p>보관한 업무는 <strong>보관함</strong>에 모여요. 업무 목록 맨 아래의 <strong>보관함 ›</strong>을 누르거나, 모바일은 하단 탭의 <strong>더보기 › 보관함</strong>으로 열어요.</p>
-<figure class="shot shot-W"><img src="images/05/SCR-TASK-04_W.png" alt="보관함 — 웹"><figcaption>보관함 — 웹</figcaption></figure>
+<figure class="shot shot-W"><a class="shot-open" href="images/05/SCR-TASK-04_W.png" target="_blank" rel="noopener"><img src="images/05/SCR-TASK-04_W.png" alt="보관함 — 웹" width="1280" height="800" loading="lazy" decoding="async"><span class="shot-open-hint">크게 보기<span class="sr-only">, 원본 크기로 새 탭에서 열림</span> ↗</span></a><figcaption>보관함 — 웹</figcaption></figure>
 <ul><li>위쪽 탭으로 <strong>업무</strong>와 <strong>프로젝트</strong>를 오가요.</li><li>보관한 순서대로(최근 것이 위) 보이고, 줄마다 보관한 날짜·시각이 적혀 있어요.</li><li><strong>복원</strong>을 누르면 목록으로 돌아가요. &quot;'이름'을 복원했어요&quot;가 뜨고 <strong>보기</strong>로 바로 열어 볼 수 있어요.</li><li>영구 삭제는 없어요. 보관한 항목은 탈퇴하기 전까지 남아요.</li></ul>
 <h2 id="ch-05-s13">헷갈리는 짝</h2>
 <table><thead><tr><th>짝</th><th>차이</th></tr></thead><tbody><tr><td>완료 ↔ 보관</td><td>완료는 &quot;끝냈어요&quot;(결과 기록이 남아요). 보관은 &quot;목록에서 치웠어요&quot;(상태는 그대로예요)</td></tr><tr><td>보류 ↔ 보관</td><td>보류는 상태 필터로 다시 볼 수 있는 잠깐 멈춤. 보관은 보관함에 들어가요</td></tr><tr><td>삭제 ↔ 보관</td><td>업무에는 삭제가 없어요. 태그만 지울 수 있어요</td></tr><tr><td>프로젝트 ↔ 태그</td><td>프로젝트는 하나·색 있음·사이드바에 보임, 태그는 여러 개·이름만</td></tr></tbody></table>
@@ -394,7 +391,7 @@
 <ul><li>일정은 업무를 연결해도 되고 안 해도 돼요. &quot;외부 협력사 미팅&quot;처럼 업무가 없는 일정도 괜찮아요.</li><li>업무를 연결한 일정이 끝나면 앱이 <strong>확인 대기</strong>를 만들어 두고, 내가 확인하면 기록이 돼요.</li></ul>
 <h2 id="ch-06-s2">캘린더 화면</h2>
 <p>사이드바의 <strong>캘린더</strong>를 누르면 열려요. 웹은 주 보기, 모바일은 일 보기로 열려요.</p>
-<figure class="shot shot-W"><img src="images/06/SCR-CAL-01_W.png" alt="캘린더 주 보기 (웹)"><figcaption>캘린더 주 보기 (웹)</figcaption></figure>
+<figure class="shot shot-W"><a class="shot-open" href="images/06/SCR-CAL-01_W.png" target="_blank" rel="noopener"><img src="images/06/SCR-CAL-01_W.png" alt="캘린더 주 보기 (웹)" width="1280" height="800" loading="lazy" decoding="async"><span class="shot-open-hint">크게 보기<span class="sr-only">, 원본 크기로 새 탭에서 열림</span> ↗</span></a><figcaption>캘린더 주 보기 (웹)</figcaption></figure>
 <p>위쪽에서 날짜와 보기를 바꿔요.</p>
 <table><thead><tr><th>이름</th><th>하는 일</th><th>단축키</th></tr></thead><tbody><tr><td>오늘</td><td>오늘이 있는 날·주·달로 돌아와요</td><td>T</td></tr><tr><td>‹ ›</td><td>이전·다음 날(주·달·해)로 가요</td><td>K / J</td></tr><tr><td>일·주·월·연·목록</td><td>보기를 바꿔요</td><td>D · W · M · Y · A</td></tr><tr><td>일정 만들기</td><td>새 일정을 만들어요</td><td>C</td></tr><tr><td>업무 패널 접기·펼치기</td><td>오른쪽 업무 목록을 접고 펼쳐요</td><td>P</td></tr></tbody></table>
 <p>단축키는 입력창에 글자를 쓰는 중에는 동작하지 않아요. 설정 › 일반에서 끌 수도 있어요(9장).</p>
@@ -403,22 +400,22 @@
 <ul><li>일·주 보기에서 오늘 날짜 머리글이 구분돼 보이고, 오늘 열에는 지금 시각을 가리키는 선이 그어져요.</li><li>월·연 보기에서도 오늘 날짜가 구분돼요.</li><li>다른 날로 갔다면 <strong>오늘</strong>을 눌러 돌아와요.</li><li>월 보기에서 공휴일은 날짜 옆에 이름이 보여요.</li></ul>
 <h2 id="ch-06-s4">보기마다 쓰임이 달라요</h2>
 <table><thead><tr><th>보기</th><th>이럴 때 써요</th></tr></thead><tbody><tr><td>일</td><td>하루를 15분 단위로 짜고, 오른쪽에서 <strong>이날의 기록</strong>을 함께 봐요</td></tr><tr><td>주</td><td>이번 주 일정을 한눈에 보고 끌어서 옮겨요</td></tr><tr><td>월</td><td>한 달의 분포를 봐요. 날짜 칸에 일정이 최대 3개까지 보여요. 모바일에서는 일정이 점으로 보이고, 날짜를 누르면 그날 일 보기로 가요</td></tr><tr><td>연</td><td>일 년의 흐름을 봐요. 날짜나 달을 누르면 그곳으로 가요</td></tr><tr><td>목록</td><td>다가오는 일정을 줄줄이 봐요. <strong>지난 일정 보기</strong>로 이전 것도 불러와요</td></tr></tbody></table>
-<figure class="shot shot-W"><img src="images/06/SCR-CAL-03_W.png" alt="월 보기 (웹)"><figcaption>월 보기 (웹)</figcaption></figure>
-<figure class="shot shot-W"><img src="images/06/SCR-CAL-04_W.png" alt="연 보기 (웹)"><figcaption>연 보기 (웹)</figcaption></figure>
-<figure class="shot shot-W"><img src="images/06/SCR-CAL-05_W.png" alt="목록 보기 (웹)"><figcaption>목록 보기 (웹)</figcaption></figure>
+<figure class="shot shot-W"><a class="shot-open" href="images/06/SCR-CAL-03_W.png" target="_blank" rel="noopener"><img src="images/06/SCR-CAL-03_W.png" alt="월 보기 (웹)" width="1280" height="800" loading="lazy" decoding="async"><span class="shot-open-hint">크게 보기<span class="sr-only">, 원본 크기로 새 탭에서 열림</span> ↗</span></a><figcaption>월 보기 (웹)</figcaption></figure>
+<figure class="shot shot-W"><a class="shot-open" href="images/06/SCR-CAL-04_W.png" target="_blank" rel="noopener"><img src="images/06/SCR-CAL-04_W.png" alt="연 보기 (웹)" width="1280" height="800" loading="lazy" decoding="async"><span class="shot-open-hint">크게 보기<span class="sr-only">, 원본 크기로 새 탭에서 열림</span> ↗</span></a><figcaption>연 보기 (웹)</figcaption></figure>
+<figure class="shot shot-W"><a class="shot-open" href="images/06/SCR-CAL-05_W.png" target="_blank" rel="noopener"><img src="images/06/SCR-CAL-05_W.png" alt="목록 보기 (웹)" width="1280" height="800" loading="lazy" decoding="async"><span class="shot-open-hint">크게 보기<span class="sr-only">, 원본 크기로 새 탭에서 열림</span> ↗</span></a><figcaption>목록 보기 (웹)</figcaption></figure>
 <h3 id="ch-06-s5">일정이 많은 날</h3>
 <ul><li>일·주 보기에서 일정이 겹치면 옆으로 나란히 놓여요. 너무 많이 겹치면 일부가 <strong>&quot;14시대 일정 3개 더&quot;</strong> 같은 버튼으로 묶여요. 누르면 그 일정들이 목록으로 펼쳐지고, 목록에서 고르면 상세가 열려요.</li><li>월 보기에서 하루에 일정이 4개 이상이면 두 개만 보이고 <strong>+n개 더보기</strong>가 나와요. 누르면 그날의 일정이 모두 담긴 작은 창이 열려요.</li><li>날짜 숫자를 누르면 그날의 일 보기로 가요.</li></ul>
 <h2 id="ch-06-s6">일정 만들기</h2>
 <p>세 가지 길이 있어요. 모두 같은 &quot;새 일정&quot; 창에서 끝나요.</p>
 <ol><li><strong>빈 시간대를 누르거나 끌어요.</strong> 일·주 보기에서 빈 칸을 누르면 그 시각에서 시작하는 일정이, 위아래로 끌면 끈 만큼의 일정이 잡혀요. 15분 단위로 맞춰져요. 월 보기에서는 날짜 칸의 빈 곳을 누르면 그날의 종일 일정을 만들어요.</li><li><strong>일정 만들기</strong> 버튼 또는 <strong>C</strong>.</li><li><strong>업무 패널의 업무</strong>를 시간대에 끌어다 놓아요(아래 &quot;업무를 일정으로&quot;).</li></ol>
-<figure class="shot shot-W"><img src="images/06/SCR-CAL-06_W.png" alt="새 일정 빠른 만들기 창"><figcaption>새 일정 빠른 만들기 창</figcaption></figure>
+<figure class="shot shot-W"><a class="shot-open" href="images/06/SCR-CAL-06_W.png" target="_blank" rel="noopener"><img src="images/06/SCR-CAL-06_W.png" alt="새 일정 빠른 만들기 창" width="1280" height="800" loading="lazy" decoding="async"><span class="shot-open-hint">크게 보기<span class="sr-only">, 원본 크기로 새 탭에서 열림</span> ↗</span></a><figcaption>새 일정 빠른 만들기 창</figcaption></figure>
 <p>빠른 만들기 창에서는 이렇게 해요.</p>
 <ul><li><strong>한 줄 입력</strong>에 이름과 시간을 같이 적어도 돼요. 예: <code>견적 회의 14-15 @행사 #회의</code>. 시간은 일정으로 읽히고 <code>@</code>·<code>#</code>은 업무에 넣을 프로젝트·태그로 읽혀요(7장).</li><li>위쪽의 날짜·시간을 눌러 바꿀 수 있어요.</li><li><strong>업무로도 만들기</strong>를 켜면 일정과 함께 업무도 만들어져 서로 연결돼요.</li><li><strong>저장</strong>을 누르면 끝나요. 더 정할 것이 있으면 <strong>자세히</strong>로 전체 창을 열어요.</li></ul>
 <h3 id="ch-06-s7">일정 상세 창</h3>
 <p>일정 블록을 누르면 상세 창이 열려요. 새 일정을 만들 때와 같은 창이에요.</p>
 <table><thead><tr><th>항목</th><th>설명</th></tr></thead><tbody><tr><td>제목</td><td>필수예요. 비우면 &quot;일정 이름을 적어 주세요&quot;가 나와요</td></tr><tr><td>날짜·시작·종료</td><td>종료는 시작보다 뒤여야 해요</td></tr><tr><td>종일</td><td>켜면 시각 없이 날짜만 잡아요. 날짜 위쪽 <strong>종일</strong> 줄에 보여요</td></tr><tr><td>반복</td><td>없음 · 매일 · 매주(요일 선택) · 매월</td></tr><tr><td>반복 종료</td><td>종료 없음 · 날짜까지 · 횟수(1~999)</td></tr><tr><td>메모</td><td>5000자까지 적어요</td></tr><tr><td>연결 업무</td><td>업무 이름으로 찾아 연결해요. <strong>새 업무</strong>로 바로 만들 수도 있고, <strong>해제</strong>로 끊어요</td></tr><tr><td>기록</td><td>이 일정에서 남긴 기록의 상태와 <strong>기록 보기</strong></td></tr></tbody></table>
 <p>일정이 끝난 뒤에 열어 보면 <strong>기록</strong> 줄에서 상태를 알 수 있어요. 상태 이름은 <strong>했어요 · 확인 대기 · 안 했어요</strong>이고, 남긴 기록이 없으면 &quot;이 일정에서 남긴 기록이 없어요&quot;라고 나와요.</p>
-<figure class="shot shot-W"><img src="images/06/SCR-CAL-07_W.png" alt="일정 상세 창"><figcaption>일정 상세 창</figcaption></figure>
+<figure class="shot shot-W"><a class="shot-open" href="images/06/SCR-CAL-07_W.png" target="_blank" rel="noopener"><img src="images/06/SCR-CAL-07_W.png" alt="일정 상세 창" width="1280" height="800" loading="lazy" decoding="async"><span class="shot-open-hint">크게 보기<span class="sr-only">, 원본 크기로 새 탭에서 열림</span> ↗</span></a><figcaption>일정 상세 창</figcaption></figure>
 <h2 id="ch-06-s8">옮기기·길이 바꾸기·삭제</h2>
 <p>모두 확인 창 없이 바로 실행되고, 화면 아래에 <strong>되돌리기</strong>가 5초 동안 떠요(9장).</p>
 <table><thead><tr><th>하고 싶은 일</th><th>방법</th></tr></thead><tbody><tr><td>시간·날짜 옮기기</td><td>일정 블록을 끌어 놓아요. 15분 단위로 맞춰져요. 월 보기에서는 다른 날짜 칸으로 끌어요</td></tr><tr><td>길이 바꾸기</td><td>일·주 보기에서 블록 아래 끝을 끌어요</td></tr><tr><td>자세히 고치기</td><td>블록을 눌러 상세에서 고치고 <strong>저장</strong>해요</td></tr><tr><td>삭제</td><td>상세 창의 <strong>삭제</strong>. &quot;일정을 삭제했어요&quot; 토스트가 뜨고 5초 안에 <strong>되돌리기</strong>를 누르면 돌아와요</td></tr></tbody></table>
@@ -429,17 +426,17 @@
 <p>길게 누르는 동안 손가락이 많이 움직이면 스크롤로 보고 끌기를 시작하지 않아요.</p>
 <h2 id="ch-06-s10">반복 일정</h2>
 <p>일정 상세의 <strong>반복</strong>에서 매일·매주·매월을 정해요. 예: &quot;매주 월 09:30 팀 회의&quot;, &quot;매일 17:30 메일 정리&quot;.</p>
-<figure class="shot shot-W"><img src="images/06/SCR-CAL-07_W_반복.png" alt="반복 설정 (일정 상세 창)"><figcaption>반복 설정 (일정 상세 창)</figcaption></figure>
+<figure class="shot shot-W"><a class="shot-open" href="images/06/SCR-CAL-07_W_반복.png" target="_blank" rel="noopener"><img src="images/06/SCR-CAL-07_W_반복.png" alt="반복 설정 (일정 상세 창)" width="1280" height="800" loading="lazy" decoding="async"><span class="shot-open-hint">크게 보기<span class="sr-only">, 원본 크기로 새 탭에서 열림</span> ↗</span></a><figcaption>반복 설정 (일정 상세 창)</figcaption></figure>
 <ul><li>매주를 고르면 요일을 고를 수 있어요. 시작일의 요일은 반드시 포함해야 해요.</li><li>반복은 <strong>종료 없음</strong>, <strong>날짜까지</strong>, <strong>횟수</strong> 중에서 끝을 정해요.</li><li>반복 일정에 업무를 연결하면 <strong>모든 회차에 연결</strong>돼요.</li></ul>
 <h3 id="ch-06-s11">&quot;이 일정만&quot;과 &quot;모든 일정&quot;</h3>
 <p>반복 일정을 옮기거나 고치거나 지우려고 하면 어느 범위인지 물어요.</p>
-<figure class="shot shot-W"><img src="images/06/SCR-CAL-08_W.png" alt="반복 일정 범위 선택"><figcaption>반복 일정 범위 선택</figcaption></figure>
+<figure class="shot shot-W"><a class="shot-open" href="images/06/SCR-CAL-08_W.png" target="_blank" rel="noopener"><img src="images/06/SCR-CAL-08_W.png" alt="반복 일정 범위 선택" width="1280" height="800" loading="lazy" decoding="async"><span class="shot-open-hint">크게 보기<span class="sr-only">, 원본 크기로 새 탭에서 열림</span> ↗</span></a><figcaption>반복 일정 범위 선택</figcaption></figure>
 <table><thead><tr><th>선택</th><th>바뀌는 범위</th></tr></thead><tbody><tr><td>이 일정만</td><td>누른 회차 하나</td></tr><tr><td>모든 일정</td><td>반복 전체</td></tr></tbody></table>
 <ul><li>질문 제목은 하려는 일에 따라 &quot;반복 일정을 옮길까요?&quot;, &quot;수정할까요?&quot;, &quot;삭제할까요?&quot;로 달라요.</li><li><strong>취소</strong>를 누르면 아무것도 바뀌지 않아요.</li><li>일정을 지우거나 시각·반복을 바꾸면 그 일정에 이미 만들어진 확인 대기는 지워져요.</li></ul>
 <h2 id="ch-06-s12">업무를 일정으로</h2>
 <p>오른쪽 <strong>업무 패널</strong>(맨 위에 &quot;할 일 상자&quot;라고 적혀 있어요)에는 일정을 아직 잡지 않은 업무 가운데 끝내지 않은 것이 마감일 순으로 보여요.</p>
 <ul><li>상태가 <strong>할 일·진행 중·보류</strong>인 업무만 나와요. 완료한 업무는 안 나와요.</li><li>한 번에 30개씩 보이고 <strong>더 불러오기</strong>로 이어서 봐요. 마감일이 없는 업무는 <strong>날짜 없는 업무 n개 더 보기</strong>로 따로 열어요.</li><li>맨 위 입력칸 <strong>+ 업무 추가</strong>에 한 줄로 적어 바로 업무를 만들 수 있어요.</li></ul>
-<figure class="shot shot-W"><img src="images/06/SCR-CAL-09_W.png" alt="업무 패널과 일 보기 (웹)"><figcaption>업무 패널과 일 보기 (웹)</figcaption></figure>
+<figure class="shot shot-W"><a class="shot-open" href="images/06/SCR-CAL-09_W.png" target="_blank" rel="noopener"><img src="images/06/SCR-CAL-09_W.png" alt="업무 패널과 일 보기 (웹)" width="1280" height="800" loading="lazy" decoding="async"><span class="shot-open-hint">크게 보기<span class="sr-only">, 원본 크기로 새 탭에서 열림</span> ↗</span></a><figcaption>업무 패널과 일 보기 (웹)</figcaption></figure>
 <p>일정을 잡는 방법은 두 가지예요.</p>
 <ol><li>업무 카드를 캘린더의 원하는 시간대로 <strong>끌어다 놓아요.</strong> &quot;끌어다 놓으면 1시간 일정이 돼요&quot;라는 안내처럼, 그 업무가 연결된 1시간짜리 일정이 생겨요. 시간은 나중에 고칠 수 있어요.</li><li>카드의 <strong>일정 잡기</strong>를 눌러요. 새 일정 창이 그 업무가 연결된 채로 열려요. 끌기가 어려운 휴대폰이나 키보드로 쓸 때는 이 방법을 써요.</li></ol>
 <p>일정을 잡아도 업무의 상태는 바뀌지 않아요. 업무가 끝났을 때는 업무 쪽에서 완료해요(5장).</p>
@@ -447,10 +444,10 @@
 <h2 id="ch-06-s13">계획과 기록은 이렇게 구분해요</h2>
 <p>일 보기는 두 가지를 함께 보여 줘요.</p>
 <ul><li><strong>가운데 시간표</strong>: 계획이에요. 일정이 있던 자리예요.</li><li><strong>오른쪽 &quot;이날의 기록&quot;</strong>: 그날 남긴 기록이에요. 항목마다 <strong>했어요·확인 대기·안 했어요</strong> 표시와, 일정에서 온 기록이면 &quot;계획 14:00–15:00&quot; 같은 계획 시간이 붙어요. 항목을 누르면 기록을 열어 고칠 수 있어요.</li></ul>
-<figure class="shot shot-W"><img src="images/06/SCR-CAL-02_W.png" alt="일 보기와 이날의 기록 (웹)"><figcaption>일 보기와 이날의 기록 (웹)</figcaption></figure>
+<figure class="shot shot-W"><a class="shot-open" href="images/06/SCR-CAL-02_W.png" target="_blank" rel="noopener"><img src="images/06/SCR-CAL-02_W.png" alt="일 보기와 이날의 기록 (웹)" width="1280" height="800" loading="lazy" decoding="async"><span class="shot-open-hint">크게 보기<span class="sr-only">, 원본 크기로 새 탭에서 열림</span> ↗</span></a><figcaption>일 보기와 이날의 기록 (웹)</figcaption></figure>
 <ul><li><strong>기록 추가</strong>로 일정과 상관없는 기록을 직접 남겨요.</li><li><strong>하루 마감</strong>은 오늘과 지난 날에서만 보여요. 눌러서 그날의 확인 대기를 정리하고 마감해요(4장).</li><li>접었을 때는 &quot;3건 · 대기 1 · 마감함&quot;처럼 요약만 보여요.</li><li>시간 기록 옵션을 켜면 일 보기가 <strong>계획</strong>과 <strong>실제</strong> 두 열로 바뀌어 실제로 한 시간이 따로 보여요(8장).</li></ul>
 <p>모바일의 일 보기에서는 시간표 아래에 이날의 기록이 이어져요.</p>
-<figure class="shot shot-M"><img src="images/06/SCR-CAL-02_M.png" alt="일 보기 (모바일)"><figcaption>일 보기 (모바일)</figcaption></figure>
+<figure class="shot shot-M"><a class="shot-open" href="images/06/SCR-CAL-02_M.png" target="_blank" rel="noopener"><img src="images/06/SCR-CAL-02_M.png" alt="일 보기 (모바일)" width="390" height="844" loading="lazy" decoding="async"><span class="shot-open-hint">크게 보기<span class="sr-only">, 원본 크기로 새 탭에서 열림</span> ↗</span></a><figcaption>일 보기 (모바일)</figcaption></figure>
 </section>
 <section class="chapter" id="ch-07">
 <h1>7. 빠른 입력</h1>
@@ -458,7 +455,7 @@
 <h2 id="ch-07-s1">어디서 적나요</h2>
 <p>빠른 입력창은 같은 모양으로 여러 곳에 있어요. 어디서 적어도 같은 문법이에요.</p>
 <table><thead><tr><th>어디</th><th>어떻게</th></tr></thead><tbody><tr><td>홈</td><td>화면 맨 위 입력창</td></tr><tr><td>업무 목록</td><td>목록 위 입력창</td></tr><tr><td>캘린더</td><td>일 보기 옆 업무 패널의 입력창</td></tr><tr><td>모바일</td><td>하단 탭 가운데 <strong>+</strong> 버튼 → &quot;빠른 기록&quot; 시트</td></tr><tr><td>어디서든</td><td><strong>N</strong> 키(입력창에 포커스가 없을 때), 또는 <strong>Ctrl+K</strong>로 명령 팔레트를 열어 '업무 추가'</td></tr></tbody></table>
-<figure class="shot shot-W"><img src="images/07/SCR-COM-02_W.png" alt="홈의 빠른 입력창"><figcaption>홈의 빠른 입력창</figcaption></figure>
+<figure class="shot shot-W"><a class="shot-open" href="images/07/SCR-COM-02_W.png" target="_blank" rel="noopener"><img src="images/07/SCR-COM-02_W.png" alt="홈의 빠른 입력창" width="1280" height="800" loading="lazy" decoding="async"><span class="shot-open-hint">크게 보기<span class="sr-only">, 원본 크기로 새 탭에서 열림</span> ↗</span></a><figcaption>홈의 빠른 입력창</figcaption></figure>
 <p>적은 뒤 <strong>Enter</strong>를 누르면 저장돼요. 모바일 시트에서는 입력칸 안의 <strong>저장</strong> 버튼을 눌러요.</p>
 <h2 id="ch-07-s2">한 줄에 쓸 수 있는 것</h2>
 <p>낱말을 공백으로 띄워 적어요. <strong>순서는 상관없어요.</strong> 시간·날짜·프로젝트·우선순위·마감은 종류마다 처음 쓴 것 하나만 읽어요. 읽지 못한 낱말은 모두 제목이 돼요.</p>
@@ -488,7 +485,7 @@
 <blockquote class="note"><p>숫자만 적은 것(<code>14 보고서</code>)이나 <code>3시간 회의</code>의 <code>3시간</code>은 시간으로 읽지 않아요. 제목으로 남아요.</p></blockquote>
 <h2 id="ch-07-s10">알아 두면 좋은 것</h2>
 <ul><li><strong>프로젝트 이름에 공백이 있으면 <code>@</code>로 쓸 수 없어요.</strong> <code>@</code>는 한 낱말이라서 이름이 공백 앞에서 끊겨요. 이런 프로젝트는 입력 뒤 업무 상세의 <strong>프로젝트</strong> 칸에서 골라요.</li><li><code>오전</code>·<code>오후</code> 없이 <code>2시-3시</code>라고 쓰면 새벽 2시~3시로 읽어요. 오후라면 <code>오후 2시~3시</code> 또는 <code>14-15</code>로 적어요.</li><li>시작보다 끝이 이르면 오후로 읽어요: <code>11-1</code>은 11:00–13:00이에요.</li><li>같은 이름의 태그는 하나로 합쳐져요(<code>#예산 #예산</code>). 프로젝트(<code>@</code>)는 처음 하나만 읽고, 두 번째부터는 제목에 남아요.</li><li>저장하면 &quot;업무 1개를 추가했어요&quot; 또는 &quot;업무와 일정 1개를 추가했어요&quot;가 떠요. 잘못 만들었다면 <strong>되돌리기</strong>를 눌러요. 새로 만든 태그는 되돌려도 남아요.</li><li>처음 쓸 때 입력칸 오른쪽 <strong>?</strong> 를 누르면 문법 도움말이 열려요. 예시를 누르면 입력창에 채워져요.</li></ul>
-<figure class="shot shot-W"><img src="images/07/SCR-ONB-02_W.png" alt="한 줄 입력 문법 도움말"><figcaption>한 줄 입력 문법 도움말</figcaption></figure>
+<figure class="shot shot-W"><a class="shot-open" href="images/07/SCR-ONB-02_W.png" target="_blank" rel="noopener"><img src="images/07/SCR-ONB-02_W.png" alt="한 줄 입력 문법 도움말" width="1280" height="800" loading="lazy" decoding="async"><span class="shot-open-hint">크게 보기<span class="sr-only">, 원본 크기로 새 탭에서 열림</span> ↗</span></a><figcaption>한 줄 입력 문법 도움말</figcaption></figure>
 <h2 id="ch-07-s11">자주 하는 업무 제안</h2>
 <p>입력창이 비어 있을 때 입력창을 누르면 &quot;자주 하는 업무&quot;가 최대 3개 떠요. 같은 요일·같은 시간대에 2번 이상 만든 업무예요. 누르면 제목·프로젝트·태그가 입력창에 채워지니 시간을 덧붙여 Enter만 누르면 돼요.</p>
 </section>
@@ -499,7 +496,7 @@
 <ul><li>시간 기록은 <strong>옵션</strong>이에요. 처음에는 <strong>꺼져 있어요.</strong> 꺼져 있어도 업무·일정·기록은 모두 쓸 수 있어요.</li><li>켜면 업무에 쓴 시간을 재서, 계획과 실제를 나란히 볼 수 있어요.</li><li>껐다 켜도 기존 시간 기록은 <strong>지워지지 않아요.</strong> 화면에서만 숨겨요.</li></ul>
 <h2 id="ch-08-s2">켜기</h2>
 <ol><li>사이드바 아래 <strong>설정</strong>을 열어요(모바일은 더보기 › 설정).</li><li><strong>기록 옵션</strong>을 눌러요. (명령 팔레트 Ctrl+K에서 &quot;기록 옵션&quot;을 찾아도 돼요.)</li><li><strong>시간 기록</strong> 스위치를 켜요. 누르는 즉시 저장돼요.</li></ol>
-<figure class="shot shot-W"><img src="images/08/SCR-SET-03_W.png" alt="설정 › 기록 옵션"><figcaption>설정 › 기록 옵션</figcaption></figure>
+<figure class="shot shot-W"><a class="shot-open" href="images/08/SCR-SET-03_W.png" target="_blank" rel="noopener"><img src="images/08/SCR-SET-03_W.png" alt="설정 › 기록 옵션" width="1280" height="800" loading="lazy" decoding="async"><span class="shot-open-hint">크게 보기<span class="sr-only">, 원본 크기로 새 탭에서 열림</span> ↗</span></a><figcaption>설정 › 기록 옵션</figcaption></figure>
 <p>스위치 아래 &quot;켜면 생기는 기능&quot;에 네 가지가 적혀 있어요.</p>
 <table><thead><tr><th>기능</th><th>하는 일</th></tr></thead><tbody><tr><td>타이머</td><td>업무를 시작할 때 누르고, 끝나면 멈춰요. 시간이 기록돼요</td></tr><tr><td>계획/실제 타임라인</td><td>홈에서 계획과 실제를 두 열로 나란히 봐요</td></tr><tr><td>빈 시간 메우기</td><td>기록이 없는 시간을 한 번에 채워요</td></tr><tr><td>소요시간 집계</td><td>오늘 쓴 시간을 합쳐서 보여 줘요</td></tr></tbody></table>
 <h2 id="ch-08-s3">켜기 전과 후, 홈은 이렇게 달라요</h2>
@@ -512,10 +509,10 @@
 <p>&quot;타이머 시작&quot; 창이 열리면 업무를 고르고 <strong>시작</strong>을 눌러요. 업무가 없는 일은 <strong>할 일</strong> 칸에 적어요. 업무를 고르면 칸을 비워도 돼요(비우면 업무 제목이 쓰여요). 둘 다 비어 있으면 &quot;업무를 고르거나 할 일을 적어 주세요&quot;가 떠요.</p>
 <h3 id="ch-08-s6">돌아가는 동안</h3>
 <p>타이머가 돌면 <strong>미니 플레이어</strong>가 나타나요. 데스크톱은 사이드바 아래, 모바일은 하단 탭 위쪽이에요.</p>
-<figure class="shot shot-W"><img src="images/08/SCR-COM-06_W.png" alt="미니 플레이어"><figcaption>미니 플레이어</figcaption></figure>
+<figure class="shot shot-W"><a class="shot-open" href="images/08/SCR-COM-06_W.png" target="_blank" rel="noopener"><img src="images/08/SCR-COM-06_W.png" alt="미니 플레이어" width="1280" height="800" loading="lazy" decoding="async"><span class="shot-open-hint">크게 보기<span class="sr-only">, 원본 크기로 새 탭에서 열림</span> ↗</span></a><figcaption>미니 플레이어</figcaption></figure>
 <p>미니 플레이어에는 업무 이름, 흐른 시간, <strong>정지</strong>, <strong>업무 전환</strong>이 있어요.</p>
 <ul><li>흐른 시간은 서버에 적힌 시작 시각으로 재요. <strong>브라우저를 닫아도, 다른 기기에서 열어도</strong> 이어서 보여요.</li><li>타이머는 <strong>한 번에 하나</strong>예요. 다른 업무로 시작하면 먼저 돌던 타이머가 멈추고 기록이 남아요.</li><li><strong>업무 전환</strong>을 누르면 지금 것을 멈추고 새 업무로 바로 시작해요.</li></ul>
-<figure class="shot shot-M"><img src="images/08/SCR-COM-06_M.png" alt="모바일 미니 플레이어"><figcaption>모바일 미니 플레이어</figcaption></figure>
+<figure class="shot shot-M"><a class="shot-open" href="images/08/SCR-COM-06_M.png" target="_blank" rel="noopener"><img src="images/08/SCR-COM-06_M.png" alt="모바일 미니 플레이어" width="390" height="844" loading="lazy" decoding="async"><span class="shot-open-hint">크게 보기<span class="sr-only">, 원본 크기로 새 탭에서 열림</span> ↗</span></a><figcaption>모바일 미니 플레이어</figcaption></figure>
 <h3 id="ch-08-s7">멈추기</h3>
 <p><strong>정지</strong>를 누르면 흐른 시간만큼 기록이 남아요. 알림 문구는 상황마다 달라요.</p>
 <table><thead><tr><th>상황</th><th>알림</th><th>기록</th></tr></thead><tbody><tr><td>보통</td><td>&quot;기록을 남겼어요&quot;</td><td>시작~정지 시각으로 기록</td></tr><tr><td>1분이 안 됨</td><td>&quot;1분이 안 돼서 기록하지 않았어요&quot;</td><td>기록하지 않아요</td></tr><tr><td>24시간이 넘음</td><td>&quot;24시간이 넘어 24시간까지만 기록했어요. 실제 시간으로 고쳐 주세요&quot; + <strong>시간 고치기</strong></td><td>24시간까지만</td></tr></tbody></table>
@@ -529,7 +526,7 @@
 <p>물어 보는 계획은 오늘 시간이 정해져 있고, 취소하지 않았고, 지금보다 끝나는 시각이 뒤이고, 아직 기록이 없는 것이에요. 지금 진행 중인 계획이 있으면 그것이 먼저, 없으면 가장 빠른 것이 나와요.</p>
 <h2 id="ch-08-s11">빈 시간 메우기</h2>
 <p>일하다 보면 타이머를 켜지 않은 시간이 생겨요. 그런 시간은 홈의 <strong>실제</strong> 열에 점선 <strong>빈 시간</strong> 버튼으로 보여요.</p>
-<figure class="shot shot-W"><img src="images/08/SCR-HOME-03_W.png" alt="시간 기록을 켠 홈의 계획·실제 열"><figcaption>시간 기록을 켠 홈의 계획·실제 열</figcaption></figure>
+<figure class="shot shot-W"><a class="shot-open" href="images/08/SCR-HOME-03_W.png" target="_blank" rel="noopener"><img src="images/08/SCR-HOME-03_W.png" alt="시간 기록을 켠 홈의 계획·실제 열" width="1280" height="800" loading="lazy" decoding="async"><span class="shot-open-hint">크게 보기<span class="sr-only">, 원본 크기로 새 탭에서 열림</span> ↗</span></a><figcaption>시간 기록을 켠 홈의 계획·실제 열</figcaption></figure>
 <h3 id="ch-08-s12">빈 시간이란</h3>
 <ul><li><strong>업무 시간대</strong> 안에서 확인된 기록이 없는 구간이에요. 업무 시간대는 설정 › 일반에서 정하고, 처음에는 09:00~18:00이에요.</li><li><strong>15분 이상</strong>인 구간만 보여요.</li><li>오늘이라면 <strong>지금 이후</strong>는 빈 시간으로 치지 않아요.</li></ul>
 <h3 id="ch-08-s13">채우는 법</h3>
@@ -549,7 +546,7 @@
 <h2 id="ch-09-s1">알림 센터</h2>
 <p>알림은 앱 안의 알림 센터에 모여요. 지금 받는 알림은 <strong>하루 마감 알림</strong> 하나예요.</p>
 <ul><li>웹: 위쪽의 <strong>종 모양 버튼</strong>을 누르면 알림 목록이 열려요. 안 읽은 알림이 있으면 개수가 보여요.</li><li>모바일: 종 버튼을 누르면 알림 화면이 전체 화면으로 열려요. 왼쪽 위 <strong>뒤로</strong>로 돌아와요.</li></ul>
-<figure class="shot shot-W"><img src="images/09/SCR-COM-05_W.png" alt="알림 센터 (웹)"><figcaption>알림 센터 (웹)</figcaption></figure>
+<figure class="shot shot-W"><a class="shot-open" href="images/09/SCR-COM-05_W.png" target="_blank" rel="noopener"><img src="images/09/SCR-COM-05_W.png" alt="알림 센터 (웹)" width="1280" height="800" loading="lazy" decoding="async"><span class="shot-open-hint">크게 보기<span class="sr-only">, 원본 크기로 새 탭에서 열림</span> ↗</span></a><figcaption>알림 센터 (웹)</figcaption></figure>
 <p>알림 한 줄에는 이런 것들이 있어요.</p>
 <ul><li>제목 &quot;하루 마감 시간이에요&quot;</li><li>설명: 확인 대기가 있으면 &quot;확인 대기 3건이 있어요. 1분이면 끝나요&quot;, 없으면 &quot;오늘 남긴 기록을 확정해 하루를 마감해요&quot;</li><li>받은 시각(오늘 18:00 · 어제 18:05 · 10월 1일 …)</li><li>아직 안 읽은 알림은 점이 보여요</li></ul>
 <p>알림을 누르면 읽음으로 바뀌고, 홈 화면에서 그날의 <strong>하루 마감</strong> 창이 열려요(4장). 지난 날의 알림이면 그 날짜의 하루 마감이 열려요.</p>
@@ -557,7 +554,7 @@
 <p>알림이 하나도 없는데 하루 마감 알림도 꺼져 있다면 &quot;하루 마감 알림이 꺼져 있어요&quot;와 <strong>하루 마감 알림 켜기</strong> 버튼이 보여요. 켜 둔 뒤 알림이 없을 때는 &quot;새 알림이 없어요&quot;가 보여요.</p>
 <h2 id="ch-09-s2">알림 켜기와 브라우저 허용</h2>
 <p><strong>설정 › 알림</strong>에서 정해요. 처음에는 꺼져 있어요.</p>
-<figure class="shot shot-W"><img src="images/09/SCR-SET-05_W.png" alt="알림 설정 (웹)"><figcaption>알림 설정 (웹)</figcaption></figure>
+<figure class="shot shot-W"><a class="shot-open" href="images/09/SCR-SET-05_W.png" target="_blank" rel="noopener"><img src="images/09/SCR-SET-05_W.png" alt="알림 설정 (웹)" width="1280" height="800" loading="lazy" decoding="async"><span class="shot-open-hint">크게 보기<span class="sr-only">, 원본 크기로 새 탭에서 열림</span> ↗</span></a><figcaption>알림 설정 (웹)</figcaption></figure>
 <ol><li><strong>하루 마감 알림</strong>을 켜요. 켜면 하루 마감 시각에 알림 센터에 알림이 들어와요. 확인 대기가 있으면 개수도 함께 알려 줘요.</li><li>앱을 닫아 둬도 받고 싶다면 아래 <strong>브라우저 푸시 알림</strong>의 <strong>허용하기</strong>를 눌러요. 이때 브라우저가 허용 여부를 한 번 물어봐요.</li></ol>
 <p>앱이 먼저 알아서 허용을 묻지는 않아요. 알림을 켠 뒤 <strong>허용하기</strong>를 눌러야 브라우저의 허용 창이 떠요.</p>
 <p>푸시 알림 줄에는 이 기기의 상태가 보여요.</p>
@@ -565,7 +562,7 @@
 <ul><li>허용하지 않거나 차단해도 알림은 <strong>앱 안 알림 센터</strong>에 모여요. 푸시는 덤이에요.</li><li>iPhone에서는 WY Worklog를 <strong>홈 화면에 추가</strong>해서 열어야 푸시를 받을 수 있어요(1장).</li><li><strong>로그아웃</strong>하면 이 기기의 푸시 알림은 꺼져요. 다시 로그인한 뒤 필요하면 <strong>이 기기에서 켜기</strong>를 눌러요.</li></ul>
 <h2 id="ch-09-s3">하루 마감 시각</h2>
 <p><strong>설정 › 일반</strong>의 <strong>하루 마감 시각</strong>이에요. 기본은 18:00이에요.</p>
-<figure class="shot shot-W"><img src="images/09/SCR-SET-02_W.png" alt="하루 마감 시각 (설정 일반)"><figcaption>하루 마감 시각 (설정 일반)</figcaption></figure>
+<figure class="shot shot-W"><a class="shot-open" href="images/09/SCR-SET-02_W.png" target="_blank" rel="noopener"><img src="images/09/SCR-SET-02_W.png" alt="하루 마감 시각 (설정 일반)" width="1280" height="800" loading="lazy" decoding="async"><span class="shot-open-hint">크게 보기<span class="sr-only">, 원본 크기로 새 탭에서 열림</span> ↗</span></a><figcaption>하루 마감 시각 (설정 일반)</figcaption></figure>
 <ul><li>이 시각부터 홈 화면에 <strong>하루 마감 띠</strong>가 떠요.</li><li>하루 마감 알림을 켜 두었다면 알림도 이 시각에 와요.</li><li>설정 › 알림의 <strong>알림 시각</strong>은 같은 값이에요. 누르면 설정 › 일반으로 가요.</li></ul>
 <p>시각을 바꾸고 칸에서 벗어나면 바로 저장돼요.</p>
 <h2 id="ch-09-s4">설정 한눈에 보기</h2>
@@ -576,7 +573,7 @@
 <table><thead><tr><th>항목</th><th>설명</th></tr></thead><tbody><tr><td>시간대</td><td>날짜와 시간을 이 기준으로 계산해요. 바꿔도 기존 기록의 날짜는 그대로이고 시각 표시만 바뀌어요</td></tr><tr><td>주 시작 요일</td><td>캘린더와 통계의 한 주가 시작하는 요일이에요</td></tr><tr><td>업무 요일</td><td>주·월 마지막 근무일을 판단하는 기준이에요(공휴일은 자동으로 빠져요). 하루 이상 골라야 해요</td></tr><tr><td>업무 시간대</td><td>빈 시간 메우기가 빈 구간을 찾는 시간이에요(8장). 종료는 시작보다 늦어야 해요</td></tr><tr><td>하루 마감 시각</td><td>위에서 설명했어요</td></tr><tr><td>키보드 단축키</td><td>N, D·W·M·Y·A 같은 한 글자 단축키예요. 입력 중에는 동작하지 않아요</td></tr><tr><td>앱 설치</td><td>브라우저가 설치 창을 줄 수 있을 때만 보여요(1장)</td></tr></tbody></table>
 <h3 id="ch-09-s6">테마</h3>
 <p>키 컬러(버튼·선택된 메뉴·오늘 표시의 색)와 배경을 바꿔요. 프로젝트 색과 기록 상태의 색은 바뀌지 않아요.</p>
-<figure class="shot shot-W"><img src="images/09/SCR-SET-04_W.png" alt="테마 설정 (웹)"><figcaption>테마 설정 (웹)</figcaption></figure>
+<figure class="shot shot-W"><a class="shot-open" href="images/09/SCR-SET-04_W.png" target="_blank" rel="noopener"><img src="images/09/SCR-SET-04_W.png" alt="테마 설정 (웹)" width="1280" height="800" loading="lazy" decoding="async"><span class="shot-open-hint">크게 보기<span class="sr-only">, 원본 크기로 새 탭에서 열림</span> ↗</span></a><figcaption>테마 설정 (웹)</figcaption></figure>
 <ol><li><strong>키 컬러</strong>를 고르거나 <strong>직접 고르기</strong>로 원하는 색을 정해요. 기본 색이 8가지 있어요.</li><li><strong>배경</strong>을 네 가지(쿨 그레이·웜 베이지·세이지·화이트) 중에서 골라요. 다크는 아직 준비 중이에요.</li><li>오른쪽(모바일은 아래)의 <strong>미리보기</strong>에서 홈 화면이 어떻게 보일지 확인해요. 고르는 동안은 저장 전이라 앱 전체는 그대로예요. 저장하지 않은 변경이 있으면 &quot;저장 안 한 변경이 있어요&quot;가 보여요.</li><li><strong>저장</strong>을 누르면 &quot;저장했어요. 앱 전체에 적용됐어요&quot;가 나오고 바로 적용돼요. <strong>기본값으로</strong>를 누르면 처음 색으로 돌아가요.</li></ol>
 <p>너무 옅은 색을 고르면 버튼이 잘 안 보인다고 알려 주고 더 진한 색을 권해 줘요.</p>
 <h3 id="ch-09-s7">계정</h3>
@@ -584,7 +581,7 @@
 <ul><li><strong>이메일 인증</strong>: 가입할 때 인증을 마쳤으므로 <strong>인증됨</strong>이 보여요(1장).</li><li><strong>비밀번호 변경</strong>: 현재 비밀번호, 새 비밀번호, 새 비밀번호 확인을 넣고 <strong>비밀번호 변경</strong>을 눌러요. 바꾸면 <strong>다른 기기에서 로그아웃</strong>돼요. 지금 쓰는 기기는 그대로예요. 현재 비밀번호를 여러 번 틀리면 잠시 바꿀 수 없어요.</li><li><strong>로그아웃</strong></li><li><strong>개인정보 처리방침</strong>·<strong>이용약관</strong>: 읽어 볼 수 있어요.</li><li><strong>회원 탈퇴</strong>: 되돌릴 수 없는 작업이라 로그아웃과 떨어진 맨 아래에 따로 있어요.</li></ul>
 <h2 id="ch-09-s8">되돌리기</h2>
 <p>일정을 지우거나 업무를 완료하는 것처럼 바로 실행되는 동작은 화면 아래에 <strong>되돌리기</strong> 버튼이 있는 토스트가 5초 동안 떠요.</p>
-<figure class="shot shot-W"><img src="images/09/SCR-COM-04_W.png" alt="되돌리기 토스트"><figcaption>되돌리기 토스트</figcaption></figure>
+<figure class="shot shot-W"><a class="shot-open" href="images/09/SCR-COM-04_W.png" target="_blank" rel="noopener"><img src="images/09/SCR-COM-04_W.png" alt="되돌리기 토스트" width="1280" height="800" loading="lazy" decoding="async"><span class="shot-open-hint">크게 보기<span class="sr-only">, 원본 크기로 새 탭에서 열림</span> ↗</span></a><figcaption>되돌리기 토스트</figcaption></figure>
 <ul><li>5초 안에 <strong>되돌리기</strong>를 누르거나 <strong>Ctrl+Z</strong>(Mac은 <strong>⌘Z</strong>)를 누르면 방금 한 동작이 취소돼요.</li><li>마우스를 토스트 위에 올리거나 토스트에 포커스가 있으면 사라지지 않고 기다려요.</li><li>같은 종류의 동작을 연달아 하면 하나로 모아 &quot;일정 2개를 삭제했어요&quot;처럼 알려 줘요. 되돌리면 나중에 한 동작부터 돌아와요.</li><li>글자를 입력하는 칸에서 <strong>Ctrl+Z</strong>는 글자 되돌리기예요. 칸이 비어 있으면 토스트 되돌리기로 넘어가요.</li><li>앱을 닫거나 탭을 숨기면 그 순간 동작이 확정돼서 되돌릴 수 없어요.</li></ul>
 <p>되돌릴 수 있는 동작의 예예요.</p>
 <table><thead><tr><th>동작</th><th>토스트 문구</th></tr></thead><tbody><tr><td>일정 삭제</td><td>일정을 삭제했어요</td></tr><tr><td>반복 일정 전체 옮기기</td><td>모든 일정을 옮겼어요</td></tr><tr><td>업무 완료</td><td>업무 n개를 완료했어요</td></tr><tr><td>확인 대기 처리</td><td>n건을 했어요로 기록했어요 / n건을 안 했어요로 표시했어요</td></tr><tr><td>업무를 일정에 넣기</td><td>업무를 일정에 넣었어요</td></tr></tbody></table>
@@ -598,7 +595,7 @@
 <p>막혔을 때 여기서 찾아보세요. 자세한 설명은 괄호 안의 장에 있어요.</p>
 <h2 id="ch-10-s1">가입과 로그인</h2>
 <p><strong>인증번호 메일이 안 와요.</strong>
-스팸함을 먼저 봐요. 그래도 없으면 인증번호를 넣는 화면에서 <strong>다시 받기</strong>를 눌러요. 다시 받기는 60초 간격으로 누를 수 있어요(1장).</p>
+스팸함을 먼저 봐요. 그래도 없으면 인증번호를 넣는 화면에서 <strong>새 코드 받기</strong>를 눌러요. 60초 간격으로 누를 수 있어요(1장).</p>
 <p><strong>인증번호를 5번 틀렸어요.</strong>
 입력이 잠겨요. <strong>새 코드 받기</strong>로 새 번호를 받아 넣어요. 인증번호는 10분 동안만 쓸 수 있어요(1장).</p>
 <p><strong>이메일 인증을 꼭 해야 하나요?</strong>
@@ -695,7 +692,17 @@ Safari에서 <strong>홈 화면에 추가</strong>한 앱으로 열어야 푸시
           set(button.getAttribute('aria-expanded') !== 'true')
         })
         nav.addEventListener('click', function (e) {
-          if (e.target.closest('a')) set(false)
+          var a = e.target.closest('a')
+          if (!a) return
+          set(false)
+          // 이동한 장 제목으로 포커스를 옮긴다(화면 읽기 사용자가 위치를 잃지 않게, UX-M-MAN-63)
+          var target = document.getElementById(a.getAttribute('href').slice(1))
+          if (!target) return
+          var heading = target.querySelector('h1, h2') || target
+          setTimeout(function () {
+            heading.setAttribute('tabindex', '-1')
+            heading.focus({ preventScroll: true })
+          }, 0)
         })
         document.addEventListener('keydown', function (e) {
           if (e.key === 'Escape' && nav.classList.contains('open')) {
