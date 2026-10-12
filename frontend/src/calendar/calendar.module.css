@@ -513,10 +513,11 @@ button.column {
   flex: none;
 }
 
+/* 오른쪽은 열 안에서 끝낸다: 넘치면 마지막 열(일 보기·주의 마지막 날)에서 가로 스크롤이 생긴다 */
 .nowLine {
   position: absolute;
   left: -2px;
-  right: -2px;
+  right: 0;
   border-top: 2px solid var(--color-accent);
   pointer-events: none;
   z-index: 3;
@@ -524,7 +525,7 @@ button.column {
 
 .nowLine span {
   position: absolute;
-  right: -2px;
+  right: 0;
   top: -9px;
   font-size: var(--text-xs);
   font-weight: var(--weight-strong);
