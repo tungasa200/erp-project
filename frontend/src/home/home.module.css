@@ -426,21 +426,14 @@ button.card[aria-disabled='true'] {
   color: var(--color-text-muted);
 }
 
-.srOnly {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-}
-
-@media (max-width: 767px) {
-  /* 묶음 전환 누르는 영역 44px (P1-X-10) */
+/* 묶음 전환 누르는 영역 44px (P1-X-10). 폭이 아니라 입력 수단으로: 768 이상 터치 태블릿도 44px(UX-M-HOME-11) */
+@media (max-width: 767px), (hover: none) {
   .segmentButton {
     min-height: var(--size-touch, 44px);
   }
+}
 
+@media (max-width: 767px) {
   .cards {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: var(--space-2);
@@ -491,15 +484,19 @@ button.card[aria-disabled='true'] {
   gap: var(--space-1);
 }
 
-/* 좁은 폭에서는 줄바꿈된 줄 앞에 '·'가 남지 않게 2열로(구분점 없음) */
+/* 좁은 폭에서도 요약은 한 줄 흐름(D-212 Q4, 2×2 타일 아님, UX-M-HOME-04). 넘치면 줄바꿈하되 줄 앞에 '·'가 남지 않게 구분점은 빼고
+   항목 좌우 여백을 줄여 가능한 한 한 줄에 들게 한다(가로 스크롤 없음) */
 @media (max-width: 767px) {
   .summary {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
+    gap: 0;
   }
 
   .summary > li + li::before {
     content: none;
+  }
+
+  .summary .summaryItem {
+    padding-inline: var(--space-2);
   }
 }
 

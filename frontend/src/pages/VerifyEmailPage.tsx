@@ -39,7 +39,7 @@ export function VerifyEmailPage() {
     : null
 
   return (
-    <AuthLayout heading="이메일 인증을 마치면 시작할 수 있습니다">
+    <AuthLayout heading="이메일 인증을 마치면 시작할 수 있어요">
       <div className={styles.form}>
         <span className={styles.icon} aria-hidden="true">
           <svg
@@ -57,7 +57,7 @@ export function VerifyEmailPage() {
         </span>
         <h1 className={styles.title}>이메일 인증</h1>
         <p className={styles.lead}>
-          <b className={styles.email}>{user?.email}</b>으로 보낸 6자리 숫자를 입력하세요.
+          <b className={styles.email}>{user?.email}</b>으로 보낸 6자리 숫자를 입력해 주세요.
         </p>
 
         {status.isPending && <Skeleton count={2} />}
@@ -98,7 +98,7 @@ export function VerifyEmailPage() {
           </p>
         )}
 
-        <p className={styles.hint}>메일이 안 왔나요? 스팸함을 확인하거나 코드를 다시 받아 주세요.</p>
+        <p className={styles.hint}>메일이 안 왔나요? 스팸함을 확인하거나 새 코드를 받아 주세요.</p>
         {/* 주소를 잘못 써서 메일을 받을 수 없는 사용자가 빠져나갈 길 */}
         <p className={styles.hint}>
           다른 이메일로 가입했나요?{' '}

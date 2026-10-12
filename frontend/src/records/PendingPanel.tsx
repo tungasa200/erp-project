@@ -231,7 +231,7 @@ function PendingRow(props: {
           {/* 일정 이름과 연결 업무 이름이 같으면 같은 말이 두 줄 나와 숨긴다(UX-REC-59) */}
           {task.data && task.data.title !== name && (
             <span className={styles.task} title={task.data.title}>
-              <span className={styles.srOnly}>연결 업무 </span>
+              <span className="visually-hidden">연결 업무 </span>
               {task.data.title}
             </span>
           )}

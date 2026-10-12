@@ -549,7 +549,7 @@ function FilterMenu({
       </button>
       {open && (
         <fieldset id={id} className={styles.filterMenu}>
-          <legend className={styles.srOnly}>{label}</legend>
+          <legend className="visually-hidden">{label}</legend>
           {children}
         </fieldset>
       )}

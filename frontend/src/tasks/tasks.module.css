@@ -485,6 +485,8 @@
   flex: 0 0 420px;
   max-height: calc(100dvh - 60px);
   overflow-y: auto;
+  /* 패널 끝까지 민 스크롤이 뒤 목록으로 이어지지 않게(UX-M-TASK-44) */
+  overscroll-behavior: contain;
   box-sizing: border-box;
   padding: var(--space-5);
   border-radius: var(--radius-card);
@@ -508,6 +510,10 @@
 .titleInput {
   flex: 1;
   min-width: 0;
+  min-height: var(--size-touch);
+  resize: none;
+  overflow: hidden;
+  line-height: 1.35;
   padding: var(--space-1) var(--space-2);
   border: 1.5px solid transparent;
   border-radius: var(--radius-sm);
@@ -721,15 +727,6 @@
   font-size: var(--text-sm);
   font-weight: 600;
   cursor: pointer;
-}
-
-.srOnly {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
 }
 
 /* 태블릿 이하: 목록 행을 두 줄로, 상세는 화면 위에 덮는 패널 */

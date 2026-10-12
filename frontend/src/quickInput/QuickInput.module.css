@@ -6,15 +6,6 @@
   gap: var(--space-2);
 }
 
-.srOnly {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-}
-
 .field {
   display: flex;
   align-items: center;
@@ -107,14 +98,6 @@
   padding: 0 var(--space-1);
   font-size: var(--text-sm);
   color: var(--color-text-muted);
-}
-
-/* 터치 기기에서는 'Enter 저장'·N 단축키 안내가 뜻이 없어 숨긴다(UX-MOB-01) */
-@media (pointer: coarse) {
-  .enter,
-  .kbd {
-    display: none;
-  }
 }
 
 .help {
@@ -527,6 +510,16 @@
   outline: none;
   /* 좁은 패널(할 일 상자)에 들어가면 폭으로 줄 배치를 바꾼다 */
   container-type: inline-size;
+}
+
+/* 시트 안(빠른 기록): 시트 높이(내용만큼, 최대 화면-24px)에 갇히지 않게 흐름 안에 펼친다. 예시 버튼까지 시트가 함께 커진다(UX-M-COM-05) */
+.popoverInline {
+  position: static;
+  width: auto;
+  margin-top: var(--space-3);
+  padding: var(--space-4);
+  box-shadow: none;
+  background: var(--color-ground);
 }
 
 .popoverTitle {

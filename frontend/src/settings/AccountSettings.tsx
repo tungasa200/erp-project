@@ -264,7 +264,7 @@ function PasswordChange({ email, timeZone }: { email: string; timeZone: string }
                 return (
                   <li key={rule.code} className={ok ? account.ruleOk : undefined}>
                     {ok ? '✓' : '○'} {rule.label}
-                    <span className={account.srOnly}>{ok ? ' 충족' : ' 미충족'}</span>
+                    <span className="visually-hidden">{ok ? ' 충족' : ' 미충족'}</span>
                   </li>
                 )
               })}

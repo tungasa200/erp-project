@@ -18,18 +18,21 @@ const RULES = [
 export function GrammarHelp({
   onClose,
   onPick,
+  inline = false,
 }: {
   onClose: (by: 'escape' | 'outside') => void
   onPick: (example: string) => void
+  /** 시트 안: 떠 있는 상자 대신 흐름 안에 펼쳐 시트가 함께 커지게 한다(UX-M-COM-05) */
+  inline?: boolean
 }) {
   const ref = useRef<HTMLElement>(null)
 
   // 좁은 패널(캘린더 할 일 상자)에서는 오른쪽 맞춤 520px가 패널 왼쪽 밖으로 잘린다(P1-09-12와 같은 유형)
   useLayoutEffect(() => {
-    if (!ref.current) return
+    if (!ref.current || inline) return
     fitInClip(ref.current)
     return refitOnResize(ref.current)
-  }, [])
+  }, [inline])
 
   useEffect(() => {
     ref.current?.focus()
@@ -49,7 +52,7 @@ export function GrammarHelp({
       role="dialog"
       aria-labelledby="grammar-help-title"
       tabIndex={-1}
-      className={styles.popover}
+      className={inline ? `${styles.popover} ${styles.popoverInline}` : styles.popover}
       onKeyDown={(e) => {
         if (e.key === 'Escape') {
           e.stopPropagation()

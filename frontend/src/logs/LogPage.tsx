@@ -274,7 +274,7 @@ function LogView({ type, start }: { type: LogType; start: string }) {
         )}
       </div>
 
-      <p className={styles.srOnly} role="status">
+      <p className="visually-hidden" role="status">
         {announce}
       </p>
 

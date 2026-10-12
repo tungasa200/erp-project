@@ -245,14 +245,15 @@
   border-color: var(--color-danger);
 }
 
+/* 7개를 늘 한 줄로: 칸이 좁으면(390에서 326px) 폭만 조금 줄고 높이 44는 그대로(UX-M-SET-70) */
 .days {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 44px));
   gap: var(--space-1);
 }
 
 .day {
-  width: 44px;
+  width: 100%;
   height: 44px;
   border: 0;
   border-radius: var(--radius-pill);

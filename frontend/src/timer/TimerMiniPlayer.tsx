@@ -139,7 +139,7 @@ export function TimerMiniPlayer() {
           </p>
           <p className={styles.elapsed}>
             <span aria-hidden="true">{formatElapsed(elapsed)}</span>
-            <span className={styles.srOnly}>{spokenElapsed(elapsed)} 지남</span>
+            <span className="visually-hidden">{spokenElapsed(elapsed)} 지남</span>
           </p>
           {elapsed >= DAY_MS && <p className={styles.note}>24시간이 넘었어요. 멈추면 24시간까지만 기록돼요</p>}
           {!online && (

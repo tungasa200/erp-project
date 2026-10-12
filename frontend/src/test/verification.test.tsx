@@ -106,7 +106,7 @@ describe('SCR-AUTH-04·05 비밀번호 찾기·재설정', () => {
     await toResetStep()
     expect(screen.getByText('me@example.com')).toBeInTheDocument()
     expect(screen.getByText(/남은 시간 (10:00|09:5\d)/)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /다시 받기 · \d+초/ })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /새 코드 받기 · \d+초/ })).toBeDisabled()
     // 코드 확인 전에는 새 비밀번호를 입력할 수 없다
     expect(screen.getByLabelText('새 비밀번호')).toBeDisabled()
     expect(screen.getByRole('button', { name: '저장하고 다시 로그인' })).toBeDisabled()
@@ -118,14 +118,14 @@ describe('SCR-AUTH-04·05 비밀번호 찾기·재설정', () => {
       'POST /api/auth/password-reset': () => json(202, { expiresAt: later(609), resendAvailableAt: later(69) }),
     })
     expect(screen.getByText('남은 시간 10:00')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: '다시 받기 · 60초' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '새 코드 받기 · 60초' })).toBeInTheDocument()
   })
 
   it('틀린 코드는 남은 시도 횟수를 알리고 입력을 비운다', async () => {
     await toResetStep()
     const code = screen.getByRole('textbox', { name: '인증번호' })
     await userEvent.type(code, '111111')
-    expect(await screen.findByText('코드가 맞지 않아요(남은 시도 3회)')).toBeInTheDocument()
+    expect(await screen.findByText('코드가 맞지 않아요 · 남은 시도 3회')).toBeInTheDocument()
     expect(code).toHaveValue('')
   })
 
@@ -208,7 +208,7 @@ describe('이메일 인증 필수 (사용자 지시 2026-10-13)', () => {
     const { router } = setup({ path: '/' })
     const code = await screen.findByRole('textbox', { name: '인증번호' })
     await userEvent.type(code, '000000')
-    expect(await screen.findByText('코드가 맞지 않아요(남은 시도 4회)')).toBeInTheDocument()
+    expect(await screen.findByText('코드가 맞지 않아요 · 남은 시도 4회')).toBeInTheDocument()
     await userEvent.type(code, '123456')
     expect(await screen.findByText('이메일 인증을 마쳤어요')).toBeInTheDocument()
     await waitFor(() => expect(router.state.location.pathname).toBe('/'))
@@ -218,9 +218,9 @@ describe('이메일 인증 필수 (사용자 지시 2026-10-13)', () => {
   it('다시 받기를 누르면 새 코드를 받고 쿨다운을 보여 준다', async () => {
     const { fetchMock } = setup()
     await screen.findByRole('textbox', { name: '인증번호' })
-    await userEvent.click(screen.getByRole('button', { name: '다시 받기' }))
+    await userEvent.click(screen.getByRole('button', { name: '새 코드 받기' }))
     expect(await screen.findByText('새 코드를 보냈어요')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /다시 받기 · \d+초/ })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /새 코드 받기 · \d+초/ })).toBeDisabled()
     await waitFor(() => expect(screen.getByRole('textbox', { name: '인증번호' })).toHaveFocus())
     expect(
       fetchMock.mock.calls.filter(

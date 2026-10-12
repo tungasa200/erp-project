@@ -384,7 +384,7 @@ function TagChip({ tag, onRemove }: { tag: Tag; onRemove: () => void }) {
         if (!e.currentTarget.contains(e.relatedTarget)) void save()
       }}
     >
-      <label htmlFor={id} className={styles.srOnly}>
+      <label htmlFor={id} className="visually-hidden">
         태그 이름
       </label>
       <span aria-hidden="true">#</span>

@@ -25,7 +25,7 @@ export function OutcomeChips({ outcome, progress, onChange, allowNone, disabled 
   return (
     <>
       <fieldset className={styles.chips} disabled={disabled}>
-        <legend className={styles.srOnly}>결과</legend>
+        <legend className="visually-hidden">결과</legend>
         {options.map((o) => (
           <label key={o.value ?? 'none'} className={styles.chip}>
             <input

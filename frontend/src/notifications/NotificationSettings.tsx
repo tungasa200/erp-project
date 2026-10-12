@@ -202,7 +202,11 @@ function PushCard({
   // 꺼져 있으면 흐리게 막는다(상태 배지는 보여 준다). 켜졌는데 권한을 읽는 중이면 끈 안내를 띄우지 않고 비워 둔다
   const off = !enabled
   if (off) {
-    description = '하루 마감 알림을 켜면 고를 수 있어요'
+    // 꺼진 [허용하기]가 고장처럼 보이지 않게 버튼이 있으면 그 버튼을 가리켜 말한다(UX-M-SET-72)
+    description =
+      state === 'default' || state === 'granted-off'
+        ? '위의 하루 마감 알림을 켜면 [허용하기]를 누를 수 있어요'
+        : '하루 마감 알림을 켜면 고를 수 있어요'
     if (state === 'default' || state === 'granted-off')
       action = (
         <button ref={allowRef} type="button" className={styles.allow} disabled>

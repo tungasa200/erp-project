@@ -10,4 +10,6 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  /* absolute 자손(낭독 전용 글 등)의 기준을 이 스크롤 상자로: 없으면 기준이 BODY가 되어 문서가 따로 스크롤된다(UX-M-COM-01) */
+  position: relative;
 }

@@ -2,12 +2,14 @@
 // 저장은 한 줄로 세워 앞 응답의 version으로 다음 저장을 보낸다. 409는 충돌 띠(2.5), 보관한 업무는 읽기 전용 + 복원.
 // 기록 이력(⑥)은 RecordHistory, 이월 이력(⑦)은 P3에서 채운다. 연결 일정 목록(⑤)은 업무별 일정 조회 API가 없어 배치 여부와 캘린더 링크만 둔다.
 import { useQueryClient } from '@tanstack/react-query'
-import { useCallback, useEffect, useId, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import { useNavigate, useOutletContext, useParams, useSearchParams } from 'react-router'
 import { toastForError } from '../api/errorToast'
 import { ApiError } from '../api/problem'
 import { isValidDate } from '../calendar/time'
+import { inertOutside } from '../components/inertOutside'
 import { Skeleton } from '../components/Skeleton'
+import { useMediaQuery } from '../components/useMediaQuery'
 import { useOnline } from '../components/useOnline'
 import { useToast } from '../components/useToast'
 import { TAGS_QUERY_KEY, tagApi, useProjects, useTags } from '../projects/api'
@@ -84,12 +86,22 @@ export function TaskDetailPanel() {
     panelRef.current?.focus()
   }, [taskId])
 
+  // 휴대폰 폭에서는 패널이 화면 전체를 덮는 창이다: 대화창으로 알리고 뒤 목록·하단 탭을 Tab·낭독기에서 뺀다(UX-M-TASK-44).
+  // 태블릿은 목록 옆에 겹쳐 떠서 목록을 눌러 다른 업무로 옮겨 가므로 그대로 둔다
+  const fullScreen = useMediaQuery('(max-width: 767px)')
+  useEffect(() => {
+    if (!fullScreen || !panelRef.current) return
+    return inertOutside(panelRef.current)
+  }, [fullScreen])
+
   const data = reloaded?.task.id === taskId ? reloaded.task : task.data
 
   return (
     <aside
       ref={panelRef}
       tabIndex={-1}
+      role={fullScreen ? 'dialog' : undefined}
+      aria-modal={fullScreen ? true : undefined}
       aria-labelledby="task-detail-title"
       className={styles.panel}
       onKeyDown={(e) => {
@@ -169,6 +181,14 @@ function TaskForm({
   const locked = archived || !online
 
   const [title, setTitle] = useState(task.title)
+  // 제목은 줄바꿈 없는 한 줄 값이지만 칸은 글 길이만큼 늘어나 긴 제목도 다 보인다(UX-M-TASK-45)
+  const titleRef = useRef<HTMLTextAreaElement>(null)
+  useLayoutEffect(() => {
+    const el = titleRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${el.scrollHeight}px`
+  }, [title])
   const [savedTitle, setSavedTitle] = useState(task.title)
   const [status, setStatus] = useState(task.status)
   const [priority, setPriority] = useState(task.priority)
@@ -313,22 +333,28 @@ function TaskForm({
   return (
     <div className={online ? styles.panelBody : `${styles.panelBody} ${styles.offline}`}>
       <div className={styles.panelHead}>
-        <label htmlFor={`${id}-title`} className={styles.srOnly}>
+        <label htmlFor={`${id}-title`} className="visually-hidden">
           제목
         </label>
-        <h2 id="task-detail-title" className={styles.srOnly}>
+        <h2 id="task-detail-title" className="visually-hidden">
           {task.title}
         </h2>
-        <input
+        <textarea
+          ref={titleRef}
           id={`${id}-title`}
           className={styles.titleInput}
+          rows={1}
           value={title}
           maxLength={200}
           readOnly={locked}
-          onChange={(e) => setTitle(e.target.value)}
+          enterKeyHint="done"
+          onChange={(e) => setTitle(e.target.value.replace(/[\r\n]+/g, ' '))}
           onBlur={saveTitle}
           onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.nativeEvent.isComposing) saveTitle()
+            if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+              e.preventDefault()
+              saveTitle()
+            }
           }}
         />
         <button type="button" className={styles.close} aria-label="닫기" onClick={onClose}>
@@ -351,7 +377,7 @@ function TaskForm({
       )}
 
       <fieldset className={styles.fields} disabled={locked}>
-        <legend className={styles.srOnly}>업무 속성</legend>
+        <legend className="visually-hidden">업무 속성</legend>
         <label htmlFor={`${id}-status`} className={styles.fieldLabel}>
           상태
         </label>
@@ -478,7 +504,7 @@ function TaskForm({
       </fieldset>
 
       <fieldset className={styles.block} disabled={locked}>
-        <legend className={styles.srOnly}>진행률</legend>
+        <legend className="visually-hidden">진행률</legend>
         <label htmlFor={`${id}-progress`} className={styles.progressLabel}>
           진행률 <span style={{ color: accent }}>{progress}%</span>
         </label>
@@ -500,7 +526,7 @@ function TaskForm({
       </fieldset>
 
       <fieldset className={styles.block} disabled={locked}>
-        <legend className={styles.srOnly}>메모</legend>
+        <legend className="visually-hidden">메모</legend>
         <label htmlFor={`${id}-memo`} className={styles.fieldLabel}>
           메모
         </label>

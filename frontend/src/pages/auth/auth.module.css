@@ -402,8 +402,14 @@
   color: var(--color-text-muted);
 }
 
+/* 줄이 꺾여 두 줄로 나뉘면 누르는 영역(::after)도 갈라져 63×38이 된다(360). 한 덩어리로 두고 위아래를 44 이상으로(UX-M-AUTH-74) */
 .overseas a {
   font-weight: 600;
+  white-space: nowrap;
+}
+
+.overseas a::after {
+  inset: -13px -4px;
 }
 
 .tight {

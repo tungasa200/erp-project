@@ -394,6 +394,23 @@ describe('SCR-TASK-02 업무 상세', () => {
     )
   })
 
+  it('휴대폰 폭에서는 상세가 대화창이고 뒤 화면을 막았다가, 닫으면 푼다(UX-M-TASK-44)', async () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query === '(max-width: 767px)',
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }))
+    server(SAMPLE)
+    renderApp('/tasks/none')
+    const panel = await screen.findByRole('dialog', { name: '팀 회고 정리' })
+    expect(panel).toHaveAttribute('aria-modal', 'true')
+    await waitFor(() => expect(document.querySelectorAll('[inert]').length).toBeGreaterThan(0))
+    expect(panel.closest('[inert]')).toBeNull()
+    await userEvent.click(within(panel).getByRole('button', { name: '닫기' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(document.querySelectorAll('[inert]')).toHaveLength(0)
+  })
+
   it('제목을 비우면 저장하지 않고 원래 제목으로 돌린다', async () => {
     const { calls } = server(SAMPLE)
     renderApp('/tasks/none')

@@ -1,12 +1,4 @@
 /* 인증 코드 입력 (목업 AUTH-05, AUTH-08) */
-.srOnly {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-}
 
 .step {
   display: flex;
@@ -103,9 +95,10 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* 누르는 높이 44(UX-M-AUTH-76, 같은 화면 [이메일 고치기]와 같게) */
 .resend,
 .resendStrong {
-  min-height: 40px;
+  min-height: var(--size-touch);
   padding: 0 var(--space-3);
   border: 0;
   border-radius: var(--radius-pill);
@@ -125,9 +118,11 @@
   color: var(--color-on-accent);
 }
 
+/* 카운트다운 "· 24초"는 남은 시간이라는 정보라 흐린 비활성색 대신 보조 본문색으로 읽히게 하고,
+   누를 수 없음은 채움을 빼서 보인다(UX-M-AUTH-77, 2.92:1 → 보조 본문색) */
 .resend:disabled,
 .resendStrong:disabled {
-  background: var(--color-ground);
-  color: var(--color-text-disabled);
+  background: transparent;
+  color: var(--color-text-muted);
   cursor: default;
 }

@@ -202,6 +202,9 @@
   overflow-y: auto;
   display: flex;
   flex-direction: column;
+  /* absolute 자손의 기준을 안쪽 스크롤 상자로, 끝까지 민 스크롤이 바깥 문서로 이어지지 않게(UX-M-COM-01) */
+  position: relative;
+  overscroll-behavior: contain;
 }
 
 .main {
@@ -312,6 +315,20 @@
   font-weight: 600;
   text-decoration: none;
   cursor: pointer;
+  /* 링크라 전역 누름 피드백(button)을 받지 못한다. 기기 기본 회색 상자 대신 직접 준다(UX-M-COM-09) */
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 120ms ease-out;
+}
+
+.tab:active {
+  transform: scale(0.94);
+  color: var(--color-accent-ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tab {
+    transition: none;
+  }
 }
 
 .tabActive {

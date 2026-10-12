@@ -123,12 +123,12 @@ export function WeekLogStatus({ today, weekFirst }: { today: string; weekFirst: 
               return (
                 <li key={p.periodStart}>
                   <span className={cls} aria-current={p.periodStart === today ? 'date' : undefined}>
-                    <span className={styles.srOnly}>
+                    <span className="visually-hidden">
                       {Number(p.periodStart.slice(5, 7))}월 {Number(p.periodStart.slice(8))}일{' '}
                     </span>
                     <span className={styles.dayNo}>
                       {weekday}
-                      <span className={styles.srOnly}>요일 </span>
+                      <span className="visually-hidden">요일 </span>
                     </span>
                     <span className={styles.cellStatus}>{label}</span>
                   </span>

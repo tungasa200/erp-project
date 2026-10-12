@@ -18,7 +18,7 @@ const TABBABLE =
   'a[href], button:not(:disabled), input:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])'
 /** 이만큼 아래로 끌면 닫는다(px) */
 const DRAG_CLOSE = 80
-const FLICK_CLOSE = 0.5
+const FLICK_CLOSE = 0.11
 
 interface Props {
   text: string
@@ -72,19 +72,19 @@ export function QuickSheet({ text, onTextChange, onClose, onOpenPending, onStart
   }, [])
 
   // 손잡이를 아래로 끌기. 손가락은 0ms로 따라오고, 놓았을 때 닫히지 않으면 200ms로 제자리에 돌아간다(X-12 5번, MOB-02).
-  // 80px을 넘기거나 아래로 빠르게 튕기면(0.5px/ms 이상) 닫는다
+  // 80px을 넘기거나 아래로 빠르게 튕기면(0.11px/ms 이상, Vaul 기준, UX-M-COM-10) 닫는다
   const drag = useRef<{ y: number; id: number; lastY: number; lastT: number; v: number } | null>(null)
   const [dragY, setDragY] = useState(0)
   const [settling, setSettling] = useState(false)
 
   return (
-    <div className={styles.backdrop} onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
+    <div className={`${styles.backdrop} wy-scrim`} onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
       <section
         ref={sheet}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className={settling ? `${styles.sheet} ${styles.settling}` : styles.sheet}
+        className={settling ? `${styles.sheet} wy-sheet ${styles.settling}` : `${styles.sheet} wy-sheet`}
         onTransitionEnd={() => setSettling(false)}
         style={{ bottom: keyboard, transform: dragY ? `translateY(${dragY}px)` : undefined }}
         // 입력칸의 Esc는 홈에서는 포커스만 빼고(글은 남김), 시트에서는 글을 남기고 시트를 닫는다(칩 고치기·도움말의 Esc는 그대로)

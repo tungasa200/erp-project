@@ -10,6 +10,7 @@ import { cycleTab } from '../calendar/focus'
 import { ApiError } from '../api/problem'
 import { useAuth } from '../auth/useAuth'
 import { announce } from '../components/announce'
+import { useOnline } from '../components/useOnline'
 import { useToast } from '../components/useToast'
 import { PROJECTS_QUERY_KEY, projectApi, TAGS_QUERY_KEY, tagApi, type Project, type Tag } from '../projects/api'
 import { nextColor, projectColor } from '../projects/palette'
@@ -369,6 +370,7 @@ export function QuickInput({
     )
   }
   const canSave = draft.title !== ''
+  const online = useOnline()
 
   const renderChip = (c: Chip) => {
     if (c.kind === 'newProject') {
@@ -458,7 +460,9 @@ export function QuickInput({
       )}
       {askProject && newProject && newProject.kind === 'newProject' && (
         <p id={`${id}-ask`} className={styles.hintStrong} role="alert">
-          ‘{newProject.name}’ 프로젝트를 새로 만들까요? 칩을 누르거나 Enter를 누르면 만들어요
+          ‘{newProject.name}’ 프로젝트를 새로 만들까요?{' '}
+          <span className="keyboard-only">칩을 누르거나 Enter를 누르면 만들어요</span>
+          <span className="touch-only">칩을 누르거나 [저장]을 누르면 만들어요</span>
         </p>
       )}
       {/* 오류로 바뀔 때(또 Enter를 눌렀을 때도) 새로 붙여 화면 낭독기가 다시 읽게 한다 */}
@@ -467,13 +471,18 @@ export function QuickInput({
         className={titleError ? styles.hintError : styles.hint}
         role={titleError ? 'alert' : undefined}
       >
-        {draft.title === ''
-          ? '할 일 이름을 적어 주세요'
-          : newProject
-            ? 'Enter를 누르면 새 프로젝트를 만들지 물어요'
-            : draft.schedule
-              ? '일정과 업무가 함께 만들어져요'
-              : '업무가 만들어져요'}
+        {draft.title === '' ? (
+          '할 일 이름을 적어 주세요'
+        ) : newProject ? (
+          <>
+            <span className="keyboard-only">Enter를 누르면 새 프로젝트를 만들지 물어요</span>
+            <span className="touch-only">[저장]을 누르면 새 프로젝트를 만들지 물어요</span>
+          </>
+        ) : draft.schedule ? (
+          '일정과 업무가 함께 만들어져요'
+        ) : (
+          '업무가 만들어져요'
+        )}
       </p>
     </>
   )
@@ -493,7 +502,7 @@ export function QuickInput({
         if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setFocused(false)
       }}
     >
-      <label htmlFor={id} className={styles.srOnly}>
+      <label htmlFor={id} className="visually-hidden">
         {label}
       </label>
       <div
@@ -543,11 +552,11 @@ export function QuickInput({
             저장
           </button>
         ) : typing && onSubmit ? (
-          <span className={styles.enter}>Enter 저장</span>
+          <span className={`${styles.enter} keyboard-only`}>Enter 저장</span>
         ) : (
           // 단축키를 끄면 N 안내도 숨긴다 (qa P1-01-11)
           shortcutsEnabled && (
-            <kbd className={styles.kbd} aria-hidden="true">
+            <kbd className={`${styles.kbd} keyboard-only`} aria-hidden="true">
               N
             </kbd>
           )
@@ -582,7 +591,8 @@ export function QuickInput({
       </div>
       {saveButton && onSubmit && !canSave && (
         <p id={`${id}-save-reason`} className={styles.saveReason}>
-          내용을 적으면 저장할 수 있어요
+          {/* 끊긴 동안에는 칸이 잠겨 적을 수 없으니 적으라고 하지 않는다(UX-M-COM-07) */}
+          {online ? '내용을 적으면 저장할 수 있어요' : '연결되면 저장할 수 있어요'}
         </p>
       )}
 
@@ -683,6 +693,7 @@ export function QuickInput({
 
       {helpOpen && (
         <GrammarHelp
+          inline={!layered}
           onClose={closeHelp}
           onPick={(example) => {
             onChange(example)

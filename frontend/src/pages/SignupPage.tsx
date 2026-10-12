@@ -157,7 +157,7 @@ export function SignupPage() {
   if (codeStep) {
     const { body } = codeStep
     return (
-      <AuthLayout heading="이메일 인증을 마치면 가입이 끝납니다">
+      <AuthLayout heading="이메일 인증을 마치면 가입이 끝나요">
         <div className={codeStyles.form}>
           <span className={codeStyles.icon} aria-hidden="true">
             <svg
@@ -175,7 +175,7 @@ export function SignupPage() {
           </span>
           <h1 className={codeStyles.title}>이메일 인증</h1>
           <p className={codeStyles.lead}>
-            <b className={codeStyles.email}>{body.email}</b>으로 보낸 6자리 숫자를 입력하세요.
+            <b className={codeStyles.email}>{body.email}</b>으로 보낸 6자리 숫자를 입력해 주세요.
           </p>
           <CodeStep
             initial={codeStep.times}
@@ -187,7 +187,7 @@ export function SignupPage() {
             resend={() => signup(body).catch(alreadyJoined)}
             onVerified={() => {}}
           />
-          <p className={codeStyles.hint}>메일이 안 왔나요? 스팸함을 확인하거나 코드를 다시 받아 주세요.</p>
+          <p className={codeStyles.hint}>메일이 안 왔나요? 스팸함을 확인하거나 새 코드를 받아 주세요.</p>
           {/* 주소를 잘못 쓴 사용자가 돌아갈 길. 입력한 내용은 그대로 남는다 */}
           <button type="button" className={`${codeStyles.linkButton} ${codeStyles.back}`} onClick={editEmail}>
             이메일 고치기

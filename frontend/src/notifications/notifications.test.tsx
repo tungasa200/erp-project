@@ -292,6 +292,21 @@ describe('SCR-SET-05 설정 — 알림', () => {
     expect(screen.getByRole('button', { name: '허용하기' })).toBeEnabled()
   })
 
+  it('알림이 꺼져 있으면 꺼진 [허용하기]를 가리켜 켜는 법을 말한다(UX-M-SET-72)', async () => {
+    vi.stubGlobal('Notification', { permission: 'default' })
+    vi.stubGlobal('PushManager', function PushManager() {})
+    Object.defineProperty(navigator, 'serviceWorker', {
+      configurable: true,
+      value: { getRegistration: () => Promise.resolve({ pushManager: {} }) },
+    })
+    onTestFinished(() => {
+      delete (navigator as { serviceWorker?: unknown }).serviceWorker
+    })
+    setup({ path: '/settings/notifications', notifyEnabled: false })
+    expect(await screen.findByText('위의 하루 마감 알림을 켜면 [허용하기]를 누를 수 있어요')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '허용하기' })).toBeDisabled()
+  })
+
   it('푸시를 받을 수 없는 브라우저(서비스 워커 없음)면 지원 안 함', async () => {
     setup({ path: '/settings/notifications' })
     expect(await screen.findByText(/이 브라우저는 푸시 알림을 받을 수 없어요/)).toBeInTheDocument()

@@ -270,7 +270,7 @@ function WeekDays({ days, today }: { days: LogContent['days']; today: string }) 
   const titleId = useId()
   return (
     <section className={styles.section} aria-labelledby={titleId}>
-      <h3 id={titleId} className={styles.srOnly}>
+      <h3 id={titleId} className="visually-hidden">
         포함된 날
       </h3>
       <ScrollX label="포함된 날">
@@ -439,7 +439,7 @@ function Achievements(props: { type: LogType; rows: LogAchievement[]; withProjec
                 )}
                 {editor && (
                   <th scope="col" className={styles.rowTools}>
-                    <span className={styles.srOnly}>줄 편집</span>
+                    <span className="visually-hidden">줄 편집</span>
                   </th>
                 )}
               </tr>
@@ -585,7 +585,7 @@ function Plans({ plans, editor, timeZone }: { plans: LogPlan[]; editor?: PaperEd
               </th>
               {editor && (
                 <th scope="col" className={styles.rowTools}>
-                  <span className={styles.srOnly}>줄 편집</span>
+                  <span className="visually-hidden">줄 편집</span>
                 </th>
               )}
             </tr>

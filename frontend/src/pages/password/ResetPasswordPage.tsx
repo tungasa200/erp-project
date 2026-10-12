@@ -86,7 +86,7 @@ function ResetForm({ email, times }: { email: string; times: CodeTimes }) {
       <form ref={formRef} className={styles.form} onSubmit={(e) => void submit(e)} noValidate>
         <h1 className={styles.title}>비밀번호 재설정</h1>
         <p className={styles.lead}>
-          <b className={styles.email}>{email}</b>으로 보낸 6자리 숫자를 입력하세요.
+          <b className={styles.email}>{email}</b>으로 보낸 6자리 숫자를 입력해 주세요.
         </p>
         {/* 주소를 잘못 쓴 사용자가 돌아갈 길(UX-AUTH-171) */}
         <Link to="/password/forgot" state={{ email }} className={styles.back}>
@@ -125,7 +125,7 @@ function ResetForm({ email, times }: { email: string; times: CodeTimes }) {
               return (
                 <li key={rule.code} className={ok ? styles.ruleOk : styles.ruleIdle}>
                   {ok ? '✓' : '○'} {rule.label}
-                  <span className={styles.srOnly}>{ok ? ' 충족' : ' 미충족'}</span>
+                  <span className="visually-hidden">{ok ? ' 충족' : ' 미충족'}</span>
                 </li>
               )
             })}

@@ -102,7 +102,7 @@ export function EmailVerificationDialog({ onClose, onVerified }: Props) {
           이메일 인증
         </h2>
         <p className={styles.lead}>
-          <b className={styles.email}>{user?.email}</b>으로 보낸 6자리 숫자를 입력하세요.
+          <b className={styles.email}>{user?.email}</b>으로 보낸 6자리 숫자를 입력해 주세요.
         </p>
 
         {status.isPending && <Skeleton count={2} />}

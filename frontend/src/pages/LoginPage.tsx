@@ -210,6 +210,7 @@ export function LoginPage() {
               id="login-password"
               type={showPassword ? 'text' : 'password'}
               autoComplete="current-password"
+              enterKeyHint="go"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               aria-invalid={errors.password ? true : undefined}

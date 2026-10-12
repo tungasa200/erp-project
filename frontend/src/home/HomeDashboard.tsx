@@ -479,7 +479,7 @@ function Upcoming({ days, byDate, today, timeZone, loading, failed, onRetry }: U
                   <span className={styles.dayNumber}>{Number(e.date.slice(8))}</span>
                 </span>
                 <span className={styles.upcomingText}>
-                  <span className={styles.srOnly}>{shortDate(e.date, today)} </span>
+                  <span className="visually-hidden">{shortDate(e.date, today)} </span>
                   <span className={styles.upcomingTitle} title={e.kind === 'holiday' ? e.title : e.occurrence.title}>
                     {e.kind === 'holiday' ? e.title : e.occurrence.title}
                   </span>

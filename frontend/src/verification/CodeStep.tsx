@@ -1,5 +1,5 @@
 // 코드 입력 단계 (SCR-AUTH-05 ②, SCR-AUTH-08 ②~④). 코드 확인·다시 받기 API는 화면마다 달라 함수로 받는다.
-// 틀리면 "코드가 맞지 않아요(남은 시도 n회)", 5회를 다 틀렸거나 10분이 지나면 입력을 잠그고 "새 코드 받기"만 남긴다.
+// 틀리면 "코드가 맞지 않아요 · 남은 시도 n회", 5회를 다 틀렸거나 10분이 지나면 입력을 잠그고 "새 코드 받기"만 남긴다.
 import { useEffect, useRef, useState } from 'react'
 import { toastForError } from '../api/errorToast'
 import { useAuth } from '../auth/useAuth'
@@ -58,7 +58,7 @@ export function CodeStep({ initial, check, resend, onVerified, verified = false,
     } catch (error) {
       const failure = codeFailure(error)
       setCode('')
-      if (failure.kind === 'mismatch') setMessage(`코드가 맞지 않아요(남은 시도 ${failure.attemptsRemaining}회)`)
+      if (failure.kind === 'mismatch') setMessage(`코드가 맞지 않아요 · 남은 시도 ${failure.attemptsRemaining}회`)
       else if (failure.kind === 'expired') {
         setExpired(true)
         setMessage('이 코드는 더 쓸 수 없어요. 새 코드를 받아 주세요')
@@ -116,7 +116,7 @@ export function CodeStep({ initial, check, resend, onVerified, verified = false,
             autoFocus={autoFocus && locked}
             onClick={() => void sendAgain()}
           >
-            {locked ? '새 코드 받기' : '다시 받기'}
+            {/* 버튼 이름은 하나: 잠기기 전이든 뒤든 새 코드를 받는 같은 동작이다(UX-M-AUTH-78) */}새 코드 받기
             {resendLeft > 0 && ` · ${resendLeft}초`}
           </button>
         </div>

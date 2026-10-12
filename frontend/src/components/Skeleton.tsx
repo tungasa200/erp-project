@@ -60,7 +60,7 @@ export function Skeleton({ shape = 'lines', count = 3, height, offlineText = '�
       </p>
     )
   }
-  const label = <span className={styles.srOnly}>불러오는 중</span>
+  const label = <span className="visually-hidden">불러오는 중</span>
   if (shape === 'line') {
     return (
       <span role={role} className={`${styles.bar} ${styles.line}`} data-skeleton>

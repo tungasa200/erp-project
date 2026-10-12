@@ -34,7 +34,7 @@ export function CodeInput({
 
   return (
     <div className={styles.codeField}>
-      <label htmlFor={id} className={styles.srOnly}>
+      <label htmlFor={id} className="visually-hidden">
         {label}
       </label>
       <input

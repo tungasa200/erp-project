@@ -7,6 +7,11 @@
   /* 누르는 영역 최소 크기 (화면정의서 2장: 터치 영역 44px 이상) */
   --size-touch: 44px;
 
+  /* 하단 시트 모션(UX-M-COM-10). 모든 시트가 같은 곡선·길이로 올라오고 배경막도 함께 짙어진다.
+     쓰는 법: 시트 요소에 wy-sheet, 배경막에 wy-scrim 클래스(global.css) */
+  --duration-sheet: 200ms;
+  --ease-sheet: cubic-bezier(0.32, 0.72, 0, 1); /* iOS 시트 곡선 */
+
   /* 사용자 설정 (기본값) */
   --color-accent: #4b3fd6;
   --color-on-accent: #ffffff;

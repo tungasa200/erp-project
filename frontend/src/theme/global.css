@@ -48,6 +48,51 @@ button:not(:disabled):active,
   filter: brightness(0.94);
 }
 
+/* 위 피드백이 있는 요소는 기기 기본 탭 하이라이트(회색 상자)를 끈다. 링크는 각자 피드백이 없으면 기본 하이라이트를 남긴다(UX-M-COM-09) */
+button,
+[role='button'] {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 키보드 안내(Enter 저장·Ctrl+Enter·단축키)는 터치 기기에서 뜻이 없어 숨긴다. 터치에는 같은 자리에 [저장] 말로 된 글을 둔다.
+   앱 전체 규칙 하나(UX-M-COM-06·LOG-40, REC-58과 같은 조건) */
+@media (pointer: coarse) {
+  .keyboard-only {
+    display: none !important;
+  }
+}
+@media (pointer: fine), (pointer: none) {
+  .touch-only {
+    display: none !important;
+  }
+}
+
+/* 하단 시트 공용 진입(UX-M-COM-10): 시트에 wy-sheet, 배경막에 wy-scrim 클래스를 붙인다.
+   CSS 모듈 안에서 이 키프레임 이름을 쓰면 지역 이름으로 바뀌어 붙지 않으므로 클래스로 나눠 준다. 움직임 줄이기면 이동 없이 투명도만 */
+.wy-scrim {
+  animation: wy-scrim-fade var(--duration-sheet) ease-out;
+}
+.wy-sheet {
+  animation: wy-sheet-rise var(--duration-sheet) var(--ease-sheet);
+}
+@keyframes wy-scrim-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes wy-sheet-rise {
+  from {
+    opacity: 0.6;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes wy-sheet-rise {
+    from {
+      transform: translateY(100%);
+    }
+  }
+}
+
 ::placeholder {
   color: var(--color-placeholder);
   opacity: 1;
@@ -79,10 +124,15 @@ a {
   outline-offset: 2px;
 }
 
+/* 낭독 전용 글(앱 전체 하나, 모듈마다 따로 두지 않는다). margin -1px: body 끝에 붙은 낭독 영역이
+   화면 아래로 1px 삐져나가 문서가 세로로 1px 스크롤되던 것을 막는다(UX-M-AUTH-79) */
 .visually-hidden {
   position: absolute;
   width: 1px;
   height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
   overflow: hidden;
   clip-path: inset(50%);
   white-space: nowrap;

@@ -8,9 +8,9 @@
     position: fixed;
     left: 12px;
     right: 12px;
-    bottom: calc(
-      108px + env(safe-area-inset-bottom, 0px)
-    ); /* 탭(72px) + 솟은 + 버튼(26px) + 틈. 타이머 미니 플레이어와 같은 높이 */
+    /* 탭(72px) + 솟은 + 버튼(26px) + 틈. 타이머 미니 플레이어가 떠 있으면 그 위로: AppShell이 타이머 높이를 재서
+       토스트용으로 남기는 --toast-bottom-mobile(108 + 타이머 + 8)을 함께 쓴다(UX-M-COM-08, 카드가 정지 버튼을 덮지 않게) */
+    bottom: calc(var(--toast-bottom-mobile, 108px) + env(safe-area-inset-bottom, 0px));
     z-index: 21;
     display: block;
     padding: var(--space-4);

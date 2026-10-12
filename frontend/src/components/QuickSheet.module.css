@@ -163,32 +163,11 @@
   background: var(--color-live-dot);
 }
 
-/* 진입은 opacity + 이동 180ms ease-out. 움직임 줄이기면 이동 없이 opacity만(X-12 4·7번) */
-.sheet {
-  animation: fade 180ms ease-out;
-}
+/* 진입은 공용 시트 모션: 전역 클래스 wy-scrim·wy-sheet(global.css, UX-M-COM-10) */
 
 /* 끌다 놓았을 때 제자리로 돌아가는 동안만(X-12 5번) */
 .settling {
-  transition: transform 200ms cubic-bezier(0.32, 0.72, 0, 1);
-}
-
-@keyframes fade {
-  from {
-    opacity: 0.6;
-  }
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .sheet {
-    animation: rise 180ms ease-out;
-  }
-  @keyframes rise {
-    from {
-      transform: translateY(24px);
-      opacity: 0.6;
-    }
-  }
+  transition: transform var(--duration-sheet) var(--ease-sheet);
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -516,7 +516,7 @@ export function DayClose({ date, today, timeZone, quick = false, onClose }: Prop
               <p className={styles.dialogBody}>넘길 업무가 없어요.</p>
             ) : (
               <fieldset className={styles.carry} aria-describedby={newCount > room ? capId : undefined}>
-                <legend className={styles.srOnly}>계획으로 넘길 업무</legend>
+                <legend className="visually-hidden">계획으로 넘길 업무</legend>
                 {d.carryOverCandidates.map((c) => (
                   <label key={c.taskId} className={cal.check}>
                     <input
@@ -558,6 +558,7 @@ export function DayClose({ date, today, timeZone, quick = false, onClose }: Prop
                 value={issue}
                 maxLength={Math.min(500, issueRoom)}
                 disabled={issueRoom === 0}
+                enterKeyHint="done"
                 aria-describedby={issueRoom < 500 ? `${id}-issue` : undefined}
                 onChange={(e) => setIssue(e.target.value)}
                 placeholder="있으면 한 줄로 적어 주세요(비워도 돼요)"
@@ -574,6 +575,10 @@ export function DayClose({ date, today, timeZone, quick = false, onClose }: Prop
               확정 기록 {content.achievements.length}건 · {planName} {content.plans.length + picked.length}건
             </p>
             <div className={cal.actions}>
+              {/* 버튼 줄 밖에 두면 고정된 줄에 가려 잘린다(UX-M-LOG-40). 기록 추가 창과 같은 자리 */}
+              <span id={`${id}-key`} className={`${styles.keyHint} keyboard-only`}>
+                {modKey('Enter')}로 마감
+              </span>
               {back}
               <button
                 type="button"
@@ -586,9 +591,6 @@ export function DayClose({ date, today, timeZone, quick = false, onClose }: Prop
                 {date === today ? '오늘 마감' : '마감'}
               </button>
             </div>
-            <p id={`${id}-key`} className={styles.keyHint}>
-              {modKey('Enter')}로 마감
-            </p>
           </>
         )}
       </>

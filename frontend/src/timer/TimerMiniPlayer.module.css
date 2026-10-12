@@ -99,15 +99,6 @@
   height: 18px;
 }
 
-.srOnly {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-}
-
 /* 태블릿 좁은 사이드바: 실행 중에는 점·경과 아래 정지·전환을 44×44 아이콘 버튼으로 세로로 쌓는다
    (업무명은 영역 이름으로 읽힌다), 정지 뒤 안내는 그대로 */
 @container (max-width: 120px) {

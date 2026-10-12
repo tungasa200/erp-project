@@ -396,7 +396,7 @@ describe('SCR-AUTH-03 회원가입', () => {
     await screen.findByRole('heading', { level: 1, name: '이메일 인증' })
     await user.keyboard('000000')
 
-    expect(await screen.findByText('코드가 맞지 않아요(남은 시도 4회)')).toBeInTheDocument()
+    expect(await screen.findByText('코드가 맞지 않아요 · 남은 시도 4회')).toBeInTheDocument()
     expect(router.state.location.pathname).toBe('/signup')
     await waitFor(() => expect(screen.getByRole('textbox', { name: '인증번호' })).toHaveFocus())
   })
@@ -405,7 +405,7 @@ describe('SCR-AUTH-03 회원가입', () => {
     const { signupBodies } = stubSignup()
     renderApp('/signup')
     const user = await fillSignup('new@example.com', 'worklog20')
-    await user.click(await screen.findByRole('button', { name: '다시 받기' }))
+    await user.click(await screen.findByRole('button', { name: '새 코드 받기' }))
 
     expect(await screen.findByText('새 코드를 보냈어요')).toBeInTheDocument()
     expect(signupBodies).toHaveLength(2)
@@ -445,7 +445,7 @@ describe('SCR-AUTH-03 회원가입', () => {
     await fillSignup('new@example.com', 'worklog20')
 
     expect(await screen.findByRole('heading', { level: 1, name: '이메일 인증' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /다시 받기 · \d+초/ })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /새 코드 받기 · \d+초/ })).toBeDisabled()
   })
 
   it('발송 한도(DAILY_SEND_LIMIT)면 폼에 머물러 안내한다', async () => {

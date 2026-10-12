@@ -244,9 +244,9 @@ function ResultPopover({
           <span className={styles.taskTitle} title={task.title}>
             {task.title}
           </span>
-          <span className={styles.srOnly}> 완료 — 결과 남기기</span>
+          <span className="visually-hidden"> 완료 — 결과 남기기</span>
         </p>
-        <label htmlFor={`${id}-result`} className={styles.srOnly}>
+        <label htmlFor={`${id}-result`} className="visually-hidden">
           결과 한 줄
         </label>
         <input
@@ -256,6 +256,7 @@ function ResultPopover({
           placeholder="결과 한 줄 (예: 초안 공유, 금요일에 확정)"
           maxLength={200}
           autoComplete="off"
+          enterKeyHint="done"
           value={result}
           readOnly={saving}
           aria-invalid={error ? true : undefined}
@@ -267,7 +268,7 @@ function ResultPopover({
           }}
         />
         <fieldset className={styles.chips} disabled={saving}>
-          <legend className={styles.srOnly}>결과</legend>
+          <legend className="visually-hidden">결과</legend>
           {OUTCOMES.map((o) => (
             <label key={o.value} className={styles.chip}>
               <input
