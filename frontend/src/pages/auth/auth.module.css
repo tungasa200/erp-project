@@ -70,6 +70,27 @@
   }
 }
 
+/* 소개 문구 없는 틀(로그인, 사용자 지시 2026-10-12): 위에 브랜드 한 줄, 아래 폼을 가운데. 비밀번호 화면과 같은 모양 */
+.pageBare {
+  flex-direction: column;
+  flex-wrap: nowrap;
+}
+
+.introBare {
+  flex: none;
+  background: transparent;
+  color: var(--color-text);
+}
+
+.introBare .logo {
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+.pageBare .main {
+  flex: 1 0 auto;
+}
+
 .main {
   flex: 1.2 1 480px;
   display: flex;

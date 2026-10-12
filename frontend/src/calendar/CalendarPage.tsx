@@ -583,7 +583,8 @@ function Calendar({ view, date, today, timeZone, weekStart }: CalendarProps) {
       </section>
 
       {!panelOpen && (
-        // 접힌 업무 패널: 오른쪽 레일. 보이는 글자 "업무"를 이름에 담는다(2.5.3)
+        // 접힌 업무 패널: 오른쪽 레일. 보이는 글자 없이 사이드바 '업무'와 같은 아이콘만 두고(사용자 지시 2026-10-12),
+        // 이름은 aria-label, 마우스 사용자에게는 title로 이름과 단축키를 알린다
         <div className={styles.panelRail}>
           <button
             type="button"
@@ -592,9 +593,22 @@ function Calendar({ view, date, today, timeZone, weekStart }: CalendarProps) {
             aria-expanded="false"
             aria-label="업무 패널 펼치기"
             aria-keyshortcuts="P"
+            title="업무 패널 펼치기 (단축키 P)"
             onClick={() => togglePanel(true)}
           >
-            업무
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M6 3h12a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3zM8 12l3 3 5-6" />
+            </svg>
           </button>
           <kbd className={styles.kbd} aria-hidden="true">
             P
