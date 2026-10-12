@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>묶음 0 카드 A 목업 — 홈 · 하루 마감 (WY-design 2026-10-12)</title>
+<style>
+/* 토큰은 frontend/src/theme/tokens.css 기본값 + 디자인규칙_안_v1 ③(글자 단계, placeholder #686D81, 모서리 12) */
+:root{
+  --color-accent:#4b3fd6;--color-on-accent:#fff;--color-ground:#f2f4fa;
+  --color-accent-soft:#e9e8fa;--color-accent-faint:#f6f5fd;--color-accent-ink:#3c32ab;
+  --color-surface:#fff;--color-text:#1a1c2b;--color-text-muted:#5e6377;--color-text-body:#4a4f63;
+  --color-border:#d5d8e5;--color-divider:#e1e4ee;--color-placeholder:#686d81;
+  --color-danger:#a02613;--color-success-text:#0a5c4e;--color-banner:#1a1c2b;
+  --status-pending-bg:#ffe9b8;--status-pending-border:#e0a100;--status-pending-text:#4a3000;
+  --p1:#2d5bd8;--p1t:#e5ecfc;--p1i:#1e3f9e;--p3:#0e7f6c;--p3t:#ddf3ee;--p3i:#0a5c4e;--p2:#bc5711;--p2t:#fcebdd;--p2i:#8a3d06;
+  --t-xs:12px;--t-sm:13px;--t-md:14px;--t-lg:16px;--t-xl:18px;--t-2xl:22px;
+  --r-sm:8px;--r-input:12px;--r-card:20px;
+  --shadow-2:0 8px 24px rgba(26,28,43,.14);--shadow-3:0 20px 48px rgba(26,28,43,.22);
+  --font:'Pretendard Variable',Pretendard,-apple-system,system-ui,'Apple SD Gothic Neo','Noto Sans KR','Malgun Gothic',sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#e6e8ef;font-family:var(--font);color:var(--color-text);font-size:var(--t-md);line-height:1.5}
+.doc{max-width:1360px;margin:0 auto;padding:32px 24px 80px}
+.doc>h1{font-size:var(--t-2xl);margin:0 0 4px}
+.doc>p.lead{margin:0 0 8px;color:var(--color-text-body)}
+.legend{margin:0 0 32px;padding:12px 16px;background:#fff;border-radius:var(--r-input);font-size:var(--t-sm);color:var(--color-text-body)}
+.legend b{color:var(--color-text)}
+section.frame{margin:0 0 48px}
+.frame>h2{font-size:var(--t-xl);margin:0 0 4px}
+.frame>p.note{margin:0 0 12px;font-size:var(--t-sm);color:var(--color-text-body);max-width:900px}
+.row{display:flex;gap:32px;align-items:flex-start;flex-wrap:wrap}
+.cap{font-size:var(--t-xs);color:var(--color-text-muted);margin:0 0 6px;font-weight:600}
+/* 화면 틀 */
+.screen{background:var(--color-ground);border-radius:12px;overflow:hidden;box-shadow:0 2px 0 rgba(0,0,0,.04);position:relative}
+.w1280{width:1280px;height:800px;display:flex}
+.w390{width:390px;height:844px;display:flex;flex-direction:column}
+.side{width:220px;flex:none;background:var(--color-surface);padding:20px 14px;border-right:1px solid var(--color-divider)}
+.logo{font-weight:800;font-size:var(--t-xl);padding:0 10px 18px}
+.nav a{display:block;padding:10px;border-radius:var(--r-sm);color:var(--color-text-body);text-decoration:none;font-weight:600}
+.nav a.on{color:var(--color-accent-ink);background:var(--color-accent-soft)}
+.main{flex:1;padding:28px 32px;overflow:hidden;display:flex;flex-direction:column;gap:16px}
+.m390{flex:1;padding:16px 16px 0;overflow:hidden;display:flex;flex-direction:column;gap:12px}
+/* ① 머리 */
+.date{font-size:var(--t-sm);color:var(--color-text-muted);font-weight:600}
+.hello{font-size:var(--t-2xl);font-weight:700;margin:0;letter-spacing:-.3px}
+.qi{display:flex;align-items:center;gap:10px;min-height:56px;padding:0 8px 0 18px;background:var(--color-surface);border-radius:var(--r-input);border:1px solid var(--color-border)}
+.qi .ph{flex:1;color:var(--color-placeholder);font-size:var(--t-lg)}
+.qi .kbd{font-size:var(--t-xs);color:var(--color-text-muted);border:1px solid var(--color-border);border-radius:6px;padding:1px 6px;margin-right:8px}
+.qi.typed .ph{color:var(--color-text)}
+.clear{width:44px;height:44px;border:0;background:none;border-radius:50%;color:var(--color-text-muted);font-size:18px}
+/* ② 요약 한 줄 */
+.summary{display:flex;flex-wrap:wrap;gap:4px 0;margin:0;padding:0;list-style:none;font-size:var(--t-md);color:var(--color-text-body)}
+.summary li{display:flex;align-items:center}
+.summary li+li::before{content:'·';margin:0 10px;color:var(--color-text-muted)}
+.summary a{color:inherit;text-decoration:none;display:inline-flex;align-items:baseline;gap:6px;min-height:44px;align-items:center}
+.summary b{font-size:var(--t-xl);font-weight:800;color:var(--color-text);font-variant-numeric:tabular-nums}
+.summary .late{color:var(--color-danger);font-weight:700;font-size:var(--t-sm)}
+.summary .pend b{color:var(--status-pending-text)}
+.summary .pend .dot{width:8px;height:8px;border-radius:50%;background:var(--status-pending-border);display:inline-block}
+/* 하루 마감 띠 */
+.band{display:flex;align-items:center;gap:14px;padding:12px 12px 12px 18px;background:var(--color-accent-faint);border-radius:var(--r-input);box-shadow:inset 0 0 0 1px var(--color-accent)}
+.band .bt{flex:1}
+.ic-ok{width:28px;height:28px;border-radius:50%;background:#dff3ec;color:var(--color-success-text);display:flex;align-items:center;justify-content:center;font-weight:800;flex:none}
+.band .bt b{display:block;font-size:var(--t-lg)}
+.band .bt span{font-size:var(--t-sm);color:var(--color-text-muted)}
+.band.done{background:var(--color-surface);box-shadow:inset 0 0 0 1px var(--color-divider)}
+.band.done .bt b{font-size:var(--t-md)}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 18px;border-radius:var(--r-input);border:0;font:inherit;font-weight:600;font-size:var(--t-md);white-space:nowrap}
+.btn.fill{background:var(--color-accent);color:var(--color-on-accent)}
+.btn.soft{background:var(--color-accent-soft);color:var(--color-accent-ink)}
+.btn.neutral{background:#eceef4;color:var(--color-text)}
+.btn.ghost{background:none;color:var(--color-accent-ink);padding:0 10px}
+.btn.line{background:var(--color-surface);color:var(--color-accent-ink);box-shadow:inset 0 0 0 1px var(--color-accent)}
+.link{color:var(--color-accent-ink);font-weight:600;text-decoration:underline;text-underline-offset:3px}
+/* 본문 칸 */
+.cols{display:grid;grid-template-columns:1.15fr 1fr;gap:16px;flex:1;min-height:0}
+.stack{display:flex;flex-direction:column;gap:16px;min-height:0}
+.panel{background:var(--color-surface);border-radius:var(--r-card);padding:20px}
+.panel h3{margin:0 0 12px;font-size:var(--t-lg)}
+.ph-row{display:flex;justify-content:space-between;align-items:center}
+.tl{display:grid;grid-template-columns:48px 1fr;gap:6px 10px;font-size:var(--t-sm)}
+.tl .h{color:var(--color-text-muted);font-variant-numeric:tabular-nums}
+.blk{border-radius:var(--r-sm);padding:6px 10px;font-weight:600}
+.blk small{display:block;font-weight:400;color:inherit}
+.blk.p1{background:var(--p1t);color:var(--p1i)}
+.blk.p3{background:var(--p3t);color:var(--p3i)}
+.blk.pend{background:var(--status-pending-bg);color:var(--status-pending-text);box-shadow:inset 0 0 0 1px var(--status-pending-border)}
+.now{grid-column:1/-1;height:0;border-top:2px solid var(--color-accent);position:relative;margin:2px 0}
+.now::before{content:'17:10';position:absolute;left:0;top:-9px;background:var(--color-surface);color:var(--color-accent-ink);font-weight:700;font-size:11px;padding-right:4px}
+.tasks{list-style:none;margin:0;padding:0}
+.tasks li{display:flex;align-items:center;gap:10px;min-height:44px;border-top:1px solid var(--color-divider)}
+.tasks li:first-child{border-top:0}
+.ck{width:18px;height:18px;border:2px solid var(--color-border);border-radius:5px;flex:none}
+.tasks .t{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chip{font-size:var(--t-xs);padding:2px 8px;border-radius:999px;font-weight:600}
+.due{font-size:var(--t-xs);color:var(--color-text-muted)}
+.due.late{color:var(--color-danger);font-weight:700}
+.grp{font-size:var(--t-xs);font-weight:700;color:var(--color-text-muted);margin:8px 0 2px}
+.grp.late{color:var(--color-danger)}
+.logcard .meta{font-size:var(--t-sm);color:var(--color-text-body);margin:0 0 14px}
+.logcard .acts{display:flex;gap:8px}
+.upc{list-style:none;margin:0;padding:0;font-size:var(--t-sm)}
+.upc li{display:flex;gap:10px;align-items:center;min-height:40px}
+.upc .d{width:72px;color:var(--color-text-muted);font-weight:600}
+/* 모바일 하단 탭 */
+.tabs{flex:none;height:64px;padding-bottom:0;background:var(--color-surface);border-top:1px solid var(--color-divider);display:grid;grid-template-columns:repeat(5,1fr);align-items:center;text-align:center;font-size:11px;color:var(--color-text-muted);font-weight:600;position:relative}
+.tabs .on{color:var(--color-accent-ink)}
+.plus{width:52px;height:52px;border-radius:50%;margin:0 auto;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:400;transform:translateY(-10px)}
+.plus.fill{background:var(--color-accent);color:#fff;box-shadow:0 6px 16px rgba(75,63,214,.3)}
+.plus.line{background:var(--color-surface);color:var(--color-accent-ink);box-shadow:inset 0 0 0 1.5px var(--color-accent)}
+.safe{height:34px;background:var(--color-surface);flex:none}
+.status{height:44px;flex:none;display:flex;justify-content:space-between;align-items:center;padding:0 24px;font-size:var(--t-sm);font-weight:700}
+/* 하루 마감 창 */
+.scrim{position:absolute;inset:0;background:rgba(26,28,43,.38);display:flex;align-items:center;justify-content:center}
+.dlg{width:520px;background:var(--color-surface);border-radius:var(--r-card);box-shadow:var(--shadow-3);padding:24px}
+.dlg-h{display:flex;align-items:center;gap:10px;margin:0 0 4px}
+.dlg-h h3{margin:0;flex:1;font-size:var(--t-xl)}
+.x{width:44px;height:44px;border:0;background:none;font-size:20px;color:var(--color-text-muted);border-radius:50%;margin:-10px -10px -10px 0}
+.steps{display:flex;gap:6px;margin:0 0 16px}
+.steps i{flex:1;height:4px;border-radius:2px;background:var(--color-divider)}
+.steps i.on{background:var(--color-accent)}
+.body{font-size:var(--t-md);color:var(--color-text-body);margin:0 0 12px}
+.pl{list-style:none;margin:0 0 6px;padding:0;border:1px solid var(--color-divider);border-radius:var(--r-input)}
+.pl li{display:flex;align-items:center;gap:10px;padding:10px 14px;border-top:1px solid var(--color-divider);font-size:var(--t-md)}
+.pl li:first-child{border-top:0}
+.pl .tm{font-variant-numeric:tabular-nums;color:var(--color-text-muted);font-size:var(--t-sm);width:96px;flex:none}
+.pl .tt{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pl .od{font-size:var(--t-xs);color:var(--status-pending-text);background:var(--status-pending-bg);border-radius:999px;padding:1px 8px;font-weight:700}
+.more{font-size:var(--t-sm);color:var(--color-text-muted);margin:0 0 16px}
+.actions{display:flex;align-items:center;gap:8px;justify-content:flex-end}
+.actions .sp{flex:1}
+.hint{font-size:var(--t-xs);color:var(--color-text-muted);margin-top:10px;text-align:right}
+.ok{display:flex;gap:12px;align-items:flex-start;margin:4px 0 16px}
+.ok .ic{width:36px;height:36px;border-radius:50%;background:#dff3ec;color:var(--color-success-text);display:flex;align-items:center;justify-content:center;font-weight:800;flex:none}
+.ok b{font-size:var(--t-xl);display:block}
+.ok span{font-size:var(--t-sm);color:var(--color-text-body)}
+.prof{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:var(--r-input);background:var(--color-accent-faint);font-size:var(--t-sm);color:var(--color-text);margin:0 0 16px}
+.prof .sp{flex:1}
+.undo-line{display:flex;align-items:center;gap:8px;padding:12px 0 0;margin-top:16px;border-top:1px solid var(--color-divider);font-size:var(--t-sm);color:var(--color-text-muted)}
+.undo-line .sp{flex:1}
+.confirm{margin-top:12px;padding:12px 14px;border-radius:var(--r-input);background:#f4f5f9;font-size:var(--t-sm)}
+.confirm p{margin:0 0 10px;color:var(--color-text)}
+.confirm .actions{justify-content:flex-start}
+/* 390 전체 화면 창 */
+.full{position:absolute;inset:0;background:var(--color-surface);display:flex;flex-direction:column}
+.full .top{display:flex;align-items:center;gap:6px;padding:0 6px 0 16px;height:52px;border-bottom:1px solid var(--color-divider);margin-top:44px}
+.full .top h3{flex:1;margin:0;font-size:var(--t-lg)}
+.full .cnt{flex:1;padding:16px;overflow:hidden}
+.full .bar{flex:none;padding:12px 16px calc(12px + 34px);border-top:1px solid var(--color-divider);display:flex;flex-direction:column;gap:6px;background:var(--color-surface)}
+.full .bar .btn{width:100%}
+.toast{position:absolute;left:50%;transform:translateX(-50%);bottom:24px;background:var(--color-banner);color:#fff;border-radius:var(--r-input);padding:6px 6px 6px 16px;display:flex;align-items:center;gap:12px;font-size:var(--t-sm);box-shadow:var(--shadow-2);white-space:nowrap}
+.toast .btn{min-height:40px;background:none;color:#fff;text-decoration:underline;padding:0 12px;outline:2px solid #fff;outline-offset:-4px}
+.spec{font-size:var(--t-xs);color:var(--color-text-muted);margin:8px 0 0;max-width:1280px}
+.spec li{margin:2px 0}
+</style>
+</head>
+<body>
+<div class="doc">
+<h1>묶음 0 카드 A 목업: 홈 · 하루 마감</h1>
+<p class="lead">사용자 결정 2026-10-12 11:40(카드 1700): Q1 Esc는 글 남김 · Q2 [모두 했어요] 주 버튼 · Q3 완료 창 상시 [확정 해제] · Q4 빠른 입력 주인공 + 요약 한 줄 + 마감 띠. 근거는 <code>docs/ux/디자인규칙_안_v1.1.md</code> ①②.</p>
+<div class="legend"><b>보는 법</b>: 시각은 하루 마감 시각 기본 18:00(SCR-SET-02 ⑤) 기준. <b>한 화면에 키 컬러 채움은 하나</b>(X-02): 각 화면에서 채움 버튼이 무엇인지 확인. 화면정의서 반영은 단계 끝 발행 때(개정대기). 캘린더 일 보기(카드 B Q7)는 이 파일에 없음.</div>
+
+<!-- F1 -->
+<section class="frame">
+<h2>F1. 홈 1280 · 하루 마감 시각 전(17:10)</h2>
+<p class="note">빠른 입력이 머리 전체 폭의 주인공(16px, placeholder 시제는 "할지"). 요약 카드 4개는 한 줄로 접힘(숫자 18px &lt; 인사 22px). 채움은 이 화면에 없다: 일지 카드 [하루 마감]은 마감 시각 전이라 accent-soft. 다가오는 일정은 내일부터.</p>
+<div class="screen w1280">
+  <aside class="side"><div class="logo">WY</div><nav class="nav"><a class="on">홈</a><a>캘린더</a><a>업무</a><a>일지</a><a>통계</a><a>설정</a></nav></aside>
+  <div class="main">
+    <div><div class="date">10월 12일 월요일</div><h3 class="hello">좋은 오후예요, 지은 님</h3></div>
+    <div class="qi"><span class="ph">무엇을 할지 한 줄로 적어 보세요</span><span class="kbd">N</span></div>
+    <ul class="summary" aria-label="요약">
+      <li><a href="#">남은 업무 <b>7</b><span class="late">초과 2</span></a></li>
+      <li><a href="#">오늘 일정 <b>3</b>남은 1</a></li>
+      <li class="pend"><a href="#"><span class="dot"></span>확인 대기 <b>2</b></a></li>
+      <li><a href="#">이번 주 완료 <b>12</b></a></li>
+    </ul>
+    <div class="cols">
+      <div class="panel"><h3>오늘 일정</h3>
+        <div class="tl">
+          <span class="h">09:30</span><div class="blk p1">주간 회의<small>09:30 – 10:00 · 했어요</small></div>
+          <span class="h">13:00</span><div class="blk pend">거래처 통화<small>13:00 – 13:30 · 확인 대기</small></div>
+          <span class="h">15:00</span><div class="blk p3">견적서 검토<small>15:00 – 16:30 · 확인 대기</small></div>
+          <div class="now"></div>
+          <span class="h">17:30</span><div class="blk p1">배포 점검<small>17:30 – 18:00</small></div>
+        </div>
+      </div>
+      <div class="stack">
+        <div class="panel"><div class="ph-row"><h3>남은 업무</h3><span class="due">마감순</span></div>
+          <div class="grp late">마감 초과</div>
+          <ul class="tasks"><li><span class="ck"></span><span class="t">9월 정산 자료 정리</span><span class="chip" style="background:var(--p2t);color:var(--p2i)">운영</span><span class="due late">10/10(금)</span></li></ul>
+          <div class="grp">오늘</div>
+          <ul class="tasks"><li><span class="ck"></span><span class="t">견적서 2차 수정</span><span class="chip" style="background:var(--p3t);color:var(--p3i)">영업</span><span class="due">오늘</span></li>
+          <li><span class="ck"></span><span class="t">릴리스 노트 초안</span><span class="chip" style="background:var(--p1t);color:var(--p1i)">개발</span><span class="due">오늘</span></li></ul>
+        </div>
+        <div class="panel logcard"><h3>오늘 업무일지</h3><p class="meta">초안 · 실적 4 · 내일 계획 2 · 이슈 0</p>
+          <div class="acts"><button class="btn soft">하루 마감</button><button class="btn ghost">일지 보기</button></div></div>
+        <div class="panel"><h3>다가오는 일정</h3><ul class="upc"><li><span class="d">10/13(화)</span>고객사 미팅 10:00</li><li><span class="d">10/15(목)</span>분기 리뷰 14:00</li></ul></div>
+      </div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- F2 -->
+<section class="frame">
+<h2>F2. 홈 1280 · 하루 마감 시각 뒤(18:20) — 마감 띠</h2>
+<p class="note">머리 아래에 띠가 올라오고 [하루 마감]이 이 화면의 유일한 채움. 일지 카드의 버튼은 띠와 중복이라 [일지 보기]만 남긴다. placeholder 시제는 "했는지"로 바뀐다. 띠는 닫는 버튼이 없다: 확정하면 F2b로 바뀐다. 비근무일은 그날 기록이 1건 이상일 때만.</p>
+<div class="screen w1280" style="height:520px">
+  <aside class="side"><div class="logo">WY</div><nav class="nav"><a class="on">홈</a><a>캘린더</a><a>업무</a><a>일지</a><a>통계</a><a>설정</a></nav></aside>
+  <div class="main">
+    <div><div class="date">10월 12일 월요일</div><h3 class="hello">수고했어요, 지은 님</h3></div>
+    <div class="qi"><span class="ph">무엇을 했는지 한 줄로 적어 보세요</span><span class="kbd">N</span></div>
+    <div class="band"><div class="bt"><b>오늘 기록을 정리할 시간이에요</b><span>확인 대기 2건 · 넘길 일 3건 · 1분이면 끝나요</span></div><button class="btn fill">하루 마감</button></div>
+    <ul class="summary"><li><a href="#">남은 업무 <b>6</b><span class="late">초과 2</span></a></li><li><a href="#">오늘 일정 <b>3</b>모두 지남</a></li><li class="pend"><a href="#"><span class="dot"></span>확인 대기 <b>2</b></a></li><li><a href="#">이번 주 완료 <b>13</b></a></li></ul>
+    <div class="cols"><div class="panel"><h3>오늘 일정</h3><p class="due">…(F1과 같음)</p></div><div class="panel logcard"><h3>오늘 업무일지</h3><p class="meta">초안 · 실적 5 · 내일 계획 2 · 이슈 0</p><div class="acts"><button class="btn ghost">일지 보기</button></div></div></div>
+  </div>
+</div>
+<p class="cap" style="margin-top:16px">F2b. 확정한 뒤 띠(채움 없음)</p>
+<div class="screen" style="width:1028px;padding:16px"><div class="band done"><span class="ic-ok">✓</span><div class="bt"><b>오늘 일지를 확정했어요</b><span>18:24 확정 · 내일 계획 3건</span></div><a class="link">일지 보기</a></div></div>
+</section>
+
+<!-- F3 -->
+<section class="frame">
+<h2>F3. 홈 390 · 마감 시각 전 / 뒤 / 확정 뒤</h2>
+<p class="note">390에서도 띠는 머리 바로 아래(770px 아래로 내려가지 않음, HOME-04). 마감 시각 전 채움은 하단 +, 뒤에는 띠 [하루 마감]이 채움을 넘겨받고 +는 윤곽. 빠른 입력은 16px·높이 52px 전체가 입력(HOME-13). 하단 탭·띠 아래 safe-area 34px(COM-22).</p>
+<div class="row">
+ <div><p class="cap">마감 시각 전 17:10</p>
+ <div class="screen w390"><div class="status"><span>17:10</span><span>●●●</span></div>
+  <div class="m390"><div><div class="date">10월 12일 월요일</div><h3 class="hello">좋은 오후예요, 지은 님</h3></div>
+   <div class="qi" style="min-height:52px"><span class="ph">무엇을 할지 한 줄로 적어 보세요</span></div>
+   <ul class="summary" style="font-size:13px"><li><a>남은 <b>7</b></a></li><li><a>일정 <b>3</b></a></li><li class="pend"><a><span class="dot"></span>대기 <b>2</b></a></li><li><a>완료 <b>12</b></a></li></ul>
+   <div class="panel" style="padding:16px"><h3>오늘 일정</h3><div class="tl"><span class="h">13:00</span><div class="blk pend">거래처 통화<small>확인 대기</small></div><span class="h">15:00</span><div class="blk p3">견적서 검토<small>확인 대기</small></div><div class="now"></div><span class="h">17:30</span><div class="blk p1">배포 점검</div></div></div>
+  </div>
+  <nav class="tabs"><span class="on">홈</span><span>캘린더</span><span><span class="plus fill">+</span></span><span>일지</span><span>더보기</span></nav><div class="safe"></div>
+ </div></div>
+ <div><p class="cap">마감 시각 뒤 18:20</p>
+ <div class="screen w390"><div class="status"><span>18:20</span><span>●●●</span></div>
+  <div class="m390"><div><div class="date">10월 12일 월요일</div><h3 class="hello">수고했어요, 지은 님</h3></div>
+   <div class="qi" style="min-height:52px"><span class="ph">무엇을 했는지 한 줄로 적어 보세요</span></div>
+   <div class="band" style="flex-wrap:wrap"><div class="bt"><b>오늘 기록을 정리할 시간이에요</b><span>확인 대기 2건 · 넘길 일 3건</span></div><button class="btn fill" style="width:100%">하루 마감</button></div>
+   <ul class="summary" style="font-size:13px"><li><a>남은 <b>6</b></a></li><li><a>일정 <b>3</b></a></li><li class="pend"><a><span class="dot"></span>대기 <b>2</b></a></li><li><a>완료 <b>13</b></a></li></ul>
+   <div class="panel" style="padding:16px"><h3>오늘 일정</h3><p class="due">…</p></div>
+  </div>
+  <nav class="tabs"><span class="on">홈</span><span>캘린더</span><span><span class="plus line">+</span></span><span>일지</span><span>더보기</span></nav><div class="safe"></div>
+ </div></div>
+ <div><p class="cap">확정 뒤 18:25</p>
+ <div class="screen w390"><div class="status"><span>18:25</span><span>●●●</span></div>
+  <div class="m390"><div><div class="date">10월 12일 월요일</div><h3 class="hello">수고했어요, 지은 님</h3></div>
+   <div class="qi" style="min-height:52px"><span class="ph">무엇을 했는지 한 줄로 적어 보세요</span></div>
+   <div class="band done"><span class="ic-ok">✓</span><div class="bt"><b>오늘 일지를 확정했어요</b><span>내일 계획 3건</span></div><a class="link">일지 보기</a></div>
+   <ul class="summary" style="font-size:13px"><li><a>남은 <b>6</b></a></li><li><a>일정 <b>3</b></a></li><li><a>대기 <b>0</b></a></li><li><a>완료 <b>13</b></a></li></ul>
+  </div>
+  <nav class="tabs"><span class="on">홈</span><span>캘린더</span><span><span class="plus fill">+</span></span><span>일지</span><span>더보기</span></nav><div class="safe"></div>
+ </div></div>
+</div>
+</section>
+
+<!-- F4 -->
+<section class="frame">
+<h2>F4. 빠른 입력 Esc·비우기(Q1)</h2>
+<p class="note">글이 있으면 입력칸 오른쪽에 [×](44×44, 이름 "입력 지우기")가 생긴다. Esc는 포커스만 빼고 글을 남긴다(UX-COM-01 구현과 같음). 지운 뒤 되돌리기는 두지 않는다: [×]는 사용자가 겨냥해 누르는 동작이라 실수 비용이 Esc보다 낮다.</p>
+<div class="screen" style="width:900px;padding:20px"><div class="qi typed"><span class="ph">견적서 2차 수정 @영업 ~금 15:00-16:00</span><button class="clear" aria-label="입력 지우기">×</button></div></div>
+</section>
+
+<!-- F5 -->
+<section class="frame">
+<h2>F5. 하루 마감 1단계 · 확인 대기(Q2)</h2>
+<p class="note">대기 항목을 이름·계획 시각과 함께 보인다(최대 5개, 넘으면 "외 n건"). 주 버튼은 [모두 했어요]: 계획 시각대로 "했어요" 처리하고 2단계로. 누르면 5초 되돌리기 토스트(X-04 규칙 2). 하나씩 고치려면 [하나씩 확인](SCR-HOME-02 패널). [그대로 다음]은 링크로 낮춤. 오늘이 아닌 날 대기는 날짜 배지. Enter = [모두 했어요].</p>
+<div class="row">
+ <div><p class="cap">1280 · 모달</p>
+ <div class="screen" style="width:760px;height:560px">
+  <div class="scrim"><div class="dlg">
+   <div class="dlg-h"><h3 class="dh">하루 마감 1/3</h3><button class="x" aria-label="닫기">×</button></div>
+   <div class="steps"><i class="on"></i><i></i><i></i></div>
+   <p class="body">확인 대기 기록이 2건 있어요. 확정한 기록만 일지에 들어가요.</p>
+   <ul class="pl">
+    <li><span class="tm">13:00 – 13:30</span><span class="tt">거래처 통화</span></li>
+    <li><span class="tm">15:00 – 16:30</span><span class="tt">견적서 검토</span></li>
+   </ul>
+   <p class="more">계획한 시각대로 기록돼요. 다르게 했다면 하나씩 확인하세요.</p>
+   <div class="actions"><a class="link" style="margin-right:auto">그대로 다음</a><button class="btn neutral">하나씩 확인</button><button class="btn fill">모두 했어요</button></div>
+   <div class="hint">Enter 모두 했어요</div>
+  </div></div>
+ </div></div>
+ <div><p class="cap">390 · 전체 화면, 단계 버튼 하단 고정</p>
+ <div class="screen w390">
+  <div class="full">
+   <div class="top"><h3 class="dh">하루 마감 1/3</h3><button class="x" aria-label="닫기">×</button></div>
+   <div class="cnt">
+    <div class="steps"><i class="on"></i><i></i><i></i></div>
+    <p class="body">확인 대기 기록이 6건 있어요. 확정한 기록만 일지에 들어가요.</p>
+    <ul class="pl">
+     <li><span class="tm">13:00</span><span class="tt">거래처 통화</span></li>
+     <li><span class="tm">15:00</span><span class="tt">견적서 검토</span></li>
+     <li><span class="tm">10:00</span><span class="tt">문서 정리</span><span class="od">10/10</span></li>
+     <li><span class="tm">14:00</span><span class="tt">팀 점심 회의 준비</span><span class="od">10/10</span></li>
+     <li><span class="tm">11:00</span><span class="tt">보고서 초안</span><span class="od">10/9</span></li>
+    </ul>
+    <p class="more">외 1건 · 계획한 시각대로 기록돼요.</p>
+   </div>
+   <div class="bar"><button class="btn fill">모두 했어요</button><div style="display:flex;gap:6px"><button class="btn neutral" style="flex:1">하나씩 확인</button><button class="btn ghost" style="flex:1">그대로 다음</button></div></div>
+  </div>
+ </div></div>
+</div>
+<p class="cap" style="margin-top:16px">[모두 했어요] 직후 토스트(어두운 띠 위 포커스 링은 흰색, COM-23)</p>
+<div class="screen" style="width:760px;height:90px"><div class="toast">확인 대기 2건을 ‘했어요’로 기록했어요<button class="btn">되돌리기</button></div></div>
+</section>
+
+<!-- F6 -->
+<section class="frame">
+<h2>F6. 하루 마감 3단계 · 미리보기(X-05 ②)</h2>
+<p class="note">실적 줄을 실제 문장으로 최대 5줄. 다른 날 기록이 빠졌으면 이유 한 줄. 확정은 Ctrl/⌘+Enter(이슈 칸 Enter 실수 방지): 버튼 아래 안내.</p>
+<div class="screen" style="width:760px;height:600px"><div class="scrim"><div class="dlg">
+ <div class="dlg-h"><h3 class="dh">하루 마감 3/3</h3><button class="x" aria-label="닫기">×</button></div>
+ <div class="steps"><i class="on"></i><i class="on"></i><i class="on"></i></div>
+ <div class="qi" style="min-height:48px;margin:0 0 14px"><span class="ph" style="font-size:14px">이슈가 있으면 한 줄로 적어 주세요(비워도 돼요)</span></div>
+ <div style="border:1px solid var(--color-divider);border-radius:var(--r-input);padding:14px 16px;font-size:13px">
+  <b style="font-size:14px">10/12(월) 업무일지</b>
+  <ol style="margin:8px 0;padding-left:18px;color:var(--color-text-body)"><li>주간 회의 — 완료</li><li>거래처 통화 — 완료</li><li>견적서 검토 — 완료</li><li>견적서 2차 수정 — 검토 요청</li><li>배포 점검 — 완료</li></ol>
+  <p style="margin:0;color:var(--color-text-muted)">실적 5건 · 내일 계획 3건 · 다른 날 기록 3건은 그날 일지에 들어가요</p>
+ </div>
+ <div class="actions" style="margin-top:16px"><button class="btn neutral" style="margin-right:auto">이전</button><button class="btn fill">확정</button></div>
+ <div class="hint">Ctrl+Enter 확정</div>
+</div></div></div>
+</section>
+
+<!-- F7 -->
+<section class="frame">
+<h2>F7. 완료 창 · 상시 [확정 해제](Q3) · 프로필 안내 자리(Q5 대기)</h2>
+<p class="note">채움은 [일지 보기] 하나. [확정 해제]는 창 아래 구분선 밑 중립 글자 버튼: 창을 닫기 전까지 언제든. 누르면 창 안에서 한 번 묻는다(X-03: 중립 채움 + 결과 한 줄, 위험색 아님). 프로필 안내 줄은 Q5가 ①이면 이 자리(점선 테두리 = 결정 대기).</p>
+<div class="row">
+ <div><p class="cap">1280 · 확정 직후</p>
+ <div class="screen" style="width:640px;height:520px"><div class="scrim"><div class="dlg">
+  <div class="dlg-h"><h3 class="dh">하루 마감</h3><button class="x" aria-label="닫기">×</button></div>
+  <div class="ok"><span class="ic">✓</span><div><b>오늘 일지를 확정했어요</b><span>실적 5건 · 내일 계획 3건</span></div></div>
+  <div class="prof" style="outline:1.5px dashed var(--color-border)"><span class="sp">이름·소속을 넣으면 문서에 들어가요</span><a class="link">입력</a></div>
+  <div class="actions"><button class="btn neutral">내보내기</button><button class="btn fill">일지 보기</button></div>
+  <div class="undo-line"><span class="sp">잘못 확정했나요?</span><button class="btn ghost" style="color:var(--color-text-body)">확정 해제</button></div>
+ </div></div></div></div>
+ <div><p class="cap">[확정 해제]를 누른 뒤(창 안 확인, 포커스는 [계속 두기])</p>
+ <div class="screen" style="width:640px;height:520px"><div class="scrim"><div class="dlg">
+  <div class="dlg-h"><h3 class="dh">하루 마감</h3><button class="x" aria-label="닫기">×</button></div>
+  <div class="ok"><span class="ic">✓</span><div><b>오늘 일지를 확정했어요</b><span>실적 5건 · 내일 계획 3건</span></div></div>
+  <div class="actions"><button class="btn neutral">내보내기</button><button class="btn fill" disabled style="opacity:.5">일지 보기</button></div>
+  <div class="confirm"><p>확정을 해제할까요? 일지는 초안으로 돌아가고 내보낸 파일은 그대로예요.</p>
+   <div class="actions"><button class="btn line" style="outline:2px solid var(--color-accent);outline-offset:2px">계속 두기</button><button class="btn neutral" style="background:#dfe2ea">확정 해제</button></div></div>
+ </div></div></div></div>
+</div>
+<ul class="spec">
+ <li>해제하면 창은 "초안으로 돌렸어요" 한 줄 + [다시 마감]·[일지 보기]로 바뀐다. 넘긴 계획은 그대로 둔다(D-115·SCR-LOG-04 해제 규칙과 같음).</li>
+ <li>확인 줄은 겹친 모달이 아니라 창 안. Esc는 [계속 두기]와 같다.</li>
+ <li>주·월 마지막 근무일의 주간·월간 제안은 [내보내기]·[일지 보기] 위에 지금처럼.</li>
+</ul>
+</section>
+
+</div>
+</body>
+</html>

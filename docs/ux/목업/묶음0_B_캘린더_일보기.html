@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>묶음 0 카드 B 목업: 캘린더 일 보기 패널 접힘·겹침 (WY-design 2026-10-12)</title>
+<style>
+:root{
+  --color-accent:#4b3fd6;--color-on-accent:#fff;--color-ground:#f2f4fa;
+  --color-accent-soft:#e9e8fa;--color-accent-faint:#f6f5fd;--color-accent-ink:#3c32ab;
+  --color-surface:#fff;--color-text:#1a1c2b;--color-text-muted:#5e6377;--color-text-body:#4a4f63;
+  --color-border:#d5d8e5;--color-divider:#e1e4ee;
+  --status-pending-bg:#ffe9b8;--status-pending-border:#e0a100;--status-pending-text:#4a3000;
+  --p1t:#e5ecfc;--p1i:#1e3f9e;--p3t:#ddf3ee;--p3i:#0a5c4e;--p2t:#fcebdd;--p2i:#8a3d06;--p4t:#eee6f8;--p4i:#552c8d;
+  --t-dense:11px;--t-xs:12px;--t-sm:13px;--t-md:14px;--t-lg:16px;--t-xl:18px;--t-2xl:22px;
+  --r-sm:8px;--r-input:12px;--r-card:20px;--shadow-2:0 8px 24px rgba(26,28,43,.14);
+  --font:'Pretendard Variable',Pretendard,-apple-system,system-ui,'Apple SD Gothic Neo','Noto Sans KR','Malgun Gothic',sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#e6e8ef;font-family:var(--font);color:var(--color-text);font-size:var(--t-md);line-height:1.5}
+.doc{max-width:1360px;margin:0 auto;padding:32px 24px 80px}
+.doc>h1{font-size:var(--t-2xl);margin:0 0 4px}
+.lead{margin:0 0 24px;color:var(--color-text-body)}
+.frame{margin:0 0 48px}
+.frame>h2{font-size:var(--t-xl);margin:0 0 4px}
+.note{margin:0 0 12px;font-size:var(--t-sm);color:var(--color-text-body);max-width:920px}
+.screen{width:1280px;height:640px;background:var(--color-ground);border-radius:12px;overflow:hidden;display:flex;position:relative}
+.side{width:220px;flex:none;background:var(--color-surface);border-right:1px solid var(--color-divider);padding:20px 14px;font-weight:600;color:var(--color-text-body)}
+.side b{display:block;font-size:var(--t-xl);color:var(--color-text);padding:0 10px 18px}
+.side a{display:block;padding:10px;border-radius:var(--r-sm)}
+.side a.on{background:var(--color-accent-soft);color:var(--color-accent-ink)}
+.main{flex:1;display:flex;flex-direction:column;min-width:0;padding:20px 24px;gap:12px}
+.bar{display:flex;align-items:center;gap:8px}
+.bar h3{margin:0 8px 0 0;font-size:var(--t-2xl)}
+.bar .sp{flex:1}
+.ib{min-width:44px;height:44px;border-radius:var(--r-input);border:0;background:var(--color-surface);font:inherit;font-weight:600;color:var(--color-text-body);padding:0 12px}
+.seg{display:flex;background:var(--color-surface);border-radius:var(--r-input);padding:3px}
+.seg span{padding:8px 12px;border-radius:9px;font-weight:600;color:var(--color-text-body);font-size:var(--t-sm)}
+.seg span.on{background:var(--color-accent-soft);color:var(--color-accent-ink)}
+.body{flex:1;display:flex;gap:12px;min-height:0}
+.grid{flex:1;min-width:0;background:var(--color-surface);border-radius:var(--r-card);padding:12px 12px 12px 0;display:grid;grid-template-columns:56px 1fr;position:relative;overflow:hidden}
+.hours{display:flex;flex-direction:column}
+.hours span{height:56px;font-size:var(--t-xs);color:var(--color-text-muted);text-align:right;padding-right:8px;font-variant-numeric:tabular-nums;transform:translateY(-8px)}
+.lanes{position:relative;background:repeating-linear-gradient(to bottom,var(--color-divider) 0 1px,transparent 1px 56px)}
+.ev{position:absolute;border-radius:6px;padding:3px 6px;font-size:var(--t-dense);font-weight:600;line-height:1.3;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;border:1px solid var(--color-surface)}
+.ev small{display:block;font-weight:400}
+.e1{background:var(--p1t);color:var(--p1i)}.e2{background:var(--p2t);color:var(--p2i)}.e3{background:var(--p3t);color:var(--p3i)}.e4{background:var(--p4t);color:var(--p4i)}
+.plan{background:var(--color-surface)!important;outline:1.5px dashed currentColor;outline-offset:-2px}
+.more{position:absolute;min-height:28px;border-radius:6px;border:0;background:var(--color-accent-soft);color:var(--color-accent-ink);box-shadow:inset 0 0 0 1px var(--color-accent);font:inherit;font-size:var(--t-xs);font-weight:700;padding:0 8px}
+.pop{position:absolute;width:260px;background:var(--color-surface);border-radius:var(--r-input);box-shadow:var(--shadow-2);padding:8px;z-index:3}
+.pop p{margin:4px 8px 6px;font-size:var(--t-xs);color:var(--color-text-muted);font-weight:700}
+.pop a{display:flex;gap:8px;align-items:center;min-height:40px;padding:0 8px;border-radius:var(--r-sm);font-size:var(--t-sm)}
+.pop a.f{outline:2px solid var(--color-accent);outline-offset:-2px}
+.pop a i{width:8px;height:8px;border-radius:50%;flex:none}
+.pop a span{flex:1}
+.pop a em{font-style:normal;color:var(--color-text-muted);font-size:var(--t-xs);font-variant-numeric:tabular-nums}
+.now{position:absolute;left:0;right:0;border-top:2px solid var(--color-accent)}
+.rec{width:300px;flex:none;background:var(--color-surface);border-radius:var(--r-card);padding:16px;display:flex;flex-direction:column;gap:8px}
+.rec.fold{width:auto;flex:none;padding:0;background:none}
+.ph{display:flex;align-items:center;gap:6px}
+.ph h4{margin:0;flex:1;font-size:var(--t-lg)}
+.ph .sum{font-size:var(--t-sm);color:var(--color-text-muted)}
+.tg{min-width:44px;height:44px;border:0;border-radius:var(--r-input);background:none;font:inherit;color:var(--color-text-body);font-size:16px}
+.ri{display:flex;gap:8px;align-items:center;min-height:44px;border-top:1px solid var(--color-divider);font-size:var(--t-sm)}
+.ri .t{flex:1}
+.tag{font-size:var(--t-xs);font-weight:700;border-radius:999px;padding:1px 8px}
+.tag.ok{background:#dff3ec;color:#0a5c4e}.tag.pd{background:var(--status-pending-bg);color:var(--status-pending-text)}
+.link{color:var(--color-accent-ink);font-weight:600;text-decoration:underline;text-underline-offset:3px;font-size:var(--t-sm)}
+.btn{min-height:44px;border-radius:var(--r-input);border:0;font:inherit;font-weight:600;padding:0 14px;background:var(--color-accent-soft);color:var(--color-accent-ink)}
+.strip{width:300px;display:flex;align-items:center;gap:8px;background:var(--color-surface);border-radius:var(--r-input);padding:0 4px 0 14px;min-height:52px}
+.strip b{font-size:var(--t-md)}
+.strip span{flex:1;font-size:var(--t-sm);color:var(--color-text-muted)}
+.rail{width:52px;flex:none;background:var(--color-surface);border-radius:var(--r-card);display:flex;flex-direction:column;align-items:center;padding:8px 0;gap:6px}
+.rail button{width:44px;height:auto;min-height:88px;border:0;border-radius:var(--r-input);background:var(--color-accent-faint);color:var(--color-accent-ink);font:inherit;font-weight:700;font-size:var(--t-sm);writing-mode:vertical-rl;letter-spacing:2px}
+.rail kbd{font-family:inherit;font-size:var(--t-xs);color:var(--color-text-muted);border:1px solid var(--color-border);border-radius:6px;padding:0 5px}
+.tp{width:280px;flex:none;background:var(--color-surface);border-radius:var(--r-card);padding:16px}
+.measure{position:absolute;top:2px;font-size:var(--t-xs);color:#a02613;font-weight:700;background:#fff;padding:0 4px}
+.spec{font-size:var(--t-xs);color:var(--color-text-muted);margin:8px 0 0}
+.spec li{margin:2px 0}
+</style>
+</head>
+<body>
+<div class="doc">
+<h1>묶음 0 카드 B 목업: 캘린더 일 보기(Q7, X-07)</h1>
+<p class="lead">사용자 결정 2026-10-12(카드 1701) Q7: 업무 패널 기본 접힘, 펼침 상태는 이 기기에 기억. 판정 X-07 A + D(D 먼저). 근거는 <code>docs/ux/디자인규칙_안_v1.1.md</code> ⑤.</p>
+
+<section class="frame">
+<h2>G0. 지금(비교용): 1280, 기록 패널 + 업무 패널 둘 다 열림</h2>
+<p class="note">시간 열이 약 122px. 겹친 일정이 18px 폭으로 갈라져 마우스로 열 수 없다(CAL-70·71, ux3 mock 측정).</p>
+<div class="screen" style="height:360px">
+ <aside class="side"><b>WY</b><a>홈</a><a class="on">캘린더</a><a>업무</a></aside>
+ <div class="main"><div class="bar"><h3>10/14(화)</h3><span class="sp"></span><span class="seg"><span class="on">일</span><span>주</span><span>월</span></span></div>
+  <div class="body">
+   <div class="grid" style="flex:0 0 190px"><div class="hours"><span>13:00</span><span>14:00</span><span>15:00</span><span>16:00</span></div>
+    <div class="lanes"><span class="measure">약 122px</span>
+     <div class="ev e1" style="top:56px;height:56px;left:0;width:30px">주</div><div class="ev e2" style="top:56px;height:84px;left:31px;width:30px">견</div><div class="ev e3" style="top:70px;height:56px;left:62px;width:30px">통</div><div class="ev e4" style="top:84px;height:56px;left:93px;width:28px">점</div>
+    </div></div>
+   <div class="rec"><div class="ph"><h4>이날의 기록</h4></div><div class="ri"><span class="t">주간 회의</span><span class="tag ok">했어요</span></div></div>
+   <div class="tp"><div class="ph"><h4>업무</h4></div><div class="ri"><span class="t">견적서 2차 수정</span></div></div>
+  </div></div>
+</div>
+</section>
+
+<section class="frame">
+<h2>G1. 기본(처음 열 때): 업무 패널 접힘, 기록 패널 열림, 겹침 상한 + "+n"</h2>
+<p class="note">업무 패널은 오른쪽 52px 레일로 접힌다. [업무 P]를 누르거나 P를 누르면 열린다. 시간 열은 약 570px(지금 122px)이고, 열 상한은 floor(열 폭 / 28px)다. 같은 시간대에 그보다 많으면 마지막 칸을 "+n" 버튼으로 바꾼다. 이 화면은 상한을 넘는 예를 보이려고 4열 상한으로 그렸다. 끌기 ghost와 계획 블록은 점선(X-11)이다. 블록 글자는 11px 밀집 단계(시간 그리드 전용)를 쓴다.</p>
+<div class="screen">
+ <aside class="side"><b>WY</b><a>홈</a><a class="on">캘린더</a><a>업무</a></aside>
+ <div class="main"><div class="bar"><button class="ib" aria-label="이전 날">‹</button><button class="ib" aria-label="다음 날">›</button><h3>10/14(화)</h3><button class="ib">오늘</button><span class="sp"></span><span class="seg"><span class="on">일</span><span>주</span><span>월</span><span>목록</span></span></div>
+  <div class="body">
+   <div class="grid"><div class="hours"><span>09:00</span><span>10:00</span><span>11:00</span><span>12:00</span><span>13:00</span><span>14:00</span><span>15:00</span><span>16:00</span><span>17:00</span></div>
+    <div class="lanes">
+     <div class="ev e1" style="top:28px;height:56px;left:0;width:60%">스탠드업<small>09:30 – 10:30</small></div>
+     <div class="ev e3 plan" style="top:112px;height:84px;left:0;width:60%">계획 · 보고서 정리<small>11:00 – 12:30</small></div>
+     <div class="ev e1" style="top:280px;height:56px;left:0;width:24%">주간 회의<small>14:00 – 15:00</small></div>
+     <div class="ev e2" style="top:280px;height:84px;left:24%;width:24%">견적서 검토<small>14:00 – 15:30</small></div>
+     <div class="ev e3" style="top:294px;height:56px;left:48%;width:24%">거래처 통화<small>14:15 – 15:15</small></div>
+     <button class="more" style="top:280px;left:73%;width:26%" aria-label="14시대 일정 3개 더">+3</button>
+     <div class="now" style="top:330px"></div>
+     <div class="ev e4" style="top:392px;height:56px;left:0;width:60%">배포 점검<small>16:00 – 17:00</small></div>
+    </div></div>
+   <div class="rec"><div class="ph"><h4>이날의 기록</h4><button class="tg" aria-label="이날의 기록 접기" aria-expanded="true">›</button></div>
+    <div class="ri"><span class="t">스탠드업</span><span class="tag ok">했어요</span></div>
+    <div class="ri"><span class="t">주간 회의</span><span class="tag pd">확인 대기</span></div>
+    <div class="ri"><span class="t">견적서 검토</span><span class="tag pd">확인 대기</span></div>
+    <div class="ri"><span class="t">메일 정리(시간 없음)</span><span class="tag ok">했어요</span></div>
+    <div class="ri" style="justify-content:space-between"><button class="btn">기록 추가</button><a class="link">하루 마감</a></div>
+   </div>
+   <div class="rail"><button aria-expanded="false" aria-controls="task-panel">업무</button><kbd>P</kbd></div>
+  </div></div>
+</div>
+<ul class="spec">
+ <li>"+3"은 Tab으로 닿는 버튼이다. 낭독기 이름은 "14시대 일정 3개 더"다. 누르면 아래 G2 팝오버가 열린다. 높이는 28px 이상이고, 누르는 영역은 ::after로 44px까지 넓힌다.</li>
+ <li>[하루 마감] 링크는 기록 패널 머리 아래(ux3)에 둔다. 오늘·지난 날에만 보인다.</li>
+ <li>레일 [업무]: 보이는 크기 44×88. 펼친 상태를 이 기기(localStorage, 키 예: <code>wy.calendar.dayPanels</code>)에 기억한다. 계정 설정은 쓰지 않는다(API 변경 없음).</li>
+ <li>1024~1279px: 업무 패널은 지금처럼 접힘이 기본이고 열면 떠서 열린다. 기록 패널 규칙은 1280과 같다.</li>
+</ul>
+</section>
+
+<section class="frame">
+<h2>G2. "+n" 팝오버</h2>
+<p class="note">열면 첫 항목에 포커스가 간다. ↑↓로 옮기고 Enter로 그 일정의 상세를 연다. Esc를 누르면 닫히고 포커스는 "+3"으로 돌아간다. 키보드로 여는 것이라 모션은 0이다(X-12 3번).</p>
+<div class="screen" style="height:300px">
+ <aside class="side"><b>WY</b></aside>
+ <div class="main"><div class="body"><div class="grid"><div class="hours"><span>14:00</span><span>15:00</span></div>
+  <div class="lanes"><button class="more" style="top:0;left:73%;width:26%">+3</button>
+   <div class="pop" style="top:36px;left:58%"><p>14시대 일정 3개 더</p>
+    <a class="f"><i style="background:#7a3fc9"></i><span>디자인 리뷰</span><em>14:00 – 15:00</em></a>
+    <a><i style="background:#2d5bd8"></i><span>채용 인터뷰</span><em>14:30 – 15:30</em></a>
+    <a><i style="background:#0e7f6c"></i><span>계획 · 문서 검토</span><em>14:30 – 15:00</em></a>
+   </div></div></div></div></div>
+</div>
+</section>
+
+<section class="frame">
+<h2>G3. 기록 패널도 접은 상태: 요약 한 줄 유지(ux2 조건)</h2>
+<p class="note">기록 패널을 접어도 머리글 요약 한 줄("기록 5건 · 대기 2 · 일지 초안")과 펼치기 버튼이 남는다. 기록·일지로 가는 상시 진입점을 잃지 않기 위해서다. 시간 열은 가장 넓어진다.</p>
+<div class="screen" style="height:220px">
+ <aside class="side"><b>WY</b><a class="on">캘린더</a></aside>
+ <div class="main"><div class="bar"><h3>10/14(화)</h3><span class="sp"></span>
+  <div class="strip"><b>이날의 기록</b><span>5건 · 대기 2 · 일지 초안</span><button class="tg" aria-label="이날의 기록 펼치기" aria-expanded="false">‹</button></div></div>
+  <div class="body"><div class="grid"><div class="hours"><span>14:00</span><span>15:00</span></div><div class="lanes"><div class="ev e1" style="top:0;height:56px;left:0;width:30%">주간 회의<small>14:00 – 15:00</small></div><div class="ev e2" style="top:0;height:84px;left:30%;width:30%">견적서 검토<small>14:00 – 15:30</small></div></div></div>
+   <div class="rail"><button aria-expanded="false">업무</button><kbd>P</kbd></div></div></div>
+</div>
+</section>
+</div>
+</body>
+</html>
