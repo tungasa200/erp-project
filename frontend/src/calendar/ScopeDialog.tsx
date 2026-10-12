@@ -25,10 +25,10 @@ export function ScopeDialog({ occurrence, action, onClose }: Props) {
   const [scope, setScope] = useState<Scope>(allowThis ? 'this' : 'all')
   return (
     <Modal labelledBy={`${id}-title`} onClose={() => onClose(null)} narrow role="alertdialog">
-      <h2 id={`${id}-title`} className={styles.title} style={{ fontSize: 18 }}>
+      <h2 id={`${id}-title`} className={styles.title} style={{ fontSize: 'var(--text-xl)' }}>
         {TITLES[action]}
       </h2>
-      <p className={styles.muted} style={{ fontSize: 14 }}>
+      <p className={styles.muted} style={{ fontSize: 'var(--text-md)' }}>
         {occurrence.title}
       </p>
       <form

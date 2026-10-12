@@ -764,7 +764,7 @@ export function ScheduleDialog({ timeZone, draft, occurrence, askScope, onDelete
             {latest && (
               <button
                 type="button"
-                className={styles.danger}
+                className={styles.plain}
                 disabled={!online}
                 onClick={() => {
                   onClose()

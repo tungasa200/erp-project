@@ -227,7 +227,7 @@ export function QuickCreate({ target, timeZone, anchor, onClose, onDetails }: Pr
           void save()
         }}
       >
-        <h2 id={`${id}-title`} className={styles.cardTitle} style={{ padding: 0, fontSize: 15 }}>
+        <h2 id={`${id}-title`} className={styles.cardTitle} style={{ padding: 0, fontSize: 'var(--text-md)' }}>
           새 일정
         </h2>
         <button
