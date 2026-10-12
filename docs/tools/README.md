@@ -27,3 +27,18 @@ node gen-plan.js --force
 ```
 
 화면정의서는 하위 폴더 screendoc/에서 따로 만듭니다(담당 WY-design, 사용법은 screendoc/README.md).
+
+## 사용 설명서 (manual/)
+
+`manual/build-manual.js`는 `docs/manual/00~10-*.md` 원고로 사용 설명서 PDF와 웹 페이지를 함께 만듭니다(D-216). 새 npm 패키지는 쓰지 않습니다(원고에 쓰는 Markdown 문법만 직접 변환).
+
+```bash
+npm run manual -- --edition 2026-10-27     # 기준 날짜(표지 '{발행일}'·판 표시), 빼면 오늘(KST)
+npm run manual -- --keep-html              # 인쇄용 중간 HTML(docs/manual/print/worklog-manual.html)을 남김
+```
+
+- 결과: `docs/manual/worklog-manual.pdf`, `docs/manual/web/`(index.html·web.css·그림·글꼴·PDF, 커밋하지 않음). 발행 때 `docs/manual/web/`을 `frontend/public/manual/`에 복사합니다.
+- 틀: `docs/manual/print/template.html`·`print.css`(인쇄), `web.html`·`web.css`(웹), 담당 WY-design. 자리 표시 `{{TITLE}} {{EDITION}} {{COVER}} {{TOC}} {{BODY}} {{PDF_HREF}}`.
+- 원고 주석(`<!-- -->`)은 빼고, 아직 없는 그림은 '촬영 예정' 자리 상자로 넣습니다.
+- 목차 쪽 번호: Chrome은 `target-counter()`를 지원하지 않아 두 번 인쇄합니다. 1차 PDF의 이름 붙은 목적지(`/ch-NN`)에서 장 위치를 읽어 2차에 채웁니다.
+- 필요한 것: 이 PC의 Chrome(다른 경로면 `CHROME_PATH`), `frontend`의 `npm install`(Pretendard 글꼴). Chrome을 띄우므로 실행 전 여유 메모리를 확인합니다.
