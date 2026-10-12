@@ -97,8 +97,8 @@ export function LoginPage() {
   }
 
   return (
-    // 소개 문구 없이 브랜드만(사용자 지시 2026-10-12)
-    <AuthLayout>
+    // 소개 문구는 한 줄만, 설명 줄 없음(사용자 지시 2026-10-12)
+    <AuthLayout heading="로그인 후 이용하실 수 있습니다">
       <form ref={formRef} className={styles.form} onSubmit={onSubmit} noValidate>
         <h1 className={styles.title}>로그인</h1>
 

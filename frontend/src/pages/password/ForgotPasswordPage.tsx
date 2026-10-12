@@ -5,7 +5,7 @@ import { toastForError } from '../../api/errorToast'
 import { EMAIL_PATTERN } from '../../auth/passwordRules'
 import { useFocusFirstError } from '../auth/useFocusFirstError'
 import { passwordResetApi, sendLimitMessage, timesOf, type CodeTimes } from '../../verification/api'
-import { PasswordLayout } from './PasswordLayout'
+import { AuthLayout } from '../auth/AuthLayout'
 import styles from './password.module.css'
 
 /** 재설정 화면으로 넘기는 값 */
@@ -52,7 +52,7 @@ export function ForgotPasswordPage() {
   }
 
   return (
-    <PasswordLayout>
+    <AuthLayout>
       <form ref={formRef} className={styles.form} onSubmit={(e) => void submit(e)} noValidate>
         <span className={styles.icon} aria-hidden="true">
           <svg
@@ -103,6 +103,6 @@ export function ForgotPasswordPage() {
           로그인으로 돌아가기
         </Link>
       </form>
-    </PasswordLayout>
+    </AuthLayout>
   )
 }

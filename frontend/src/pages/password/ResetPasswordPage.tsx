@@ -10,7 +10,7 @@ import { useFocusFirstError } from '../auth/useFocusFirstError'
 import { codeFailure, passwordResetApi, type CodeTimes } from '../../verification/api'
 import { CodeStep } from '../../verification/CodeStep'
 import type { ResetState } from './ForgotPasswordPage'
-import { PasswordLayout } from './PasswordLayout'
+import { AuthLayout } from '../auth/AuthLayout'
 import styles from './password.module.css'
 
 const RULES: { code: PasswordRuleCode; label: string }[] = [
@@ -82,7 +82,7 @@ function ResetForm({ email, times }: { email: string; times: CodeTimes }) {
   }
 
   return (
-    <PasswordLayout>
+    <AuthLayout>
       <form ref={formRef} className={styles.form} onSubmit={(e) => void submit(e)} noValidate>
         <h1 className={styles.title}>비밀번호 재설정</h1>
         <p className={styles.lead}>
@@ -170,6 +170,6 @@ function ResetForm({ email, times }: { email: string; times: CodeTimes }) {
           저장하고 다시 로그인
         </button>
       </form>
-    </PasswordLayout>
+    </AuthLayout>
   )
 }

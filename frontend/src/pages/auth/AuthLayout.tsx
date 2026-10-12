@@ -1,4 +1,5 @@
-// 로그인·가입 공통 틀: 왼쪽 키 컬러 소개 영역 + 오른쪽 폼 (목업 AUTH-02, AUTH-03)
+// 로그인·가입·비밀번호 찾기·재설정 공통 틀: 왼쪽 키 컬러 소개 영역 + 오른쪽 폼 (목업 AUTH-02, AUTH-03)
+// 문구가 없어도 키 컬러 면은 늘 그린다: 세 진입 화면의 모양을 같게(사용자 지시 2026-10-12)
 import type { ReactNode } from 'react'
 import { useOnline } from '../../components/useOnline'
 import styles from './auth.module.css'
@@ -13,18 +14,16 @@ export function AuthLayout({
   children: ReactNode
 }) {
   const online = useOnline()
-  // 소개 문구가 없으면 키 컬러 면을 빼고 브랜드만 폼 위에 둔다(비밀번호 화면과 같은 모양)
-  const bare = !heading && !description
   return (
-    <div className={bare ? `${styles.page} ${styles.pageBare}` : styles.page}>
-      <aside className={bare ? `${styles.intro} ${styles.introBare}` : styles.intro}>
+    <div className={styles.page}>
+      <aside className={styles.intro}>
         <div className={styles.brand}>
           <span className={styles.logo} aria-hidden="true">
             w
           </span>
           <span className={styles.brandName}>worklog</span>
         </div>
-        {/* 로그인은 소개 문구 없이 브랜드만 둔다(사용자 지시 2026-10-12) */}
+        {/* 비밀번호 찾기·재설정은 문구 없이 브랜드만 */}
         {heading && <p className={styles.introHeading}>{heading}</p>}
         {description && <p className={styles.introText}>{description}</p>}
       </aside>
