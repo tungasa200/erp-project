@@ -7,6 +7,7 @@ import { toastForError } from '../api/errorToast'
 import { ApiError } from '../api/problem'
 import { passwordViolations, type PasswordRuleCode } from '../auth/passwordRules'
 import { useAuth } from '../auth/useAuth'
+import { MANUAL_LINK_LABEL, MANUAL_URL } from '../components/manual'
 import { useToast } from '../components/useToast'
 import { EmailVerificationDialog } from '../verification/EmailVerificationDialog'
 import account from './account.module.css'
@@ -105,6 +106,10 @@ export function AccountSettings() {
       </section>
 
       <section aria-label="약관·정책" className={`${styles.panel} ${account.links}`}>
+        <a href={MANUAL_URL} target="_blank" rel="noopener" aria-label={MANUAL_LINK_LABEL} className={account.linkRow}>
+          사용 설명서
+          <span aria-hidden="true">↗</span>
+        </a>
         <Link to="/privacy" className={account.linkRow}>
           개인정보 처리방침
           <span aria-hidden="true">›</span>

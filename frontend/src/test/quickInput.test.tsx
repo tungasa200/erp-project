@@ -280,6 +280,15 @@ describe('SCR-COM-02 빠른 입력창', () => {
     expect(input).toHaveValue('내일 10-11 스프린트 리뷰 @개발')
     expect(screen.queryByRole('dialog', { name: '한 줄 입력 문법' })).not.toBeInTheDocument()
   })
+
+  it('문법 도움말 맨 아래 "자세한 사용 설명서"는 설명서 7장을 새 탭으로 연다 (D-218)', async () => {
+    await openHome()
+    await userEvent.click(screen.getByRole('button', { name: '문법 도움말' }))
+    const help = screen.getByRole('dialog', { name: '한 줄 입력 문법' })
+    const link = within(help).getByRole('link', { name: '자세한 사용 설명서, 새 탭에서 열림' })
+    expect(link).toHaveAttribute('href', '/manual/index.html#ch-07')
+    expect(link).toHaveAttribute('target', '_blank')
+  })
 })
 
 describe('UX-09 키보드 단축키', () => {

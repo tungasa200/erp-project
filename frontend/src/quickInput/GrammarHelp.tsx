@@ -1,5 +1,6 @@
 // SCR-ONB-02 빠른 입력 문법 도움말. 예시를 누르면 입력창에 채운다.
 import { useEffect, useLayoutEffect, useRef } from 'react'
+import { MANUAL_LINK_LABEL, MANUAL_URL } from '../components/manual'
 import { EXAMPLES } from './examples'
 import { fitInClip, refitOnResize } from './fitInClip'
 import styles from './QuickInput.module.css'
@@ -77,6 +78,15 @@ export function GrammarHelp({
           </button>
         ))}
       </div>
+      <a
+        href={`${MANUAL_URL}#ch-07`}
+        target="_blank"
+        rel="noopener"
+        aria-label={`자세한 ${MANUAL_LINK_LABEL}`}
+        className={styles.manualLink}
+      >
+        자세한 사용 설명서 <span aria-hidden="true">↗</span>
+      </a>
     </section>
   )
 }

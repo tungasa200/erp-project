@@ -24,7 +24,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       injectRegister: false,
       // 글꼴(Pretendard 조각 92개, 약 3.5MB)은 미리 받지 않고 쓸 때 워커가 담아 둔다(sw.ts)
-      injectManifest: { globPatterns: ['**/*.{js,css,html,png}'] },
+      // 사용 설명서(public/manual, 그림·PDF 포함)는 미리 받지 않는다(D-216)
+      injectManifest: { globPatterns: ['**/*.{js,css,html,png}'], globIgnores: ['manual/**'] },
       manifest: {
         name: 'WY Worklog',
         short_name: 'Worklog',

@@ -11,6 +11,7 @@ import { parseQuickInput } from '../quickInput/parse'
 import { modKey, useShortcutsEnabled } from '../shortcuts/useShortcuts'
 import { announce } from '../components/announce'
 import { Skeleton } from '../components/Skeleton'
+import { MANUAL_LINK_LABEL, MANUAL_URL } from '../components/manual'
 import { taskApi, type Task } from '../tasks/api'
 import { STATUS_LABEL } from '../tasks/view'
 import styles from './CommandPalette.module.css'
@@ -24,6 +25,8 @@ interface PaletteCommand {
   shortcut?: string
   /** 라벨 옆 보조 표시(예: 끊긴 동안 '연결 끊김') */
   detail?: string
+  /** 새 탭으로 여는 바깥 페이지(사용 설명서). ↗를 붙이고 읽는 이름에 '새 탭에서 열림'을 넣는다 */
+  external?: string
   run: () => void
 }
 
@@ -170,6 +173,14 @@ export function CommandPalette({ onClose, onQuickAdd, timer }: Props) {
         group: '이동',
         keywords: '시간 기록 타이머 설정',
         run: go('/settings/recording'),
+      },
+      {
+        id: 'go-manual',
+        label: '사용 설명서',
+        group: '이동',
+        keywords: '도움말 설명서 매뉴얼 사용법',
+        external: MANUAL_LINK_LABEL,
+        run: () => window.open(MANUAL_URL, '_blank', 'noopener'),
       },
     ]
   }, [navigate, onQuickAdd, shortcutsEnabled, timer])
@@ -388,12 +399,17 @@ function Item({
   onRun: (c: PaletteCommand) => void
 }) {
   return (
-    <Command.Item value={value} className={styles.item} onSelect={() => onRun(command)}>
+    <Command.Item value={value} className={styles.item} aria-label={command.external} onSelect={() => onRun(command)}>
       <span className={styles.icon} aria-hidden="true">
         {command.group === '동작' ? '+' : '→'}
       </span>
       <span className={styles.label}>{command.label}</span>
       {command.detail && <span className={styles.detail}>{command.detail}</span>}
+      {command.external && (
+        <span className={styles.detail} aria-hidden="true">
+          ↗
+        </span>
+      )}
       {command.shortcut && <kbd className={styles.kbd}>{command.shortcut}</kbd>}
     </Command.Item>
   )

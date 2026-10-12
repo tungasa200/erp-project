@@ -184,5 +184,10 @@ describe('SCR-SET-06 계정', () => {
     const legal = await screen.findByRole('region', { name: '약관·정책' })
     expect(within(legal).getByRole('link', { name: '개인정보 처리방침' })).toHaveAttribute('href', '/privacy')
     expect(within(legal).getByRole('link', { name: '이용약관' })).toHaveAttribute('href', '/terms')
+    // 사용 설명서는 맨 위, 정적 페이지라 새 탭의 일반 링크(D-218)
+    const manual = within(legal).getAllByRole('link')[0]
+    expect(manual).toHaveAccessibleName('사용 설명서, 새 탭에서 열림')
+    expect(manual).toHaveAttribute('href', '/manual/index.html')
+    expect(manual).toHaveAttribute('target', '_blank')
   })
 })

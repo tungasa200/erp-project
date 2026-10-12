@@ -599,6 +599,16 @@
   cursor: pointer;
 }
 
+.manualLink {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: var(--size-touch);
+  margin-top: var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
 /* 화면이 아니라 도움말 폭 기준: 좁은 패널 안에서도 설명이 한 글자씩 꺾이지 않게 */
 @container (max-width: 440px) {
   .rule {

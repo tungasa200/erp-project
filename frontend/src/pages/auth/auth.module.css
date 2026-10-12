@@ -428,6 +428,12 @@
 
 .legal .legalStrong {
   font-weight: var(--weight-title);
+  color: var(--color-text);
+}
+
+.legal a:focus-visible {
+  outline: 3px solid var(--color-accent-ink);
+  outline-offset: 3px;
 }
 
 @media (hover: hover) and (pointer: fine) {

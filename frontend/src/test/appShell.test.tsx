@@ -111,6 +111,20 @@ describe('SCR-COM-03 ② 타이머 명령 (P2-06)', () => {
   })
 })
 
+describe('SCR-COM-03 사용 설명서 (D-218)', () => {
+  it('검색어 "매뉴얼"로 찾고, 고르면 새 탭으로 /manual/index.html을 연다', async () => {
+    stubFetch({ 'GET /api/users/me': () => json(200, ME) })
+    const open = vi.spyOn(window, 'open').mockReturnValue(null)
+    renderApp('/')
+    await screen.findByRole('navigation', { name: '주 메뉴' })
+    await userEvent.keyboard('{Control>}k{/Control}')
+    const palette = await screen.findByRole('dialog', { name: '명령 팔레트' })
+    await userEvent.keyboard('매뉴얼')
+    await userEvent.click(within(palette).getByRole('option', { name: '사용 설명서, 새 탭에서 열림' }))
+    expect(open).toHaveBeenCalledWith('/manual/index.html', '_blank', 'noopener')
+  })
+})
+
 describe('P4 화면 경로 연결 (통계·보관함)', () => {
   it('/stats는 통계 화면, 업무 목록 아래 "보관함"은 /tasks/archive 보관함 화면', async () => {
     const empty = { completedTaskCount: 0, recordCount: 0, confirmedLogCount: 0, daily: [], projects: [] }

@@ -34,7 +34,14 @@ describe('라우팅', () => {
     expect(router.state.location.search).toBe('')
     expect(screen.queryByText(/다시 로그인해 주세요/)).not.toBeInTheDocument()
     const legal = screen.getByRole('navigation', { name: '약관' })
-    expect(within(legal).getByRole('link', { name: '이용약관' })).toHaveAttribute('href', '/terms')
+    expect(
+      within(legal)
+        .getAllByRole('link')
+        .map((a) => a.getAttribute('href')),
+    ).toEqual(['/manual/index.html', '/terms', '/privacy'])
+    const manual = within(legal).getByRole('link', { name: '사용 설명서, 새 탭에서 열림' })
+    expect(manual).toHaveAttribute('target', '_blank')
+    expect(manual).toHaveAttribute('rel', 'noopener')
     expect(within(legal).getByRole('link', { name: '개인정보 처리방침' })).toHaveAttribute('href', '/privacy')
   })
 

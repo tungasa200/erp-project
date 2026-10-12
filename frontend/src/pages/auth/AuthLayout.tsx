@@ -2,6 +2,7 @@
 // 문구가 없어도 키 컬러 면은 늘 그린다: 세 진입 화면의 모양을 같게(사용자 지시 2026-10-12)
 import type { ReactNode } from 'react'
 import { Link } from 'react-router'
+import { MANUAL_LINK_LABEL, MANUAL_URL } from '../../components/manual'
 import { useOnline } from '../../components/useOnline'
 import styles from './auth.module.css'
 
@@ -35,6 +36,9 @@ export function AuthLayout({
         </fieldset>
         {/* 첫 화면이 로그인이라 처리방침은 여기서 바로 보여야 한다(개인정보 보호법, 랜딩 폐기 2026-10-12). 처리방침은 굵게 */}
         <nav className={styles.legal} aria-label="약관">
+          <a href={MANUAL_URL} target="_blank" rel="noopener" aria-label={MANUAL_LINK_LABEL}>
+            사용 설명서 <span aria-hidden="true">↗</span>
+          </a>
           <Link to="/terms">이용약관</Link>
           <Link to="/privacy" className={styles.legalStrong}>
             개인정보 처리방침
