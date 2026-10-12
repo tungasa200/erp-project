@@ -78,7 +78,8 @@ test('가입부터 내보내기까지', async ({ page, request, isMobile, browse
   await page.getByRole('button', { name: `${title} 했어요`, exact: true }).click()
   await expect(toast(page, '1건을 했어요로 기록했어요')).toBeVisible()
 
-  // 4. 하루 마감: 오늘 일지 카드 → 넘길 업무 → 이슈 → 마감하고 확정(새 사용자는 작성자 정보 물음이 먼저 뜸)
+  // 4. 하루 마감: 오늘 일지 카드 → 넘길 업무 → 이슈 → 마감하고 확정 → 바로 완료 창
+  //    (작성자 정보는 창을 띄우지 않고 완료 창 안 한 줄 [입력]으로 묻는다, 재평가 §4 #26)
   const logCard = page.locator('section', { has: page.getByRole('heading', { level: 2, name: '오늘 일지' }) })
   await logCard.getByRole('button', { name: '하루 마감' }).click()
   const close = page.getByRole('dialog').filter({ has: page.getByRole('button', { name: '다음', exact: true }) })
@@ -86,9 +87,9 @@ test('가입부터 내보내기까지', async ({ page, request, isMobile, browse
   await page.getByLabel('이슈 및 특이사항 (선택)').fill('E2E 시험')
   await expect(page.getByRole('region', { name: '일지 미리보기' })).toContainText(title)
   await page.getByRole('button', { name: '마감하고 확정' }).click()
-  await page.getByRole('dialog', { name: '작성자 정보를 넣을까요?' }).getByRole('button', { name: '나중에' }).click()
   const done = page.getByRole('dialog').filter({ has: page.getByRole('heading', { name: '오늘 일지를 확정했어요' }) })
   await expect(done).toBeVisible()
+  await expect(done).toContainText('이름·소속을 넣으면 문서에 들어가요')
 
   // 5·6. 내보내기 → 미인증이라 인증부터: 메일의 코드를 넣으면 고른 형식(PDF)으로 바로 내려받는다
   await done.getByRole('button', { name: '내보내기' }).click()
