@@ -18,7 +18,7 @@
 ## 2. 시험 계정
 
 - 새 계정 1개(P, perf)를 만든다. 주소는 기존 시험 계정처럼 사용자 Gmail의 별칭(`+perf` 꼴)을 쓴다. 주소·비밀번호는 문서·메시지·커밋에 적지 않는다.
-- 가입은 메일을 보내지 않는다. 가입하면 바로 로그인되고 이메일 인증은 막지 않는다(contracts/identity.yaml signup, D-20). 따라서 사용자의 메일함 작업은 없다. 인증 메일 발송 API는 부르지 않는다. 미인증이면 막히는 것은 내보내기뿐이고, 내보내기는 측정 대상이 아니다.
+- D-220 이후 가입(`POST /api/auth/signup`)은 계정·쿠키 없이 202와 코드 메일만 주고, 계정은 `POST /api/auth/signup/confirm`{email,code}에서 만들어진다. 측정 스크립트는 가입하지 않고 **미리 만든 계정으로 로그인**한다. 계정 P는 측정 전에 한 번 만들어 둔다(사용자 메일함의 코드가 필요하므로 사용자 → `WY-pm` 경유, 실제 메일 발송은 발송 직전 `[승인 요청]`). 인증 메일 발송 API는 스크립트에서 부르지 않는다.
 - 비밀번호는 측정 스크립트가 무작위로 만든다. 값은 저장소 밖 run 파일(`qa-tools\rel06\.perf-account.env`)에만 둔다(결정 요청 ①).
 - 기존 B·A·L·U 계정과 사용자 본인 계정은 쓰지 않는다.
 
@@ -41,7 +41,7 @@
 ## 4. 넣는 방법
 
 - 앱과 같은 공개 API를 쓴다. 스크립트는 Node fetch로 `https://wy-worklog.com/api/...`를 호출한다. 앱처럼 Origin 헤더와 쿠키를 붙인다.
-  - `POST /api/auth/signup`(1회) → `POST /api/worklog/projects`·`tags`·`tasks`·`schedules`·`records` → `POST /api/worklog/logs/daily/{date}/close`
+  - `POST /api/auth/login`(미리 만든 계정 P, 1회) → `POST /api/worklog/projects`·`tags`·`tasks`·`schedules`·`records` → `POST /api/worklog/logs/daily/{date}/close`
 - 요청 제한:
   - 로그인 보호(IP당 1분 10회 실패)는 실패만 세므로 로그인 1회면 해당이 없다.
   - worklog API에는 일반 요청 제한이 없다. 그래도 운영 부담을 줄이려고 동시 2개, 초당 5건 이하로 넣는다(약 3,500건, 15분 안팎).
