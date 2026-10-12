@@ -1,6 +1,9 @@
 /* 색·모양 토큰 (화면정의서 2.2·2.3). 사용자 설정값은 --color-accent·--color-ground 2개뿐이고
    applyTheme()이 바꾼다. 파생 색은 color-mix로 계산한다. */
 :root {
+  /* 밝은 테마만 있다. 폼 컨트롤·스크롤바가 기기 다크 모드로 바뀌지 않게(COM-26) */
+  color-scheme: light;
+
   /* 누르는 영역 최소 크기 (화면정의서 2장: 터치 영역 44px 이상) */
   --size-touch: 44px;
 

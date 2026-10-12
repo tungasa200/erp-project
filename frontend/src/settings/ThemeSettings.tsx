@@ -4,19 +4,26 @@
 import { useId, useState, type CSSProperties } from 'react'
 import type { Me } from '../api/types'
 import { useAuth } from '../auth/useAuth'
-import { DEFAULT_THEME, isAccentReadable, onColor } from '../theme/theme'
+import {
+  darkenForWhite,
+  DEFAULT_THEME,
+  isAccentReadable,
+  isWhiteTextFaint,
+  normalizeAccent,
+  onColor,
+} from '../theme/theme'
 import { ConflictBanner, SaveError } from './parts'
 import styles from './settings.module.css'
 import theme from './theme.module.css'
 import { useProfileSaver, type ProfilePatch, type SaveResult } from './useProfileSaver'
 
-// 키 컬러 프리셋 8색 (목업 SET-04)
+// 키 컬러 프리셋 8색 (목업 SET-04). 청록·초록·주황은 흰 글자 4.5:1이 되게 명도만 낮췄다(SET-77, D-212 Q8)
 const ACCENTS = [
   { name: '보라', hex: '#4B3FD6' },
   { name: '파랑', hex: '#2D6BE4' },
-  { name: '청록', hex: '#0E8A7E' },
-  { name: '초록', hex: '#2F8F3E' },
-  { name: '주황', hex: '#D9590B' },
+  { name: '청록', hex: '#0E857A' },
+  { name: '초록', hex: '#2C873B' },
+  { name: '주황', hex: '#C7510A' },
   { name: '빨강', hex: '#D1344A' },
   { name: '분홍', hex: '#C2378B' },
   { name: '먹색', hex: '#2B2E3B' },
@@ -63,7 +70,8 @@ export function ThemeSettings() {
 
 function ThemeForm({ user, save }: { user: Me; save: ReturnType<typeof useProfileSaver>['save'] }) {
   const id = useId()
-  const [accent, setAccent] = useState((user.themeAccent ?? DEFAULT_THEME.accent).toUpperCase())
+  // 예전 프리셋 값으로 저장했으면 새 값으로 보여 준다(앱도 새 값으로 그린다)
+  const [accent, setAccent] = useState(normalizeAccent(user.themeAccent ?? DEFAULT_THEME.accent))
   const [ground, setGround] = useState((user.themeGround ?? DEFAULT_THEME.ground).toUpperCase() as Ground)
   const [saving, setSaving] = useState(false)
   const [failure, setFailure] = useState<Failure | null>(null)
@@ -72,6 +80,9 @@ function ThemeForm({ user, save }: { user: Me; save: ReturnType<typeof useProfil
   const flipped = on !== '#FFFFFF'
   // 배경·흰 표면과 3:1 미만이면 선택 표시·버튼이 안 보여 저장을 막는다. 미리보기는 그 색 그대로(키 컬러를 자동으로 바꾸지 않음)
   const tooLight = !isAccentReadable(accent, ground)
+  // 3:1은 넘지만 흰 글자가 4.5:1에 못 미치면 저장은 막지 않고 조정 색을 제안한다(X-10)
+  const faint = !tooLight && isWhiteTextFaint(accent)
+  const suggestion = faint ? darkenForWhite(accent) : null
 
   const pickAccent = (hex: string) => {
     setAccent(hex.toUpperCase())
@@ -150,6 +161,20 @@ function ThemeForm({ user, save }: { user: Me; save: ReturnType<typeof useProfil
           <p id={`${id}-contrast`} aria-live="polite" className={tooLight ? styles.error : theme.contrastEmpty}>
             {tooLight ? '이 색은 배경과 너무 비슷해서 선택 표시와 버튼이 잘 안 보여요. 더 진한 색을 골라 주세요.' : ''}
           </p>
+          {suggestion && (
+            <p className={theme.suggest}>
+              흰 글자가 조금 흐려요. 이 색은 어때요?{' '}
+              <button
+                type="button"
+                className={theme.suggestButton}
+                aria-label={`${suggestion}로 바꾸기`}
+                onClick={() => pickAccent(suggestion)}
+              >
+                <span className={theme.suggestDot} style={{ background: suggestion }} aria-hidden="true" />
+                {suggestion}
+              </button>
+            </p>
+          )}
           {flipped && !tooLight && (
             <p role="note" className={theme.flipNote}>
               밝은 색이라 버튼 글자를 진한 색으로 바꿨어요

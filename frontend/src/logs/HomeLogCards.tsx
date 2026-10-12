@@ -7,14 +7,22 @@ import { addDays, isoWeekday, WEEKDAY_NAMES } from '../quickInput/dates'
 import { Skeleton } from '../components/Skeleton'
 import home from '../home/home.module.css'
 import { logHref, useLog, useLogPeriods, type LogPeriod } from './api'
-import { DayClose } from './DayClose'
 import { ExportDialog } from './ExportDialog'
+import { openDayClose } from './openDayClose'
 import { stamp } from './format'
 import styles from './logs.module.css'
 
-export function TodayLogCard({ today, timeZone }: { today: string; timeZone: string }) {
+/** hideClose: 홈 마감 띠가 떠 있을 때 [하루 마감]을 숨긴다(띠와 중복, X-02). 띠 전에는 채움이 아니라 accent-soft */
+export function TodayLogCard({
+  today,
+  timeZone,
+  hideClose = false,
+}: {
+  today: string
+  timeZone: string
+  hideClose?: boolean
+}) {
   const log = useLog('DAILY', today)
-  const [closing, setClosing] = useState(false)
   const [exporting, setExporting] = useState(false)
   const data = log.data
   const c = data?.content
@@ -73,15 +81,21 @@ export function TodayLogCard({ today, timeZone }: { today: string; timeZone: str
                 내보내기
               </button>
             ) : (
-              <button type="button" className={styles.primary} aria-haspopup="dialog" onClick={() => setClosing(true)}>
-                하루 마감
-              </button>
+              !hideClose && (
+                <button
+                  type="button"
+                  className={styles.softButton}
+                  aria-haspopup="dialog"
+                  onClick={() => openDayClose()}
+                >
+                  하루 마감
+                </button>
+              )
             )}
           </div>
         </>
       )}
       {exporting && data && <ExportDialog log={data} timeZone={timeZone} onClose={() => setExporting(false)} />}
-      {closing && <DayClose date={today} today={today} timeZone={timeZone} onClose={() => setClosing(false)} />}
     </section>
   )
 }

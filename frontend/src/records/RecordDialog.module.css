@@ -21,3 +21,17 @@
   font-size: 12.5px;
   font-weight: 700;
 }
+
+/* 저장 단축키 안내(REC-58). 터치 기기에서는 뜻이 없어 숨긴다 */
+.keyHint {
+  align-self: center;
+  color: var(--color-text-muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (pointer: coarse) {
+  .keyHint {
+    display: none;
+  }
+}

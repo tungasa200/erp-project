@@ -81,7 +81,9 @@ const OCCURRENCES = [
   occurrence('s3', '스프린트 리뷰', '2026-10-08T01:00:00Z', '2026-10-08T02:30:00Z'),
 ]
 
-function server(options: { remaining?: Task[]; occurrences?: Occurrence[]; holdTasks?: boolean } = {}) {
+function server(
+  options: { remaining?: Task[]; occurrences?: Occurrence[]; holdTasks?: boolean; log?: Record<string, unknown> } = {},
+) {
   // 완료(PATCH)하면 남은 업무 응답에서 빠진다
   const remaining = (options.remaining ?? REMAINING).map((t) => ({ ...t }))
   const calls: { method: string; url: string; body?: Record<string, unknown> }[] = []
@@ -89,6 +91,7 @@ function server(options: { remaining?: Task[]; occurrences?: Occurrence[]; holdT
     'GET /api/users/me': () => json(200, ME),
     'GET /api/worklog/projects': () => json(200, { items: PROJECTS }),
     'GET /api/worklog/schedules': () => json(200, { items: options.occurrences ?? OCCURRENCES }),
+    ...(options.log && { 'GET /api/worklog/logs/daily/2026-10-07': () => json(200, options.log) }),
   })
   const base = fetchMock.getMockImplementation()!
   fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -113,31 +116,30 @@ function server(options: { remaining?: Task[]; occurrences?: Occurrence[]; holdT
 }
 
 describe('SCR-HOME-01 홈 대시보드 1차', () => {
-  it('요약 카드: 남은 업무(마감 초과)·오늘 일정(남은 수)·확인 대기·이번 주 완료, 누르면 해당 목록으로 간다', async () => {
+  it('UX-HOME-02 요약 한 줄: 남은 업무(초과 n)·오늘 일정(남은 n)·확인 대기·이번 주 완료, 누르면 해당 목록으로 간다', async () => {
     server()
     renderApp('/')
     const cards = await screen.findByRole('list', { name: '요약' })
     await waitFor(() =>
-      expect(within(cards).getByRole('link', { name: /남은 업무/ })).toHaveTextContent('남은 업무4마감 초과 1건'),
+      expect(within(cards).getByRole('link', { name: /남은 업무/ })).toHaveTextContent('남은 업무4초과 1'),
     )
-    expect(within(cards).getByRole('link', { name: /오늘 일정/ })).toHaveTextContent('오늘 일정21개 남았어요')
+    expect(within(cards).getByRole('link', { name: /오늘 일정/ })).toHaveTextContent('오늘 일정2남은 1')
     expect(within(cards).getByRole('link', { name: /오늘 일정/ })).toHaveAttribute('href', '/calendar/day/2026-10-07')
-    expect(within(cards).getByRole('link', { name: /이번 주 완료/ })).toHaveTextContent('이번 주 완료110/5(월)부터')
-    // P1-11-02 이번 주 완료 카드는 같은 조건(완료·이번 주부터)의 목록으로
+    expect(within(cards).getByRole('link', { name: /이번 주 완료/ })).toHaveTextContent('이번 주 완료1')
+    // P1-11-02 이번 주 완료는 같은 조건(완료·이번 주부터)의 목록으로
     expect(within(cards).getByRole('link', { name: /이번 주 완료/ })).toHaveAttribute(
       'href',
       '/tasks?status=DONE&completed=week',
     )
-    // 확인 대기 카드(P2-03)는 0건이면 열리지 않는다. 자세한 동작은 pendingRecords.test.tsx
-    expect(within(cards).getByRole('button', { name: /확인 대기/ })).toHaveTextContent('확인 대기0처리할 것 없어요')
+    // 확인 대기(P2-03). 자세한 동작은 pendingRecords.test.tsx
+    expect(within(cards).getByRole('button', { name: /확인 대기/ })).toHaveTextContent('확인 대기0')
   })
 
-  it('P1-11-07 불러오는 동안 카드에 "없음"을 먼저 보이지 않고 숫자·보조 문구를 스켈레톤으로 둔다', async () => {
+  it('P1-11-07 불러오는 동안 요약에 "없음"·0을 먼저 보이지 않고 숫자를 스켈레톤으로 둔다', async () => {
     server({ holdTasks: true })
     renderApp('/')
     const card = within(await screen.findByRole('list', { name: '요약' })).getByRole('link', { name: /남은 업무/ })
-    await waitFor(() => expect(card.querySelectorAll('[data-skeleton]')).toHaveLength(2))
-    expect(card).not.toHaveTextContent('마감 초과 없음')
+    await waitFor(() => expect(card.querySelectorAll('[data-skeleton]')).toHaveLength(1))
     expect(card).not.toHaveTextContent(/\d/)
   })
 
@@ -188,7 +190,7 @@ describe('SCR-HOME-01 홈 대시보드 1차', () => {
     await waitFor(() => expect(screen.getByRole('checkbox', { name: '결제 API 문서화 완료' })).toHaveFocus())
   })
 
-  it('다가오는 일정은 오늘 남은 일정부터 7일, 공휴일을 함께 보여 준다', async () => {
+  it('UX-HOME-10 다가오는 일정은 내일부터 7일, 공휴일을 함께 보여 준다(오늘 일정은 요약·오늘 칸에서만)', async () => {
     server()
     renderApp('/')
     const section = await screen.findByRole('region', { name: '다가오는 일정' })
@@ -198,16 +200,11 @@ describe('SCR-HOME-01 홈 대시보드 1차', () => {
         within(section)
           .getAllByRole('link')
           .map((a) => a.textContent),
-      ).toEqual([
-        '오늘710/7(수) 고객사 미팅15:00 – 16:00',
-        '목810/8(목) 스프린트 리뷰10:00 – 11:30',
-        '금910/9(금) 한글날공휴일',
-      ]),
+      ).toEqual(['목810/8(목) 스프린트 리뷰10:00 – 11:30', '금910/9(금) 한글날공휴일']),
     )
     const items = within(section).getAllByRole('link')
-    // 이미 끝난 오늘 일정은 뺀다
-    expect(within(section).queryByText('데일리 스탠드업')).not.toBeInTheDocument()
-    expect(items[1]).toHaveAttribute('href', '/calendar/day/2026-10-08')
+    expect(within(section).queryByText('고객사 미팅')).not.toBeInTheDocument()
+    expect(items[0]).toHaveAttribute('href', '/calendar/day/2026-10-08')
   })
 
   it('업무가 하나도 없으면 남은 업무 대신 첫 실행 안내를 보여 준다', async () => {
@@ -223,6 +220,73 @@ describe('SCR-HOME-01 홈 대시보드 1차', () => {
     server({ remaining: [], occurrences: [] })
     renderApp('/')
     expect(await screen.findByText('7일 안에 잡힌 일정이 없어요')).toBeInTheDocument()
+  })
+})
+
+describe('하루 마감 띠 (X-02 C, UX-HOME-04·12)', () => {
+  it('마감 시각 전에는 띠가 없고 빠른 입력 안내는 할 일, 일지 카드에 [하루 마감]이 있다', async () => {
+    server()
+    renderApp('/')
+    expect(await screen.findByPlaceholderText('무엇을 할지 한 줄로 적어 보세요')).toBeInTheDocument()
+    await screen.findByRole('list', { name: '요약' })
+    expect(screen.queryByRole('region', { name: '하루 마감' })).not.toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: '하루 마감' })).toBeInTheDocument()
+  })
+
+  it('마감 시각(18:00)이 지나면 머리 아래 띠의 [하루 마감] 하나만 남고, 안내는 한 일로 바뀐다', async () => {
+    vi.setSystemTime(new Date('2026-10-07T10:00:00Z')) // 서울 19:00
+    server()
+    renderApp('/')
+    const band = await screen.findByRole('region', { name: '하루 마감' })
+    expect(band).toHaveTextContent('오늘 기록을 정리할 시간이에요')
+    expect(within(band).getByRole('button', { name: '하루 마감' })).toHaveAttribute('aria-haspopup', 'dialog')
+    // 일지 카드의 [하루 마감]은 숨긴다(채움은 띠 하나)
+    expect(screen.getAllByRole('button', { name: '하루 마감' })).toHaveLength(1)
+    expect(screen.getByPlaceholderText('무엇을 했는지 한 줄로 적어 보세요')).toBeInTheDocument()
+  })
+
+  it('오늘 일지를 확정했으면 띠는 확정 한 줄과 [일지 보기]로 바뀐다', async () => {
+    vi.setSystemTime(new Date('2026-10-07T10:00:00Z'))
+    server({
+      log: {
+        id: 'log-1',
+        type: 'DAILY',
+        periodStart: '2026-10-07',
+        periodEnd: '2026-10-07',
+        status: 'CONFIRMED',
+        version: 2,
+        confirmedAt: '2026-10-07T09:40:00Z',
+        sourceChangedAfterConfirm: false,
+        planCandidates: [],
+        content: {
+          title: '업무일지',
+          planTitle: '내일 계획',
+          planPeriod: { start: '2026-10-08', end: '2026-10-08' },
+          author: { name: null, organization: null, position: null },
+          achievementsAuto: true,
+          achievements: [],
+          plans: [{ id: 'pl-1', text: '견적서 보내기', taskId: null, projectId: null }],
+          issues: null,
+          metrics: {
+            recordCount: 0,
+            done: 0,
+            reviewRequested: 0,
+            inProgress: 0,
+            completedTaskCount: 0,
+            pendingCount: 0,
+            totalMin: null,
+          },
+          days: [],
+          projects: [],
+          time: null,
+        },
+      },
+    })
+    renderApp('/')
+    const band = await screen.findByRole('region', { name: '하루 마감' })
+    expect(band).toHaveTextContent('✓ 오늘 일지를 확정했어요18:40 확정 · 내일 계획 1건')
+    expect(within(band).getByRole('link', { name: '일지 보기' })).toHaveAttribute('href', '/logs/daily/2026-10-07')
+    expect(within(band).queryByRole('button')).not.toBeInTheDocument()
   })
 })
 

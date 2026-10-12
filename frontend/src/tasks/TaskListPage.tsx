@@ -96,6 +96,25 @@ export function TaskListPage() {
   const [doneOpen, setDoneOpen] = useState(false)
 
   const update = (next: Partial<ListParams>) => setSearch(writeParams({ ...params, ...next }), { replace: true })
+
+  // X-11: 화면 안 추가는 지금 조건을 미리 채운 같은 빠른 입력이다. 프로젝트·태그를 하나씩 골랐으면 @·# 칩으로 미리 넣는다
+  // (공백 있는 이름은 한 낱말로 쓸 수 없어 뺀다). 사용자가 아직 고치지 않았으면 조건이 바뀔 때 함께 바뀐다
+  const word = (mark: string, name: string | undefined) => (name && !/\s/.test(name) ? `${mark}${name} ` : '')
+  const filterProject = params.project.length === 1 ? projects.data?.find((p) => p.id === params.project[0]) : undefined
+  const seed =
+    word('@', filterProject && !filterProject.archived ? filterProject.name : undefined) +
+    word('#', params.tag.length === 1 ? tags.data?.find((t) => t.id === params.tag[0])?.name : undefined)
+  const [lastSeed, setLastSeed] = useState('')
+  if (seed !== lastSeed) {
+    setLastSeed(seed)
+    if (quickText === lastSeed) setQuickText(seed)
+  }
+  // 새 업무는 '할 일'로 만들어진다. 그 상태를 보지 않는 보기(완료만 등)에서는 만들어도 목록에 안 보이므로 추가를 끄고 이유를 보인다
+  const addBlocked = !params.status.includes('TODO')
+    ? params.status.length === 0
+      ? '상태를 하나도 고르지 않아 새 업무를 만들 수 없어요'
+      : `${params.status.map((st) => STATUS_LABEL[st]).join('·')} 보기에서는 새 업무를 만들 수 없어요`
+    : null
   const filtered =
     params.project.length + params.tag.length + (params.due ? 1 : 0) + (params.completed ? 1 : 0) + (params.q ? 1 : 0) >
     0
@@ -173,14 +192,27 @@ export function TaskListPage() {
         </div>
 
         {/* 끊긴 동안에는 추가를 막는다(SCR-SYS-02 ③). 검색·필터·열어 보기는 그대로 */}
-        <fieldset className={styles.quickGuard} disabled={!online}>
+        <fieldset
+          className={styles.quickGuard}
+          disabled={!online || addBlocked !== null}
+          aria-describedby={addBlocked ? 'task-add-blocked' : undefined}
+        >
           <QuickInput
             value={quickText}
             onChange={setQuickText}
-            onSubmit={async (draft) => setJustAdded((await quickSave(draft)).task.id)}
+            onSubmit={async (draft) => {
+              setJustAdded((await quickSave(draft)).task.id)
+              // 저장하면 입력은 비워진다. 같은 조건으로 이어 쓰게 칩을 다시 채운다
+              setTimeout(() => setQuickText((text) => (text === '' ? seed : text)))
+            }}
             label="업무 추가"
           />
         </fieldset>
+        {addBlocked && (
+          <p id="task-add-blocked" className={styles.addBlocked}>
+            {addBlocked}
+          </p>
+        )}
 
         <div className={styles.toolbar}>
           <SearchBox value={params.q} onChange={(q) => update({ q })} />

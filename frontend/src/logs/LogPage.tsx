@@ -21,7 +21,7 @@ import { logApi, logHref, refreshLogs, storeLog, useLog, type LogAchievement, ty
 import { parseLogPath, periodText, STATUS_LABEL } from './format'
 import { shouldAskProfile } from './profileAsk'
 import { ProfilePrompt } from './ProfilePrompt'
-import { useLogEditor } from './useLogEditor'
+import { hasBlankRows, useLogEditor } from './useLogEditor'
 import styles from './logs.module.css'
 
 const TYPE_NAME: Record<LogType, string> = { DAILY: '일간', WEEKLY: '주간', MONTHLY: '월간' }
@@ -59,7 +59,7 @@ function LogView({ type, start }: { type: LogType; start: string }) {
   const log = query.data
   const projects = useProjects()
   const [announce, setAnnounce] = useState('')
-  const [dialog, setDialog] = useState<'refill' | 'unconfirm' | 'revisions' | 'export' | null>(null)
+  const [dialog, setDialog] = useState<'refill' | 'unconfirm' | 'reconfirm' | 'revisions' | 'export' | null>(null)
   const [busy, setBusy] = useState(false)
   const headingRef = useRef<HTMLHeadingElement>(null)
   const online = useOnline()
@@ -98,6 +98,8 @@ function LogView({ type, start }: { type: LogType; start: string }) {
     if (!log || busy) return
     setBusy(true)
     try {
+      // 남은 빈 줄은 저장하지 않으므로 확정 문서에도 없다. 말없이 빠지지 않게 알린다(UX-LOG-140)
+      const blank = hasBlankRows(editor.edits)
       const saved = (await editor.flush()) ?? log
       const ready = await editor.ensureSaved(saved)
       const next = await action(ready)
@@ -105,7 +107,7 @@ function LogView({ type, start }: { type: LogType; start: string }) {
       editor.reset()
       storeLog(queryClient, next)
       void queryClient.invalidateQueries({ queryKey: ['logs', 'revisions', next.id] })
-      showToast(done)
+      showToast(blank ? `${done}. 빈 줄은 빼고 저장했어요` : done)
       setDialog(null)
       // 누른 버튼이 사라지므로(확정 ↔ 확정 해제) 화면 제목으로
       headingRef.current?.focus()
@@ -139,6 +141,8 @@ function LogView({ type, start }: { type: LogType; start: string }) {
     const field = el.closest('tr, section')?.querySelector<HTMLElement>('textarea')
     ;(field ?? headingRef.current)?.focus()
   }, [online])
+
+  const confirm = () => run((l) => logApi.confirm(l.id!, l.version), '일지를 확정했어요')
 
   const prev = shift(type, start, -1)
   const next = shift(type, start, 1)
@@ -207,12 +211,8 @@ function LogView({ type, start }: { type: LogType; start: string }) {
               </button>
             ) : (
               editable && (
-                <button
-                  type="button"
-                  className={styles.primary}
-                  disabled={busy}
-                  onClick={() => void run((l) => logApi.confirm(l.id!, l.version), '일지를 확정했어요')}
-                >
+                // 화면의 채움은 문서 끝 확정 줄 하나다(X-02). 위쪽은 도구 모음의 보조 버튼
+                <button type="button" className={styles.secondary} disabled={busy} onClick={() => void confirm()}>
                   확정
                 </button>
               )
@@ -239,9 +239,22 @@ function LogView({ type, start }: { type: LogType; start: string }) {
         </div>
       )}
       {log?.status === 'CONFIRMED' && log.sourceChangedAfterConfirm && (
-        <p className={styles.notice} role="note">
-          원본이 바뀌었어요(확정 일지는 그대로)
-        </p>
+        // 보이는 띠 + 한 번에 이어지는 동작(UX-LOG-49). 해제 → 원본에서 다시 채우기 → 확정을 한 번에 한다
+        <section className={styles.sourceChanged} aria-label="원본이 바뀜">
+          <p className={styles.sourceChangedText}>
+            <strong>확정한 뒤 원본 기록이 바뀌었어요</strong>
+            <span>확정 일지는 그대로예요. 바뀐 기록으로 다시 확정할 수 있어요.</span>
+          </p>
+          <button
+            type="button"
+            className={styles.secondary}
+            aria-haspopup="dialog"
+            disabled={busy || !online}
+            onClick={() => setDialog('reconfirm')}
+          >
+            다시 확정하기
+          </button>
+        </section>
       )}
 
       {query.isPending ? (
@@ -255,17 +268,28 @@ function LogView({ type, start }: { type: LogType; start: string }) {
         </div>
       ) : (
         <div className={styles.layout} onFocus={(e) => (lastFocus.current = e.target)}>
-          <LogPaper
-            type={type}
-            periodStart={log.periodStart}
-            periodEnd={log.periodEnd}
-            content={view}
-            draft={log.status !== 'CONFIRMED'}
-            confirmedAt={log.confirmedAt}
-            timeZone={timeZone}
-            editor={paperEditor}
-            projectName={(id) => projects.data?.find((p) => p.id === id)?.name ?? null}
-          />
+          <div className={styles.docColumn}>
+            <LogPaper
+              type={type}
+              periodStart={log.periodStart}
+              periodEnd={log.periodEnd}
+              content={view}
+              draft={log.status !== 'CONFIRMED'}
+              confirmedAt={log.confirmedAt}
+              timeZone={timeZone}
+              editor={paperEditor}
+              projectName={(id) => projects.data?.find((p) => p.id === id)?.name ?? null}
+            />
+            {editable && log.status !== 'CONFIRMED' && (
+              // 문서 끝(이슈 칸 아래, 문서 바깥)에서 끝낸다(UX-LOG-41). 긴 일지에서 맨 위로 돌아가지 않게
+              <div className={styles.endRow}>
+                <p className={styles.endRowText}>다 썼으면 확정해요. 확정한 뒤에도 해제할 수 있어요.</p>
+                <button type="button" className={styles.primary} disabled={busy} onClick={() => void confirm()}>
+                  일지 확정
+                </button>
+              </div>
+            )}
+          </div>
           {paperEditor && (
             <SourceRecords
               from={log.periodStart}
@@ -304,6 +328,22 @@ function LogView({ type, start }: { type: LogType; start: string }) {
           onCancel={() => setDialog(null)}
           onConfirm={() =>
             void run((l) => logApi.unconfirm(l.id!, l.version), '확정을 해제했어요. 초안으로 고칠 수 있어요')
+          }
+        />
+      )}
+      {dialog === 'reconfirm' && log && (
+        <ConfirmDialog
+          title="바뀐 기록으로 다시 확정할까요?"
+          body="확정을 풀고 실적을 지금 기록으로 다시 채운 뒤 확정해요. 직접 고친 실적은 지금 기록으로 바뀌고, 계획과 이슈는 그대로예요. 이미 내보낸 파일은 바뀌지 않아요."
+          action="다시 확정"
+          busy={busy}
+          onCancel={() => setDialog(null)}
+          onConfirm={() =>
+            void run(async (l) => {
+              const draft = await logApi.unconfirm(l.id!, l.version)
+              const refilled = await logApi.refill(draft.id!, draft.version)
+              return logApi.confirm(refilled.id!, refilled.version)
+            }, '바뀐 기록으로 다시 확정했어요')
           }
         />
       )}

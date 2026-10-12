@@ -45,11 +45,12 @@ select {
   }
 }
 
+/* 링크 글자는 진한 키 컬러(흰·바탕 4종에서 4.5:1, X-10 대비 계약 SET-77) */
 a {
-  color: var(--color-accent);
+  color: var(--color-accent-ink);
 }
 a:hover {
-  color: var(--color-accent-ink);
+  color: var(--color-accent-ink-strong);
 }
 
 /* 포커스 표시는 키 컬러 테두리 (화면정의서 2.5) */

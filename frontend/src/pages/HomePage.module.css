@@ -7,9 +7,7 @@
 
 .header {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: flex-start;
+  flex-direction: column;
   gap: 16px;
 }
 
@@ -26,10 +24,6 @@
 }
 
 @media (max-width: 767px) {
-  .heading {
-    flex: 1 1 100%;
-  }
-
   .bell {
     display: flex;
   }
@@ -44,15 +38,14 @@
 
 .title {
   margin: 4px 0 0;
-  font-size: 28px;
+  font-size: 22px;
   font-weight: 800;
   letter-spacing: -0.5px;
 }
 
 .quick {
-  flex: 1 1 340px;
+  /* 빠른 입력이 머리 전체 폭의 주인공(X-02 A). 입력 글자는 16px(QuickInput) */
   min-width: 0;
-  max-width: 520px;
   margin: 0;
   padding: 0;
   border: 0;
@@ -106,10 +99,6 @@
 }
 
 @media (max-width: 767px) {
-  .title {
-    font-size: 24px;
-  }
-
   .empty {
     padding: 22px;
   }

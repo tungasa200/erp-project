@@ -7,7 +7,7 @@ import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate, useSearchParams } from 'react-router'
 import { toastForError } from '../api/errorToast'
 import { useAuth } from '../auth/useAuth'
-import { DayClose } from '../logs/DayClose'
+import { DayCloseHost } from '../logs/DayCloseHost'
 import { CommandPalette } from '../palette/CommandPalette'
 import { useProjects } from '../projects/api'
 import { PendingPanel } from '../records/PendingPanel'
@@ -86,7 +86,6 @@ export function AppShell() {
   const online = useOnline()
   const navigate = useNavigate()
   const [paletteOpen, setPaletteOpen] = useState(false)
-  const [dayClose, setDayClose] = useState<{ today: string; timeZone: string } | null>(null)
   const timer = usePaletteTimer()
   // 빠른 기록 시트(SCR-MOB-01). 닫아도 쓰던 글은 남긴다
   const [sheetOpen, setSheetOpen] = useState(false)
@@ -123,11 +122,6 @@ export function AppShell() {
     lastFocus.current = document.activeElement
     setPaletteOpen(true)
   }, [])
-  // 연 순간의 오늘로 고정한다(자정을 넘겨도 마감하던 날이 바뀌지 않게)
-  const openDayClose = useCallback(() => {
-    const timeZone = user?.timezone ?? 'Asia/Seoul'
-    setDayClose({ today: todayIn(timeZone), timeZone })
-  }, [user?.timezone])
   const closePalette = useCallback(() => {
     setPaletteOpen(false)
     if (lastFocus.current instanceof HTMLElement) lastFocus.current.focus()
@@ -269,17 +263,8 @@ export function AppShell() {
         <PendingPanel today={pendingFrom.today} timeZone={pendingFrom.timeZone} onClose={() => setPendingFrom(null)} />
       )}
 
-      {paletteOpen && (
-        <CommandPalette onClose={closePalette} onQuickAdd={quickAdd} onDayClose={openDayClose} timer={timer.commands} />
-      )}
-      {dayClose && (
-        <DayClose
-          date={dayClose.today}
-          today={dayClose.today}
-          timeZone={dayClose.timeZone}
-          onClose={() => setDayClose(null)}
-        />
-      )}
+      {paletteOpen && <CommandPalette onClose={closePalette} onQuickAdd={quickAdd} timer={timer.commands} />}
+      <DayCloseHost />
       {timer.dialog}
     </div>
   )

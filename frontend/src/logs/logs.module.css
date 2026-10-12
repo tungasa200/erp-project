@@ -281,13 +281,53 @@
   margin-left: auto;
 }
 
-.notice {
-  margin: 0;
-  padding: 10px 14px;
+/* 확정 뒤 원본이 바뀜(UX-LOG-49): 보이는 띠. 바탕과 구분되게 흰 면 + 상태 노랑 윤곽 */
+.sourceChanged {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 16px;
+  padding: 12px 16px;
   border-radius: 12px;
-  background: var(--color-accent-softer);
-  color: var(--color-accent-ink-strong);
+  background: var(--status-pending-card-bg);
+  box-shadow: inset 0 0 0 1px var(--status-pending-card-border);
+  color: var(--status-pending-text);
+}
+
+.sourceChangedText {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   font-size: 14px;
+}
+
+.sourceChangedText span {
+  font-size: 13px;
+}
+
+/* 문서 열: 일지 문서 + 문서 끝 확정 줄 */
+.docColumn {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* 문서 끝 확정 줄(UX-LOG-41). 문서 서식 밖이라 내보내기 결과와 무관하다 */
+.endRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px 16px;
+}
+
+.endRowText {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text-muted);
 }
 
 .failed {
@@ -993,4 +1033,193 @@
   margin: 12px 0 0;
   font-size: 14px;
   color: var(--color-danger-text);
+}
+
+/* SCR-LOG-03 하루 마감 v1.1(X-05) */
+.dayClose {
+  display: contents;
+}
+
+.doneMark {
+  color: var(--color-success-text);
+}
+
+.pendingList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+}
+
+.pendingItem {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 10px 14px;
+  font-size: 14px;
+}
+
+.pendingItem + .pendingItem {
+  border-top: 1px solid var(--color-divider);
+}
+
+.pendingTime {
+  flex: none;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.pendingTitle {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-weight: 600;
+}
+
+.dateBadge {
+  flex: none;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--color-ground);
+  color: var(--color-text-body);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* [그대로 다음]은 글자 링크로 낮추고 왼쪽에 둔다 */
+.pendingActions {
+  flex-wrap: wrap;
+}
+
+.skipLink,
+.inlineButton {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--size-touch);
+  padding: 0 8px;
+  border: 0;
+  background: transparent;
+  color: var(--color-accent-ink);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.skipLink {
+  margin-right: auto;
+}
+
+.skipLink:focus-visible,
+.inlineButton:focus-visible,
+.neutralFill:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.keyHint {
+  margin: 0;
+  text-align: right;
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.profileLine {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 12px;
+  margin: 0;
+  padding: 4px 4px 4px 14px;
+  border-radius: 12px;
+  background: var(--color-ground);
+  font-size: 14px;
+}
+
+/* 상시 [확정 해제]: 구분선 아래 중립 글자 버튼(X-03: 위험색 아님) */
+.undoRow {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  margin: 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--color-divider);
+  font-size: 14px;
+}
+
+.undoConfirm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: var(--color-ground);
+}
+
+.undoText {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.undoActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* 중립 채움(확정 해제 확인): 먹색 바탕 흰 글자 */
+.neutralFill {
+  height: var(--size-touch);
+  padding: 0 20px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--color-text);
+  color: #ffffff;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.neutralFill:disabled {
+  background: var(--color-disabled);
+  cursor: default;
+}
+
+/* 홈 일지 카드 [하루 마감]: 마감 띠 전에는 채움이 아니라 accent-soft + 1px accent 윤곽(X-02, 화면당 채움 하나) */
+.softButton {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--size-touch);
+  padding: 0 18px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent-soft);
+  color: var(--color-accent-ink);
+  box-shadow: inset 0 0 0 1px var(--color-accent);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.softButton:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .softButton:hover {
+    background: var(--color-accent-softer);
+  }
 }

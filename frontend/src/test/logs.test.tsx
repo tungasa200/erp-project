@@ -1,9 +1,10 @@
 // 업무일지 화면 (SCR-LOG-01·02, P3-06·08): 자동/고정 알약, 첫 실적 수정 → 고정 알림, 다시 채우기·확정·해제 대화상자, 목록 미작성 → 초안
-import { act, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { LogPeriod, WorkLog } from '../logs/api'
 import { DayClose } from '../logs/DayClose'
+import { DayCloseHost } from '../logs/DayCloseHost'
 import { TodayLogCard, WeekLogStatus } from '../logs/HomeLogCards'
 import { json, ME, problem, renderApp, stubFetch } from './renderApp'
 
@@ -185,6 +186,62 @@ describe('일지 상세 (SCR-LOG-02)', () => {
     expect(await screen.findByText('확정을 해제했어요. 초안으로 고칠 수 있어요')).toBeInTheDocument()
     expect(screen.getByText('실적 고정')).toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: '1번 결과' })).toBeInTheDocument()
+  })
+
+  it('UX-LOG-41 문서 끝(이슈 칸 아래)에 확정 줄이 있고 이것이 화면의 채움이다. 위쪽 [확정]은 보조', async () => {
+    const user = userEvent.setup()
+    const confirm = vi.fn(() =>
+      json(200, workLog({ status: 'CONFIRMED', version: 1, confirmedAt: '2026-10-07T09:00:00Z' })),
+    )
+    stubFetch({
+      'GET /api/users/me': me,
+      [LOG_URL]: () => json(200, workLog()),
+      'POST /api/worklog/logs/log-1/confirm': confirm,
+    })
+    renderApp('/logs/daily/2026-10-07')
+    const end = await screen.findByRole('button', { name: '일지 확정' })
+    const issues = screen.getByRole('textbox', { name: /이슈 및 특이사항/ })
+    // 이슈 칸 뒤에 온다
+    expect(issues.compareDocumentPosition(end) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(end).toHaveClass('primary')
+    expect(screen.getByRole('button', { name: '확정' })).toHaveClass('secondary')
+    await user.click(end)
+    expect(await screen.findByText('일지를 확정했어요')).toBeInTheDocument()
+    expect(confirm).toHaveBeenCalledTimes(1)
+    expect(screen.queryByRole('button', { name: '일지 확정' })).not.toBeInTheDocument()
+  })
+
+  it('UX-LOG-49 확정 뒤 원본이 바뀌면 보이는 띠와 [다시 확정하기]: 묻고 나서 해제·다시 채우기·확정을 한 번에 한다', async () => {
+    const user = userEvent.setup()
+    const order: string[] = []
+    const confirmed = (version: number, changed: boolean) =>
+      workLog({ status: 'CONFIRMED', version, confirmedAt: '2026-10-07T09:00:00Z', sourceChangedAfterConfirm: changed })
+    stubFetch({
+      'GET /api/users/me': me,
+      [LOG_URL]: () => json(200, confirmed(3, true)),
+      'POST /api/worklog/logs/log-1/unconfirm': (init) => {
+        order.push(`unconfirm ${JSON.parse(String(init?.body)).version}`)
+        return json(200, workLog({ version: 4 }, { achievementsAuto: false }))
+      },
+      'POST /api/worklog/logs/log-1/refill': (init) => {
+        order.push(`refill ${JSON.parse(String(init?.body)).version}`)
+        return json(200, workLog({ version: 5 }))
+      },
+      'POST /api/worklog/logs/log-1/confirm': (init) => {
+        order.push(`confirm ${JSON.parse(String(init?.body)).version}`)
+        return json(200, confirmed(6, false))
+      },
+    })
+    renderApp('/logs/daily/2026-10-07')
+    const band = await screen.findByRole('region', { name: '원본이 바뀜' })
+    expect(band).toHaveTextContent('확정한 뒤 원본 기록이 바뀌었어요')
+    await user.click(within(band).getByRole('button', { name: '다시 확정하기' }))
+    const dialog = screen.getByRole('alertdialog', { name: '바뀐 기록으로 다시 확정할까요?' })
+    expect(order).toEqual([])
+    await user.click(within(dialog).getByRole('button', { name: '다시 확정' }))
+    expect(await screen.findByText('바뀐 기록으로 다시 확정했어요')).toBeInTheDocument()
+    expect(order).toEqual(['unconfirm 3', 'refill 4', 'confirm 5'])
+    expect(screen.queryByRole('region', { name: '원본이 바뀜' })).not.toBeInTheDocument()
   })
 
   it('변경 이력: Tab은 창 안을 돌고 배경은 inert, 확정본↔목록 전환 때 포커스가 창 안 짝으로 간다(P3-QA-LOG-04-K1)', async () => {
@@ -540,7 +597,7 @@ describe('하루 마감 (SCR-LOG-03)', () => {
     expect(await screen.findByText('이슈 및 특이사항은 모두 2000자까지예요. 이슈를 줄여 주세요')).toBeInTheDocument()
   })
 
-  it('확인 대기 패널을 닫고 돌아오면 [확인 대기 처리] 버튼으로 포커스가 돌아온다', async () => {
+  it('확인 대기 패널을 닫고 돌아오면 [하나씩 확인] 버튼으로 포커스가 돌아온다', async () => {
     const user = userEvent.setup()
     stubFetch({
       'GET /api/users/me': me,
@@ -583,10 +640,10 @@ describe('하루 마감 (SCR-LOG-03)', () => {
     })
     renderApp('/', closeRoutes())
 
-    await user.click(await screen.findByRole('button', { name: '확인 대기 처리' }))
-    expect(await screen.findByText('주간 회의')).toBeInTheDocument()
+    await user.click(await screen.findByRole('button', { name: '하나씩 확인' }))
+    expect(await screen.findByRole('heading', { name: /확인 대기/ })).toBeInTheDocument()
     await user.keyboard('{Escape}')
-    await waitFor(() => expect(screen.getByRole('button', { name: '확인 대기 처리' })).toHaveFocus())
+    await waitFor(() => expect(screen.getByRole('button', { name: '하나씩 확인' })).toHaveFocus())
   })
 
   it('이미 확정한 날은 해제 후 다시 마감하라고 알린다, Esc로 닫는다', async () => {
@@ -614,6 +671,7 @@ describe('홈 일지 카드 (SCR-HOME-01 ⑤⑦)', () => {
         <>
           <TodayLogCard today="2026-10-07" timeZone="Asia/Seoul" />
           <WeekLogStatus today="2026-10-07" weekFirst="2026-10-05" />
+          <DayCloseHost />
         </>
       ),
     },
@@ -714,6 +772,37 @@ describe('일지 자동 저장 — 빈 줄', () => {
     await waitFor(() => expect(bodies).toHaveLength(1), { timeout: 3000 })
     expect(bodies[0]).toMatchObject({ achievements: [{ id: 'a-1' }, { text: '거래처 미팅' }] })
   })
+
+  it('UX-LOG-140 빈 줄이 남아 있어도 다른 줄의 삭제는 저장하고(빈 줄만 빼고 보냄), 확정할 때 빈 줄은 뺐다고 알린다', async () => {
+    const user = userEvent.setup()
+    const bodies: { achievements?: unknown[] }[] = []
+    let server = workLog()
+    stubFetch({
+      'GET /api/users/me': me,
+      [LOG_URL]: () => json(200, server),
+      'PATCH /api/worklog/logs/log-1': (init) => {
+        const body = JSON.parse(String(init?.body))
+        bodies.push(body)
+        server = workLog({ version: 1 }, { achievementsAuto: false, achievements: body.achievements })
+        return json(200, server)
+      },
+      'POST /api/worklog/logs/log-1/confirm': () => json(200, { ...server, status: 'CONFIRMED', version: 2 }),
+    })
+    renderApp('/logs/daily/2026-10-07')
+
+    await user.click(await screen.findByRole('button', { name: '＋ 실적 줄 추가' }))
+    await screen.findByRole('textbox', { name: '2번 업무 내용' })
+    await user.click(screen.getByRole('button', { name: '1번 줄 삭제' }))
+    // 자동 저장(0.8초) 뒤 지운 줄이 빠진 목록이 간다. 빈 줄은 보내지 않는다
+    await waitFor(() => expect(bodies).toHaveLength(1), { timeout: 3000 })
+    expect(bodies[0].achievements).toEqual([])
+    // 빈 줄은 화면에 그대로 남는다
+    expect(screen.getByRole('textbox', { name: '1번 업무 내용' })).toHaveValue('')
+
+    await user.click(screen.getByRole('button', { name: '확정' }))
+    expect(await screen.findByText('일지를 확정했어요. 빈 줄은 빼고 저장했어요')).toBeInTheDocument()
+    expect(bodies).toHaveLength(1)
+  })
 })
 
 describe('일지 오프라인 (UX-LOG-40)', () => {
@@ -806,6 +895,35 @@ describe('일지 오프라인 (UX-LOG-40)', () => {
 })
 
 describe('일지 줄 삭제 되돌리기 (UX-LOG-101)', () => {
+  it('UX-LOG-141 마지막 실적 줄을 지우면 포커스가 제목이 아니라 [＋ 실적 줄 추가]로 간다', async () => {
+    const user = userEvent.setup()
+    stubFetch({
+      'GET /api/users/me': me,
+      [LOG_URL]: () => json(200, workLog()),
+      'PATCH /api/worklog/logs/log-1': () => json(200, workLog()),
+    })
+    renderApp('/logs/daily/2026-10-07')
+    await user.click(await screen.findByRole('button', { name: '1번 줄 삭제' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: '＋ 실적 줄 추가' })).toHaveFocus())
+  })
+
+  it('UX-LOG-43 표가 넘치면 오른쪽 그림자와 처음 한 번 "옆으로 밀어 보기"를 보이고, 한 번 밀면 이 기기에서는 숨긴다', async () => {
+    localStorage.removeItem('wy.log.swipeHintSeen')
+    vi.spyOn(HTMLElement.prototype, 'scrollWidth', 'get').mockReturnValue(600)
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(320)
+    stubFetch({ 'GET /api/users/me': me, [LOG_URL]: () => json(200, workLog()) })
+    renderApp('/logs/daily/2026-10-07')
+    const region = await screen.findByRole('region', { name: '실적 표 (가로로 밀어 보기)' })
+    expect(region.parentElement).toHaveAttribute('data-more')
+    expect(screen.getByText('옆으로 밀어 보기 →')).toBeInTheDocument()
+    region.scrollLeft = 280
+    fireEvent.scroll(region)
+    expect(screen.queryByText('옆으로 밀어 보기 →')).not.toBeInTheDocument()
+    expect(region.parentElement).not.toHaveAttribute('data-more')
+    expect(localStorage.getItem('wy.log.swipeHintSeen')).toBe('1')
+    localStorage.removeItem('wy.log.swipeHintSeen')
+  })
+
   it('×로 지운 실적 줄은 5초 되돌리기 토스트로 같은 자리에 돌아오고, 포커스도 그 줄로 간다', async () => {
     const user = userEvent.setup()
     stubFetch({

@@ -22,6 +22,7 @@ import { useOnline } from '../components/useOnline'
 import { useToast } from '../components/useToast'
 import { shortDate, todayIn } from '../quickInput/dates'
 import { useTimeTracking } from '../settings/useWorklogSettings'
+import { modKey } from '../shortcuts/useShortcuts'
 import { RECORDS_QUERY_KEY, recordApi, type WorkRecord, type WorkRecordCreate, type WorkRecordOutcome } from './api'
 import { OutcomeChips } from './OutcomeChips'
 import { plannedOf, usePendingRecords } from './pending'
@@ -415,7 +416,18 @@ export function RecordDialog({ recordId, defaults, planned, capped, onClose }: P
           <Skeleton shape="lines" count={4} />
         )
       ) : (
-        <form ref={formRef} className={calendar.fieldset} onSubmit={(e) => void submit(e)} noValidate>
+        <form
+          ref={formRef}
+          className={calendar.fieldset}
+          onSubmit={(e) => void submit(e)}
+          // 내용 칸이 여러 줄이라 Enter는 줄바꿈이다. Ctrl/⌘+Enter로 어디서든 저장한다(REC-58)
+          onKeyDown={(e) => {
+            if (e.key !== 'Enter' || !(e.ctrlKey || e.metaKey) || e.nativeEvent.isComposing) return
+            e.preventDefault()
+            formRef.current?.requestSubmit()
+          }}
+          noValidate
+        >
           {!online && (
             <p className={calendar.muted} role="status">
               연결이 끊겼어요. 다시 연결되면 고칠 수 있어요
@@ -564,10 +576,18 @@ export function RecordDialog({ recordId, defaults, planned, capped, onClose }: P
               </button>
             )}
             <span className={calendar.grow} />
+            <span id={`${id}-save-key`} className={styles.keyHint}>
+              {modKey('Enter')}로 저장
+            </span>
             <button type="button" className={calendar.secondary} onClick={() => onClose(false)}>
               취소
             </button>
-            <button type="submit" className={calendar.primary} disabled={saving || !editable}>
+            <button
+              type="submit"
+              className={calendar.primary}
+              disabled={saving || !editable}
+              aria-describedby={`${id}-save-key`}
+            >
               {saving ? '저장 중…' : '저장'}
             </button>
           </div>

@@ -812,3 +812,11 @@
 .quickGuard:disabled {
   opacity: 0.55;
 }
+
+/* 지금 보기에서는 새 업무가 안 보여 추가를 끈 이유(X-11) */
+.addBlocked {
+  margin: -6px 0 0;
+  padding: 0 6px;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}

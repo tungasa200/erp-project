@@ -304,7 +304,8 @@
 }
 
 .tabActive {
-  color: var(--color-accent);
+  /* 11px 글자라 진한 키 컬러(4.5:1, SET-77) */
+  color: var(--color-accent-ink);
 }
 
 /* 하단 탭 '더보기' 메뉴: 버튼 위로 뜨는 작은 목록 (P1-X-01) */
@@ -361,6 +362,13 @@
   justify-content: center;
   box-shadow: var(--shadow-accent);
   cursor: pointer;
+}
+
+/* 홈 마감 띠가 열려 있으면 띠의 [하루 마감]이 화면의 유일한 채움이고 +는 외곽선으로 물러난다(X-02 C, UX-HOME-04) */
+:global(body:has([data-close-band='open'])) .quick {
+  background: var(--color-surface);
+  color: var(--color-accent-ink);
+  box-shadow: inset 0 0 0 1.5px var(--color-accent);
 }
 
 /* 끊긴 동안에는 기록할 수 없다(SCR-SYS-02 ③) */

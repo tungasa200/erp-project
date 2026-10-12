@@ -101,6 +101,39 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* 흰 글자가 4.5:1에 못 미치는 직접 고른 색: 조정 색 제안(X-10, SET-77) */
+.suggest {
+  margin: 12px 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  font-size: 13px;
+  color: var(--color-text-body);
+}
+
+.suggestButton {
+  min-height: var(--size-touch);
+  padding: 0 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font: inherit;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.suggestDot {
+  width: 18px;
+  height: 18px;
+  border-radius: 9px;
+}
+
 .flipNote {
   margin: 12px 0 0;
   padding: 8px 12px;

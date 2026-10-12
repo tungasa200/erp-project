@@ -422,6 +422,28 @@
     min-width: 600px;
   }
 
+  /* 첫 화면(표 칸 약 320px)에 No·업무 내용·결과가 들어오게 폭을 준다. 진행률·프로젝트·줄 편집은 밀어서 본다(UX-LOG-43) */
+  .wide .no {
+    width: 28px;
+  }
+
+  .wide .colText {
+    width: 150px;
+  }
+
+  .wide .colResult {
+    width: 130px;
+  }
+
+  /* 프로젝트 열이 있는 주간·월간은 업무 내용을 줄여 결과 열 앞부분이 보이게 한다 */
+  .wide .colProject {
+    width: 64px;
+  }
+
+  .wide .colProject ~ .colText {
+    width: 120px;
+  }
+
   .wide thead th,
   .days th,
   .days td {
@@ -431,6 +453,33 @@
   .days {
     min-width: 460px;
   }
+}
+
+/* 가로로 더 있으면 오른쪽 가장자리에 그림자(X-06 1단계). 스크롤 틀 밖에 두어야 내용과 함께 밀리지 않는다 */
+.scrollWrap {
+  position: relative;
+}
+
+.scrollWrap[data-more]::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 16px;
+  pointer-events: none;
+  background: linear-gradient(to left, rgb(26 28 43 / 0.16), rgb(26 28 43 / 0));
+}
+
+.scrollWrap:has(.swipeHint)[data-more]::after {
+  bottom: 24px;
+}
+
+.swipeHint {
+  margin: 6px 0 0;
+  text-align: right;
+  font-size: 12px;
+  color: #5e6377;
 }
 
 /* relative: 표 안 absolute 요소(srOnly 등)도 이 틀에서 잘리게 한다. 없으면 페이지가 표 폭만큼 넓어진다 */

@@ -1,6 +1,6 @@
 // SCR-COM-02 빠른 입력창. 입력하는 동안 해석 결과를 칩으로 미리 보여 준다(오해석 방지).
-// @프로젝트는 그 프로젝트 색 칩, 없는 프로젝트는 "새 프로젝트 만들기" 칩(눌러서 확인 후 생성).
-// #태그는 태그마다 칩 하나, 없는 태그는 저장할 때 만들어지므로 "새" 표시만 한다(P1-02 결정 B안, erp-design 칩 기준).
+// @프로젝트는 그 프로젝트 색 칩, 없는 프로젝트는 "+ 새 프로젝트 ‘…’" 점선 칩(누르거나 Enter로 묻고 만든다, UX-COM-06).
+// #태그는 태그마다 칩 하나, 없는 태그는 저장할 때 만들어지므로 "+ 새 태그 ‘…’" 점선 칩으로만 알린다(X-11 COM-29).
 // 칩을 누르면 그 값만 고치는 드롭다운이 열린다(P1-09-12, ChipEditor).
 // 비어 있는 입력창에 포커스가 가면 자주 하는 업무(④, P1-09-10·P2-04)를 칩으로 보여 주고, 고르면 제목·@프로젝트·#태그를 채운다.
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -153,6 +153,10 @@ function chipsOf(draft: QuickDraft, spans: QuickSpans, today: string, projects?:
   return chips
 }
 
+function priorityWarning(word: string) {
+  return `우선순위는 ${word}이 아니라 !높음·!보통·!낮음으로 적어요`
+}
+
 interface Props {
   value: string
   onChange: (value: string) => void
@@ -199,8 +203,12 @@ export function QuickInput({
   const draft = useMemo(() => toDraft(parsed, today), [parsed, today])
   // 시간처럼 생겼는데 읽지 못해 제목에 들어간 낱말(9:00~10:00 같은 입력이 말없이 제목이 되던 것)
   const unreadTime = unreadTimeWord(draft.title)
+  // !뒤 값이 우선순위가 아니어서 제목에 남은 낱말(`!1` 등). 말없이 제목이 되지 않게 경고 칩으로 알린다(UX-COM-29)
+  const badPriority = draft.title.split(/\s+/).find((w) => /^![^\s!]+$/.test(w))
   // 제목 없이 Enter를 누른 횟수. 안내를 오류로 바꿔 보여 주고, 다시 고치기 시작하면 0으로 돌아간다
   const [emptyTries, setEmptyTries] = useState(0)
+  // 없는 @프로젝트로 Enter를 누르면 저장 대신 새 프로젝트 칩으로 옮겨 만들지 묻는다(UX-COM-06). 고치기 시작하면 풀린다
+  const [askProject, setAskProject] = useState(false)
   const queryClient = useQueryClient()
   const { showToast } = useToast()
   const shortcutsEnabled = useShortcutsEnabled()
@@ -241,6 +249,7 @@ export function QuickInput({
               : c.text,
         ),
         unreadTime ? `시간으로 읽지 못했어요: ${unreadTime}` : '',
+        badPriority ? priorityWarning(badPriority) : '',
       ]
         .filter(Boolean)
         .join(', ')
@@ -283,6 +292,7 @@ export function QuickInput({
 
   const createProject = async (name: string) => {
     // 만들면 이 칩이 프로젝트 칩으로 바뀌어 사라지므로 입력창으로 포커스를 돌려준다
+    setAskProject(false)
     inputRef.current?.focus()
     try {
       const created = await projectApi.create({ name, color: nextColor(projects.data ?? []) })
@@ -312,10 +322,18 @@ export function QuickInput({
     }
   }
 
+  const newProject = chips.find((c) => c.kind === 'newProject')
+  const newProjectButton = useRef<HTMLButtonElement>(null)
+
   function submit() {
     if (!onSubmit) return
     if (draft.title === '') {
       if (typing) setEmptyTries((n) => n + 1)
+      return
+    }
+    if (newProject) {
+      setAskProject(true)
+      newProjectButton.current?.focus()
       return
     }
     // 저장에 실패하면(onSubmit이 거부) 입력을 그대로 남긴다. 오류 안내는 onSubmit 쪽이 맡는다.
@@ -362,6 +380,7 @@ export function QuickInput({
           value={value}
           onChange={(e) => {
             setEmptyTries(0)
+            setAskProject(false)
             onChange(e.target.value)
           }}
           onKeyDown={handleKeyDown}
@@ -392,6 +411,23 @@ export function QuickInput({
               N
             </kbd>
           )
+        )}
+        {value !== '' && (
+          // 비우기는 이 버튼으로만 한다. Esc는 글을 남긴다(X-04 규칙 1)
+          <button
+            type="button"
+            className={styles.clear}
+            aria-label="입력 지우기"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
+              setEmptyTries(0)
+              setAskProject(false)
+              onChange('')
+              inputRef.current?.focus()
+            }}
+          >
+            <span aria-hidden="true">×</span>
+          </button>
         )}
         <button
           type="button"
@@ -452,7 +488,7 @@ export function QuickInput({
 
       {typing && (
         <div id={`${id}-preview`} className={styles.preview}>
-          {chips.length > 0 && (
+          {(chips.length > 0 || badPriority) && (
             <ul className={styles.chips} aria-label="해석 결과">
               {chips.map((c) => {
                 if (c.kind === 'newProject') {
@@ -460,10 +496,12 @@ export function QuickInput({
                     <li key={c.key}>
                       <button
                         type="button"
+                        ref={newProjectButton}
                         className={`${styles.chip} ${styles.newProject}`}
+                        aria-describedby={askProject ? `${id}-ask` : undefined}
                         onClick={() => void createProject(c.name)}
                       >
-                        + 새 프로젝트 "{c.name}" 만들기
+                        + 새 프로젝트 ‘{c.name}’
                       </button>
                     </li>
                   )
@@ -499,18 +537,12 @@ export function QuickInput({
                         }
                       }}
                     >
-                      {c.kind === 'tag' ? (
-                        <>
-                          #{c.name}
-                          {c.isNew && (
-                            <span className={styles.newBadge} aria-hidden="true">
-                              새
-                            </span>
-                          )}
-                        </>
-                      ) : (
-                        c.text
-                      )}
+                      {c.kind === 'tag'
+                        ? // 없는 태그는 저장할 때 확인 없이 만든다. 점선 칩으로 알아채게 한다(UX-COM-29)
+                          c.isNew
+                          ? `+ 새 태그 ‘${c.name}’`
+                          : `#${c.name}`
+                        : c.text}
                     </button>
                     {open && (
                       <ChipEditor
@@ -522,12 +554,22 @@ export function QuickInput({
                   </li>
                 )
               })}
+              {badPriority && (
+                <li>
+                  <span className={`${styles.chip} ${styles.warn}`}>{priorityWarning(badPriority)}</span>
+                </li>
+              )}
             </ul>
           )}
           {unreadTime && (
             <p className={styles.hint}>
               시간으로 읽지 못했어요: <span className={styles.unread}>{unreadTime}</span> (예: 14:00-15:00 · 오후
               2시~3시)
+            </p>
+          )}
+          {askProject && newProject && newProject.kind === 'newProject' && (
+            <p id={`${id}-ask`} className={styles.hintStrong} role="alert">
+              ‘{newProject.name}’ 프로젝트를 새로 만들까요? 칩을 누르거나 Enter를 누르면 만들어요
             </p>
           )}
           {/* 오류로 바뀔 때(또 Enter를 눌렀을 때도) 새로 붙여 화면 낭독기가 다시 읽게 한다 */}
@@ -538,9 +580,11 @@ export function QuickInput({
           >
             {draft.title === ''
               ? '할 일 이름을 적어 주세요'
-              : draft.schedule
-                ? '일정과 업무가 함께 만들어져요'
-                : '업무가 만들어져요'}
+              : newProject
+                ? 'Enter를 누르면 새 프로젝트를 만들지 물어요'
+                : draft.schedule
+                  ? '일정과 업무가 함께 만들어져요'
+                  : '업무가 만들어져요'}
           </p>
         </div>
       )}

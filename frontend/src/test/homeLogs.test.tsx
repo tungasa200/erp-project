@@ -16,6 +16,40 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
+const confirmedLog = () => ({
+  id: 'log-1',
+  type: 'DAILY',
+  periodStart: '2026-10-07',
+  periodEnd: '2026-10-07',
+  status: 'CONFIRMED',
+  version: 1,
+  confirmedAt: '2026-10-07T03:00:00Z',
+  sourceChangedAfterConfirm: false,
+  planCandidates: [],
+  content: {
+    title: '업무일지',
+    planTitle: '다음 근무일 계획',
+    planPeriod: { start: '2026-10-08', end: '2026-10-08' },
+    author: { name: null, organization: null, position: null },
+    achievementsAuto: true,
+    achievements: [],
+    plans: [],
+    issues: null,
+    metrics: {
+      recordCount: 0,
+      done: 0,
+      reviewRequested: 0,
+      inProgress: 0,
+      completedTaskCount: 0,
+      pendingCount: 0,
+      totalMin: null,
+    },
+    days: [],
+    projects: [],
+    time: null,
+  },
+})
+
 const closePlan = {
   date: '2026-10-07',
   log: {
@@ -76,5 +110,68 @@ describe('명령 팔레트 하루 마감 (SCR-COM-03, SCR-LOG-03)', () => {
     await user.keyboard('{Escape}')
     await waitFor(() => expect(screen.queryByRole('heading', { name: /하루 마감/ })).not.toBeInTheDocument())
     expect(before).toHaveFocus()
+  })
+
+  it('빠른 마감: 단계 없이 바로 확정하고 완료 창을 보인다', async () => {
+    const user = userEvent.setup()
+    const close = vi.fn(() =>
+      json(200, {
+        log: confirmedLog(),
+        suggestions: [],
+      }),
+    )
+    stubFetch({
+      'GET /api/users/me': () => json(200, ME),
+      'GET /api/worklog/logs/daily/2026-10-07/close': () => json(200, closePlan),
+      'POST /api/worklog/logs/daily/2026-10-07/close': close,
+    })
+    renderApp('/logs')
+    await screen.findByRole('navigation', { name: '주 메뉴' })
+    await user.keyboard('{Control>}k{/Control}')
+    const palette = await screen.findByRole('dialog', { name: '명령 팔레트' })
+    await user.type(within(palette).getByRole('combobox'), '빠른 마감')
+    await user.keyboard('{Enter}')
+    expect(await screen.findByRole('heading', { name: '오늘 일지를 확정했어요' })).toBeInTheDocument()
+    expect(close).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('명령 팔레트 업무 찾기 (UX-COM-03, D-212 Q6)', () => {
+  const found = (id: string, title: string) => ({
+    id,
+    title,
+    status: 'TODO',
+    priority: 'NORMAL',
+    dueDate: null,
+    progress: 0,
+    completedAt: null,
+    projectId: null,
+    tagIds: [],
+    hasSchedule: false,
+    memo: null,
+    carriedOverFromId: null,
+    deletedAt: null,
+    createdAt: '2026-10-01T00:00:00Z',
+    updatedAt: '2026-10-01T00:00:00Z',
+    version: 0,
+  })
+
+  it('제목이 정확히 같은 업무가 있으면 그 업무가 첫 항목이라 Enter로 연다', async () => {
+    const user = userEvent.setup()
+    stubFetch({
+      'GET /api/users/me': () => json(200, ME),
+      'GET /api/worklog/tasks': () =>
+        json(200, { items: [found('t-2', '견적서 회신 준비'), found('t-1', '견적서 회신')], nextCursor: null }),
+    })
+    const { router } = renderApp('/logs')
+    await screen.findByRole('navigation', { name: '주 메뉴' })
+    await user.keyboard('{Control>}k{/Control}')
+    const palette = await screen.findByRole('dialog', { name: '명령 팔레트' })
+    await user.type(within(palette).getByRole('combobox'), '견적서 회신')
+    const exact = await within(palette).findByRole('option', { name: /^견적서 회신$/ })
+    await waitFor(() => expect(exact).toHaveAttribute('aria-selected', 'true'))
+    expect(within(palette).getByRole('option', { name: /업무로 추가/ })).toBeInTheDocument()
+    await user.keyboard('{Enter}')
+    await waitFor(() => expect(router.state.location.pathname).toBe('/tasks/t-1'))
   })
 })

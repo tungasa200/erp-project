@@ -180,27 +180,62 @@ function profileValue(value: string | null, label: string) {
 
 /**
  * 좁은 화면(~767px)에서 표에 최소 폭을 주고 표만 가로로 민다(P3-QA-LOG-02-M1: 칸이 좁아 한 글자씩 꺾이던 문제).
- * 실제로 넘칠 때만 키보드로 닿게 탭 순서에 넣는다
+ * 실제로 넘칠 때만 키보드로 닿게 탭 순서에 넣는다. 오른쪽에 더 있으면 가장자리 그림자를 두고,
+ * 처음 한 번은 "옆으로 밀어 보기"를 보인다(X-06 1단계, UX-LOG-43). 한 번 밀면 이 기기에서는 다시 보이지 않는다
  */
+const SWIPE_HINT_KEY = 'wy.log.swipeHintSeen'
+
 function ScrollX({ label, children }: { label: string; children: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null)
   const [overflow, setOverflow] = useState(false)
+  const [atEnd, setAtEnd] = useState(false)
+  const [hintSeen, setHintSeen] = useState(() => {
+    try {
+      return localStorage.getItem(SWIPE_HINT_KEY) === '1'
+    } catch {
+      return true
+    }
+  })
   useEffect(() => {
     const el = ref.current
     if (!el) return
-    const check = () => setOverflow(el.scrollWidth > el.clientWidth + 1)
+    const check = () => {
+      setOverflow(el.scrollWidth > el.clientWidth + 1)
+      setAtEnd(el.scrollLeft + el.clientWidth >= el.scrollWidth - 1)
+    }
     check()
     const observer = new ResizeObserver(check)
     observer.observe(el)
     return () => observer.disconnect()
   }, [])
+  const onScroll = () => {
+    const el = ref.current
+    if (!el) return
+    setAtEnd(el.scrollLeft + el.clientWidth >= el.scrollWidth - 1)
+    if (!hintSeen && el.scrollLeft > 0) {
+      setHintSeen(true)
+      try {
+        localStorage.setItem(SWIPE_HINT_KEY, '1')
+      } catch {
+        // 저장할 수 없으면 이 화면에서만 숨긴다
+      }
+    }
+  }
   return (
-    <div
-      ref={ref}
-      className={styles.scrollX}
-      {...(overflow && { tabIndex: 0, role: 'region', 'aria-label': `${label} (가로로 밀어 보기)` })}
-    >
-      {children}
+    <div className={styles.scrollWrap} data-more={(overflow && !atEnd) || undefined}>
+      <div
+        ref={ref}
+        className={styles.scrollX}
+        onScroll={onScroll}
+        {...(overflow && { tabIndex: 0, role: 'region', 'aria-label': `${label} (가로로 밀어 보기)` })}
+      >
+        {children}
+      </div>
+      {overflow && !hintSeen && (
+        <p className={styles.swipeHint} aria-hidden="true">
+          옆으로 밀어 보기 →
+        </p>
+      )}
     </div>
   )
 }
@@ -304,13 +339,16 @@ function useUndoableRemove<T>(rows: T[], apply: (next: T[]) => void, what: strin
 function Achievements(props: { type: LogType; rows: LogAchievement[]; withProject: boolean; editor?: PaperEditor }) {
   const { rows, editor, type } = props
   const tableRef = useRef<HTMLTableElement>(null)
-  const focusText = (i: number) =>
+  const addRef = useRef<HTMLButtonElement>(null)
+  // 섹션은 부를 때 잡는다. 마지막 줄을 지우면 표가 사라져 다음 프레임에는 표에서 찾을 수 없다(UX-LOG-141: 제목으로 빠지던 것)
+  const focusText = (i: number) => {
+    const section = (tableRef.current ?? addRef.current)?.closest('section')
     requestAnimationFrame(() => {
-      const list = tableRef.current?.querySelectorAll<HTMLElement>('tbody tr [data-field="text"]')
-      const target =
-        list?.[Math.min(i, list.length - 1)] ?? tableRef.current?.closest('section')?.querySelector('[data-add]')
-      ;(target as HTMLElement | null | undefined)?.focus()
+      const list = section?.querySelectorAll<HTMLElement>('tbody tr [data-field="text"]')
+      const target = list?.[Math.min(i, list.length - 1)] ?? section?.querySelector<HTMLElement>('[data-add]')
+      target?.focus()
     })
+  }
   const removeRow = useUndoableRemove(rows, (next) => editor?.onAchievements(next), '실적', focusText)
   const showProject = props.withProject
   if (rows.length === 0 && !editor) return <p className={styles.none}>없음</p>
@@ -366,9 +404,17 @@ function Achievements(props: { type: LogType; rows: LogAchievement[]; withProjec
                 <th scope="col" className={styles.no}>
                   No
                 </th>
-                {showProject && <th scope="col">프로젝트</th>}
-                <th scope="col">{type === 'DAILY' ? '업무 내용' : '업무'}</th>
-                <th scope="col">결과</th>
+                {showProject && (
+                  <th scope="col" className={styles.colProject}>
+                    프로젝트
+                  </th>
+                )}
+                <th scope="col" className={styles.colText}>
+                  {type === 'DAILY' ? '업무 내용' : '업무'}
+                </th>
+                <th scope="col" className={styles.colResult}>
+                  결과
+                </th>
                 <th scope="col" className={styles.center}>
                   진행률
                 </th>
@@ -471,7 +517,7 @@ function Achievements(props: { type: LogType; rows: LogAchievement[]; withProjec
       )}
       {/* 계약 최대 200줄(WorkLogPatch) */}
       {editor && rows.length < 200 && (
-        <button type="button" className={styles.addRow} disabled={editor.readOnly} data-add onClick={add}>
+        <button ref={addRef} type="button" className={styles.addRow} disabled={editor.readOnly} data-add onClick={add}>
           ＋ 실적 줄 추가
         </button>
       )}

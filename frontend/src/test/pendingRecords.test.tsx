@@ -98,7 +98,7 @@ describe('SCR-HOME-02 확인 대기 목록', () => {
     renderApp('/')
     const cards = await screen.findByRole('list', { name: '요약' })
     await waitFor(() =>
-      expect(within(cards).getByRole('button', { name: /확인 대기/ })).toHaveTextContent('확인 대기3최근 7일'),
+      expect(within(cards).getByRole('button', { name: /확인 대기/ })).toHaveTextContent('확인 대기3'),
     )
     const panel = await openPanel()
     expect(within(panel).getByRole('heading', { name: '확인 대기 3건' })).toHaveFocus()
@@ -212,7 +212,7 @@ describe('SCR-HOME-02 확인 대기 목록', () => {
     expect(within(panel).getByText('워크숍')).toBeInTheDocument()
   })
 
-  it('1건이면 띠 없이 카드로 열고, 0건이면 카드는 "처리할 것 없어요"이고 열리지 않는다', async () => {
+  it('1건이면 띠 없이 카드로 열고, 다 처리하면 카드는 0으로 한 줄(요약 한 줄, X-02)', async () => {
     server({ pending: [PENDING[0]] })
     renderApp('/')
     const card = await screen.findByRole('button', { name: /확인 대기/ })
@@ -222,15 +222,15 @@ describe('SCR-HOME-02 확인 대기 목록', () => {
     const panel = screen.getByRole('dialog', { name: '확인 대기 1건' })
     await userEvent.click(within(panel).getByRole('button', { name: '데일리 스탠드업 했어요' }))
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
-    await waitFor(() => expect(card).toHaveTextContent('처리할 것 없어요'))
-    expect(card).toHaveAttribute('aria-disabled', 'true')
+    await waitFor(() => expect(card).toHaveTextContent('확인 대기0'))
+    expect(screen.queryByRole('button', { name: /한 번에 처리/ })).not.toBeInTheDocument()
   })
 
   it('불러오는 동안 카드에 0을 먼저 보이지 않는다', async () => {
     server({ hold: true })
     renderApp('/')
     const card = await screen.findByRole('button', { name: /확인 대기/ })
-    await waitFor(() => expect(card.querySelectorAll('[data-skeleton]')).toHaveLength(2))
+    await waitFor(() => expect(card.querySelectorAll('[data-skeleton]')).toHaveLength(1))
     expect(card).not.toHaveTextContent(/\d/)
   })
 })

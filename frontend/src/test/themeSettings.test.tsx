@@ -63,8 +63,8 @@ describe('SCR-SET-04 테마', () => {
     screen.getByRole('button', { name: '저장' }).focus()
     await user.keyboard('{Enter}')
     expect(await screen.findByText('저장했어요. 앱 전체에 적용됐어요')).toBeInTheDocument()
-    expect(patches).toEqual([{ themeAccent: '#0E8A7E', themeGround: '#EEF4EF', version: ME.version }])
-    await waitFor(() => expect(rootVar('--color-accent')).toBe('#0E8A7E'))
+    expect(patches).toEqual([{ themeAccent: '#0E857A', themeGround: '#EEF4EF', version: ME.version }])
+    await waitFor(() => expect(rootVar('--color-accent')).toBe('#0E857A'))
     expect(rootVar('--color-ground')).toBe('#EEF4EF')
     expect(screen.getByRole('button', { name: '저장' })).toHaveFocus()
   })
@@ -82,6 +82,18 @@ describe('SCR-SET-04 테마', () => {
     await user.click(screen.getByRole('button', { name: '저장' }))
     await waitFor(() => expect(patches[0]).toMatchObject({ themeAccent: '#DA5A0C' }))
     await waitFor(() => expect(rootVar('--color-on-accent')).toBe('#1A1C2B'))
+  })
+
+  it('SET-77 흰 글자가 4.5:1에 못 미치는 직접 색은 저장을 막지 않고 조정 색을 제안하며, 누르면 그 색으로 바꾼다', async () => {
+    const { user } = setup()
+    const input = await screen.findByLabelText('직접 고르기')
+    fireEvent.change(input, { target: { value: '#0f8a7f' } })
+    expect(screen.getByText(/흰 글자가 조금 흐려요\. 이 색은 어때요\?/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '저장' })).not.toHaveAttribute('aria-disabled')
+    const suggest = screen.getByRole('button', { name: /로 바꾸기$/ })
+    await user.click(suggest)
+    expect(screen.queryByText(/흰 글자가 조금 흐려요/)).not.toBeInTheDocument()
+    expect(screen.getByText(/^#[0-9A-F]{6}$/)).not.toHaveTextContent('#0F8A7F')
   })
 
   it('배경·흰 표면과 대비 3:1 미만인 색은 미리보기만 하고 저장을 막는다(키보드로 눌러도)', async () => {

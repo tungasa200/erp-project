@@ -1,4 +1,4 @@
-// SCR-ONB-01 프로필 입력 요청 (P3): 고칠 수 있는 일지 첫 진입·하루 마감 확정 직전, [나중에]는 다음 일지에서 한 번 더
+// SCR-ONB-01 프로필 입력 요청 (P3): 고칠 수 있는 일지 첫 진입, [나중에]는 다음 일지에서 한 번 더. 하루 마감은 완료 창의 한 줄(UX-LOG-56, D-212 Q5)
 import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -132,8 +132,8 @@ describe('일지 화면 첫 진입 (SCR-ONB-01)', () => {
   })
 })
 
-describe('하루 마감 확정 직전 (SCR-ONB-01)', () => {
-  it('[마감하고 확정]을 누르면 먼저 묻고, [나중에] 뒤 그대로 마감한다', async () => {
+describe('하루 마감 완료 창의 프로필 안내 (UX-LOG-56)', () => {
+  it('확정은 막지 않고, 완료 창의 [입력]으로 묻고, 닫으면 완료 창으로 돌아온다', async () => {
     const user = userEvent.setup()
     const close = vi.fn(() =>
       json(200, { log: { ...draft('2026-10-07'), status: 'CONFIRMED' }, suggestions: [], unconfirmedDates: [] }),
@@ -171,11 +171,14 @@ describe('하루 마감 확정 직전 (SCR-ONB-01)', () => {
     await screen.findByRole('heading', { name: '하루 마감 1/2' })
     await user.click(screen.getByRole('button', { name: '다음' }))
     await user.click(await screen.findByRole('button', { name: '마감하고 확정' }))
-    const dialog = await screen.findByRole('dialog', { name: PROMPT })
-    expect(close).not.toHaveBeenCalled()
-    await user.click(within(dialog).getByRole('button', { name: '나중에' }))
+    expect(await screen.findByRole('heading', { name: '오늘 일지를 확정했어요' })).toBeInTheDocument()
+    expect(close).toHaveBeenCalled()
+    expect(screen.queryByRole('dialog', { name: PROMPT })).not.toBeInTheDocument()
 
-    await waitFor(() => expect(close).toHaveBeenCalled())
+    expect(screen.getByText('이름·소속을 넣으면 문서에 들어가요')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '입력' }))
+    const dialog = await screen.findByRole('dialog', { name: PROMPT })
+    await user.click(within(dialog).getByRole('button', { name: '나중에' }))
     expect(await screen.findByRole('heading', { name: '오늘 일지를 확정했어요' })).toBeInTheDocument()
   })
 })

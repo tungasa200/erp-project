@@ -4,6 +4,7 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { Command } from 'cmdk'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
+import { openDayClose } from '../logs/openDayClose'
 import { useAuth } from '../auth/useAuth'
 import { shortDate, todayIn, weekStartNumber } from '../quickInput/dates'
 import { parseQuickInput } from '../quickInput/parse'
@@ -112,11 +113,9 @@ interface Props {
   onQuickAdd: (text?: string) => void
   /** 타이머 명령. 시간 기록 옵션이 꺼져 있으면 null(명령을 숨긴다) */
   timer?: { running: boolean; offline?: boolean; start: () => void; stop: () => void } | null
-  /** 오늘 하루 마감(SCR-LOG-03)을 연다 */
-  onDayClose: () => void
 }
 
-export function CommandPalette({ onClose, onQuickAdd, onDayClose, timer }: Props) {
+export function CommandPalette({ onClose, onQuickAdd, timer }: Props) {
   const navigate = useNavigate()
   const { user } = useAuth()
   const shortcutsEnabled = useShortcutsEnabled()
@@ -135,7 +134,22 @@ export function CommandPalette({ onClose, onQuickAdd, onDayClose, timer }: Props
         run: () => onQuickAdd(),
       },
       ...timerCommands(timer),
-      { id: 'day-close', label: '하루 마감', group: '동작', keywords: '오늘 일지 확정 마감', run: onDayClose },
+      {
+        id: 'day-close',
+        label: '하루 마감',
+        group: '동작',
+        keywords: '오늘 일지 확정 마감',
+        run: () => openDayClose(),
+      },
+      // 숙련자 길(X-05): 대기는 그대로, 넘길 일은 기본 선택, 이슈는 비운 채 바로 확정. 완료 창의 [확정 해제]가 안전망
+      {
+        id: 'day-close-quick',
+        label: '빠른 마감',
+        group: '동작',
+        detail: '바로 확정',
+        keywords: '하루 마감 오늘 일지 확정 바로',
+        run: () => openDayClose({ quick: true }),
+      },
       { id: 'go-home', label: '홈', group: '이동', keywords: '대시보드', run: go('/') },
       { id: 'go-calendar', label: '캘린더', group: '이동', keywords: '일정', run: go('/calendar') },
       { id: 'go-tasks', label: '업무 목록', group: '이동', keywords: '할일', run: go('/tasks') },
@@ -150,7 +164,7 @@ export function CommandPalette({ onClose, onQuickAdd, onDayClose, timer }: Props
         run: go('/settings/recording'),
       },
     ]
-  }, [navigate, onQuickAdd, onDayClose, shortcutsEnabled, timer])
+  }, [navigate, onQuickAdd, shortcutsEnabled, timer])
 
   const q = query.trim()
   const today = todayIn(user?.timezone ?? 'Asia/Seoul')
@@ -195,6 +209,17 @@ export function CommandPalette({ onClose, onQuickAdd, onDayClose, timer }: Props
     const timer = setTimeout(() => announce(resultMessage), 500)
     return () => clearTimeout(timer)
   }, [resultMessage])
+  // 제목이 정확히 같은 업무가 있으면 그 업무가 첫 항목이고 Enter로 연다(UX-COM-03, D-212 Q6). 같은 이름으로 또 만들려면 ↓ 한 번
+  const exactTask = q === '' ? undefined : taskSearch.items.find((t) => t.title.trim() === q)
+  const otherTasks = exactTask ? taskSearch.items.filter((t) => t !== exactTask) : taskSearch.items
+  // 검색 결과는 늦게 오므로 cmdk가 먼저 고른 첫 항목을 그 업무로 옮긴다
+  const [selected, setSelected] = useState('')
+  const exactValue = exactTask ? `task-${exactTask.id}` : ''
+  const [lastExact, setLastExact] = useState('')
+  if (exactValue !== lastExact) {
+    setLastExact(exactValue)
+    if (exactValue) setSelected(exactValue)
+  }
   const openTask = (task: Task) => {
     onClose()
     navigate(`/tasks/${task.id}`)
@@ -216,7 +241,14 @@ export function CommandPalette({ onClose, onQuickAdd, onDayClose, timer }: Props
           if (e.key === 'Tab') e.preventDefault()
         }}
       >
-        <Command shouldFilter={false} loop label="명령 팔레트" className={styles.command}>
+        <Command
+          shouldFilter={false}
+          loop
+          label="명령 팔레트"
+          className={styles.command}
+          value={selected}
+          onValueChange={setSelected}
+        >
           <div className={styles.search}>
             <svg
               width="20"
@@ -240,6 +272,11 @@ export function CommandPalette({ onClose, onQuickAdd, onDayClose, timer }: Props
             <kbd className={styles.kbd}>Esc</kbd>
           </div>
           <Command.List className={styles.list}>
+            {exactTask && (
+              <Command.Group heading="업무" className={styles.group}>
+                <TaskItem task={exactTask} onOpen={openTask} />
+              </Command.Group>
+            )}
             {nothing && (
               <Command.Group heading="동작" className={styles.group}>
                 <Command.Item
@@ -296,16 +333,10 @@ export function CommandPalette({ onClose, onQuickAdd, onDayClose, timer }: Props
                 <Skeleton count={2} />
               </div>
             )}
-            {(taskSearch.items.length > 0 || taskSearch.error) && (
-              <Command.Group heading="업무" className={styles.group}>
-                {taskSearch.items.map((t) => (
-                  <Command.Item key={t.id} value={`task-${t.id}`} className={styles.item} onSelect={() => openTask(t)}>
-                    <span className={styles.icon} aria-hidden="true">
-                      {t.status === 'DONE' ? '✓' : '○'}
-                    </span>
-                    <span className={styles.label}>{t.title}</span>
-                    {t.status !== 'TODO' && <span className={styles.detail}>{STATUS_LABEL[t.status]}</span>}
-                  </Command.Item>
+            {(otherTasks.length > 0 || taskSearch.error) && (
+              <Command.Group heading={exactTask ? '다른 업무' : '업무'} className={styles.group}>
+                {otherTasks.map((t) => (
+                  <TaskItem key={t.id} task={t} onOpen={openTask} />
                 ))}
                 {taskSearch.error && <p className={styles.notice}>업무를 불러오지 못했어요</p>}
               </Command.Group>
@@ -320,6 +351,18 @@ export function CommandPalette({ onClose, onQuickAdd, onDayClose, timer }: Props
         </Command>
       </div>
     </div>
+  )
+}
+
+function TaskItem({ task, onOpen }: { task: Task; onOpen: (t: Task) => void }) {
+  return (
+    <Command.Item value={`task-${task.id}`} className={styles.item} onSelect={() => onOpen(task)}>
+      <span className={styles.icon} aria-hidden="true">
+        {task.status === 'DONE' ? '✓' : '○'}
+      </span>
+      <span className={styles.label}>{task.title}</span>
+      {task.status !== 'TODO' && <span className={styles.detail}>{STATUS_LABEL[task.status]}</span>}
+    </Command.Item>
   )
 }
 

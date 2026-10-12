@@ -1,7 +1,7 @@
 // SCR-HOME-01 홈 대시보드 (P1-11): ② 요약 카드 · ④ 남은 업무 · ⑥ 다가오는 일정.
 // 확인 대기(P2-03): 요약 카드와 2건 이상일 때 띠, 누르면 SCR-HOME-02 패널. ③ 오늘 일정(P2-08)은 TodayTimeline.
 // ⑤ 오늘 일지·⑦ 이번 주 일지(P3-04)는 오른쪽 열에 ⑥ 다가오는 일정과 함께 쌓는다(⑤ ⑥ ⑦ 순).
-// 다가오는 일정은 오늘 남은 일정부터 7일 뒤까지 보여 준다(pm 승인 가정).
+// 다가오는 일정은 내일부터 7일 뒤까지 보여 준다(UX-HOME-10, 오늘은 ③에서만).
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import { useAuth } from '../auth/useAuth'
@@ -25,6 +25,8 @@ import { DEFAULT_STATUSES, dueLabel, dueState, groupTasks } from '../tasks/view'
 import { useNow } from './useNow'
 import styles from './home.module.css'
 import { TodayTimeline } from './TodayTimeline'
+import { CloseBand } from './CloseBand'
+import { useCloseBand } from './closeBandState'
 
 const UPCOMING_DAYS = 7
 const UPCOMING_LIMIT = 8
@@ -66,8 +68,8 @@ export function HomeDashboard({ empty }: { empty: ReactNode }) {
   // 닫으면 연 버튼으로 포커스를 돌려준다. 띠는 처리하다 사라질 수 있어 그때는 요약 카드로
   const opener = useRef<HTMLElement | null>(null)
   const pendingCard = useRef<HTMLButtonElement>(null)
+  // 0건이어도 같은 길로 열어 빈 목록을 보인다(UX-HOME-02: 같아 보이는 항목 하나만 안 눌리면 고장처럼 보인다)
   const openPending = (e: { currentTarget: HTMLElement }) => {
-    if (pendingCount === 0) return
     opener.current = e.currentTarget
     setPendingOpen(true)
   }
@@ -79,47 +81,51 @@ export function HomeDashboard({ empty }: { empty: ReactNode }) {
     back?.focus()
   }, [])
 
+  const band = useCloseBand(today, now, timeZone)
+
   return (
     <>
-      <ul className={styles.cards} aria-label="요약">
-        <SummaryCard
+      <CloseBand state={band} today={today} timeZone={timeZone} pendingCount={pendingCount} />
+      {/* ② 요약 한 줄(UX-HOME-02, X-02): 큰 숫자 타일 대신 줄 하나. 항목마다 목록으로 가는 링크, 상태는 숫자 색으로만 */}
+      <ul className={styles.summary} aria-label="요약">
+        <SummaryItem
           to="/tasks"
           label="남은 업무"
           value={cardValue(remaining, `${remaining.items.length}${more(remaining)}`)}
-          sub={cardSub(remaining, overdue > 0 ? `마감 초과 ${overdue}건` : '마감 초과 없음')}
-          accent
-        />
-        <SummaryCard
+        >
+          {!remaining.isPending && !remaining.isError && overdue > 0 && (
+            <span className={styles.summaryOver}>초과 {overdue}</span>
+          )}
+        </SummaryItem>
+        <SummaryItem
           to={`/calendar/day/${today}`}
           label="오늘 일정"
           value={cardValue(occurrences, String(todayList.length))}
-          sub={cardSub(
-            occurrences,
-            todayList.length === 0 ? '일정 없음' : todayLeft === 0 ? '모두 끝났어요' : `${todayLeft}개 남았어요`,
+        >
+          {occurrences.isSuccess && todayList.length > 0 && (
+            <span className={styles.summarySub}>{todayLeft === 0 ? '모두 지남' : `남은 ${todayLeft}`}</span>
           )}
-        />
+        </SummaryItem>
         <li>
           <button
             ref={pendingCard}
             type="button"
-            className={pendingCount > 0 ? `${styles.card} ${styles.cardPending}` : styles.card}
-            aria-disabled={pending.isSuccess && pendingCount === 0 ? true : undefined}
+            className={styles.summaryItem}
             aria-haspopup="dialog"
             onClick={openPending}
           >
-            <span className={styles.cardLabel}>확인 대기</span>
-            <span className={styles.cardValue}>{cardValue(pending, String(pendingCount))}</span>
-            <span className={styles.cardSub}>
-              {cardSub(pending, pendingCount === 0 ? '처리할 것 없어요' : '최근 7일')}
+            <span className={styles.summaryLabel}>확인 대기</span>
+            <span
+              className={pendingCount > 0 ? `${styles.summaryValue} ${styles.summaryPending}` : styles.summaryValue}
+            >
+              {cardValue(pending, String(pendingCount))}
             </span>
           </button>
         </li>
-        <SummaryCard
+        <SummaryItem
           to="/tasks?status=DONE&completed=week"
           label="이번 주 완료"
           value={cardValue(doneThisWeek, `${doneThisWeek.items.length}${more(doneThisWeek)}`)}
-          // 기간 문구는 데이터와 상관없어 불러오는 중에도 그대로 둔다
-          sub={`${shortDate(weekFirst, today)}부터`}
         />
       </ul>
 
@@ -157,13 +163,13 @@ export function HomeDashboard({ empty }: { empty: ReactNode }) {
           />
         )}
         <div className={styles.stack}>
-          <TodayLogCard today={today} timeZone={timeZone} />
+          {/* 마감 띠가 떠 있으면 카드의 [하루 마감]은 숨긴다(띠와 중복) */}
+          <TodayLogCard today={today} timeZone={timeZone} hideClose={band === 'open'} />
           <Upcoming
             days={days}
             byDate={byDate}
             today={today}
             timeZone={timeZone}
-            isLive={notEnded}
             loading={occurrences.isPending}
             failed={occurrences.isError}
             onRetry={() => void occurrences.refetch()}
@@ -181,19 +187,13 @@ function cardValue(query: { isPending: boolean; isError: boolean }, value: strin
   return query.isPending ? <Skeleton shape="line" /> : value
 }
 
-/** 보조 문구도 데이터를 받은 뒤에만. 그 전에 '없음'을 보이면 아직 모르는데 없다고 읽힌다 (P1-11-07) */
-function cardSub(query: { isPending: boolean; isError: boolean }, text: string): ReactNode {
-  if (query.isError) return '불러오지 못했어요'
-  return query.isPending ? <Skeleton shape="line" /> : text
-}
-
-function SummaryCard(props: { to: string; label: string; value: ReactNode; sub: ReactNode; accent?: boolean }) {
+function SummaryItem(props: { to: string; label: string; value: ReactNode; children?: ReactNode }) {
   return (
     <li>
-      <Link to={props.to} className={props.accent ? `${styles.card} ${styles.cardAccent}` : styles.card}>
-        <span className={styles.cardLabel}>{props.label}</span>
-        <span className={styles.cardValue}>{props.value}</span>
-        <span className={styles.cardSub}>{props.sub}</span>
+      <Link to={props.to} className={styles.summaryItem}>
+        <span className={styles.summaryLabel}>{props.label}</span>
+        <span className={styles.summaryValue}>{props.value}</span>
+        {props.children}
       </Link>
     </li>
   )
@@ -384,28 +384,29 @@ interface UpcomingProps {
   byDate: Map<string, Occurrence[]>
   today: string
   timeZone: string
-  isLive: (o: Occurrence) => boolean
   loading: boolean
   failed: boolean
   onRetry: () => void
 }
 
-function Upcoming({ days, byDate, today, timeZone, isLive, loading, failed, onRetry }: UpcomingProps) {
+function Upcoming({ days, byDate, today, timeZone, loading, failed, onRetry }: UpcomingProps) {
   const projects = useProjects()
   const colorOf = (o: Occurrence) => {
     const p = o.projectId ? projects.data?.find((x) => x.id === o.projectId) : undefined
     return p ? projectColor(p.color) : null
   }
 
+  // 오늘 일정은 ③에서만 보인다(UX-HOME-10). 다가오는 일정은 내일부터 7일
   // 여러 날에 걸친 일정은 기간 안의 첫날에 한 번만 보여 준다
   const entries: UpcomingEntry[] = []
   const seen = new Set<string>()
   for (const date of days) {
+    if (date === today) continue
     const holiday = holidayName(date)
     if (holiday) entries.push({ kind: 'holiday', key: `holiday-${date}`, date, title: holiday })
     for (const o of byDate.get(date) ?? []) {
       const key = occurrenceKey(o)
-      if (seen.has(key) || (date === today && !isLive(o))) continue
+      if (seen.has(key)) continue
       seen.add(key)
       entries.push({ kind: 'occurrence', key, date, occurrence: o })
     }
