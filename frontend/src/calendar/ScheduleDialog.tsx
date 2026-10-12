@@ -264,6 +264,10 @@ export function ScheduleDialog({ timeZone, draft, occurrence, askScope, onDelete
 
   // 고칠 때는 원본(반복 규칙)을 받은 뒤 채운다
   const current = form ?? (latest && schedule.data ? formFromOccurrence(latest, schedule.data, timeZone) : null)
+  // 처음 값(새 일정은 미리 채운 값, 고칠 때는 서버 값)과 다르면 Esc·바깥 누르기 전에 묻는다(CAL-89)
+  const [initial] = useState(form)
+  const baseline = latest ? (schedule.data ? formFromOccurrence(latest, schedule.data, timeZone) : null) : initial
+  const dirty = !!form && !!baseline && JSON.stringify(form) !== JSON.stringify(baseline)
   const update = (patch: Partial<Form>) => {
     setForm({ ...current!, ...patch })
     setErrors({})
@@ -414,7 +418,7 @@ export function ScheduleDialog({ timeZone, draft, occurrence, askScope, onDelete
     errors[`${group}At`] === at ? { 'aria-invalid': true, 'aria-describedby': `${id}-${group}-error` } : {}
 
   return (
-    <Modal labelledBy={`${id}-title`} onClose={onClose}>
+    <Modal labelledBy={`${id}-title`} onClose={onClose} dirty={dirty && !saving}>
       <div className={styles.dialogHead}>
         <h2 id={`${id}-title`}>{title}</h2>
         <button type="button" ref={closeRef} className={styles.close} aria-label="닫기" onClick={onClose}>

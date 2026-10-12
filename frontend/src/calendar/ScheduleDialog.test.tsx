@@ -1,6 +1,6 @@
 // SCR-CAL-07 일정 상세의 [이 일정으로 타이머 시작] (P2-06, 사용자 결정 2026-10-07, D-101)과 ⑥ 기록 상태(사용자 결정 카드 20261008-0230)
 // "오늘"은 사용자 시간대 기준이라 시각은 Date.now()에서 만든다(KST·TZ=UTC 둘 다 돌린다).
-import { cleanup, screen, waitFor, within } from '@testing-library/react'
+import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -376,5 +376,64 @@ describe('일정 상세 — ⑥ 기록 상태 (SCR-CAL-07)', () => {
     )
     expect(screen.queryByText('이 일정에서 남긴 기록이 없어요')).toBeNull()
     expect(screen.queryByRole('button', { name: '기록 보기' })).toBeNull()
+  })
+})
+
+describe('일정 상세 — 고친 내용이 있으면 닫기 전에 묻는다 (CAL-89, X-04 대화창 안 D)', () => {
+  const openAndType = async (user: ReturnType<typeof userEvent.setup>) => {
+    await user.click(await screen.findByRole('button', { name: '일정 열기' }))
+    const title = await screen.findByDisplayValue('주간 회의')
+    await user.type(title, ' 준비')
+    return title
+  }
+
+  it('고치지 않았으면 Esc로 바로 닫는다', async () => {
+    const { onClose, user } = setup(occurrence())
+    await user.click(await screen.findByRole('button', { name: '일정 열기' }))
+    await screen.findByDisplayValue('주간 회의')
+    await user.keyboard('{Escape}')
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('고쳤으면 Esc에 창 안 한 줄로 묻고 [계속 편집]에 포커스, Esc 한 번 더는 계속 편집(쓰던 칸으로 돌아감)', async () => {
+    const { onClose, user } = setup(occurrence())
+    const title = await openAndType(user)
+    await user.keyboard('{Escape}')
+    const ask = screen.getByRole('group', { name: '고친 내용이 있어요. 버리고 닫을까요?' })
+    expect(within(ask).getByRole('button', { name: '계속 편집' })).toHaveFocus()
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('group', { name: /버리고 닫을까요/ })).toBeNull()
+    expect(title).toHaveFocus()
+    expect(title).toHaveValue('주간 회의 준비')
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
+  it('[버리고 닫기]면 닫는다', async () => {
+    const { onClose, user } = setup(occurrence())
+    await openAndType(user)
+    await user.keyboard('{Escape}')
+    await user.click(screen.getByRole('button', { name: '버리고 닫기' }))
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('고친 값을 처음대로 되돌리면 묻지 않는다', async () => {
+    const { onClose, user } = setup(occurrence())
+    await openAndType(user)
+    await user.keyboard('{Backspace>3/}')
+    await user.keyboard('{Escape}')
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('바깥 누르기는 누름과 뗌이 모두 바깥일 때만: 창 안에서 눌러 바깥에서 떼면 그대로, 바깥 누르기는 고쳤으면 묻는다', async () => {
+    const { onClose, user } = setup(occurrence())
+    const title = await openAndType(user)
+    const overlay = screen.getByRole('dialog').parentElement!
+    fireEvent.pointerDown(title)
+    fireEvent.pointerUp(overlay)
+    expect(screen.queryByRole('group', { name: /버리고 닫을까요/ })).toBeNull()
+    fireEvent.pointerDown(overlay)
+    fireEvent.pointerUp(overlay)
+    expect(screen.getByRole('group', { name: /버리고 닫을까요/ })).toBeInTheDocument()
+    expect(onClose).not.toHaveBeenCalled()
   })
 })

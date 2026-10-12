@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Occurrence } from './api'
-import { timedSegments } from './layout'
+import { capColumns, timedSegments } from './layout'
 
 const DAY = '2026-10-07'
 const timed = (id: string, start: string, end: string) =>
@@ -41,5 +41,34 @@ describe('시간 블록 배치', () => {
       ['a', 0, 2],
       ['b', 1, 2],
     ])
+  })
+})
+
+describe('겹침 상한 + "+n" (CAL-70, X-07 A)', () => {
+  const six = [
+    timed('a', '14:00', '15:00'),
+    timed('b', '14:00', '15:30'),
+    timed('c', '14:15', '15:15'),
+    timed('d', '14:30', '15:00'),
+    timed('e', '14:30', '15:30'),
+    timed('f', '14:45', '15:15'),
+  ]
+  const segments = () => timedSegments(six, [DAY], 'UTC').get(DAY)!
+
+  it('상한 4면 앞 3열만 4열 폭으로 그리고 나머지 3개는 마지막 칸 "+n" 하나로 묶는다', () => {
+    const { visible, more } = capColumns(segments(), 4)
+    expect(visible.map((s) => [s.occurrence.scheduleId, s.column, s.columns])).toEqual([
+      ['b', 0, 4],
+      ['a', 1, 4],
+      ['c', 2, 4],
+    ])
+    expect(more).toHaveLength(1)
+    expect(more[0]).toMatchObject({ start: 14 * 60 + 30, column: 3, columns: 4 })
+    expect(more[0].hidden.map((s) => s.occurrence.scheduleId).sort()).toEqual(['d', 'e', 'f'])
+  })
+
+  it('상한 안이거나 폭을 아직 모르면(상한 0) 그대로', () => {
+    expect(capColumns(segments(), 6).more).toEqual([])
+    expect(capColumns(segments(), 0).visible).toHaveLength(6)
   })
 })

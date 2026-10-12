@@ -1,6 +1,7 @@
 // 캘린더의 모달 틀: 바깥 누르기·Esc로 닫고, 열 때 첫 입력에 포커스, 닫으면 원래 자리로 포커스를 돌린다.
 // 열린 동안 Tab은 창 안을 돌고, 창 밖(사이드바·본문)은 inert로 막는다(TC-P3-prod-ONB01-focus).
-import { useEffect, useRef, type ReactNode } from 'react'
+// 고친 내용이 있으면(dirty) Esc·바깥 누르기는 바로 닫지 않고 창 안 한 줄로 한 번 묻는다(X-04 대화창 안 D, CAL-89).
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { markFocus, restoreFocus } from './focus'
 import styles from './calendar.module.css'
 
@@ -44,11 +45,33 @@ interface Props {
   /** 모바일(~767px)에서 아래에서 올라오는 시트로 띄운다(통계 기간 고르기) */
   sheet?: boolean
   role?: 'dialog' | 'alertdialog'
+  /** 처음 값과 달라진 내용이 있다. 닫기 전에 [계속 편집]·[버리고 닫기]를 묻는다 */
+  dirty?: boolean
   children: ReactNode
 }
 
-export function Modal({ labelledBy, onClose, narrow, sheet, role = 'dialog', children }: Props) {
+export function Modal({ labelledBy, onClose, narrow, sheet, role = 'dialog', dirty, children }: Props) {
   const ref = useRef<HTMLDivElement>(null)
+  const askId = useId()
+  // 물을 때 포커스가 있던 칸. [계속 편집]이면 그 자리로 돌아간다
+  const [asking, setAsking] = useState<HTMLElement | null>(null)
+  const keepRef = useRef<HTMLButtonElement>(null)
+  // 바깥 누르기는 누름과 뗌이 모두 바깥일 때만(창 안에서 끌어 바깥에서 떼면 닫지 않는다)
+  const downOutside = useRef(false)
+
+  const requestClose = () => {
+    if (!dirty) return onClose()
+    const active = document.activeElement
+    setAsking(active instanceof HTMLElement && ref.current?.contains(active) ? active : (ref.current ?? null))
+  }
+  const keepEditing = () => {
+    const back = asking
+    setAsking(null)
+    back?.focus()
+  }
+  useEffect(() => {
+    if (asking) keepRef.current?.focus()
+  }, [asking])
 
   useEffect(() => {
     const previous = markFocus()
@@ -71,7 +94,17 @@ export function Modal({ labelledBy, onClose, narrow, sheet, role = 'dialog', chi
   }, [])
 
   return (
-    <div className={styles.overlay} onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
+    <div
+      className={styles.overlay}
+      onPointerDown={(e) => {
+        downOutside.current = e.target === e.currentTarget
+      }}
+      onPointerUp={(e) => {
+        const outside = downOutside.current && e.target === e.currentTarget
+        downOutside.current = false
+        if (outside && !asking) requestClose()
+      }}
+    >
       <div
         ref={ref}
         role={role}
@@ -81,7 +114,9 @@ export function Modal({ labelledBy, onClose, narrow, sheet, role = 'dialog', chi
         onKeyDown={(e) => {
           if (e.key === 'Escape') {
             e.stopPropagation()
-            onClose()
+            // 물은 뒤 Esc 한 번 더 = 계속 편집
+            if (asking) keepEditing()
+            else requestClose()
           } else if (e.key === 'Tab' && !e.defaultPrevented && ref.current) {
             const items = tabOrder(ref.current)
             const first = items[0]
@@ -101,6 +136,19 @@ export function Modal({ labelledBy, onClose, narrow, sheet, role = 'dialog', chi
           }
         }}
       >
+        {asking && (
+          <div role="group" aria-labelledby={askId} className={styles.discardBar}>
+            <span id={askId} className={styles.discardText}>
+              고친 내용이 있어요. 버리고 닫을까요?
+            </span>
+            <button type="button" ref={keepRef} className={styles.secondary} onClick={keepEditing}>
+              계속 편집
+            </button>
+            <button type="button" className={styles.danger} onClick={onClose}>
+              버리고 닫기
+            </button>
+          </div>
+        )}
         {children}
       </div>
     </div>

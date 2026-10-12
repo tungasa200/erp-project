@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Occurrence } from './api'
 import { TimeGrid } from './TimeGrid'
@@ -546,5 +546,88 @@ describe('끌기 중 가장자리 자동 스크롤 (UX-CAL-94)', () => {
       for (let i = 0; i < 5; i++) frames.shift()?.(0)
     })
     expect(scroller.scrollTop).toBe(before)
+  })
+})
+
+describe('겹침 상한 "+n" (CAL-70, X-07 A)', () => {
+  beforeEach(() => {
+    // 날짜 칸 폭 112px → 상한 floor(112/28) = 4열
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(112)
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        cb: () => void
+        constructor(cb: () => void) {
+          this.cb = cb
+        }
+        observe() {
+          this.cb()
+        }
+        disconnect() {}
+      },
+    )
+  })
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+  })
+
+  const at = (id: string, start: string, end: string) =>
+    ({
+      scheduleId: id,
+      occurrenceStart: `${DAY}T${start}:00Z`,
+      title: id,
+      allDay: false,
+      startAt: `${DAY}T${start}:00Z`,
+      endAt: `${DAY}T${end}:00Z`,
+    }) as Occurrence
+
+  it('넘친 일정은 Tab으로 닿는 "+n"으로 묶고, 팝오버는 첫 항목 포커스·↑↓·Enter로 상세·Esc로 "+n"에 돌아간다', () => {
+    const onOpen = vi.fn()
+    render(
+      <TimeGrid
+        days={[DAY]}
+        occurrences={[
+          at('회의', '14:00', '15:00'),
+          at('검토', '14:00', '15:30'),
+          at('통화', '14:15', '15:15'),
+          at('리뷰', '14:30', '15:00'),
+          at('면접', '14:30', '15:30'),
+          at('문서', '14:45', '15:15'),
+        ]}
+        timeZone="UTC"
+        today={DAY}
+        now={Date.parse(`${DAY}T00:00:00Z`)}
+        colorOf={() => null}
+        pending={null}
+        onCreate={vi.fn()}
+        onCreateAllDay={vi.fn()}
+        onOpen={onOpen}
+        onMove={vi.fn()}
+      />,
+    )
+    expect(screen.getAllByRole('button', { name: /^계획 · / })).toHaveLength(3)
+    const more = screen.getByRole('button', { name: '14시대 일정 3개 더' })
+    expect(more).toHaveTextContent('+3')
+
+    act(() => more.click())
+    const popover = screen.getByRole('dialog', { name: '14시대 일정 3개 더' })
+    const items = within(popover).getAllByRole('button')
+    expect(items).toHaveLength(3)
+    expect(items[0]).toHaveFocus()
+    fireEvent.keyDown(items[0], { key: 'ArrowDown' })
+    expect(items[1]).toHaveFocus()
+    fireEvent.keyDown(items[1], { key: 'ArrowUp' })
+    fireEvent.keyDown(items[0], { key: 'ArrowUp' })
+    expect(items[2]).toHaveFocus()
+
+    fireEvent.keyDown(items[2], { key: 'Escape' })
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(more).toHaveFocus()
+
+    act(() => more.click())
+    act(() => within(screen.getByRole('dialog')).getAllByRole('button')[0].click())
+    expect(onOpen).toHaveBeenCalledTimes(1)
+    expect(screen.queryByRole('dialog')).toBeNull()
   })
 })

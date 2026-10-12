@@ -56,6 +56,12 @@
   min-width: 0;
 }
 
+/* 기록 패널을 접으면 요약 줄을 그리드 위에 두고 그리드가 폭을 다 쓴다 */
+.dayLayout:has(> .dayRecordsStrip) {
+  flex-direction: column;
+  align-items: stretch;
+}
+
 .dayGrid {
   flex: 1;
   min-width: 0;
@@ -80,9 +86,54 @@
 }
 
 .dayRecordsTitle {
+  flex: 1;
   margin: 0;
   font-size: 14px;
   font-weight: 800;
+}
+
+/* 접힌 기록 패널: 그리드 위 한 줄 요약 + 펼치기(X-07 D) */
+.dayRecordsStrip {
+  order: -1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 4px 4px 16px;
+  margin-bottom: 8px;
+  border-radius: 14px;
+  background: var(--color-surface);
+}
+
+.dayRecordsStrip .dayRecordsTitle {
+  flex: none;
+}
+
+.dayRecordsSummary {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--color-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.panelToggle {
+  flex: none;
+  width: var(--size-touch);
+  height: var(--size-touch);
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: 18px;
+  cursor: pointer;
+}
+
+.panelToggle:hover {
+  background: var(--color-ground);
+  color: var(--color-text);
 }
 
 .addButton {

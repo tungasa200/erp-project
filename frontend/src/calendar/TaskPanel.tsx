@@ -24,6 +24,8 @@ interface Props {
   onLoadMore: () => void
   /** 키보드 대안: 상세 모달로 시간을 골라 일정 만들기 */
   onPlace: (task: Task) => void
+  /** 접기 버튼(레일로 접힘, X-07 D) */
+  onCollapse?: () => void
   /** 패널 안 빠른 입력(④) */
   quickInput?: ReactNode
 }
@@ -47,6 +49,7 @@ export function TaskPanel({
   hasMore,
   onLoadMore,
   onPlace,
+  onCollapse,
   quickInput,
 }: Props) {
   const [showUndated, setShowUndated] = useState(false)
@@ -104,6 +107,18 @@ export function TaskPanel({
         <kbd className={styles.kbd} aria-hidden="true">
           P
         </kbd>
+        {onCollapse && (
+          <button
+            type="button"
+            className={styles.panelCollapse}
+            aria-expanded="true"
+            aria-label="업무 패널 접기"
+            aria-keyshortcuts="P"
+            onClick={onCollapse}
+          >
+            <span aria-hidden="true">›</span>
+          </button>
+        )}
       </div>
       <p className={styles.muted}>끌어다 놓으면 1시간 일정이 돼요</p>
       {quickInput}

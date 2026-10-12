@@ -485,7 +485,8 @@ button.column {
 
 .ghostBlock {
   background: var(--block-tint, var(--color-accent-soft));
-  border: 2px solid var(--block-base, var(--color-accent));
+  /* 놓을 자리는 아직 실제가 아니라 점선(X-11, CAL-93). 실선은 진행 중 표시다 */
+  border: 2px dashed var(--block-base, var(--color-accent));
   color: var(--block-ink, var(--color-accent-ink));
   box-shadow: 0 8px 20px rgba(40, 44, 90, 0.18);
   pointer-events: none;
@@ -713,6 +714,75 @@ button.monthCell {
   min-height: 24px;
   padding: 0 4px;
   cursor: pointer;
+}
+
+/* 겹침 상한을 넘은 일정 묶음 "+n"(CAL-70). 28px 높이, 누르는 영역은 ::after로 44px */
+.moreBlock {
+  position: absolute;
+  box-sizing: border-box;
+  height: 28px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--color-ground);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  z-index: 1;
+  cursor: pointer;
+}
+
+button.moreBlock::after {
+  content: '';
+  position: absolute;
+  inset: -8px 0;
+}
+
+.morePopoverItem {
+  flex: none;
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-height: 44px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  font-size: 13.5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.morePopoverItem:hover,
+.morePopoverItem:focus-visible {
+  background: var(--color-ground);
+}
+
+.morePopoverItem strong {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 묶인 일정이 많아도 팝오버가 화면 밖으로 나가지 않게 */
+.dayPopover:has(.morePopoverItem) {
+  max-height: min(300px, calc(100vh - 16px));
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+.morePopoverItem span {
+  font-size: 12px;
+  color: var(--color-text-muted);
 }
 
 .dayPopover {
@@ -1162,6 +1232,48 @@ button.monthCell {
   flex: 1;
 }
 
+/* 접힌 업무 패널 레일(X-07 D, 목업 묶음0_B G1): 52px, 세로 글자 버튼 44×88 */
+.panelRail {
+  flex: none;
+  width: 52px;
+  box-sizing: border-box;
+  padding: 8px 0;
+  border-radius: 24px;
+  background: var(--color-surface);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.panelRailButton {
+  width: 44px;
+  min-height: 88px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--color-accent-soft);
+  color: var(--color-accent-ink);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  writing-mode: vertical-rl;
+  cursor: pointer;
+}
+
+.panelCollapse {
+  width: var(--size-touch);
+  height: var(--size-touch);
+  margin: -10px -6px -10px 4px;
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: 18px;
+  cursor: pointer;
+}
+
 .kbd {
   font-family: inherit;
   font-size: 11px;
@@ -1467,6 +1579,27 @@ fieldset.fieldset:disabled {
   color: var(--color-on-accent);
 }
 
+/* 고친 내용 버리기 확인(CAL-89): 창 안 한 줄. 스크롤해도 창 위에 붙어 보인다 */
+.discardBar {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 8px 8px 16px;
+  border-radius: 14px;
+  background: var(--color-warning-soft);
+  color: var(--color-warning-text);
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+.discardText {
+  flex: 1 1 180px;
+}
+
 .conflict {
   display: flex;
   flex-wrap: wrap;
@@ -1601,7 +1734,8 @@ fieldset.fieldset:disabled {
 }
 
 @media (max-width: 767px) {
-  .side {
+  .side,
+  .panelRail {
     display: none;
   }
 

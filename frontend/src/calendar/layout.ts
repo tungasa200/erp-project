@@ -126,3 +126,46 @@ export function occurrencesByDate(occurrences: Occurrence[], days: string[], tim
     list.sort((a, b) => Number(b.allDay) - Number(a.allDay) || (a.startAt ?? '').localeCompare(b.startAt ?? ''))
   return result
 }
+
+/** 한 칸에 나란히 놓을 수 있는 열 수의 기준 폭(X-07 A: floor(열 폭 / 28px)) */
+export const MIN_COLUMN_PX = 28
+
+export interface MoreGroup {
+  /** 그려지는 범위(분)의 시작 */
+  start: number
+  /** 상한을 넘어 "+n"으로 묶인 조각 */
+  hidden: TimedSegment[]
+  /** 놓을 열(마지막 칸)과 열 수 */
+  column: number
+  columns: number
+}
+
+/**
+ * 겹친 열이 cap보다 많으면 앞 cap-1열만 그리고 나머지는 마지막 칸의 "+n"으로 묶는다(CAL-70, X-07 A).
+ * cap이 2보다 작거나(폭을 아직 모름) 넘치는 묶음이 없으면 그대로 둔다
+ */
+export function capColumns(segments: TimedSegment[], cap: number): { visible: TimedSegment[]; more: MoreGroup[] } {
+  if (cap < 2 || segments.every((s) => s.columns <= cap)) return { visible: segments, more: [] }
+  const visible: TimedSegment[] = []
+  const hidden: TimedSegment[] = []
+  for (const s of segments) {
+    if (s.columns <= cap) visible.push(s)
+    else if (s.column < cap - 1) visible.push({ ...s, columns: cap })
+    else hidden.push(s)
+  }
+  hidden.sort((a, b) => drawnRange(a.start, a.end)[0] - drawnRange(b.start, b.end)[0])
+  const more: MoreGroup[] = []
+  let end = -1
+  for (const s of hidden) {
+    const [from, to] = drawnRange(s.start, s.end)
+    const last = more[more.length - 1]
+    if (last && from < end) {
+      last.hidden.push(s)
+      end = Math.max(end, to)
+    } else {
+      more.push({ start: from, hidden: [s], column: cap - 1, columns: cap })
+      end = to
+    }
+  }
+  return { visible, more }
+}
