@@ -34,19 +34,22 @@ class MailConfig {
 		}
 		return mail -> {
 			try {
-				MimeMessage message = sender.createMimeMessage();
-				MimeMessageHelper helper = new MimeMessageHelper(message, true, StandardCharsets.UTF_8.name());
-				helper.setFrom(new InternetAddress(properties.username(), properties.fromName(),
-						StandardCharsets.UTF_8.name()));
-				helper.setTo(mail.to());
-				helper.setSubject(mail.subject());
-				helper.setText(mail.text(), mail.html());
-				sender.send(message);
+				sender.send(compose(sender.createMimeMessage(), properties, mail));
 			}
 			catch (Exception ex) {
 				throw new IllegalStateException("메일 발송 실패", ex);
 			}
 		};
+	}
+
+	/** text/plain과 text/html을 multipart/alternative로 묶는다(텍스트 버전 동봉). */
+	static MimeMessage compose(MimeMessage message, MailProperties properties, Mailer.Mail mail) throws Exception {
+		MimeMessageHelper helper = new MimeMessageHelper(message, true, StandardCharsets.UTF_8.name());
+		helper.setFrom(new InternetAddress(properties.username(), properties.fromName(), StandardCharsets.UTF_8.name()));
+		helper.setTo(mail.to());
+		helper.setSubject(mail.subject());
+		helper.setText(mail.text(), mail.html());
+		return message;
 	}
 
 }

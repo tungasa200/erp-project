@@ -5,10 +5,19 @@ import com.erp.identity.mail.Mailer.Mail;
 /**
  * 인증번호 메일(SCR-MAIL-01)과 비밀번호 재설정 메일(SCR-MAIL-02). 목업을 메일 제약에 맞춰 옮겼다:
  * 표 레이아웃과 인라인 CSS만, 시스템 글꼴, 키 컬러 #4B3FD6 고정, 텍스트 버전 동봉. 제목에는 코드를 넣지 않는다 (D-41).
+ * 미리보기에도 코드가 실리지 않게 HTML 맨 앞에 숨김 프리헤더와 공백 채움을, 텍스트 버전 첫 줄에 같은 안내를 둔다 (UX-MAIL-91).
  */
 public final class CodeMails {
 
 	private static final String FONT = "-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif";
+
+	/**
+	 * 받은편지함 미리보기에 실릴 안내 한 줄(UX-MAIL-91, X-09 안 A). 코드를 넣지 않는다(D-41). text/plain 첫 줄도 같다.
+	 */
+	static final String PREHEADER = "WY 인증 메일이에요. 앱에서 코드를 입력해 주세요.";
+
+	/** 프리헤더 뒤 공백 채움: 미리보기가 본문 앞부분(로고·코드)을 이어 붙이지 않게 한다. */
+	static final String PREHEADER_FILL = "&#847;&zwnj;&nbsp;".repeat(60);
 
 	private CodeMails() {
 	}
@@ -31,7 +40,7 @@ public final class CodeMails {
 	}
 
 	private static String text(String title, String intro, String code, String notice, String ignore) {
-		return title + "\n\n" + intro + "\n\n" + code + "\n\n이 번호는 10분 동안만 쓸 수 있어요.\n"
+		return PREHEADER + "\n\n" + title + "\n\n" + intro + "\n\n" + code + "\n\n이 번호는 10분 동안만 쓸 수 있어요.\n"
 				+ (notice == null ? "" : "\n" + notice + "\n") + "\n" + ignore + "\n\n이 메일은 발신 전용이에요. · WY Worklog\n";
 	}
 
@@ -46,6 +55,7 @@ public final class CodeMails {
 				<!doctype html>
 				<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>%1$s</title></head>
 				<body style="margin:0;padding:0;background:#F2F4FA">
+				<div style="display:none;max-height:0;max-width:0;overflow:hidden;opacity:0;font-size:1px;line-height:1px;color:#F2F4FA;mso-hide:all">%10$s%11$s</div>
 				<table role="presentation" width="100%%" cellpadding="0" cellspacing="0" border="0" bgcolor="#F2F4FA" style="background:#F2F4FA;font-family:%2$s;color:#1A1C2B">
 				<tr><td align="center" style="padding:32px 12px 24px">
 				<table role="presentation" width="520" cellpadding="0" cellspacing="0" border="0" bgcolor="#FFFFFF" style="width:100%%;max-width:520px;background:#FFFFFF;border-radius:16px">
@@ -69,7 +79,8 @@ public final class CodeMails {
 				</td></tr>
 				</table>
 				</body></html>
-				""".formatted(title, FONT, intro, code, codeBg, codeColor, noticeRow, ignore, notice == null ? 28 : 24);
+				""".formatted(title, FONT, intro, code, codeBg, codeColor, noticeRow, ignore, notice == null ? 28 : 24,
+						PREHEADER, PREHEADER_FILL);
 	}
 
 }
