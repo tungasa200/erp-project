@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 340" role="img" aria-labelledby="t d">
+  <title id="t">업무·일정·확인 대기·기록·하루 마감의 관계</title>
+  <desc id="d">업무를 일정에 연결하면, 일정이 끝날 때 확인 대기가 생기고, 했어요를 누르면 기록이 된다. 업무를 완료하거나 직접 추가해도 기록이 생긴다. 하루 마감은 남은 확인 대기를 처리하고 넘길 업무를 골라 마감한 날과 다음 근무일 계획을 남긴다.</desc>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10z" fill="#5e6377"/>
+    </marker>
+    <marker id="ak" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10z" fill="#4b3fd6"/>
+    </marker>
+    <style>
+      text { font-family: 'Pretendard Variable', Pretendard, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; }
+      .t { font-size: 16px; font-weight: 700; text-anchor: middle; }
+      .s { font-size: 11.5px; font-weight: 500; text-anchor: middle; }
+      .l { font-size: 12px; font-weight: 600; fill: #3b3f52; }
+      .ln { stroke: #5e6377; stroke-width: 1.6; fill: none; }
+      .lk { stroke: #4b3fd6; stroke-width: 1.8; fill: none; }
+    </style>
+  </defs>
+
+  <!-- 업무를 완료하면 기록 (위로 도는 선) -->
+  <path class="ln" d="M80 80V46H640V76" marker-end="url(#a)"/>
+  <rect x="236" y="36" width="248" height="20" fill="#ffffff"/>
+  <text class="l" x="360" y="51" text-anchor="middle">업무를 완료하면 기록이 하나 생겨요</text>
+
+  <!-- 첫 줄 상자 -->
+  <rect x="20" y="80" width="120" height="54" rx="12" fill="#e9e8fa" stroke="#4b3fd6" stroke-width="1.6"/>
+  <text class="t" x="80" y="104" fill="#3c32ab">업무</text>
+  <text class="s" x="80" y="122" fill="#3c32ab">해야 할 일</text>
+
+  <rect x="200" y="80" width="120" height="54" rx="12" fill="#ffffff" stroke="#4b3fd6" stroke-width="1.6" stroke-dasharray="5 4"/>
+  <text class="t" x="260" y="104" fill="#1a1c2b">일정</text>
+  <text class="s" x="260" y="122" fill="#5e6377">언제 할지 (계획)</text>
+
+  <rect x="380" y="80" width="120" height="54" rx="12" fill="#fff7e3" stroke="#e0a100" stroke-width="1.6"/>
+  <text class="t" x="440" y="104" fill="#4a3000">확인 대기</text>
+  <text class="s" x="440" y="122" fill="#4a3000">"했나요?" 후보</text>
+
+  <rect x="580" y="80" width="120" height="54" rx="12" fill="#ddf3ee" stroke="#0e7f6c" stroke-width="1.6"/>
+  <text class="t" x="640" y="104" fill="#0a5c4e">기록</text>
+  <text class="s" x="640" y="122" fill="#0a5c4e">실제로 한 일</text>
+
+  <!-- 첫 줄 화살표 -->
+  <path class="ln" d="M142 107H196" marker-end="url(#a)"/>
+  <text class="l" x="169" y="99" text-anchor="middle">연결</text>
+  <path class="ln" d="M322 107H376" marker-end="url(#a)"/>
+  <text class="l" x="349" y="99" text-anchor="middle">끝나면</text>
+  <path class="ln" d="M502 107H576" marker-end="url(#a)"/>
+  <text class="l" x="539" y="99" text-anchor="middle">했어요</text>
+
+  <!-- 직접 추가 -->
+  <path class="ln" d="M640 172V138" marker-end="url(#a)"/>
+  <text class="l" x="640" y="188" text-anchor="middle">직접 추가해도 기록</text>
+
+  <!-- 하루 마감 -->
+  <rect x="380" y="240" width="120" height="54" rx="12" fill="#4b3fd6"/>
+  <text class="t" x="440" y="264" fill="#ffffff">하루 마감</text>
+  <text class="s" x="440" y="282" fill="#e9e8fa">하루 끝 정리</text>
+
+  <path class="lk" d="M440 136V236" marker-end="url(#ak)"/>
+  <text class="l" x="450" y="196">① 남은 확인 대기 처리</text>
+
+  <path class="lk" d="M80 136V267H376" marker-end="url(#ak)"/>
+  <text class="l" x="96" y="258">② 다음 근무일로 넘길 업무 고르기</text>
+
+  <!-- 결과 -->
+  <rect x="580" y="216" width="120" height="44" rx="10" fill="#ffffff" stroke="#d5d8e5" stroke-width="1.4"/>
+  <text class="t" x="640" y="236" fill="#1a1c2b" style="font-size:14px">마감한 날</text>
+  <text class="s" x="640" y="252" fill="#5e6377" style="font-size:10.5px">통계에서 세요</text>
+
+  <rect x="580" y="276" width="120" height="44" rx="10" fill="#ffffff" stroke="#d5d8e5" stroke-width="1.4"/>
+  <text class="t" x="640" y="296" fill="#1a1c2b" style="font-size:14px">다음 근무일 계획</text>
+  <text class="s" x="640" y="312" fill="#5e6377" style="font-size:10.5px">넘긴 업무</text>
+
+  <path class="lk" d="M502 258L576 240" marker-end="url(#ak)"/>
+  <path class="lk" d="M502 278L576 296" marker-end="url(#ak)"/>
+  <text class="l" x="520" y="232" style="font-size:11px">③ 마감</text>
+</svg>

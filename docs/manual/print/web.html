@@ -1,0 +1,100 @@
+<!doctype html>
+<!--
+  매뉴얼 웹 페이지 틀 (WY-design). 생성 스크립트(WY-planner)가 자리 표시를 바꿔 docs/manual/web/index.html로 낸다.
+  자리 표시: {{TITLE}} {{EDITION}} {{COVER}} {{TOC}} {{BODY}} {{PDF_HREF}}
+  같은 폴더에 web.css, fonts/pretendardvariable.css(+ fonts/woff2/), images/가 함께 놓인다.
+  장 앵커: #ch-NN (빠른 입력 도움말 → #ch-07)
+-->
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <title>{{TITLE}}</title>
+    <link rel="stylesheet" href="fonts/pretendardvariable.css" />
+    <link rel="stylesheet" href="web.css" />
+    <script>
+      document.documentElement.classList.add('js')
+    </script>
+  </head>
+  <body>
+    <a class="skip" href="#content">본문으로 건너뛰기</a>
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="worklog 앱으로">
+        <span class="brand-logo" aria-hidden="true">w</span>
+        <span class="brand-name">worklog</span>
+      </a>
+      <span class="topbar-title">사용 설명서</span>
+      <button type="button" class="toc-button" aria-expanded="false" aria-controls="toc">차례</button>
+      <a class="pdf-link" href="{{PDF_HREF}}" download>PDF 내려받기</a>
+    </header>
+
+    <div class="layout">
+      <nav id="toc" class="sidebar" aria-label="차례">
+        <p class="sidebar-heading">차례</p>
+        {{TOC}}
+      </nav>
+
+      <main id="content">
+        <section class="cover">
+          <p class="cover-kicker">사용 설명서 · 판 {{EDITION}}</p>
+          {{COVER}}
+          <p class="cover-actions">
+            <a class="pdf-button" href="{{PDF_HREF}}" download>PDF 내려받기</a>
+          </p>
+        </section>
+        {{BODY}}
+        <footer class="foot">
+          <span>WY Worklog 사용 설명서 · 판 {{EDITION}}</span>
+          <a href="#content">맨 위로</a>
+        </footer>
+      </main>
+    </div>
+
+    <script>
+      // 좁은 화면: [차례]로 목차를 열고 닫는다. 장을 고르면 닫는다. 넓은 화면은 늘 보인다(CSS).
+      ;(function () {
+        var button = document.querySelector('.toc-button')
+        var nav = document.getElementById('toc')
+        function set(open) {
+          button.setAttribute('aria-expanded', String(open))
+          nav.classList.toggle('open', open)
+        }
+        button.addEventListener('click', function () {
+          set(button.getAttribute('aria-expanded') !== 'true')
+        })
+        nav.addEventListener('click', function (e) {
+          if (e.target.closest('a')) set(false)
+        })
+        document.addEventListener('keydown', function (e) {
+          if (e.key === 'Escape' && nav.classList.contains('open')) {
+            set(false)
+            button.focus()
+          }
+        })
+        // 지금 읽는 장을 차례에서 표시
+        var links = {}
+        nav.querySelectorAll('a[href^="#ch-"]').forEach(function (a) {
+          links[a.getAttribute('href').slice(1)] = a
+        })
+        if (!('IntersectionObserver' in window)) return
+        var io = new IntersectionObserver(
+          function (entries) {
+            entries.forEach(function (en) {
+              if (!en.isIntersecting) return
+              Object.keys(links).forEach(function (id) {
+                links[id].removeAttribute('aria-current')
+              })
+              var a = links[en.target.id]
+              if (a) a.setAttribute('aria-current', 'true')
+            })
+          },
+          { rootMargin: '-20% 0px -70% 0px' }
+        )
+        document.querySelectorAll('section.chapter').forEach(function (s) {
+          io.observe(s)
+        })
+      })()
+    </script>
+  </body>
+</html>

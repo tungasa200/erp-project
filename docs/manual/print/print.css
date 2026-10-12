@@ -1,0 +1,428 @@
+/*
+  매뉴얼 PDF 인쇄 CSS (WY-design). 틀은 template.html, 마크업 약속은 WY-planner 생성 스크립트와 맞춤:
+  장 section.chapter#ch-NN(h1·h2·h3) · 그림 figure.shot.shot-W|shot-M(+ .pending > .shot-pending) ·
+  인용 blockquote.note · 목차 nav.toc(.toc-title·.toc-page) · 표 table · 코드 pre>code, 인라인 code.
+  색은 앱 디자인 토큰(frontend/src/theme/tokens.css 라이트 기본값)을 옮겨 적었다. 인쇄에서도 보이게 면 색은 옅게,
+  정보는 글자·선으로 전한다.
+*/
+
+:root {
+  --accent: #4b3fd6;
+  --accent-ink: #3c32ab;
+  --accent-soft: #e9e8fa;
+  --accent-faint: #f6f5fd;
+  --text: #1a1c2b;
+  --text-body: #34384a; /* 인쇄 본문: 앱 --color-text-body(#4a4f63)보다 한 단계 진하게 */
+  --text-muted: #5e6377;
+  --border: #d5d8e5;
+  --divider: #e1e4ee;
+  --sunken: #f7f8fc;
+  --muted-surface: #eef0f6;
+  --pending-card-bg: #fff7e3;
+  --pending-border: #e0a100;
+  --pending-text: #4a3000;
+  --font: 'Pretendard Variable', Pretendard, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+  --mono: ui-monospace, Consolas, 'D2Coding', monospace;
+}
+
+/* ── 쪽 ─────────────────────────────────────────── */
+@page {
+  size: A4;
+  margin: 20mm 18mm 20mm 18mm;
+  @top-left {
+    content: 'WY Worklog 사용 설명서';
+    font: 500 7.5pt var(--font);
+    color: #8a8fa3;
+    vertical-align: bottom;
+    padding-bottom: 4mm;
+  }
+  @bottom-center {
+    content: counter(page);
+    font: 600 8.5pt var(--font);
+    color: #5e6377;
+    vertical-align: top;
+    padding-top: 4mm;
+  }
+}
+@page :first {
+  margin: 0;
+  @top-left { content: none; }
+  @bottom-center { content: none; }
+}
+@page toc {
+  @top-left { content: none; }
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+html {
+  font-family: var(--font);
+  font-size: 10pt;
+  line-height: 1.7;
+  color: var(--text-body);
+  font-feature-settings: 'ss06'; /* Pretendard: 숫자와 글자 높이 맞춤에 무해, 없으면 무시 */
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+body {
+  margin: 0;
+}
+
+/* ── 표지 ───────────────────────────────────────── */
+.cover {
+  height: 297mm;
+  width: 210mm;
+  padding: 26mm 22mm 22mm;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(180deg, #ffffff 0%, #ffffff 58%, var(--accent-faint) 58%, var(--accent-faint) 100%);
+  break-after: page;
+  position: relative;
+  overflow: hidden;
+}
+.cover::after {
+  /* 아래 면의 키 컬러 띠: 인쇄에서 너무 무겁지 않게 얇게 */
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(297mm * 0.58);
+  height: 3mm;
+  background: var(--accent);
+}
+.cover-brand {
+  display: flex;
+  align-items: center;
+  gap: 3mm;
+}
+.cover-logo {
+  width: 11mm;
+  height: 11mm;
+  border-radius: 3mm;
+  background: var(--accent);
+  color: #fff;
+  font: 800 18pt/11mm var(--font);
+  text-align: center;
+}
+.cover-name {
+  font: 700 15pt var(--font);
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+.cover-main {
+  margin-top: 52mm;
+}
+.cover-kicker {
+  margin: 0 0 4mm;
+  font: 700 11pt var(--font);
+  color: var(--accent);
+  letter-spacing: 0.04em;
+}
+.cover h1 {
+  margin: 0 0 7mm;
+  font: 800 30pt/1.25 var(--font);
+  color: var(--text);
+  letter-spacing: -0.02em;
+}
+.cover h1 + p {
+  /* 부제 */
+  margin: 0;
+  max-width: 130mm;
+  font: 500 13pt/1.6 var(--font);
+  color: var(--text-body);
+}
+.cover p:last-of-type:not(:first-of-type) {
+  /* '기준 화면' 줄: 아래 면 위로 */
+  position: absolute;
+  left: 22mm;
+  top: calc(297mm * 0.58 + 12mm);
+  margin: 0;
+  font: 500 10pt var(--font);
+  color: var(--text-muted);
+}
+.cover-foot {
+  margin-top: auto;
+  display: flex;
+  justify-content: space-between;
+  font: 600 9pt var(--font);
+  color: var(--text-muted);
+}
+
+/* ── 차례 ───────────────────────────────────────── */
+.toc-sheet {
+  page: toc;
+  break-after: page;
+}
+.toc-heading {
+  margin: 0 0 8mm;
+  padding-top: 6mm;
+  font: 800 20pt var(--font);
+  color: var(--text);
+}
+.toc ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.toc li {
+  border-bottom: 1px solid var(--divider);
+}
+.toc a {
+  display: flex;
+  align-items: baseline;
+  gap: 3mm;
+  padding: 3.2mm 0;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 11pt;
+  font-weight: 600;
+}
+.toc .toc-title {
+  flex: 1;
+}
+.toc .toc-page {
+  font-weight: 700;
+  color: var(--accent-ink);
+  font-variant-numeric: tabular-nums;
+}
+.toc ol ol a {
+  /* 절까지 넣을 때 */
+  padding: 1.5mm 0 1.5mm 6mm;
+  font-size: 9.5pt;
+  font-weight: 500;
+  color: var(--text-body);
+}
+.toc ol ol li {
+  border-bottom: 0;
+}
+
+/* ── 장 ─────────────────────────────────────────── */
+main {
+  counter-reset: chap -1;
+}
+.chapter {
+  break-before: page;
+  counter-increment: chap;
+  counter-reset: fig;
+}
+.chapter h1 {
+  margin: 0 0 4mm;
+  padding: 8mm 0 5mm;
+  border-bottom: 2.5px solid var(--accent);
+  font: 800 21pt/1.3 var(--font);
+  color: var(--text);
+  letter-spacing: -0.015em;
+}
+.chapter h1 + p {
+  /* 장 머리 한 줄: 이 장을 읽으면 무엇을 할 수 있는지 */
+  margin: 0 0 8mm;
+  font-size: 11pt;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+.chapter h2 {
+  margin: 9mm 0 3mm;
+  padding-left: 3mm;
+  border-left: 4px solid var(--accent);
+  font: 700 14pt/1.35 var(--font);
+  color: var(--text);
+  break-after: avoid;
+}
+.chapter h3 {
+  margin: 6mm 0 2mm;
+  font: 700 11.5pt/1.4 var(--font);
+  color: var(--text);
+  break-after: avoid;
+}
+h1,
+h2,
+h3 {
+  break-inside: avoid;
+}
+p {
+  margin: 0 0 3mm;
+  orphans: 2;
+  widows: 2;
+}
+ul,
+ol {
+  margin: 0 0 3.5mm;
+  padding-left: 5.5mm;
+}
+li {
+  margin-bottom: 1mm;
+}
+li::marker {
+  color: var(--accent);
+  font-weight: 700;
+}
+strong {
+  color: var(--text);
+  font-weight: 700;
+}
+a {
+  color: var(--accent-ink);
+}
+hr {
+  border: 0;
+  border-top: 1px solid var(--divider);
+  margin: 6mm 0;
+}
+
+/* 입력 예시(인라인 code): 입력창에 그대로 적는 글자 */
+code {
+  font-family: var(--mono);
+  font-size: 0.92em;
+  padding: 0.3mm 1.4mm;
+  border-radius: 1.2mm;
+  background: var(--muted-surface);
+  border: 1px solid var(--divider);
+  color: var(--text);
+  white-space: nowrap;
+}
+pre {
+  margin: 0 0 4mm;
+  padding: 3.5mm 4mm;
+  border-radius: 2mm;
+  background: var(--sunken);
+  border: 1px solid var(--divider);
+  white-space: pre-wrap;
+  break-inside: avoid;
+}
+pre code {
+  padding: 0;
+  border: 0;
+  background: none;
+  white-space: pre-wrap;
+}
+
+/* ── 표 ─────────────────────────────────────────── */
+table {
+  width: 100%;
+  margin: 1mm 0 5mm;
+  border-collapse: collapse;
+  font-size: 9.3pt;
+  line-height: 1.55;
+}
+thead {
+  display: table-header-group; /* 쪽을 넘으면 머리줄 반복 */
+}
+th {
+  text-align: left;
+  font-weight: 700;
+  color: var(--text);
+  background: var(--sunken);
+  border-top: 1.5px solid var(--text);
+  border-bottom: 1px solid var(--border);
+  padding: 2mm 2.5mm;
+}
+td {
+  padding: 2mm 2.5mm;
+  border-bottom: 1px solid var(--divider);
+  vertical-align: top;
+}
+tr {
+  break-inside: avoid;
+}
+td:first-child {
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* ── 예시·팁 상자 (> 인용) ──────────────────────── */
+blockquote.note,
+blockquote {
+  margin: 2mm 0 5mm;
+  padding: 3mm 4mm;
+  border-left: 3px solid var(--accent);
+  border-radius: 0 2mm 2mm 0;
+  background: var(--accent-faint);
+  color: var(--text);
+  break-inside: avoid;
+}
+blockquote > :last-child {
+  margin-bottom: 0;
+}
+
+/* ── 그림 ───────────────────────────────────────── */
+figure.shot {
+  counter-increment: fig;
+  margin: 3mm 0 6mm;
+  break-inside: avoid;
+  text-align: center;
+}
+figure.shot img {
+  display: block;
+  margin: 0 auto;
+  max-width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 2mm;
+}
+figure.shot-M img {
+  width: 58mm;
+  max-height: 125mm;
+  object-fit: contain;
+  object-position: top;
+}
+/* 관계 그림 등 직접 그린 SVG: 화면 그림 테두리 없이 */
+figure.shot img[src$='.svg'],
+figure.shot svg {
+  border: 0;
+  border-radius: 0;
+  width: 100%;
+  height: auto;
+}
+figcaption {
+  margin-top: 2mm;
+  font-size: 8.5pt;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+figcaption::before {
+  content: '그림 ' counter(chap) '-' counter(fig) '  ';
+  font-weight: 700;
+  color: var(--text);
+  white-space: pre;
+}
+
+/* 아직 찍지 않은 그림 자리 */
+figure.pending .shot-pending {
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2mm;
+  border: 1.5px dashed var(--pending-border);
+  border-radius: 2mm;
+  background: var(--pending-card-bg);
+  color: var(--pending-text);
+}
+figure.shot-W.pending .shot-pending {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  max-height: 95mm;
+}
+figure.shot-M.pending .shot-pending {
+  width: 46mm;
+  aspect-ratio: 390 / 760;
+}
+.shot-pending span {
+  font-weight: 700;
+  font-size: 10pt;
+}
+.shot-pending code {
+  white-space: normal;
+  overflow-wrap: anywhere; /* 긴 경로는 / _ 뒤에서 */
+  word-break: normal;
+  max-width: 94%;
+  font-size: 7pt;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.7);
+  border-color: var(--pending-border);
+  color: var(--pending-text);
+}
