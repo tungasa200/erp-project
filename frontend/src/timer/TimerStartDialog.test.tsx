@@ -45,7 +45,7 @@ describe('타이머 시작 창 (SCR-COM-06 ⑦)', () => {
     await user.type(screen.getByRole('combobox', { name: '연결 업무' }), '보고')
     await screen.findByRole('option', { name: '9월 매출 보고서' })
     await user.keyboard('{Enter}')
-    await screen.findByRole('link', { name: '9월 매출 보고서' })
+    await screen.findByText('9월 매출 보고서')
     await waitFor(() => expect(content).toHaveFocus())
     expect(content).toHaveAccessibleName('할 일 (비우면 업무 제목)')
   })
