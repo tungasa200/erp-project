@@ -88,7 +88,7 @@ function ResetForm({ email, times }: { email: string; times: CodeTimes }) {
         <p className={styles.lead}>
           <b className={styles.email}>{email}</b>으로 보낸 6자리 숫자를 입력하세요.
         </p>
-        {/* 주소를 잘못 쓴 사용자가 돌아갈 길(UX-AUTH-171). 로고만으로는 로그인 화면으로 가 버린다 */}
+        {/* 주소를 잘못 쓴 사용자가 돌아갈 길(UX-AUTH-171) */}
         <Link to="/password/forgot" state={{ email }} className={styles.back}>
           이메일 바꾸기
         </Link>
@@ -169,6 +169,10 @@ function ResetForm({ email, times }: { email: string; times: CodeTimes }) {
         <button type="submit" className={styles.submit} disabled={code === null} aria-disabled={busy} aria-busy={busy}>
           저장하고 다시 로그인
         </button>
+        {/* 비밀번호 찾기 화면과 같은 자리. 로고는 로그인 링크가 아니다(세 진입 화면 공통 틀, 2026-10-12) */}
+        <Link to="/login" className={styles.back}>
+          로그인으로 돌아가기
+        </Link>
       </form>
     </AuthLayout>
   )
