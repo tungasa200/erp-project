@@ -25,6 +25,7 @@
   /* 고정 색 */
   --color-surface: #ffffff;
   --color-text: #1a1c2b;
+  --color-scrim: rgba(26, 28, 43, 0.45); /* 모달·시트 뒤 덮개(먹색 45%) */
   --color-text-muted: #5e6377;
   --color-text-body: #4a4f63;
   /* 입력 안내 글(placeholder). 빠른 입력에서는 이것이 유일한 보이는 라벨이라 본문 기준 4.5:1을 맞춘다: 흰색 5.13, 바탕 4종 4.59 이상(UX-COM-09) */

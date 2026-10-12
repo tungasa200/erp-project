@@ -438,9 +438,21 @@
   cursor: pointer;
 }
 
+.comboOption::before {
+  content: '';
+  flex: none;
+  width: 16px;
+}
+
+/* 선택 표시는 면 + ✓(화면정의서 2.1). 굵기는 다른 옵션과 같다 */
 .comboOption[aria-selected='true'] {
-  font-weight: 800;
+  font-weight: 600;
+  background: var(--color-accent-soft);
   color: var(--color-accent-ink);
+}
+
+.comboOption[aria-selected='true']::before {
+  content: '✓';
 }
 
 .comboName {
@@ -457,6 +469,11 @@
 
 .comboActive {
   background: var(--color-accent-softer);
+}
+
+/* 선택 옵션에 키보드 위치가 겹치면 면은 선택 쪽을 두고 윤곽으로 위치를 보인다 */
+.comboActive[aria-selected='true'] {
+  box-shadow: inset 0 0 0 1px var(--color-accent);
 }
 
 .comboEmpty {

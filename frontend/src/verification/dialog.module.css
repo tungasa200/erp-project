@@ -7,7 +7,7 @@
   align-items: center;
   justify-content: center;
   padding: var(--space-4);
-  background: rgba(26, 28, 43, 0.45);
+  background: var(--color-scrim);
 }
 
 .dialog {
