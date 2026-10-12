@@ -163,11 +163,11 @@
   background: color-mix(in srgb, var(--color-accent) 6%, transparent);
 }
 
-/* 현재 메뉴는 키 컬러로 강조 */
+/* 현재 메뉴는 상태라 면을 진하게 칠하지 않는다: 옅은 키 컬러 바탕 + 진한 키 컬러 글자(UX-COM-140, 목업 .nav a.on, X-02 한 시야에 채움 하나) */
 .active,
 .active:hover {
-  background: var(--color-accent);
-  color: var(--color-on-accent);
+  background: var(--color-accent-soft);
+  color: var(--color-accent-ink);
   font-weight: 700;
 }
 
