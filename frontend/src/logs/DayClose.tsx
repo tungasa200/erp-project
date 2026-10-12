@@ -327,7 +327,7 @@ export function DayClose({ date, today, timeZone, quick = false, onClose }: Prop
     )
   } else if (result) {
     const c = result.log.content
-    const planName = data?.planScope === 'NEXT_WEEK' ? '다음 주 계획' : '내일 계획'
+    const planName = data?.planScope === 'NEXT_WEEK' ? '다음 주 계획' : '다음 근무일 계획'
     body = (
       <>
         {head(`${dayName} 하루를 마감했어요`, true)}

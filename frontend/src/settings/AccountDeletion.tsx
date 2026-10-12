@@ -109,7 +109,7 @@ export function AccountDeletion() {
             <li>업무와 보관한 업무·프로젝트</li>
             <li>일정과 반복 일정 전체</li>
             <li>업무 기록</li>
-            <li>하루 마감 기록(내일 계획·이슈)</li>
+            <li>하루 마감 기록(다음 근무일 계획·이슈)</li>
           </ul>
           {/* 시간은 처리방침 초안 2장 1(D-176)과 같게 둔다 */}
           <p className={styles.warningNote}>

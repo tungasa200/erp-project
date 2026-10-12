@@ -263,7 +263,7 @@ describe('하루 마감 v1.1 (SCR-LOG-03, X-05)', () => {
     await user.click(await screen.findByRole('button', { name: '다음' }))
     await user.click(await screen.findByRole('button', { name: '오늘 마감' }))
     expect(await screen.findByRole('heading', { name: '오늘 하루를 마감했어요' })).toBeInTheDocument()
-    expect(screen.getByText('확정 기록 1건 · 내일 계획 0건')).toBeInTheDocument()
+    expect(screen.getByText('확정 기록 1건 · 다음 근무일 계획 0건')).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: '마감 취소' }))
     const ask = screen.getByRole('group', { name: /마감을 취소할까요/ })

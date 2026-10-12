@@ -48,7 +48,7 @@ describe('SCR-SET-07 회원 탈퇴', () => {
         /업무 데이터는 탈퇴 후 보통 1분 안에, 늦어도 20분 안에\(서버 점검 중이었다면 다시 켜진 직후\) 모두 삭제되며/,
       ),
     ).toBeInTheDocument()
-    expect(screen.getByText('하루 마감 기록(내일 계획·이슈)')).toBeInTheDocument()
+    expect(screen.getByText('하루 마감 기록(다음 근무일 계획·이슈)')).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: '일지 목록으로 이동' })).not.toBeInTheDocument()
     expect(submit()).toBeDisabled()
     await userEvent.type(password(), 'worklog20')
