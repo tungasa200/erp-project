@@ -13,7 +13,7 @@ import {
 } from 'react'
 import { occurrenceKey, type Occurrence } from './api'
 import { colorVars, type BlockColor } from './colors'
-import { focusGroup, markFocus, occurrenceFocusId, restoreFocus } from './focus'
+import { cycleTab, focusGroup, markFocus, occurrenceFocusId, restoreFocus } from './focus'
 import { holidayName } from './holidays'
 import {
   MIN_COLUMN_PX,
@@ -34,6 +34,7 @@ import {
   dateName,
   formatMinutes,
   fromZoned,
+  minutesRange,
   toZoned,
   weekdayIndex,
 } from './time'
@@ -117,7 +118,7 @@ function blockStyle(color: BlockColor | null, top: number, height: number, colum
 function timeLabel(o: Occurrence, timeZone: string) {
   const s = toZoned(o.startAt!, timeZone)
   const e = toZoned(o.endAt!, timeZone)
-  return `${formatMinutes(s.minutes)}–${formatMinutes(e.minutes)}`
+  return minutesRange(s.minutes, e.minutes)
 }
 
 export function TimeGrid(props: Props) {
@@ -605,7 +606,7 @@ export function TimeGrid(props: Props) {
                   data-rest={wd === 0 || wd === 6 || !!holidayName(date) || undefined}
                   {...(overview && {
                     type: 'button' as const,
-                    'aria-label': `${Number(date.slice(5, 7))}월 ${Number(date.slice(8))}일 ${WEEKDAY_LABELS[wd]}요일, 일정 ${count}개`,
+                    'aria-label': `${dateName(date)}, 일정 ${count}개`,
                     onClick: () => props.onOpenDay?.(date),
                   })}
                 >
@@ -646,9 +647,7 @@ export function TimeGrid(props: Props) {
                       )}
                     >
                       <strong>(제목 없음)</strong>
-                      <span>
-                        {formatMinutes(preview.start)}–{formatMinutes(preview.end)}
-                      </span>
+                      <span>{minutesRange(preview.start, preview.end)}</span>
                     </div>
                   )}
                   {date === nowZoned.date && (
@@ -758,6 +757,7 @@ function MorePopover({
             onClose()
             return
           }
+          cycleTab(e, ref.current)
           if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
           e.preventDefault()
           const items = Array.from(ref.current!.querySelectorAll<HTMLElement>('button'))
@@ -848,8 +848,8 @@ function Block({
       data-held={held || undefined}
       style={blockStyle(color, top, height, segment.column, segment.columns)}
       onClick={(e) => (e.detail === 0 || readOnly) && onOpen(o)}
-      // 점선 블록은 "아직 실제가 아닌 것"이라 낭독기에도 계획이라고 알린다(X-11, CAL-93)
-      aria-label={`계획 · ${o.title}, ${timeLabel(o, timeZone)}${o.recurring ? ', 반복' : ''}`}
+      // 낭독 접두는 테두리와 같다: 점선은 계획, 실선(지금 진행 중)은 진행 중(X-11, CAL-93, UX-CAL-144)
+      aria-label={`${active ? '진행 중' : '계획'} · ${o.title}, ${timeLabel(o, timeZone)}${o.recurring ? ', 반복' : ''}`}
     >
       {content}
       {height >= 34 && <span className={styles.blockTime}>{timeLabel(o, timeZone)}</span>}
@@ -883,9 +883,7 @@ function MoveGhost({
       aria-hidden="true"
     >
       <strong>{seg.occurrence.title}</strong>
-      <span>
-        {formatMinutes(start)}–{formatMinutes(end)}
-      </span>
+      <span>{minutesRange(start, end)}</span>
     </div>
   )
 }

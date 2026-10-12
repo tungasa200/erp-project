@@ -17,7 +17,8 @@ import { useTimeTracking } from '../settings/useWorklogSettings'
 import { TASKS_QUERY_KEY } from '../tasks/api'
 import { useTimerLauncher } from '../timer/useTimerLauncher'
 import { occurrenceFocusId } from './focus'
-import { Modal } from './Modal'
+import { longDate } from '../format/datetime'
+import { Modal, ModalCloseButton } from './Modal'
 import { RecordStatusTag } from './RecordStatusTag'
 import { plannedOf, recordOf, recordTimeText, useRecordsOnDate } from './recordStatus'
 import recordStyles from './records.module.css'
@@ -40,9 +41,9 @@ import {
   WEEKDAY_LABELS,
   addDays,
   diffDays,
-  formatDateLong,
   formatMinutes,
   fromZoned,
+  minutesRange,
   toZoned,
   todayIn,
   weekdayIndex,
@@ -148,13 +149,13 @@ function formFromOccurrence(o: Occurrence, schedule: Schedule | undefined, timeZ
 /** 오프라인 요약의 일시: 캘린더 목록의 회차 값만으로 만든다 */
 function occurrenceWhen(o: Occurrence, timeZone: string): string {
   if (o.allDay) {
-    const end = o.endDate && o.endDate !== o.startDate ? ` ~ ${formatDateLong(o.endDate)}` : ''
-    return `${formatDateLong(o.startDate!)}${end} · 종일`
+    const end = o.endDate && o.endDate !== o.startDate ? ` ~ ${longDate(o.endDate)}` : ''
+    return `${longDate(o.startDate!)}${end} · 종일`
   }
   const s = toZoned(o.startAt!, timeZone)
   const e = toZoned(o.endAt!, timeZone)
-  const endDay = e.date === s.date ? '' : e.date === addDays(s.date, 1) ? '다음 날 ' : `${formatDateLong(e.date)} `
-  return `${formatDateLong(s.date)} ${formatMinutes(s.minutes)}~${endDay}${formatMinutes(e.minutes)}`
+  const endDay = e.date === s.date ? '' : e.date === addDays(s.date, 1) ? '다음 날 ' : `${longDate(e.date)} `
+  return `${longDate(s.date)} ${minutesRange(s.minutes, endDay + formatMinutes(e.minutes))}`
 }
 
 function recurrenceOf(f: Form): Recurrence | null {
@@ -421,9 +422,7 @@ export function ScheduleDialog({ timeZone, draft, occurrence, askScope, onDelete
     <Modal labelledBy={`${id}-title`} onClose={onClose} dirty={dirty && !saving}>
       <div className={styles.dialogHead}>
         <h2 id={`${id}-title`}>{title}</h2>
-        <button type="button" ref={closeRef} className={styles.close} aria-label="닫기" onClick={onClose}>
-          ×
-        </button>
+        <ModalCloseButton buttonRef={closeRef} onClose={onClose} />
       </div>
       {conflict && (
         <div className={styles.conflict} role="alert">

@@ -1,7 +1,7 @@
 // 캘린더의 모달 틀: 바깥 누르기·Esc로 닫고, 열 때 첫 입력에 포커스, 닫으면 원래 자리로 포커스를 돌린다.
 // 열린 동안 Tab은 창 안을 돌고, 창 밖(사이드바·본문)은 inert로 막는다(TC-P3-prod-ONB01-focus).
-// 고친 내용이 있으면(dirty) Esc·바깥 누르기는 바로 닫지 않고 창 안 한 줄로 한 번 묻는다(X-04 대화창 안 D, CAL-89).
-import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
+// 고친 내용이 있으면(dirty) Esc·바깥 누르기·머리 [×](ModalCloseButton)는 바로 닫지 않고 창 안 한 줄로 한 번 묻는다(X-04 대화창 안 D, CAL-89).
+import { createContext, useContext, useEffect, useId, useRef, useState, type ReactNode, type Ref } from 'react'
 import { markFocus, restoreFocus } from './focus'
 import styles from './calendar.module.css'
 
@@ -36,6 +36,18 @@ function inertOutside(dialog: HTMLElement) {
     }
   }
   return () => changed.forEach((el) => el.removeAttribute('inert'))
+}
+
+const RequestClose = createContext<(() => void) | null>(null)
+
+/** 머리의 닫기(×). Esc·바깥 누르기와 같은 dirty 확인을 거친다(UX-CAL-140, X-04 규칙 1). Modal 밖이면 onClose */
+export function ModalCloseButton({ onClose, buttonRef }: { onClose: () => void; buttonRef?: Ref<HTMLButtonElement> }) {
+  const requestClose = useContext(RequestClose) ?? onClose
+  return (
+    <button type="button" ref={buttonRef} className={styles.close} aria-label="닫기" onClick={requestClose}>
+      ×
+    </button>
+  )
 }
 
 interface Props {
@@ -149,7 +161,7 @@ export function Modal({ labelledBy, onClose, narrow, sheet, role = 'dialog', dir
             </button>
           </div>
         )}
-        {children}
+        <RequestClose.Provider value={requestClose}>{children}</RequestClose.Provider>
       </div>
     </div>
   )

@@ -16,8 +16,8 @@ import { refreshTasks, taskApi } from '../tasks/api'
 import { NeedsProjectError, saveQuickDraft } from '../tasks/quickSave'
 import { useCreateSchedule, type ScheduleCreate } from './api'
 import { parseForSchedule } from './scheduleParse'
-import { markFocus, restoreFocus } from './focus'
-import { MINUTES_PER_DAY, WEEKDAY_LABELS, formatMinutes, fromZoned, todayIn, weekdayIndex } from './time'
+import { cycleTab, markFocus, restoreFocus } from './focus'
+import { MINUTES_PER_DAY, fromZoned, minutesRange, todayIn } from './time'
 import styles from './calendar.module.css'
 
 /** 빠른 생성의 대상. allDay면 start·end는 쓰지 않는다 */
@@ -51,10 +51,9 @@ const toMinutes = (hhmm: string) => {
   return Math.min(MINUTES_PER_DAY, h * 60 + m)
 }
 
-function targetLabel(t: CreateTarget) {
-  const [, m, d] = t.date.split('-').map(Number)
-  const day = `${m}월 ${d}일 (${WEEKDAY_LABELS[weekdayIndex(t.date)]})`
-  return t.allDay ? `${day} 종일` : `${day} ${formatMinutes(t.start)}–${formatMinutes(t.end)}`
+function targetLabel(t: CreateTarget, today: string) {
+  const day = shortDate(t.date, today)
+  return t.allDay ? `${day} 종일` : `${day} ${minutesRange(t.start, t.end)}`
 }
 
 export function QuickCreate({ target, timeZone, anchor, onClose, onDetails }: Props) {
@@ -220,7 +219,7 @@ export function QuickCreate({ target, timeZone, anchor, onClose, onDetails }: Pr
           if (e.key === 'Escape') {
             e.stopPropagation()
             onClose()
-          }
+          } else cycleTab(e, e.currentTarget)
         }}
         onSubmit={(e) => {
           e.preventDefault()
@@ -234,9 +233,9 @@ export function QuickCreate({ target, timeZone, anchor, onClose, onDetails }: Pr
           type="button"
           className={styles.timeChip}
           onClick={toDetails}
-          aria-label={`${targetLabel(draft)}, 시간 바꾸기`}
+          aria-label={`${targetLabel(draft, today)}, 시간 바꾸기`}
         >
-          {targetLabel(draft)} ▾
+          {targetLabel(draft, today)} ▾
         </button>
         <label className={styles.field}>
           <span style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>

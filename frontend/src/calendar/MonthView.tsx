@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react'
 import { occurrenceKey, type Occurrence } from './api'
 import { colorVars, type BlockColor } from './colors'
-import { focusGroup, markFocus, occurrenceFocusId, restoreFocus } from './focus'
+import { cycleTab, focusGroup, markFocus, occurrenceFocusId, restoreFocus } from './focus'
 import { holidayName } from './holidays'
 import { occurrencesByDate } from './layout'
 import { RepeatIcon } from './TimeGrid'
@@ -157,7 +157,7 @@ export function MonthView({
                   data-today={date === today || undefined}
                   data-holiday={!!holiday || undefined}
                   data-rest={wd === 0 || wd === 6 || !!holiday || undefined}
-                  aria-label={`${Number(date.slice(5, 7))}월 ${Number(date.slice(8))}일 ${WEEKDAY_LABELS[wd]}요일${holiday ? ` ${holiday}` : ''}, 일정 ${list.length}개`}
+                  aria-label={`${dateName(date)}${holiday ? ` ${holiday}` : ''}, 일정 ${list.length}개`}
                   onClick={() => props.onOpenDay(date)}
                 >
                   <span className={styles.dateNumber}>{Number(date.slice(8))}</span>
@@ -238,6 +238,7 @@ export function MonthView({
           <div
             role="dialog"
             data-day-popover
+            onKeyDown={(e) => cycleTab(e, e.currentTarget)}
             aria-label={`${dateName(popover.date)} 일정`}
             className={styles.dayPopover}
             style={{

@@ -230,10 +230,13 @@
   overflow: hidden;
 }
 
-/* 머리 아래 [하루 마감]: 글자 링크 모양, 누르는 높이는 24px(D-76) */
+/* 머리 아래 [하루 마감]: 글자 링크 모양. 보이는 높이 24px, 누르는 높이는 ::after로 44px(UX-CAL-143).
+   위는 머리 제목(누르는 것 아님) 쪽, 아래는 기록 목록과 겹치지 않게 아래 여백 2px(간격 8 + 2 = 위아래 10) */
 .dayCloseLink {
+  position: relative;
   align-self: flex-start;
   min-height: 24px;
+  margin-block-end: 2px;
   padding: 0;
   border: 0;
   background: none;
@@ -244,6 +247,12 @@
   text-decoration: underline;
   text-underline-offset: 3px;
   cursor: pointer;
+}
+
+.dayCloseLink::after {
+  content: '';
+  position: absolute;
+  inset: -10px 0;
 }
 
 .dayRecordsNote {

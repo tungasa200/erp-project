@@ -329,7 +329,7 @@ describe('일정 상세 — ⑥ 기록 상태 (SCR-CAL-07)', () => {
     const { user } = setup(o, { records: [linked(o, { startAt, endAt })] })
     await openDialog(user)
     expect(await screen.findByText('했어요')).toBeInTheDocument()
-    const time = `${formatMinutes(toZoned(startAt, TZ).minutes)}–${toZoned(endAt, TZ).date === toZoned(startAt, TZ).date ? '' : '다음 날 '}${formatMinutes(toZoned(endAt, TZ).minutes)}`
+    const time = `${formatMinutes(toZoned(startAt, TZ).minutes)} – ${toZoned(endAt, TZ).date === toZoned(startAt, TZ).date ? '' : '다음 날 '}${formatMinutes(toZoned(endAt, TZ).minutes)}`
     expect(screen.getByText(time)).toBeInTheDocument()
   })
 
@@ -413,6 +413,17 @@ describe('일정 상세 — 고친 내용이 있으면 닫기 전에 묻는다 (
     await openAndType(user)
     await user.keyboard('{Escape}')
     await user.click(screen.getByRole('button', { name: '버리고 닫기' }))
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('고쳤으면 머리 [×]도 Esc처럼 묻는다(UX-CAL-140)', async () => {
+    const { onClose, user } = setup(occurrence())
+    await openAndType(user)
+    await user.click(screen.getByRole('button', { name: '닫기' }))
+    expect(onClose).not.toHaveBeenCalled()
+    const ask = screen.getByRole('group', { name: '고친 내용이 있어요. 버리고 닫을까요?' })
+    expect(within(ask).getByRole('button', { name: '계속 편집' })).toHaveFocus()
+    await user.click(within(ask).getByRole('button', { name: '버리고 닫기' }))
     expect(onClose).toHaveBeenCalledTimes(1)
   })
 

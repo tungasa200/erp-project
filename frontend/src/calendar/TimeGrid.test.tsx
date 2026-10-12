@@ -651,6 +651,11 @@ describe('겹침 상한 "+n" (CAL-70, X-07 A)', () => {
     fireEvent.keyDown(items[1], { key: 'ArrowUp' })
     fireEvent.keyDown(items[0], { key: 'ArrowUp' })
     expect(items[2]).toHaveFocus()
+    // Tab은 팝오버 안을 돈다(UX-CAL-141)
+    fireEvent.keyDown(items[2], { key: 'Tab' })
+    expect(items[0]).toHaveFocus()
+    fireEvent.keyDown(items[0], { key: 'Tab', shiftKey: true })
+    expect(items[2]).toHaveFocus()
 
     fireEvent.keyDown(items[2], { key: 'Escape' })
     expect(screen.queryByRole('dialog')).toBeNull()

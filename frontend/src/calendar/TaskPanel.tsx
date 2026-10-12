@@ -5,7 +5,8 @@ import { Skeleton } from '../components/Skeleton'
 import type { Project } from '../projects/api'
 import type { Task } from '../tasks/api'
 import { TASK_DRAG_TYPE } from './TimeGrid'
-import { WEEKDAY_LABELS, diffDays, weekdayIndex } from './time'
+import { shortDate } from '../format/datetime'
+import { diffDays } from './time'
 import styles from './calendar.module.css'
 import panel from './taskPanel.module.css'
 
@@ -36,7 +37,7 @@ function dueLabel(due: string, today: string) {
   if (days === -1) return '어제 마감'
   if (days < 0) return `${-days}일 지남`
   if (days === 1) return '내일 마감'
-  return `${Number(due.slice(5, 7))}/${Number(due.slice(8))} ${WEEKDAY_LABELS[weekdayIndex(due)]}`
+  return shortDate(due, today)
 }
 
 export function TaskPanel({

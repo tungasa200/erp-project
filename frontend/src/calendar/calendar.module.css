@@ -255,7 +255,7 @@
 }
 
 .dayHeadButton[data-holiday] {
-  color: var(--color-danger);
+  color: var(--color-holiday);
 }
 
 .dayHeadButton[data-today] {
@@ -278,7 +278,7 @@
   margin: var(--space-1) 2px 0;
   font-size: var(--text-xs);
   font-weight: var(--weight-strong);
-  color: var(--color-danger);
+  color: var(--color-holiday);
   background: var(--color-danger-soft);
   border-radius: var(--radius-sm);
   padding: 3px 0;
@@ -461,6 +461,7 @@ button.column {
 
 .blockTitle {
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   gap: 3px;
   font-weight: var(--weight-strong);
@@ -469,9 +470,13 @@ button.column {
   text-overflow: ellipsis;
 }
 
+/* 좁은 블록에서 시각이 줄바꿈되며 제목을 누르지 않게 한 줄로 자른다(UX-CAL-142). 제목이 먼저다 */
 .blockTime {
   font-weight: var(--weight-title);
   opacity: 0.92;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* 24px 미만이지만 상세 모달의 시작·종료 칸이 같은 일을 하는 동등 컨트롤이라 예외(WCAG 2.5.8, D-76) */
@@ -611,7 +616,7 @@ button.column {
 }
 
 .monthCell[data-holiday] .dateNumber {
-  color: var(--color-danger);
+  color: var(--color-holiday);
 }
 
 .monthCell[data-today] .dateNumber {
@@ -622,7 +627,7 @@ button.column {
 .cellHoliday {
   font-size: var(--text-xs);
   font-weight: var(--weight-strong);
-  color: var(--color-danger);
+  color: var(--color-holiday);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -919,7 +924,7 @@ button.moreBlock::after {
 }
 
 .yearDay[data-holiday] > span:first-child {
-  color: var(--color-danger);
+  color: var(--color-holiday);
 }
 
 .yearDay[data-today] > span:first-child {
@@ -966,7 +971,7 @@ button.moreBlock::after {
 }
 
 .listDate[data-holiday] {
-  color: var(--color-danger);
+  color: var(--color-holiday);
 }
 
 .listDateNumber {
@@ -1112,7 +1117,7 @@ button.moreBlock::after {
 }
 
 .miniDay[data-holiday] {
-  color: var(--color-danger);
+  color: var(--color-holiday);
 }
 
 .miniDay[data-today] {
