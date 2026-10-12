@@ -281,7 +281,7 @@ function ThemeForm({ user, save }: { user: Me; save: ReturnType<typeof useProfil
               <div className={`${theme.pvBlock} ${theme.pvPlanned}`}>견적서 작성 · 예정</div>
             </div>
             <div className={theme.pvLog}>
-              <span>오늘 업무일지</span>
+              <span>오늘 기록</span>
               <span className={theme.pvClose}>하루 마감</span>
             </div>
           </div>

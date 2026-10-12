@@ -1,6 +1,6 @@
 // SCR-HOME-01 홈 대시보드 (P1-11): ② 요약 카드 · ④ 남은 업무 · ⑥ 다가오는 일정.
 // 확인 대기(P2-03): 요약 카드와 2건 이상일 때 띠, 누르면 SCR-HOME-02 패널. ③ 오늘 일정(P2-08)은 TodayTimeline.
-// ⑤ 오늘 일지·⑦ 이번 주 일지(P3-04)는 오른쪽 열에 ⑥ 다가오는 일정과 함께 쌓는다(⑤ ⑥ ⑦ 순).
+// ⑤ 오늘 마감·⑦ 이번 주 마감(P3-04, 업무일지 숨김 2026-10-12로 이름만 바뀜)은 오른쪽 열에 ⑥ 다가오는 일정과 함께 쌓는다(⑤ ⑥ ⑦ 순).
 // 다가오는 일정은 내일부터 7일 뒤까지 보여 준다(UX-HOME-10, 오늘은 ③에서만).
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link } from 'react-router'
@@ -179,7 +179,7 @@ export function HomeDashboard({ empty }: { empty: ReactNode }) {
         )}
         <div className={styles.stack}>
           {/* 마감 띠가 떠 있으면 카드의 [하루 마감]은 숨긴다(띠와 중복) */}
-          <TodayLogCard today={today} timeZone={timeZone} hideClose={band === 'open'} hideView={band === 'done'} />
+          <TodayLogCard today={today} timeZone={timeZone} hideClose={band === 'open'} />
           <Upcoming
             days={days}
             byDate={byDate}

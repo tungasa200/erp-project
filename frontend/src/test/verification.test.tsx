@@ -1,4 +1,4 @@
-import { act, screen, waitFor, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../api/problem'
@@ -171,8 +171,9 @@ describe('SCR-AUTH-04·05 비밀번호 찾기·재설정', () => {
   })
 })
 
-describe('SCR-COM-07 미인증 배너 · SCR-AUTH-08 이메일 인증', () => {
-  function setup(options: { verified?: boolean } = {}) {
+// 미인증 배너(SCR-COM-07)는 업무일지 숨김(2026-10-12, 문안 표 4-12)으로 앱에서 뺐다. 인증 창은 설정 › 계정의 [인증하기]로 연다
+describe('SCR-COM-07 미인증 배너 숨김 · SCR-AUTH-08 이메일 인증', () => {
+  function setup(options: { verified?: boolean; path?: string } = {}) {
     let me = { ...ME, emailVerified: options.verified ?? false }
     const fetchMock = stubFetch({
       'GET /api/users/me': () => json(200, me),
@@ -185,42 +186,17 @@ describe('SCR-COM-07 미인증 배너 · SCR-AUTH-08 이메일 인증', () => {
         return json(200, me)
       },
     })
-    renderApp('/')
+    renderApp(options.path ?? '/settings/account')
     return { fetchMock }
   }
 
-  it('COM-20 배너는 홈·업무일지에서만 보이고 설정 등 다른 화면에서는 숨긴다', async () => {
-    stubFetch({
-      'GET /api/users/me': () => json(200, { ...ME, emailVerified: false }),
-      'GET /api/worklog/logs/periods': () => json(200, { items: [] }),
-    })
-    const { router } = renderApp('/settings/general')
-    await screen.findByRole('heading', { name: '일반' })
-    expect(screen.queryByRole('region', { name: '이메일 인증 안내' })).not.toBeInTheDocument()
-    await act(() => router.navigate('/logs'))
-    const banner = await screen.findByRole('region', { name: '이메일 인증 안내' })
-    // 좁은 폭(360~767)용 짧은 문구도 함께 있고 CSS가 하나만 보인다
-    expect(banner).toHaveTextContent('인증하면 일지를 내보낼 수 있어요')
-  })
-
-  it('인증한 사용자에게는 배너가 없다', async () => {
-    setup({ verified: true })
+  it('미인증이어도 홈·설정 어디에도 배너가 없다', async () => {
+    setup({ path: '/' })
     await screen.findByRole('textbox', { name: '빠른 기록' })
     expect(screen.queryByRole('region', { name: '이메일 인증 안내' })).not.toBeInTheDocument()
   })
 
-  it('닫으면 이번 로그인 동안 숨긴다', async () => {
-    setup()
-    const banner = await screen.findByRole('region', { name: '이메일 인증 안내' })
-    expect(banner).toHaveTextContent('demo@example.com 인증을 마치면 일지를 내보낼 수 있어요')
-    await userEvent.click(within(banner).getByRole('button', { name: '이번 로그인 동안 숨기기' }))
-    expect(screen.queryByRole('region', { name: '이메일 인증 안내' })).not.toBeInTheDocument()
-    expect(sessionStorage.getItem('worklog.unverifiedBanner.hiddenFor')).toBe(ME.id)
-    // 배너가 사라지면 포커스를 화면 제목으로 옮긴다(BODY로 빠지지 않게)
-    expect(screen.getByRole('heading', { level: 1 })).toHaveFocus()
-  })
-
-  it('인증하기 → 코드를 맞히면 모달과 배너가 사라지고 토스트로 알린다', async () => {
+  it('인증하기 → 코드를 맞히면 모달이 닫히고 토스트로 알린다', async () => {
     setup()
     await userEvent.click(await screen.findByRole('button', { name: '인증하기' }))
     const dialog = await screen.findByRole('dialog', { name: '이메일 인증' })
@@ -236,7 +212,6 @@ describe('SCR-COM-07 미인증 배너 · SCR-AUTH-08 이메일 인증', () => {
     await userEvent.type(code, '123456')
     expect(await screen.findByText('이메일 인증을 마쳤어요')).toBeInTheDocument()
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    expect(screen.queryByRole('region', { name: '이메일 인증 안내' })).not.toBeInTheDocument()
   })
 
   it('Esc로 모달을 닫으면 인증하기 버튼으로 포커스가 돌아온다', async () => {

@@ -2,7 +2,7 @@
 import { screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { WorkLog } from '../logs/api'
-import { json, ME, renderApp, stubFetch } from './renderApp'
+import { json, ME, renderApp, routesWithHidden, stubFetch } from './renderApp'
 
 // 서울 2026-10-07(수) 12:00
 beforeEach(() => {
@@ -96,7 +96,7 @@ describe('주간·월간 일지 문서 (SCR-LOG-02, P3-07)', () => {
           }),
         ),
     })
-    renderApp('/logs/weekly/2026-10-05')
+    renderApp('/logs/weekly/2026-10-05', routesWithHidden)
 
     const heading = await screen.findByRole('heading', { name: '포함된 날' })
     const table = within(heading.closest('section')!).getByRole('table')
@@ -122,7 +122,7 @@ describe('주간·월간 일지 문서 (SCR-LOG-02, P3-07)', () => {
       'GET /api/worklog/logs/weekly/2026-10-05': () =>
         json(200, periodLog('WEEKLY', '2026-10-05', '2026-10-11', { days })),
     })
-    renderApp('/logs/weekly/2026-10-05')
+    renderApp('/logs/weekly/2026-10-05', routesWithHidden)
 
     await screen.findByRole('heading', { name: '포함된 날' })
     expect(screen.queryByText(/원본 기록 = /)).not.toBeInTheDocument()
@@ -150,7 +150,7 @@ describe('주간·월간 일지 문서 (SCR-LOG-02, P3-07)', () => {
           }),
         ),
     })
-    renderApp('/logs/monthly/2026-10')
+    renderApp('/logs/monthly/2026-10', routesWithHidden)
 
     expect(await screen.findByText(/확정 일간 2일 · 원본 기록 1일 ·\s*휴일 1일/)).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: '포함된 날' })).not.toBeInTheDocument()
@@ -184,7 +184,7 @@ describe('소요시간 표 (SCR-LOG-02, 카드 20261008-1910)', () => {
       'GET /api/users/me': () => json(200, ME),
       'GET /api/worklog/logs/weekly/2026-10-05': () => json(200, log),
     })
-    renderApp('/logs/weekly/2026-10-05')
+    renderApp('/logs/weekly/2026-10-05', routesWithHidden)
 
     const heading = await screen.findByRole('heading', { name: '소요시간' })
     const table = within(heading.closest('section')!).getByRole('table')

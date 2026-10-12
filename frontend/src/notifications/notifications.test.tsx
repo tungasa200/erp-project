@@ -72,6 +72,7 @@ function setup(
       return json(200, { items, unreadCount, nextCursor: null })
     },
     'POST /api/worklog/notifications/n-close/read': () => new Response(null, { status: 204 }),
+    'POST /api/worklog/notifications/n-week/read': () => new Response(null, { status: 204 }),
     'POST /api/worklog/notifications/read-all': () => {
       items = items.map((x) => ({ ...x, readAt: x.readAt ?? '2026-10-10T00:00:00Z' }))
       return new Response(null, { status: 204 })
@@ -82,7 +83,6 @@ function setup(
     { path: '/notifications', element: <NotificationsPage /> },
     { path: '/bell', element: <NotificationBell /> },
     { path: '/settings/notifications', element: <NotificationSettings /> },
-    { path: '/logs/:type/:date', element: <h1>일지 화면</h1> },
     { path: '/', element: <h1>홈</h1> },
   ])
   return { fetchMock, ...result }
@@ -103,8 +103,8 @@ describe('SCR-COM-05 알림 글자·경로', () => {
     )
   })
 
-  it('하루 마감은 그날 일지에서 마감 창을, 제안은 그 일지로', () => {
-    expect(notificationHref(ITEMS[0])).toBe('/logs/daily/2026-10-09?close=1')
+  it('하루 마감은 홈에서 그날 마감 창을 연다(업무일지 숨김). 제안은 일지 경로라 홈으로 돌아간다', () => {
+    expect(notificationHref(ITEMS[0])).toBe('/?close=2026-10-09')
     expect(notificationHref(ITEMS[1])).toBe('/logs/weekly/2026-10-05')
     expect(notificationHref(ITEMS[2])).toBe('/logs/monthly/2026-09')
   })
@@ -119,24 +119,34 @@ describe('SCR-COM-05 알림 글자·경로', () => {
 })
 
 describe('SCR-COM-05 알림 센터', () => {
-  it('최신순 목록, 안 읽은 항목은 읽지 않음으로 읽힌다', async () => {
+  it('안 읽은 항목은 읽지 않음으로 읽힌다', async () => {
     setup()
     const list = await screen.findByRole('list', { name: '알림 목록' })
     const links = within(list).getAllByRole('link')
-    expect(links).toHaveLength(3)
+    expect(links).toHaveLength(1)
     expect(links[0]).toHaveAccessibleName(/^읽지 않음,\s*하루 마감 시간이에요 .*확인 대기 3건/)
-    expect(links[1]).toHaveTextContent('주간 일지를 만들 차례예요')
-    expect(links[2]).toHaveTextContent('9월 월간 일지를 만들 수 있어요')
-    expect(links[2]).not.toHaveAccessibleName(/읽지 않음/)
+  })
+
+  it('업무일지 숨김(문안 표 4-4): 주간·월간 제안은 목록에 없고, 안 읽은 제안은 읽음으로 돌려 안 읽은 수에서 뺀다', async () => {
+    const { fetchMock } = setup()
+    await screen.findByRole('list', { name: '알림 목록' })
+    expect(screen.queryByText(/일지/)).not.toBeInTheDocument()
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/worklog/notifications/n-week/read',
+        expect.objectContaining({ method: 'POST' }),
+      ),
+    )
+    expect(fetchMock).not.toHaveBeenCalledWith('/api/worklog/notifications/n-month/read', expect.anything())
   })
 
   it('항목을 누르면 읽음 처리하고 그 화면으로 간다', async () => {
     const { fetchMock, router } = setup()
     const user = userEvent.setup()
     await user.click(await screen.findByRole('link', { name: /하루 마감 시간이에요/ }))
-    expect(await screen.findByRole('heading', { name: '일지 화면' })).toBeInTheDocument()
-    expect(router.state.location.pathname).toBe('/logs/daily/2026-10-09')
-    expect(router.state.location.search).toBe('?close=1')
+    expect(await screen.findByRole('heading', { name: '홈' })).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe('/')
+    expect(router.state.location.search).toBe('?close=2026-10-09')
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/worklog/notifications/n-close/read',
       expect.objectContaining({ method: 'POST' }),
@@ -169,7 +179,7 @@ describe('SCR-COM-05 알림 센터', () => {
 
   it('비었고 알림이 켜져 있으면 안내만', async () => {
     setup({ items: [] })
-    expect(await screen.findByText('하루 마감과 일지 알림이 여기에 모여요')).toBeInTheDocument()
+    expect(await screen.findByText('하루 마감 알림이 여기에 모여요')).toBeInTheDocument()
     expect(screen.getByText('새 알림이 없어요')).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: '하루 마감 알림 켜기' })).not.toBeInTheDocument()
   })
@@ -186,19 +196,20 @@ describe('SCR-COM-05 알림 센터', () => {
 describe('SCR-COM-05 ② 종 버튼', () => {
   it('안 읽은 수를 읽어 주고 9가 넘으면 9+', async () => {
     setup({ path: '/bell', unreadCount: 12 })
-    const bell = await screen.findByRole('button', { name: '알림, 안 읽음 12개' })
+    // 서버 수 12에서 숨긴 안 읽은 제안 1건을 뺀다
+    const bell = await screen.findByRole('button', { name: '알림, 안 읽음 11개' })
     expect(bell).toHaveTextContent('9+')
   })
 
   it('데스크톱 팝오버: 열면 대화상자로 포커스, Esc로 닫고 종으로 돌아온다', async () => {
     setup({ path: '/bell' })
     const user = userEvent.setup()
-    const bell = await screen.findByRole('button', { name: '알림, 안 읽음 2개' })
+    const bell = await screen.findByRole('button', { name: '알림, 안 읽음 1개' })
     await user.click(bell)
     const dialog = screen.getByRole('dialog', { name: '알림' })
     expect(bell).toHaveAttribute('aria-expanded', 'true')
     expect(dialog).toHaveFocus()
-    expect(await within(dialog).findAllByRole('link', { name: /일지|마감/ })).toHaveLength(3)
+    expect(await within(dialog).findAllByRole('link', { name: /마감/ })).toHaveLength(1)
     await user.keyboard('{Escape}')
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(bell).toHaveFocus()
@@ -207,7 +218,7 @@ describe('SCR-COM-05 ② 종 버튼', () => {
   it('키보드: Enter로 열고, Shift+Tab으로 종에 돌아와도 Esc로 닫힌다', async () => {
     setup({ path: '/bell' })
     const user = userEvent.setup()
-    const bell = await screen.findByRole('button', { name: '알림, 안 읽음 2개' })
+    const bell = await screen.findByRole('button', { name: '알림, 안 읽음 1개' })
     bell.focus()
     await user.keyboard('{Enter}')
     expect(screen.getByRole('dialog', { name: '알림' })).toHaveFocus()
@@ -224,7 +235,7 @@ describe('SCR-COM-05 ② 종 버튼', () => {
     const user = userEvent.setup()
     await user.click(await screen.findByRole('button', { name: /^알림/ }))
     await user.click(await screen.findByRole('link', { name: /하루 마감 시간이에요/ }))
-    expect(await screen.findByRole('heading', { name: '일지 화면' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: '홈' })).toBeInTheDocument()
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 })

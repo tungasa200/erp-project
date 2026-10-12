@@ -46,7 +46,8 @@ describe('SCR-SET-06 계정', () => {
     const section = within((await screen.findByRole('heading', { name: '계정' })).closest('section')!)
     expect(screen.getByRole('link', { name: /계정/ })).toHaveAttribute('aria-current', 'page')
     expect(section.getByText('demo@example.com')).toBeInTheDocument()
-    expect(section.getByText(/이메일 미인증/)).toBeInTheDocument()
+    // 미인증 안내 줄은 숨김(업무일지 숨김, 문안 표 4-9). [인증하기]는 남는다
+    expect(section.queryByText(/이메일 미인증/)).not.toBeInTheDocument()
     expect(section.getByRole('button', { name: '인증하기' })).toBeInTheDocument()
   })
 

@@ -248,10 +248,12 @@ describe('SCR-MOB-01 빠른 기록 바텀시트 (P4-03)', () => {
 })
 
 describe('SCR-COM-01 ⑤ 하단 탭 아이콘·더보기 (P4-03)', () => {
-  it('더보기는 업무·통계·보관함·설정을 담는다', async () => {
+  it('하단 탭은 일지 자리에 업무(업무일지 숨김), 더보기는 통계·보관함·설정을 담는다', async () => {
     stubFetch({ 'GET /api/users/me': () => json(200, ME) })
     renderApp('/')
     const tabs = await screen.findByRole('navigation', { name: '하단 탭' })
+    expect(within(tabs).getByRole('link', { name: '업무' })).toHaveAttribute('href', '/tasks')
+    expect(within(tabs).queryByRole('link', { name: '일지' })).not.toBeInTheDocument()
     await userEvent.click(within(tabs).getByRole('button', { name: '더보기' }))
     const menu = within(tabs).getByRole('list', { name: '더보기 메뉴' })
     expect(
@@ -259,7 +261,6 @@ describe('SCR-COM-01 ⑤ 하단 탭 아이콘·더보기 (P4-03)', () => {
         .getAllByRole('link')
         .map((a) => [a.textContent, a.getAttribute('href')]),
     ).toEqual([
-      ['업무', '/tasks'],
       ['통계', '/stats'],
       ['보관함', '/tasks/archive'],
       ['설정', '/settings'],

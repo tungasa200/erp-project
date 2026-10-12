@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { json, ME, problem, renderApp, stubFetch } from './renderApp'
+import { json, ME, problem, renderApp, routesWithHidden, stubFetch } from './renderApp'
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -41,26 +41,35 @@ function fakeServer(options: { patch?: PatchHook } = {}) {
 }
 
 describe('설정 화면 틀', () => {
-  it('/settings는 데스크톱에서 프로필 탭을 바로 연다', async () => {
+  it('/settings는 데스크톱에서 일반 탭을 바로 연다(프로필 탭은 업무일지 숨김으로 없음)', async () => {
     fakeServer()
     const { router } = renderApp('/settings')
-    expect(await screen.findByRole('heading', { name: '프로필' })).toBeInTheDocument()
-    expect(router.state.location.pathname).toBe('/settings/profile')
-    expect(within(screen.getByRole('navigation', { name: '설정 메뉴' })).getAllByRole('link')).toHaveLength(7)
+    expect(await screen.findByRole('heading', { name: '일반' })).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe('/settings/general')
+    const tabs = within(screen.getByRole('navigation', { name: '설정 메뉴' })).getAllByRole('link')
+    expect(tabs).toHaveLength(6)
+    expect(tabs.map((t) => t.textContent)).not.toContain('프로필›')
   })
 
-  it('사이드바 프로필 영역을 누르면 프로필 설정으로 간다', async () => {
+  it('예전 프로필 주소는 일반 탭으로 보낸다', async () => {
+    fakeServer()
+    const { router } = renderApp('/settings/profile')
+    expect(await screen.findByRole('heading', { name: '일반' })).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe('/settings/general')
+  })
+
+  it('사이드바 프로필 영역을 누르면 계정 설정으로 간다', async () => {
     fakeServer()
     const { router } = renderApp('/')
-    await userEvent.click(await screen.findByTitle('프로필 설정'))
-    expect(router.state.location.pathname).toBe('/settings/profile')
+    await userEvent.click(await screen.findByTitle('계정 설정'))
+    await waitFor(() => expect(router.state.location.pathname).toBe('/settings/account'))
   })
 })
 
 describe('SCR-SET-01 프로필', () => {
   it('칸을 벗어나면 저장하고 worklog 사본을 다시 읽게 한다', async () => {
     const server = fakeServer()
-    renderApp('/settings/profile')
+    renderApp('/settings/profile', routesWithHidden)
     const name = await screen.findByRole('textbox', { name: '이름' })
     expect(screen.getByRole('textbox', { name: '이메일' })).toHaveAttribute('readonly')
 
@@ -79,7 +88,7 @@ describe('SCR-SET-01 프로필', () => {
   it('비우면 null로 지운다', async () => {
     const server = fakeServer()
     server.setServer({ organization: '개발팀' })
-    renderApp('/settings/profile')
+    renderApp('/settings/profile', routesWithHidden)
     const org = await screen.findByRole('textbox', { name: '소속' })
     await userEvent.clear(org)
     await userEvent.keyboard('{Enter}')
@@ -95,7 +104,7 @@ describe('SCR-SET-01 프로필', () => {
         return undefined
       },
     })
-    renderApp('/settings/profile')
+    renderApp('/settings/profile', routesWithHidden)
     await userEvent.type(await screen.findByRole('textbox', { name: '소속' }), '개발팀')
     await userEvent.type(screen.getByRole('textbox', { name: '직책' }), '매니저') // 소속 칸을 벗어나며 저장 시작
     await userEvent.tab()
@@ -107,7 +116,7 @@ describe('SCR-SET-01 프로필', () => {
 
   it('다른 곳에서 먼저 고쳤으면(409) 충돌 띠를 띄우고, 새로 불러오면 서버 값으로 채운다', async () => {
     const server = fakeServer()
-    renderApp('/settings/profile')
+    renderApp('/settings/profile', routesWithHidden)
     const name = await screen.findByRole('textbox', { name: '이름' })
     server.setServer({ name: '다른탭', version: 3 })
 
@@ -123,7 +132,7 @@ describe('SCR-SET-01 프로필', () => {
 
   it('입력 오류는 그 칸 아래에 보여 준다', async () => {
     fakeServer({ patch: () => problem(400, 'VALIDATION_FAILED', { errors: [{ field: 'name', code: 'TOO_LONG' }] }) })
-    renderApp('/settings/profile')
+    renderApp('/settings/profile', routesWithHidden)
     const name = await screen.findByRole('textbox', { name: '이름' })
     await userEvent.type(name, '가')
     await userEvent.tab()
@@ -134,7 +143,7 @@ describe('SCR-SET-01 프로필', () => {
   it('서버 오류면 문의 코드와 다시 시도를 보여 주고, 다시 시도하면 저장한다', async () => {
     let fail = true
     const server = fakeServer({ patch: () => (fail ? problem(500, 'INTERNAL_ERROR') : undefined) })
-    renderApp('/settings/profile')
+    renderApp('/settings/profile', routesWithHidden)
     await userEvent.type(await screen.findByRole('textbox', { name: '직책' }), '팀장')
     await userEvent.tab()
     expect(await screen.findByText('저장하지 못했어요')).toBeInTheDocument()
@@ -238,7 +247,7 @@ describe('오프라인 (SCR-SYS-02 ③, P1-X-04)', () => {
   it('끊긴 동안 설정 입력은 막고, 탭 이동은 된다', async () => {
     vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
     fakeServer()
-    const { router } = renderApp('/settings/profile')
+    const { router } = renderApp('/settings/profile', routesWithHidden)
     expect(await screen.findByRole('textbox', { name: '이름' })).toBeDisabled()
     await userEvent.click(screen.getByRole('link', { name: /일반/ }))
     expect(router.state.location.pathname).toBe('/settings/general')

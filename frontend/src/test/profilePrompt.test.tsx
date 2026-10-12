@@ -3,7 +3,7 @@ import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { DayClose } from '../logs/DayClose'
-import { json, ME, renderApp, stubFetch } from './renderApp'
+import { json, ME, renderApp, routesWithHidden, stubFetch } from './renderApp'
 
 // 서울 2026-10-07(수) 12:00
 beforeEach(() => {
@@ -71,7 +71,7 @@ describe('일지 화면의 프로필 한 줄 (SCR-ONB-01, 재평가 §4 #26)', (
       },
       'POST /api/worklog/me/profile/refresh': refresh,
     })
-    renderApp('/logs/daily/2026-10-07')
+    renderApp('/logs/daily/2026-10-07', routesWithHidden)
 
     await screen.findByRole('heading', { name: '금일 실적' })
     expect(screen.queryByRole('dialog', { name: PROMPT })).not.toBeInTheDocument()
@@ -104,7 +104,7 @@ describe('일지 화면의 프로필 한 줄 (SCR-ONB-01, 재평가 §4 #26)', (
       'GET /api/users/me': () => json(200, PARTIAL),
       'GET /api/worklog/logs/daily/2026-10-06': () => json(200, draft('2026-10-06')),
     })
-    renderApp('/logs/daily/2026-10-06')
+    renderApp('/logs/daily/2026-10-06', routesWithHidden)
 
     const open = await screen.findByRole('button', { name: '입력' })
     await user.click(open)
@@ -124,7 +124,7 @@ describe('일지 화면의 프로필 한 줄 (SCR-ONB-01, 재평가 §4 #26)', (
       'GET /api/worklog/logs/daily/2026-10-07': () => json(200, draft('2026-10-07')),
       'PATCH /api/users/me': () => json(500, { status: 500, code: 'INTERNAL', title: 'x', traceId: 't-1' }),
     })
-    renderApp('/logs/daily/2026-10-07')
+    renderApp('/logs/daily/2026-10-07', routesWithHidden)
 
     await user.click(await screen.findByRole('button', { name: '입력' }))
     const dialog = await screen.findByRole('dialog', { name: PROMPT })
@@ -135,7 +135,7 @@ describe('일지 화면의 프로필 한 줄 (SCR-ONB-01, 재평가 §4 #26)', (
 })
 
 describe('하루 마감 완료 창의 프로필 안내 (UX-LOG-56)', () => {
-  it('확정은 막지 않고, 완료 창의 [입력]으로 묻고, 닫으면 완료 창으로 돌아온다', async () => {
+  it('확정은 막지 않고, 완료 창에 프로필 안내를 두지 않는다(업무일지 숨김, 문안 표 3-8)', async () => {
     const user = userEvent.setup()
     const close = vi.fn(() =>
       json(200, { log: { ...draft('2026-10-07'), status: 'CONFIRMED' }, suggestions: [], unconfirmedDates: [] }),
@@ -172,15 +172,11 @@ describe('하루 마감 완료 창의 프로필 안내 (UX-LOG-56)', () => {
 
     await screen.findByRole('heading', { name: '하루 마감 1/2' })
     await user.click(screen.getByRole('button', { name: '다음' }))
-    await user.click(await screen.findByRole('button', { name: '마감하고 확정' }))
-    expect(await screen.findByRole('heading', { name: '오늘 일지를 확정했어요' })).toBeInTheDocument()
+    await user.click(await screen.findByRole('button', { name: '오늘 마감' }))
+    expect(await screen.findByRole('heading', { name: '오늘 하루를 마감했어요' })).toBeInTheDocument()
     expect(close).toHaveBeenCalled()
     expect(screen.queryByRole('dialog', { name: PROMPT })).not.toBeInTheDocument()
-
-    expect(screen.getByText('이름·소속을 넣으면 문서에 들어가요')).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: '입력' }))
-    const dialog = await screen.findByRole('dialog', { name: PROMPT })
-    await user.click(within(dialog).getByRole('button', { name: '나중에' }))
-    expect(await screen.findByRole('heading', { name: '오늘 일지를 확정했어요' })).toBeInTheDocument()
+    expect(screen.queryByText('이름·소속을 넣으면 문서에 들어가요')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '입력' })).not.toBeInTheDocument()
   })
 })

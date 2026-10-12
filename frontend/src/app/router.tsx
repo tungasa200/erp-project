@@ -1,7 +1,8 @@
 import type { ComponentType } from 'react'
-import { createBrowserRouter } from 'react-router'
+import { createBrowserRouter, Navigate } from 'react-router'
 import { GuestOnly, RequireAuth } from './guards'
 import { HashScroll } from './HashScroll'
+import { LogsRedirect } from './LogsRedirect'
 import { ErrorPage } from '../pages/ErrorPage'
 import { LoginPage } from '../pages/LoginPage'
 import { NotFoundPage } from '../pages/NotFoundPage'
@@ -20,6 +21,17 @@ function page<K extends string>(load: () => Promise<Record<K, ComponentType>>, n
 const appShell = () => import('../components/AppShell')
 const calendar = () => import('../calendar/CalendarPage')
 const settingsLayout = () => import('../settings/SettingsLayout')
+
+/** 숨긴 업무일지 화면(SCR-LOG-01·02, 사용자 결정 2026-10-12). 앱에는 연결하지 않고 화면 코드를 지키는 시험만 쓴다(test/renderApp routesWithHidden) */
+export const hiddenLogRoutes = [
+  { path: '/logs', ...page(() => import('../logs/LogListPage'), 'LogListPage') },
+  { path: '/logs/:type/:date', ...page(() => import('../logs/LogPage'), 'LogPage') },
+]
+/** 숨긴 설정 프로필 탭(SCR-SET-01, 사용자 결정 2026-10-12 카드 2335: 이름·소속·직책은 일지 머리에만 쓰임). 저장된 값·API는 그대로 */
+export const hiddenProfileRoute = {
+  path: 'profile',
+  ...page(() => import('../settings/ProfileSettings'), 'ProfileSettings'),
+}
 
 export const routes = [
   {
@@ -59,9 +71,9 @@ export const routes = [
                 ...page(() => import('../tasks/TaskListPage'), 'TaskListPage'),
                 children: [{ path: ':taskId', ...page(() => import('../tasks/TaskDetailPanel'), 'TaskDetailPanel') }],
               },
-              // 업무일지(P3): 목록 SCR-LOG-01, 상세·편집 SCR-LOG-02
-              { path: '/logs', ...page(() => import('../logs/LogListPage'), 'LogListPage') },
-              { path: '/logs/:type/:date', ...page(() => import('../logs/LogPage'), 'LogPage') },
+              // 업무일지(P3: 목록 SCR-LOG-01, 상세·편집 SCR-LOG-02)는 숨김(사용자 결정 2026-10-12). 화면 코드는 logs/에 남아 있고 길만 홈으로 돌린다
+              { path: '/logs', element: <LogsRedirect /> },
+              { path: '/logs/*', element: <LogsRedirect /> },
               // 통계 SCR-STAT-01(P4-02, frontend2)
               { path: '/stats', ...page(() => import('../stats/StatsPage'), 'StatsPage') },
               // 알림 SCR-COM-05 ③ 모바일 전체 화면(P4-01, frontend2). 데스크톱은 종 팝오버
@@ -79,7 +91,7 @@ export const routes = [
                 ...page(settingsLayout, 'SettingsLayout'),
                 children: [
                   { index: true, ...page(settingsLayout, 'SettingsIndex') },
-                  { path: 'profile', ...page(() => import('../settings/ProfileSettings'), 'ProfileSettings') },
+                  { path: 'profile', element: <Navigate to="/settings/general" replace /> },
                   { path: 'general', ...page(() => import('../settings/GeneralSettings'), 'GeneralSettings') },
                   { path: 'recording', ...page(() => import('../settings/RecordingSettings'), 'RecordingSettings') },
                   { path: 'projects', ...page(() => import('../settings/ProjectSettings'), 'ProjectSettings') },

@@ -1,14 +1,13 @@
 // SCR-LOG-03 하루 마감 (P3-05, LOG-14·16, D-107, 디자인 규칙 v1.1 X-05). 홈 띠·일지 카드·팔레트·캘린더 기록 패널이 openDayClose로 연다.
 // 1 확인 대기(0건이면 건너뜀): 이름을 보이고 주 버튼은 [모두 했어요](5초 되돌리기), 하나씩은 확인 대기 패널
 // → 2 계획으로 넘길 일(기본 모두 선택) → 3 이슈 한 줄·실적 미리보기 → 확정(Ctrl/⌘+Enter).
-// 완료 창: 요약 한 줄, 내보내기 바로가기(SCR-LOG-05), 주간·월간 확정 제안(LOG-16), 상시 [확정 해제](D-212 Q3),
-// 프로필 빈 칸 안내 한 줄(Q5: 확정은 막지 않는다). 팔레트 '빠른 마감'(quick)은 단계를 건너뛰고 바로 확정해 완료 창을 보인다.
+// 완료 창: 요약 한 줄, [닫기], 상시 [마감 취소](D-212 Q3). 팔레트 '빠른 마감'(quick)은 단계를 건너뛰고 바로 확정해 완료 창을 보인다.
+// 업무일지 숨김(사용자 결정 2026-10-12, docs/ux/업무일지숨김_문안_v1.md 3장): 창 안에서는 지금처럼 일지를 확정하지만 '일지'라는 말을 쓰지 않고,
+// [일지 보기]·주간·월간 제안·[내보내기]·프로필 안내·3단계 일지 미리보기(요약 한 줄만 남김)는 보이지 않는다.
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react'
-import { Link } from 'react-router'
 import { ApiError } from '../api/client'
 import { toastForError } from '../api/errorToast'
-import { useAuth } from '../auth/useAuth'
 import { Modal, ModalCloseButton } from '../calendar/Modal'
 import cal from '../calendar/calendar.module.css'
 import { toZoned } from '../format/datetime'
@@ -18,11 +17,8 @@ import { shortDate } from '../quickInput/dates'
 import { PendingPanel } from '../records/PendingPanel'
 import { pendingApi, planTime, usePendingRecords, type PendingRecord } from '../records/pending'
 import { modKey } from '../shortcuts/useShortcuts'
-import { logApi, logHref, refreshLogs, storeLog, useLog, type DailyCloseResult, type WorkLog } from './api'
-import { ExportDialog } from './ExportDialog'
+import { logApi, refreshLogs, storeLog, useLog, type DailyCloseResult, type WorkLog } from './api'
 import { periodText } from './format'
-import { profileIncomplete } from './profileAsk'
-import { ProfilePrompt } from './ProfilePrompt'
 import styles from './logs.module.css'
 
 type Step = 'pending' | 'carry' | 'issue'
@@ -72,11 +68,6 @@ export function DayClose({ date, today, timeZone, quick = false, onClose }: Prop
   /** 빠른 마감이 실패했을 때(토스트로 알림) 창에 [다시 시도] */
   const [failed, setFailed] = useState(false)
   const [pendingOpen, setPendingOpen] = useState(false)
-  const [profileOpen, setProfileOpen] = useState(false)
-  const [exporting, setExporting] = useState(false)
-  /** [모두 했어요]로 확정한 다른 날 기록 수(3단계 미리보기 안내) */
-  const [otherDays, setOtherDays] = useState(0)
-  const { user } = useAuth()
   const [result, setResult] = useState<DailyCloseResult | null>(null)
   /** 완료 창의 [확정 해제] 확인 줄 */
   const [askUnconfirm, setAskUnconfirm] = useState(false)
@@ -156,7 +147,7 @@ export function DayClose({ date, today, timeZone, quick = false, onClose }: Prop
     } catch (error) {
       setFailed(true)
       if (error instanceof ApiError && error.code === 'VERSION_CONFLICT') {
-        showToast('다른 곳에서 일지를 먼저 고쳤어요. 새로 불러왔으니 다시 마감해 주세요')
+        showToast('다른 곳에서 먼저 마감했어요. 새로 불러왔어요')
         void log.refetch()
       } else if (error instanceof ApiError && error.code === 'LOG_CONFIRMED') {
         void plan.refetch()
@@ -203,14 +194,6 @@ export function DayClose({ date, today, timeZone, quick = false, onClose }: Prop
     )
   }
 
-  // 내보내기는 이 창 대신 열고, 닫으면 마감도 끝낸다
-  if (exporting && result) return <ExportDialog log={result.log} timeZone={timeZone} onClose={onClose} />
-
-  // 완료 창의 [입력]: 이 창 대신 프로필 창을 보이고, 저장·나중에 뒤 완료 창으로 돌아온다
-  if (profileOpen && user) {
-    return <ProfilePrompt user={user} type="DAILY" start={date} end={date} onDone={() => setProfileOpen(false)} />
-  }
-
   // [모두 했어요]: 대기를 계획 시각대로 확정하고 2단계로. 5초 되돌리기(X-04 규칙 2)
   async function confirmAll(records: PendingRecord[]) {
     if (busy || records.length === 0) return
@@ -223,7 +206,6 @@ export function DayClose({ date, today, timeZone, quick = false, onClose }: Prop
         void plan.refetch()
         void log.refetch()
       }
-      setOtherDays(records.filter((r) => pendingDate(r, timeZone) !== date).length)
       showUndo({
         group: CONFIRM_ALL_GROUP,
         message: () => `확인 대기 ${done.length}건을 ‘했어요’로 기록했어요`,
@@ -234,7 +216,6 @@ export function DayClose({ date, today, timeZone, quick = false, onClose }: Prop
             const { message, traceId } = toastForError(error)
             showToast(message, { traceId })
           }
-          setOtherDays(0)
           refresh()
         },
       })
@@ -261,7 +242,9 @@ export function DayClose({ date, today, timeZone, quick = false, onClose }: Prop
       setReopened(true)
     } catch (error) {
       if (error instanceof ApiError && error.code === 'VERSION_CONFLICT') {
-        showToast('다른 곳에서 일지를 먼저 바꿨어요. 일지 화면에서 확인해 주세요')
+        showToast('다른 곳에서 먼저 마감했어요. 새로 불러왔어요')
+        void plan.refetch()
+        void log.refetch()
       } else {
         const { message, traceId } = toastForError(error)
         showToast(message, { traceId })
@@ -279,7 +262,6 @@ export function DayClose({ date, today, timeZone, quick = false, onClose }: Prop
     setSelected(null)
     setStep(null)
     setIssue('')
-    setOtherDays(0)
     moved.current = false
     void plan.refetch()
     void log.refetch()
@@ -299,20 +281,47 @@ export function DayClose({ date, today, timeZone, quick = false, onClose }: Prop
     </div>
   )
 
+  // 완료 창·이미 마감한 날의 [마감 취소]: 창 안에서 한 번 묻는다(D-212 Q3)
+  const unconfirmBlock = (confirmed: WorkLog) =>
+    askUnconfirm ? (
+      <div className={styles.undoConfirm} role="group" aria-labelledby={`${id}-uq`}>
+        <p id={`${id}-uq`} className={styles.undoText}>
+          <strong>마감을 취소할까요?</strong> 넘긴 계획은 그대로예요.
+        </p>
+        <div className={styles.undoActions}>
+          <button ref={keepRef} type="button" className={cal.secondary} onClick={() => setAskUnconfirm(false)}>
+            계속 두기
+          </button>
+          <button
+            type="button"
+            className={styles.neutralFill}
+            disabled={busy}
+            onClick={() => void unconfirm(confirmed)}
+          >
+            마감 취소
+          </button>
+        </div>
+      </div>
+    ) : (
+      <p className={styles.undoRow}>
+        <span className={styles.muted}>잘못 마감했나요?</span>
+        <button ref={unconfirmRef} type="button" className={styles.inlineButton} onClick={() => setAskUnconfirm(true)}>
+          마감 취소
+        </button>
+      </p>
+    )
+
   let body
   let onKeyDown: ((e: KeyboardEvent) => void) | undefined
-  if (reopened && result) {
+  if (reopened) {
     body = (
       <>
-        {head(`${dayName} 일지를 초안으로 돌렸어요`)}
-        <p className={styles.dialogBody}>넘긴 계획은 그대로예요. 고친 뒤 다시 마감할 수 있어요.</p>
+        {head('마감을 취소했어요')}
+        <p className={styles.dialogBody}>넘긴 계획은 그대로예요. 다시 마감할 수 있어요.</p>
         <div className={cal.actions}>
-          <button ref={primaryRef} type="button" className={cal.secondary} onClick={restart}>
+          <button ref={primaryRef} type="button" className={cal.primary} onClick={restart}>
             다시 마감
           </button>
-          <Link to={logHref('DAILY', date)} className={styles.primaryLink} onClick={onClose}>
-            일지 보기
-          </Link>
         </div>
       </>
     )
@@ -321,83 +330,16 @@ export function DayClose({ date, today, timeZone, quick = false, onClose }: Prop
     const planName = data?.planScope === 'NEXT_WEEK' ? '다음 주 계획' : '내일 계획'
     body = (
       <>
-        {head(`${dayName} 일지를 확정했어요`, true)}
+        {head(`${dayName} 하루를 마감했어요`, true)}
         <p className={styles.muted}>
-          실적 {c.achievements.length}건 · {planName} {c.plans.length}건
+          확정 기록 {c.achievements.length}건 · {planName} {c.plans.length}건
         </p>
-        {result.suggestions.length > 0 && (
-          <ul className={styles.suggestions}>
-            {result.suggestions.map((s) => (
-              <li key={`${s.type}-${s.periodStart}`} className={styles.suggestion}>
-                <span>
-                  <strong>
-                    {periodText(s.type, s.periodStart, s.periodEnd)} {s.type === 'WEEKLY' ? '주간' : '월간'} 일지
-                  </strong>
-                  도 확정할 수 있어요.
-                </span>
-                {s.unconfirmedDates.length > 0 && (
-                  <span className={styles.muted}>확정 안 된 날: {s.unconfirmedDates.map(md).join(', ')}</span>
-                )}
-                <Link to={logHref(s.type, s.periodStart)} className={styles.textLink} onClick={onClose}>
-                  {s.type === 'WEEKLY' ? '주간' : '월간'} 일지 열기
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-        {user && profileIncomplete(user) && (
-          <p className={styles.profileLine}>
-            <span>이름·소속을 넣으면 문서에 들어가요</span>
-            <button
-              type="button"
-              className={styles.inlineButton}
-              aria-haspopup="dialog"
-              onClick={() => setProfileOpen(true)}
-            >
-              입력
-            </button>
-          </p>
-        )}
         <div className={cal.actions}>
-          <button type="button" className={cal.secondary} aria-haspopup="dialog" onClick={() => setExporting(true)}>
-            내보내기
+          <button type="button" className={cal.primary} onClick={onClose}>
+            닫기
           </button>
-          <Link to={logHref('DAILY', date)} className={styles.primaryLink} onClick={onClose}>
-            일지 보기
-          </Link>
         </div>
-        {askUnconfirm ? (
-          <div className={styles.undoConfirm} role="group" aria-labelledby={`${id}-uq`}>
-            <p id={`${id}-uq`} className={styles.undoText}>
-              <strong>확정을 해제할까요?</strong> 일지는 초안으로 돌아가고 내보낸 파일은 그대로예요.
-            </p>
-            <div className={styles.undoActions}>
-              <button ref={keepRef} type="button" className={cal.secondary} onClick={() => setAskUnconfirm(false)}>
-                계속 두기
-              </button>
-              <button
-                type="button"
-                className={styles.neutralFill}
-                disabled={busy}
-                onClick={() => void unconfirm(result.log)}
-              >
-                확정 해제
-              </button>
-            </div>
-          </div>
-        ) : (
-          <p className={styles.undoRow}>
-            <span className={styles.muted}>잘못 확정했나요?</span>
-            <button
-              ref={unconfirmRef}
-              type="button"
-              className={styles.inlineButton}
-              onClick={() => setAskUnconfirm(true)}
-            >
-              확정 해제
-            </button>
-          </p>
-        )}
+        {unconfirmBlock(result.log)}
       </>
     )
   } else if (plan.isPending || log.isPending || !selected || (quick && data?.log.status !== 'CONFIRMED')) {
@@ -434,15 +376,13 @@ export function DayClose({ date, today, timeZone, quick = false, onClose }: Prop
     body = (
       <>
         {head('하루 마감')}
-        <p className={styles.dialogBody}>{dayName} 일지는 이미 확정했어요. 확정 해제 후 다시 마감할 수 있어요.</p>
+        <p className={styles.dialogBody}>{dayName}은 이미 마감했어요.</p>
         <div className={cal.actions}>
-          <button type="button" className={cal.secondary} onClick={onClose}>
+          <button type="button" className={cal.primary} onClick={onClose}>
             닫기
           </button>
-          <Link to={logHref('DAILY', date)} className={styles.primaryLink} onClick={onClose}>
-            일지 보기
-          </Link>
         </div>
+        {log.data && unconfirmBlock(log.data)}
       </>
     )
   } else {
@@ -496,7 +436,7 @@ export function DayClose({ date, today, timeZone, quick = false, onClose }: Prop
           <>
             <p className={styles.dialogBody}>
               {waiting
-                ? `확인 대기 기록이 ${d.pendingCount}건 있어요. 확정한 기록만 일지에 들어가요.`
+                ? `확인 대기 기록이 ${d.pendingCount}건 있어요. 확정한 기록만 오늘 실적으로 남아요.`
                 : '확인 대기 기록을 모두 처리했어요.'}
             </p>
             {waiting &&
@@ -566,7 +506,7 @@ export function DayClose({ date, today, timeZone, quick = false, onClose }: Prop
             {newCount > room && (
               <p id={capId} className={over > 0 ? styles.capOver : styles.capNote} aria-live="polite">
                 {room === 0
-                  ? `${planName}이 ${PLAN_MAX}줄로 가득 찼어요. 일지에서 계획을 지운 뒤 넘길 수 있어요.`
+                  ? `${planName}이 ${PLAN_MAX}줄로 가득 찼어요. 더 넘길 수 없어요.`
                   : over > 0
                     ? `계획은 ${PLAN_MAX}줄까지예요. ${room}개까지 고를 수 있어요. ${over}개를 빼 주세요.`
                     : `계획은 ${PLAN_MAX}줄까지라 ${room}개까지 고를 수 있어요. (${picked.length}/${room})`}
@@ -626,32 +566,13 @@ export function DayClose({ date, today, timeZone, quick = false, onClose }: Prop
             {issueRoom < 500 && (
               <p id={`${id}-issue`} className={styles.capNote}>
                 {issueRoom === 0
-                  ? `일지의 이슈 칸이 ${ISSUES_MAX}자로 가득 찼어요. 일지에서 줄인 뒤 남길 수 있어요.`
-                  : `일지의 이슈 칸이 ${ISSUES_MAX}자까지라 ${issueRoom}자까지 남길 수 있어요.`}
+                  ? `이슈는 ${ISSUES_MAX}자까지예요. 더 남길 수 없어요.`
+                  : `이슈는 ${ISSUES_MAX}자까지라 ${issueRoom}자 더 남길 수 있어요.`}
               </p>
             )}
-            <section className={styles.mini} aria-label="일지 미리보기">
-              <p className={styles.miniHead}>{periodText('DAILY', date, date)} 업무일지</p>
-              {content.achievements.length === 0 ? (
-                <p className={styles.muted}>실적이 없어요. 확정한 기록이나 완료한 업무가 들어가요.</p>
-              ) : (
-                <ol className={styles.miniList}>
-                  {content.achievements.slice(0, 5).map((a) => (
-                    <li key={a.id}>
-                      {a.text}
-                      {a.result ? ` — ${a.result}` : ''}
-                    </li>
-                  ))}
-                </ol>
-              )}
-              {content.achievements.length > 5 && (
-                <p className={styles.muted}>외 {content.achievements.length - 5}건</p>
-              )}
-              <p className={styles.muted}>
-                실적 {content.achievements.length}건 · {planName} {content.plans.length + picked.length}건
-                {otherDays > 0 && ` · 다른 날 기록 ${otherDays}건은 그날 일지에 들어가요`}
-              </p>
-            </section>
+            <p className={styles.muted}>
+              확정 기록 {content.achievements.length}건 · {planName} {content.plans.length + picked.length}건
+            </p>
             <div className={cal.actions}>
               {back}
               <button
@@ -662,11 +583,11 @@ export function DayClose({ date, today, timeZone, quick = false, onClose }: Prop
                 aria-describedby={`${id}-key`}
                 onClick={() => void submit()}
               >
-                마감하고 확정
+                {date === today ? '오늘 마감' : '마감'}
               </button>
             </div>
             <p id={`${id}-key`} className={styles.keyHint}>
-              {modKey('Enter')}로 확정
+              {modKey('Enter')}로 마감
             </p>
           </>
         )}

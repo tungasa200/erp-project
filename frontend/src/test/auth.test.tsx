@@ -101,14 +101,14 @@ describe('SCR-AUTH-02 로그인', () => {
         return json(200, ME)
       },
     })
-    const { router } = renderApp('/logs')
+    const { router } = renderApp('/settings/general')
     const user = userEvent.setup()
     await user.type(await screen.findByLabelText('이메일'), 'demo@example.com')
     await user.type(screen.getByLabelText('비밀번호'), 'worklog20')
     await user.click(screen.getByRole('button', { name: '로그인' }))
 
-    expect(await screen.findByRole('heading', { name: '업무일지' })).toBeInTheDocument()
-    expect(router.state.location.pathname).toBe('/logs')
+    expect(await screen.findByRole('heading', { name: '일반' })).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe('/settings/general')
   })
 
   it('형식 오류는 칸 아래에 표시하고 요청하지 않는다', async () => {

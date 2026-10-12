@@ -132,7 +132,6 @@ export function SignupPage() {
           가입할 수 있습니다
         </>
       }
-      description="이름·소속 등 추가 정보는 첫 업무일지 작성 시 입력합니다."
     >
       <form ref={formRef} className={styles.form} onSubmit={onSubmit} noValidate>
         <h1 className={styles.title}>회원가입</h1>
@@ -286,9 +285,7 @@ export function SignupPage() {
         <button type="submit" className={styles.submit} aria-disabled={submitting} aria-busy={submitting}>
           {submitting ? '가입 중…' : '회원가입'}
         </button>
-        <p className={styles.note}>
-          가입 후 입력한 이메일로 인증번호가 발송됩니다. 이메일 인증은 업무일지를 내보내기 전까지 완료해야 합니다.
-        </p>
+        <p className={styles.note}>가입 후 입력한 이메일로 인증번호가 발송됩니다.</p>
         <p className={styles.center}>
           이미 계정이 있으신 경우{' '}
           <Link className={styles.strong} to="/login">

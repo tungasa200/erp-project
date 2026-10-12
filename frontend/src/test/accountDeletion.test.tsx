@@ -38,7 +38,7 @@ describe('SCR-SET-07 회원 탈퇴', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe('/settings/account'))
   })
 
-  it('지워지는 데이터·파기 시간·일지 내려받기 안내를 보여 주고, 비밀번호를 넣어야 버튼이 켜진다', async () => {
+  it('지워지는 데이터·파기 시간을 보여 주고(일지 내려받기 안내는 업무일지 숨김으로 없음), 비밀번호를 넣어야 버튼이 켜진다', async () => {
     server()
     renderApp('/settings/account/deletion')
     await screen.findByRole('heading', { level: 1, name: '회원 탈퇴' })
@@ -48,7 +48,8 @@ describe('SCR-SET-07 회원 탈퇴', () => {
         /업무 데이터는 탈퇴 후 보통 1분 안에, 늦어도 20분 안에\(서버 점검 중이었다면 다시 켜진 직후\) 모두 삭제되며/,
       ),
     ).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: '일지 목록으로 이동' })).toHaveAttribute('href', '/logs')
+    expect(screen.getByText('하루 마감 기록(내일 계획·이슈)')).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: '일지 목록으로 이동' })).not.toBeInTheDocument()
     expect(submit()).toBeDisabled()
     await userEvent.type(password(), 'worklog20')
     expect(submit()).toBeEnabled()

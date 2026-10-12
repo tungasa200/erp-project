@@ -25,8 +25,8 @@ describe('SCR-COM-01 ⑤ 모바일 하단 탭 (P1-X-01)', () => {
       within(menu)
         .getAllByRole('link')
         .map((a) => a.textContent),
-    ).toEqual(['업무', '통계', '보관함', '설정'])
-    expect(within(menu).getByRole('link', { name: '업무' })).toHaveFocus()
+    ).toEqual(['통계', '보관함', '설정'])
+    expect(within(menu).getByRole('link', { name: '통계' })).toHaveFocus()
 
     await userEvent.keyboard('{Escape}')
     expect(within(tabs).queryByRole('list', { name: '더보기 메뉴' })).not.toBeInTheDocument()
@@ -38,8 +38,8 @@ describe('SCR-COM-01 ⑤ 모바일 하단 탭 (P1-X-01)', () => {
     const { router } = renderApp('/')
     const tabs = await screen.findByRole('navigation', { name: '하단 탭' })
     await userEvent.click(within(tabs).getByRole('button', { name: '더보기' }))
-    await userEvent.click(within(tabs).getByRole('link', { name: '업무' }))
-    await waitFor(() => expect(router.state.location.pathname).toBe('/tasks'))
+    await userEvent.click(within(tabs).getByRole('link', { name: '통계' }))
+    await waitFor(() => expect(router.state.location.pathname).toBe('/stats'))
     expect(within(tabs).queryByRole('list', { name: '더보기 메뉴' })).not.toBeInTheDocument()
     expect(within(tabs).getByRole('button', { name: '더보기' })).toHaveFocus()
   })

@@ -987,6 +987,7 @@
   font-size: var(--text-md);
   font-weight: 600;
   color: var(--color-text);
+  overflow-wrap: anywhere;
 }
 
 .cardActions {
@@ -1061,14 +1062,8 @@
   overflow-wrap: anywhere;
 }
 
-@media (hover: hover) and (pointer: fine) {
-  .weekDay:hover {
-    background: var(--color-accent-softer);
-  }
-}
-
-.secondaryLink:focus-visible,
-.weekDay:focus-visible {
+/* 칸은 누르는 곳이 아니라(업무일지 숨김) hover·포커스 표시를 두지 않는다 */
+.secondaryLink:focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
 }

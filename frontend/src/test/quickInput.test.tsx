@@ -294,8 +294,8 @@ describe('UX-09 키보드 단축키', () => {
 
   it('다른 화면에서 N을 누르면 홈 입력창으로 간다', async () => {
     stubFetch({ 'GET /api/users/me': () => json(200, ME) })
-    const { router } = renderApp('/logs')
-    await screen.findByRole('heading', { name: '업무일지' })
+    const { router } = renderApp('/settings/general')
+    await screen.findByRole('heading', { name: '일반' })
     await userEvent.keyboard('n')
     expect(await screen.findByRole('textbox', { name: '빠른 기록' })).toHaveFocus()
     await waitFor(() => expect(router.state.location.pathname).toBe('/'))
@@ -304,10 +304,10 @@ describe('UX-09 키보드 단축키', () => {
   it('오프라인이면 N으로 기록하러 가지 않는다 (SCR-SYS-02 ③)', async () => {
     const onLine = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
     stubFetch({ 'GET /api/users/me': () => json(200, ME) })
-    const { router } = renderApp('/logs')
-    await screen.findByRole('heading', { name: '업무일지' })
+    const { router } = renderApp('/settings/general')
+    await screen.findByRole('heading', { name: '일반' })
     await userEvent.keyboard('n')
-    await waitFor(() => expect(router.state.location.pathname).toBe('/logs'))
+    await waitFor(() => expect(router.state.location.pathname).toBe('/settings/general'))
     onLine.mockRestore()
   })
 
@@ -326,8 +326,12 @@ describe('SCR-COM-03 명령 팔레트', () => {
     await userEvent.keyboard('{Control>}k{/Control}')
     const palette = screen.getByRole('dialog', { name: '명령 팔레트' })
     expect(within(palette).getByRole('option', { name: /업무 추가/ })).toHaveTextContent('N')
-    await userEvent.keyboard('업무일지{Enter}')
-    await waitFor(() => expect(router.state.location.pathname).toBe('/logs'))
+    // 업무일지는 숨김(2026-10-12)이라 이동 명령에 없다
+    await userEvent.keyboard('업무일지')
+    expect(within(palette).queryByRole('option', { name: '업무일지' })).not.toBeInTheDocument()
+    await userEvent.clear(within(palette).getByRole('combobox'))
+    await userEvent.keyboard('통계{Enter}')
+    await waitFor(() => expect(router.state.location.pathname).toBe('/stats'))
     expect(screen.queryByRole('dialog', { name: '명령 팔레트' })).not.toBeInTheDocument()
   })
 

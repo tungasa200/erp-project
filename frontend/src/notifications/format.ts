@@ -34,9 +34,10 @@ export function notificationText(n: AppNotification, today: string): Notificatio
   }
 }
 
-/** 누르면 갈 곳. 하루 마감은 그날 일지에서 마감 창을 연다(AppShell이 ?close=1을 본다) */
+/** 누르면 갈 곳. 하루 마감은 홈에서 그날 마감 창을 연다(AppShell이 ?close=날짜를 본다, 업무일지 숨김 2026-10-12).
+ * 주간·월간 제안은 일지 경로 그대로라 홈으로 돌아간다(app/LogsRedirect) */
 export function notificationHref(n: AppNotification): string {
-  if (n.type === 'DAILY_CLOSE') return `/logs/daily/${n.date}?close=1`
+  if (n.type === 'DAILY_CLOSE') return `/?close=${n.date}`
   return logHref(n.logType === 'MONTHLY' ? 'MONTHLY' : 'WEEKLY', n.periodStart ?? n.date)
 }
 
