@@ -42,7 +42,7 @@
 }
 
 .article {
-  margin-bottom: 48px;
+  margin-bottom: var(--space-8);
   padding: 44px;
   border-radius: var(--radius-card);
   background: var(--color-surface);
@@ -194,7 +194,7 @@
 
   .article {
     margin-bottom: 0;
-    padding: var(--space-5) var(--space-4) 40px;
+    padding: var(--space-5) var(--space-4) var(--space-7);
     border-radius: var(--radius-card) var(--radius-card) 0 0;
   }
 

@@ -98,9 +98,9 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 48px;
-  padding-top: 56px;
-  padding-bottom: 40px;
+  gap: var(--space-8);
+  padding-top: var(--space-8);
+  padding-bottom: var(--space-7);
 }
 
 .heroText {
@@ -244,12 +244,12 @@
 
 /* ② 세 단계 · 기능 */
 .section {
-  padding-top: 40px;
+  padding-top: var(--space-7);
   padding-bottom: var(--space-5);
 }
 
 .section:last-child {
-  padding-bottom: 56px;
+  padding-bottom: var(--space-8);
 }
 
 .sectionTitle {
@@ -331,12 +331,12 @@
 }
 
 .closing {
-  margin-top: 48px;
+  margin-top: var(--space-8);
   text-align: center;
 }
 
 .closingCta {
-  padding: 0 34px;
+  padding: 0 var(--space-6);
   min-height: 60px;
   border-radius: var(--radius-pill);
   background: var(--color-accent);
