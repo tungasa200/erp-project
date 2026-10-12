@@ -59,7 +59,7 @@
 .tab[aria-selected='true'] {
   background: var(--color-text);
   color: var(--color-surface);
-  font-weight: var(--weight-strong);
+  font-weight: var(--weight-title);
 }
 
 .panel {

@@ -153,7 +153,7 @@
 .primary {
   background: var(--color-accent);
   color: var(--color-on-accent);
-  font-weight: var(--weight-strong);
+  font-weight: var(--weight-title);
   box-shadow: var(--shadow-2);
 }
 
@@ -342,7 +342,7 @@
   background: var(--color-accent);
   color: var(--color-on-accent);
   font-size: var(--text-xl);
-  font-weight: var(--weight-strong);
+  font-weight: var(--weight-title);
   white-space: normal;
   text-align: center;
 }

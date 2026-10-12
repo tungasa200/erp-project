@@ -59,7 +59,7 @@
 .createButton {
   font: inherit;
   font-size: var(--text-md);
-  font-weight: var(--weight-strong);
+  font-weight: var(--weight-title);
   height: 52px;
   border: 0;
   border-radius: var(--radius-pill);
@@ -125,7 +125,7 @@
 .iconButton {
   width: 44px;
   padding: 0;
-  font-weight: var(--weight-strong);
+  font-weight: var(--weight-title);
 }
 
 .grow {
@@ -713,7 +713,7 @@ button.monthCell {
 .moreButton {
   font: inherit;
   font-size: var(--text-xs);
-  font-weight: var(--weight-strong);
+  font-weight: var(--weight-title);
   text-align: left;
   border: 0;
   background: transparent;
@@ -1076,7 +1076,7 @@ button.monthCell {
 .emptyAction {
   font: inherit;
   font-size: var(--text-md);
-  font-weight: var(--weight-strong);
+  font-weight: var(--weight-title);
   height: 44px;
   padding: 0 var(--space-5);
   border: 0;
@@ -1157,7 +1157,7 @@ button.monthCell {
   border: 0;
   border-radius: var(--radius-pill);
   background: transparent;
-  font-weight: var(--weight-strong);
+  font-weight: var(--weight-title);
   cursor: pointer;
 }
 
@@ -1383,7 +1383,7 @@ button.monthCell {
   align-self: flex-start;
   font: inherit;
   font-size: var(--text-sm);
-  font-weight: var(--weight-strong);
+  font-weight: var(--weight-title);
   min-height: 32px;
   padding: 0 var(--space-3);
   border: 0;
@@ -1472,7 +1472,7 @@ button.monthCell {
 .input {
   font: inherit;
   font-size: var(--text-md);
-  font-weight: var(--weight-title);
+  font-weight: var(--weight-body);
   height: 44px;
   box-sizing: border-box;
   border: 1px solid var(--color-border);
@@ -1662,7 +1662,7 @@ fieldset.fieldset:disabled {
 .link {
   font: inherit;
   font-size: var(--text-md);
-  font-weight: var(--weight-strong);
+  font-weight: var(--weight-title);
   height: 44px;
   padding: 0 var(--space-4);
   border: 0;

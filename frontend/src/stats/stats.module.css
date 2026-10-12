@@ -63,7 +63,7 @@
 .segment button[aria-pressed='true'] {
   background: var(--color-text);
   color: var(--color-surface);
-  font-weight: var(--weight-strong);
+  font-weight: var(--weight-title);
 }
 
 /* 카드 공통 */
@@ -458,7 +458,7 @@
   color: var(--color-text);
   font: inherit;
   font-size: var(--text-md);
-  font-weight: var(--weight-strong);
+  font-weight: var(--weight-title);
   cursor: pointer;
 }
 
@@ -492,7 +492,7 @@
 .quickButton[aria-pressed='true'] {
   background: var(--color-accent-soft);
   color: var(--color-accent-ink);
-  font-weight: var(--weight-strong);
+  font-weight: var(--weight-title);
 }
 
 .dateFields {
@@ -520,6 +520,7 @@
   color: var(--color-text);
   font: inherit;
   font-size: var(--text-lg);
+  font-weight: var(--weight-body);
 }
 
 .field input[aria-invalid='true'] {
@@ -612,7 +613,7 @@
   color: var(--color-text);
   font: inherit;
   font-size: var(--text-md);
-  font-weight: var(--weight-strong);
+  font-weight: var(--weight-title);
   cursor: pointer;
 }
 
