@@ -29,7 +29,7 @@ describe('라우팅', () => {
   it('비로그인 상태로 /에 오면 로그인으로 보내지 않고 랜딩을 보인다 (SCR-AUTH-01)', async () => {
     stubFetch({})
     const { router } = renderApp('/')
-    expect(await screen.findByRole('heading', { level: 1, name: /일지가 써집니다/ })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: /하루가 기록됩니다/ })).toBeInTheDocument()
     expect(router.state.location.pathname).toBe('/')
   })
 
@@ -67,7 +67,7 @@ describe('라우팅', () => {
 
     // 다른 화면으로 가면 그때 조회해 로그인 여부를 판단한다
     await userEvent.click(screen.getByRole('link', { name: '홈으로' }))
-    expect(await screen.findByRole('heading', { level: 1, name: /일지가 써집니다/ })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: /하루가 기록됩니다/ })).toBeInTheDocument()
     expect(fetchMock.mock.calls.map(([url]) => String(url))).toContain('/api/users/me')
   })
 
@@ -101,14 +101,14 @@ describe('SCR-AUTH-02 로그인', () => {
         return json(200, ME)
       },
     })
-    const { router } = renderApp('/logs')
+    const { router } = renderApp('/settings/general')
     const user = userEvent.setup()
     await user.type(await screen.findByLabelText('이메일'), 'demo@example.com')
     await user.type(screen.getByLabelText('비밀번호'), 'worklog20')
     await user.click(screen.getByRole('button', { name: '로그인' }))
 
-    expect(await screen.findByRole('heading', { name: '업무일지' })).toBeInTheDocument()
-    expect(router.state.location.pathname).toBe('/logs')
+    expect(await screen.findByRole('heading', { name: '일반' })).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe('/settings/general')
   })
 
   it('형식 오류는 칸 아래에 표시하고 요청하지 않는다', async () => {
@@ -234,7 +234,7 @@ describe('SCR-SYS-02 점검', () => {
     stubFetch({ 'GET /api/users/me': () => problem(503, 'MAINTENANCE') })
     const { queryClient } = renderApp('/')
     await waitFor(() => expect(queryClient.getQueryState(['me'])?.status).toBe('error'))
-    expect(await screen.findByRole('heading', { level: 1, name: /일지가 써집니다/ })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: /하루가 기록됩니다/ })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: '서비스 점검 중이에요' })).not.toBeInTheDocument()
   })
 

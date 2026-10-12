@@ -144,7 +144,7 @@ function GeneralForm({ user, save, workHours }: { user: Me; save: Save; workHour
       )}
       <SaveError id={`${id}-tz-error`} failure={timezone.failure} onRetry={timezone.retry} />
 
-      <Row title={<label htmlFor={`${id}-ws`}>주 시작 요일</label>} description="캘린더와 주간 일지에 적용돼요">
+      <Row title={<label htmlFor={`${id}-ws`}>주 시작 요일</label>} description="캘린더와 통계에 적용돼요">
         <select
           id={`${id}-ws`}
           className={styles.select}

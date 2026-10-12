@@ -1,12 +1,11 @@
 // 설정 화면 틀: 데스크톱은 좌측 탭, 모바일은 목록 → 상세 (SCR-SET-01 비고).
-// 탭은 만든 화면만 둔다.
+// 탭은 만든 화면만 둔다. 프로필 탭은 숨김(업무일지 숨김 2026-10-12, 문안 표 4-7).
 import { useState } from 'react'
 import { Link, Navigate, NavLink, Outlet, useMatch } from 'react-router'
 import { useOnline } from '../components/useOnline'
 import styles from './settings.module.css'
 
 const TABS = [
-  { to: 'profile', label: '프로필' },
   { to: 'general', label: '일반' },
   { to: 'recording', label: '기록 옵션' },
   { to: 'projects', label: '프로젝트·태그' },
@@ -60,5 +59,5 @@ export function SettingsLayout() {
 /** /settings: 모바일은 탭 목록만, 데스크톱은 첫 탭을 바로 연다 */
 export function SettingsIndex() {
   const [mobile] = useState(isMobile)
-  return mobile ? null : <Navigate to="profile" replace />
+  return mobile ? null : <Navigate to="general" replace />
 }

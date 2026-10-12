@@ -81,7 +81,7 @@ export function NotificationList({ heading, onNavigate }: Props) {
           ) : (
             <>
               <p className={styles.stateTitle}>새 알림이 없어요</p>
-              <p className={styles.stateText}>하루 마감과 일지 알림이 여기에 모여요</p>
+              <p className={styles.stateText}>하루 마감 알림이 여기에 모여요</p>
             </>
           )}
         </div>

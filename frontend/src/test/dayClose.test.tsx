@@ -130,7 +130,7 @@ const closeRoutes = (onClose = () => {}, quick = false) => [
 ]
 
 describe('하루 마감 v1.1 (SCR-LOG-03, X-05)', () => {
-  it('UX-LOG-44·45 1단계는 대기 이름·다른 날 배지를 보이고, Enter로 [모두 했어요]·5초 되돌리기, 미리보기에 다른 날 안내', async () => {
+  it('UX-LOG-44·45 1단계는 대기 이름·다른 날 배지를 보이고, Enter로 [모두 했어요]·5초 되돌리기, 3단계는 요약 한 줄만', async () => {
     const user = userEvent.setup()
     const review = ['p-2', '견적서 검토', '2026-10-07T06:00:00Z', '2026-10-07T07:30:00Z'] as const
     const tidy = ['p-1', '문서 정리', '2026-10-05T01:00:00Z', '2026-10-05T02:00:00Z'] as const
@@ -175,7 +175,9 @@ describe('하루 마감 v1.1 (SCR-LOG-03, X-05)', () => {
     await waitFor(() => expect(screen.getByRole('heading', { name: '하루 마감 2/3' })).toHaveFocus())
 
     await user.click(screen.getByRole('button', { name: '다음' }))
-    expect(await screen.findByText(/다른 날 기록 1건은 그날 일지에 들어가요/)).toBeInTheDocument()
+    // 일지 미리보기(다른 날 기록 안내 포함)는 업무일지 숨김으로 없고 요약 한 줄만 남는다
+    expect(await screen.findByText(/^확정 기록 \d+건 · /)).toBeInTheDocument()
+    expect(screen.queryByText(/다른 날 기록/)).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: '되돌리기' }))
     await waitFor(() => expect(patches).toHaveLength(2))
@@ -183,7 +185,6 @@ describe('하루 마감 v1.1 (SCR-LOG-03, X-05)', () => {
       { status: 'PENDING', version: 1 },
       { status: 'PENDING', version: 1 },
     ])
-    await waitFor(() => expect(screen.queryByText(/다른 날 기록/)).not.toBeInTheDocument())
   })
 
   it('UX-LOG-152 확정하면 [모두 했어요] 되돌리기 토스트를 닫는다 — 확정 일지 실적과 확인 대기가 어긋나지 않게', async () => {
@@ -202,8 +203,8 @@ describe('하루 마감 v1.1 (SCR-LOG-03, X-05)', () => {
     await user.click(await screen.findByRole('button', { name: '모두 했어요' }))
     expect(await screen.findByRole('button', { name: '되돌리기' })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: '다음' }))
-    await user.click(await screen.findByRole('button', { name: '마감하고 확정' }))
-    expect(await screen.findByRole('heading', { name: '오늘 일지를 확정했어요' })).toBeInTheDocument()
+    await user.click(await screen.findByRole('button', { name: '오늘 마감' }))
+    expect(await screen.findByRole('heading', { name: '오늘 하루를 마감했어요' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '되돌리기' })).not.toBeInTheDocument()
   })
 
@@ -219,11 +220,11 @@ describe('하루 마감 v1.1 (SCR-LOG-03, X-05)', () => {
     renderApp('/', closeRoutes())
     await user.click(await screen.findByRole('button', { name: '다음' }))
     const issue = await screen.findByRole('textbox', { name: /이슈 및 특이사항/ })
-    expect(screen.getByRole('button', { name: '마감하고 확정' })).toHaveAccessibleDescription(/Enter로 확정$/)
+    expect(screen.getByRole('button', { name: '오늘 마감' })).toHaveAccessibleDescription(/Enter로 마감$/)
     await user.type(issue, '회신 지연{Enter}')
     expect(close).not.toHaveBeenCalled()
     await user.keyboard('{Control>}{Enter}{/Control}')
-    expect(await screen.findByRole('heading', { name: '오늘 일지를 확정했어요' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: '오늘 하루를 마감했어요' })).toBeInTheDocument()
     expect(close).toHaveBeenCalledTimes(1)
   })
 
@@ -247,7 +248,7 @@ describe('하루 마감 v1.1 (SCR-LOG-03, X-05)', () => {
     expect(issue).toHaveValue('회신 지연')
   })
 
-  it('UX-LOG-46 완료 창: 요약 한 줄, 상시 [확정 해제]는 창 안에서 묻고(포커스 [계속 두기], Esc는 계속 두기), 해제하면 초안으로', async () => {
+  it('UX-LOG-46 완료 창: 요약 한 줄, 상시 [마감 취소]는 창 안에서 묻고(포커스 [계속 두기], Esc는 계속 두기), 취소하면 [다시 마감]', async () => {
     const user = userEvent.setup()
     const onClose = vi.fn()
     const unconfirm = vi.fn(() => json(200, workLog({ status: 'DRAFT', version: 3 })))
@@ -260,25 +261,25 @@ describe('하루 마감 v1.1 (SCR-LOG-03, X-05)', () => {
     })
     renderApp('/', closeRoutes(onClose))
     await user.click(await screen.findByRole('button', { name: '다음' }))
-    await user.click(await screen.findByRole('button', { name: '마감하고 확정' }))
-    expect(await screen.findByRole('heading', { name: '오늘 일지를 확정했어요' })).toBeInTheDocument()
-    expect(screen.getByText('실적 1건 · 내일 계획 0건')).toBeInTheDocument()
+    await user.click(await screen.findByRole('button', { name: '오늘 마감' }))
+    expect(await screen.findByRole('heading', { name: '오늘 하루를 마감했어요' })).toBeInTheDocument()
+    expect(screen.getByText('확정 기록 1건 · 다음 근무일 계획 0건')).toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: '확정 해제' }))
-    const ask = screen.getByRole('group', { name: /확정을 해제할까요/ })
+    await user.click(screen.getByRole('button', { name: '마감 취소' }))
+    const ask = screen.getByRole('group', { name: /마감을 취소할까요/ })
     await waitFor(() => expect(within(ask).getByRole('button', { name: '계속 두기' })).toHaveFocus())
     await user.keyboard('{Escape}')
     expect(onClose).not.toHaveBeenCalled()
-    expect(screen.queryByRole('group', { name: /확정을 해제할까요/ })).not.toBeInTheDocument()
-    await waitFor(() => expect(screen.getByRole('button', { name: '확정 해제' })).toHaveFocus())
+    expect(screen.queryByRole('group', { name: /마감을 취소할까요/ })).not.toBeInTheDocument()
+    await waitFor(() => expect(screen.getByRole('button', { name: '마감 취소' })).toHaveFocus())
 
-    await user.click(screen.getByRole('button', { name: '확정 해제' }))
-    const again = screen.getByRole('group', { name: /확정을 해제할까요/ })
-    await user.click(within(again).getByRole('button', { name: '확정 해제' }))
-    expect(await screen.findByRole('heading', { name: '오늘 일지를 초안으로 돌렸어요' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '마감 취소' }))
+    const again = screen.getByRole('group', { name: /마감을 취소할까요/ })
+    await user.click(within(again).getByRole('button', { name: '마감 취소' }))
+    expect(await screen.findByRole('heading', { name: '마감을 취소했어요' })).toBeInTheDocument()
     expect(unconfirm).toHaveBeenCalledTimes(1)
     expect(screen.getByRole('button', { name: '다시 마감' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: '일지 보기' })).toHaveAttribute('href', '/logs/daily/2026-10-07')
+    expect(screen.queryByRole('link', { name: '일지 보기' })).not.toBeInTheDocument()
   })
 
   it('팔레트 빠른 마감: 단계 없이 넘길 일은 기본 선택·이슈 없이 바로 확정하고 완료 창을 보인다', async () => {
@@ -296,8 +297,8 @@ describe('하루 마감 v1.1 (SCR-LOG-03, X-05)', () => {
       '/',
       closeRoutes(() => {}, true),
     )
-    expect(await screen.findByRole('heading', { name: '오늘 일지를 확정했어요' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: '오늘 하루를 마감했어요' })).toBeInTheDocument()
     expect(sent).toEqual({ carryOverTaskIds: ['t-1', 't-2'], issue: null, version: 4 })
-    expect(screen.getByRole('button', { name: '확정 해제' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '마감 취소' })).toBeInTheDocument()
   })
 })

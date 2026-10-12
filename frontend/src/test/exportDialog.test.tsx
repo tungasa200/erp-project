@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fileNameOf } from '../api/client'
 import type { LogAchievement } from '../logs/api'
-import { json, ME, problem, renderApp, stubFetch } from './renderApp'
+import { json, ME, problem, renderApp, routesWithHidden, stubFetch } from './renderApp'
 
 // 서울 2026-10-07(수) 12:00
 beforeEach(() => {
@@ -101,7 +101,7 @@ describe('내보내기 (SCR-LOG-05)', () => {
       'GET /api/worklog/logs/daily/2026-10-07': () => json(200, draft()),
       'GET /api/worklog/logs/daily/2026-10-07/export': exported,
     })
-    renderApp('/logs/daily/2026-10-07')
+    renderApp('/logs/daily/2026-10-07', routesWithHidden)
 
     const { button, dialog } = await openExport(user)
     const pdf = within(dialog).getByRole('radio', { name: /PDF/ })
@@ -133,7 +133,7 @@ describe('내보내기 (SCR-LOG-05)', () => {
       'GET /api/worklog/logs/daily/2026-10-07': () => json(200, draft()),
       'GET /api/worklog/tasks/t-1': () => json(200, { id: 't-1', title: '결제 API 설계' }),
     })
-    renderApp('/logs/daily/2026-10-07')
+    renderApp('/logs/daily/2026-10-07', routesWithHidden)
 
     const { dialog } = await openExport(user)
     await user.click(within(dialog).getByRole('radio', { name: /텍스트 복사/ }))
@@ -175,7 +175,7 @@ describe('내보내기 (SCR-LOG-05)', () => {
       'GET /api/worklog/logs/daily/2026-10-07': () => json(200, log),
       'GET /api/worklog/tasks/t-1': () => json(200, { id: 't-1', title: '결제 API 구축' }),
     })
-    renderApp('/logs/daily/2026-10-07')
+    renderApp('/logs/daily/2026-10-07', routesWithHidden)
 
     // 문서 영역과 텍스트 복사가 같은 줄을 쓴다
     const progress = '진행 중 3건 (회의록 정리, 결제 API 구축 80%)'
@@ -193,7 +193,7 @@ describe('내보내기 (SCR-LOG-05)', () => {
       'GET /api/users/me': () => json(200, VERIFIED),
       'GET /api/worklog/logs/daily/2026-10-07': () => json(200, draft()),
     })
-    renderApp('/logs/daily/2026-10-07')
+    renderApp('/logs/daily/2026-10-07', routesWithHidden)
 
     const { dialog } = await openExport(user)
     const pdf = within(dialog).getByRole('radio', { name: /PDF/ })
@@ -216,7 +216,7 @@ describe('내보내기 (SCR-LOG-05)', () => {
       'GET /api/worklog/logs/daily/2026-10-07': () => json(200, draft('CONFIRMED')),
       'GET /api/worklog/records/export': exported,
     })
-    renderApp('/logs/daily/2026-10-07')
+    renderApp('/logs/daily/2026-10-07', routesWithHidden)
 
     const { dialog } = await openExport(user)
     expect(within(dialog).queryByRole('note')).not.toBeInTheDocument()
@@ -254,7 +254,7 @@ describe('내보내기 (SCR-LOG-05)', () => {
       'GET /api/worklog/logs/daily/2026-10-07': () => json(200, draft()),
       'GET /api/worklog/logs/daily/2026-10-07/export': () => problem(503, 'IDENTITY_UNAVAILABLE'),
     })
-    renderApp('/logs/daily/2026-10-07')
+    renderApp('/logs/daily/2026-10-07', routesWithHidden)
 
     const { dialog } = await openExport(user)
     await user.click(within(dialog).getByRole('button', { name: '내려받기' }))
@@ -283,7 +283,7 @@ describe('내보내기 전 이메일 인증 (SCR-LOG-06)', () => {
       },
       'GET /api/worklog/logs/daily/2026-10-07/export': exported,
     })
-    renderApp('/logs/daily/2026-10-07')
+    renderApp('/logs/daily/2026-10-07', routesWithHidden)
 
     const { button, dialog } = await openExport(user)
     await user.click(within(dialog).getByRole('button', { name: '내려받기' }))
@@ -311,7 +311,7 @@ describe('내보내기 전 이메일 인증 (SCR-LOG-06)', () => {
       'GET /api/users/me': () => json(200, { ...VERIFIED, emailVerified: false }),
       'GET /api/worklog/logs/daily/2026-10-07': () => json(200, draft()),
     })
-    renderApp('/logs/daily/2026-10-07')
+    renderApp('/logs/daily/2026-10-07', routesWithHidden)
 
     const { button, dialog } = await openExport(user)
     await user.click(within(dialog).getByRole('radio', { name: /텍스트 복사/ }))
@@ -330,7 +330,7 @@ describe('내보내기 전 이메일 인증 (SCR-LOG-06)', () => {
       'GET /api/worklog/logs/daily/2026-10-07': () => json(200, draft()),
       'GET /api/worklog/logs/daily/2026-10-07/export': () => problem(403, 'EMAIL_NOT_VERIFIED'),
     })
-    renderApp('/logs/daily/2026-10-07')
+    renderApp('/logs/daily/2026-10-07', routesWithHidden)
 
     const { dialog } = await openExport(user)
     await user.click(within(dialog).getByRole('button', { name: '내려받기' }))
@@ -338,20 +338,17 @@ describe('내보내기 전 이메일 인증 (SCR-LOG-06)', () => {
   })
 })
 
-describe('내보내기 바로가기', () => {
-  it('홈 오늘 일지: 확정했으면 [하루 마감] 자리에 [내보내기]', async () => {
-    const user = userEvent.setup()
+describe('내보내기 바로가기(업무일지 숨김 2026-10-12로 없음)', () => {
+  it('홈 오늘 마감: 확정했으면 [하루 마감]도 [내보내기]도 없다', async () => {
     stubFetch({
       'GET /api/users/me': () => json(200, VERIFIED),
       'GET /api/worklog/logs/daily/2026-10-07': () => json(200, draft('CONFIRMED')),
     })
     renderApp('/')
 
-    const card = await screen.findByRole('region', { name: '오늘 일지' })
-    const button = await within(card).findByRole('button', { name: '내보내기' })
-    expect(within(card).queryByRole('button', { name: '하루 마감' })).not.toBeInTheDocument()
-    await user.click(button)
-    expect(await screen.findByRole('dialog', { name: '내보내기' })).toHaveTextContent('2026년 10월 7일 (수) 업무일지')
+    const card = await screen.findByRole('region', { name: '오늘 마감' })
+    expect(await within(card).findByText('마감함')).toBeInTheDocument()
+    expect(within(card).queryByRole('button')).not.toBeInTheDocument()
   })
 })
 

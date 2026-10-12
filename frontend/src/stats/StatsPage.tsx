@@ -164,7 +164,7 @@ function StatsBody(props: { report: Stats; today: string; weekStart: Weekday; ki
         <span className={styles.summaryValue}>{count(report.completedTaskCount)}</span>
       </li>
       <li className={styles.summaryCard}>
-        <span className={styles.summaryLabel}>확정 일지</span>
+        <span className={styles.summaryLabel}>마감한 날</span>
         <span className={styles.summaryValue}>{count(report.confirmedLogCount)}</span>
       </li>
       <li className={styles.summaryCard}>

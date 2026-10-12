@@ -6,7 +6,7 @@ import type { LogPeriod, WorkLog } from '../logs/api'
 import { DayClose } from '../logs/DayClose'
 import { DayCloseHost } from '../logs/DayCloseHost'
 import { TodayLogCard, WeekLogStatus } from '../logs/HomeLogCards'
-import { json, ME, problem, renderApp, stubFetch } from './renderApp'
+import { json, ME, problem, renderApp, routesWithHidden, stubFetch } from './renderApp'
 
 // 서울 2026-10-07(수) 12:00
 beforeEach(() => {
@@ -97,7 +97,7 @@ describe('일지 상세 (SCR-LOG-02)', () => {
         )
       },
     })
-    renderApp('/logs/daily/2026-10-07')
+    renderApp('/logs/daily/2026-10-07', routesWithHidden)
 
     const pill = await screen.findByText('실적 자동')
     expect(pill).toHaveAccessibleDescription(/원본이 바뀌면 함께 바뀌어요/)
@@ -129,7 +129,7 @@ describe('일지 상세 (SCR-LOG-02)', () => {
       [LOG_URL]: () => json(200, workLog()),
       'PATCH /api/worklog/logs/log-1': () => problem(409, 'VERSION_CONFLICT'),
     })
-    renderApp('/logs/daily/2026-10-07')
+    renderApp('/logs/daily/2026-10-07', routesWithHidden)
 
     const result = await screen.findByRole('textbox', { name: '1번 결과' })
     await user.type(result, '추가')
@@ -147,7 +147,7 @@ describe('일지 상세 (SCR-LOG-02)', () => {
       [LOG_URL]: () => json(200, workLog({ version: 2 }, { achievementsAuto: false })),
       'POST /api/worklog/logs/log-1/refill': refill,
     })
-    renderApp('/logs/daily/2026-10-07')
+    renderApp('/logs/daily/2026-10-07', routesWithHidden)
 
     const open = await screen.findByRole('button', { name: '원본에서 다시 채우기' })
     await user.click(open)
@@ -175,7 +175,7 @@ describe('일지 상세 (SCR-LOG-02)', () => {
         json(200, workLog({ status: 'CONFIRMED', version: 1, confirmedAt: '2026-10-07T09:00:00Z' })),
       'POST /api/worklog/logs/log-1/unconfirm': () => json(200, workLog({ version: 2 }, { achievementsAuto: false })),
     })
-    renderApp('/logs/daily/2026-10-07')
+    renderApp('/logs/daily/2026-10-07', routesWithHidden)
 
     await user.click(await screen.findByRole('button', { name: '확정' }))
     expect(await screen.findByText('일지를 확정했어요')).toBeInTheDocument()
@@ -206,7 +206,7 @@ describe('일지 상세 (SCR-LOG-02)', () => {
       [LOG_URL]: () => json(200, workLog()),
       'POST /api/worklog/logs/log-1/confirm': confirm,
     })
-    renderApp('/logs/daily/2026-10-07')
+    renderApp('/logs/daily/2026-10-07', routesWithHidden)
     const end = await screen.findByRole('button', { name: '일지 확정' })
     const issues = screen.getByRole('textbox', { name: /이슈 및 특이사항/ })
     // 이슈 칸 뒤에 온다
@@ -240,7 +240,7 @@ describe('일지 상세 (SCR-LOG-02)', () => {
         return json(200, confirmed(6, false))
       },
     })
-    renderApp('/logs/daily/2026-10-07')
+    renderApp('/logs/daily/2026-10-07', routesWithHidden)
     const band = await screen.findByRole('region', { name: '원본이 바뀜' })
     expect(band).toHaveTextContent('확정한 뒤 원본 기록이 바뀌었어요')
     await user.click(within(band).getByRole('button', { name: '다시 확정하기' }))
@@ -273,7 +273,7 @@ describe('일지 상세 (SCR-LOG-02)', () => {
       },
       'POST /api/worklog/logs/log-1/confirm': () => json(500, { title: 'boom' }),
     })
-    renderApp('/logs/daily/2026-10-07')
+    renderApp('/logs/daily/2026-10-07', routesWithHidden)
     const band = await screen.findByRole('region', { name: '원본이 바뀜' })
     await user.click(within(band).getByRole('button', { name: '다시 확정하기' }))
     await user.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: '다시 확정' }))
@@ -298,7 +298,7 @@ describe('일지 상세 (SCR-LOG-02)', () => {
       'GET /api/worklog/logs/log-1/revisions/1': () =>
         json(200, { revisionNo: 1, confirmedAt: '2026-10-07T09:00:00Z', content: confirmed.content }),
     })
-    renderApp('/logs/daily/2026-10-07')
+    renderApp('/logs/daily/2026-10-07', routesWithHidden)
 
     const open = await screen.findByRole('button', { name: '변경 이력' })
     await user.click(open)
@@ -342,7 +342,7 @@ describe('일지 상세 (SCR-LOG-02)', () => {
         return json(200, workLog({ version: 1 }, { issues: '회의 연기' }))
       },
     })
-    renderApp('/logs/daily/2026-10-07')
+    renderApp('/logs/daily/2026-10-07', routesWithHidden)
 
     await user.type(await screen.findByRole('textbox', { name: '이슈 및 특이사항' }), '회의 연기')
     await waitFor(() => expect(calls).toEqual(['create', 'patch']), { timeout: 3000 })
@@ -362,7 +362,7 @@ describe('일지 상세 (SCR-LOG-02)', () => {
       'GET /api/users/me': me,
       [LOG_URL]: () => json(200, workLog({ id: null, status: 'NOT_WRITTEN' }, { metrics })),
     })
-    renderApp('/logs/daily/2026-10-07')
+    renderApp('/logs/daily/2026-10-07', routesWithHidden)
     const doc = await screen.findByRole('article', { name: '일지 문서' })
     expect(within(doc).getByRole('heading', { level: 2 })).toHaveTextContent(/^업무일지$/)
     expect(screen.getByText('미작성')).toBeInTheDocument()
@@ -371,7 +371,7 @@ describe('일지 상세 (SCR-LOG-02)', () => {
 
   it('LOG-50 진행 현황 완료와 실적 줄이 맞으면 안내 줄이 없고, 초안은 "초안" 표시를 보인다', async () => {
     stubFetch({ 'GET /api/users/me': me, [LOG_URL]: () => json(200, workLog()) })
-    renderApp('/logs/daily/2026-10-07')
+    renderApp('/logs/daily/2026-10-07', routesWithHidden)
     const doc = await screen.findByRole('article', { name: '일지 문서' })
     expect(within(doc).getByRole('heading', { level: 2 })).toHaveTextContent('업무일지초안')
     expect(within(doc).queryByText(/실적 줄에 아직 없는 완료/)).not.toBeInTheDocument()
@@ -398,7 +398,7 @@ describe('일지 상세 (SCR-LOG-02)', () => {
       'PATCH /api/worklog/logs/log-1': (init) =>
         json(200, workLog({ version: 1 }, { achievementsAuto: false, ...JSON.parse(String(init?.body)) })),
     })
-    renderApp('/logs/daily/2026-10-07')
+    renderApp('/logs/daily/2026-10-07', routesWithHidden)
 
     await user.click(await screen.findByRole('button', { name: '회의 준비 실적에 넣기' }))
     await waitFor(() => expect(screen.getByRole('button', { name: '자료 정리 실적에 넣기' })).toHaveFocus())
@@ -410,7 +410,7 @@ describe('일지 상세 (SCR-LOG-02)', () => {
   it('편집 칸은 줄바꿈되는 여러 줄 칸이고, Enter·붙여 넣은 줄바꿈은 넣지 않는다', async () => {
     const user = userEvent.setup()
     stubFetch({ 'GET /api/users/me': me, [LOG_URL]: () => json(200, workLog()) })
-    renderApp('/logs/daily/2026-10-07')
+    renderApp('/logs/daily/2026-10-07', routesWithHidden)
 
     const text = await screen.findByRole('textbox', { name: '1번 업무 내용' })
     expect(text.tagName).toBe('TEXTAREA')
@@ -421,7 +421,7 @@ describe('일지 상세 (SCR-LOG-02)', () => {
 
   it('잘못된 주소는 찾을 수 없다고 알리고 목록 링크를 준다', async () => {
     stubFetch({ 'GET /api/users/me': me })
-    renderApp('/logs/daily/2026-13-40')
+    renderApp('/logs/daily/2026-13-40', routesWithHidden)
     expect(await screen.findByRole('heading', { name: '일지를 찾을 수 없어요' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: '일지 목록으로' })).toHaveAttribute('href', '/logs')
   })
@@ -458,7 +458,7 @@ describe('일지 목록 (SCR-LOG-01)', () => {
       'POST /api/worklog/logs/daily/2026-10-07': create,
       [LOG_URL]: () => json(200, workLog()),
     })
-    const { router } = renderApp('/logs')
+    const { router } = renderApp('/logs', routesWithHidden)
 
     expect(await screen.findByRole('heading', { name: '2026년 10월' })).toBeInTheDocument()
     expect(await screen.findByText('확정 안 된 날 1일')).toBeInTheDocument()
@@ -489,7 +489,7 @@ describe('일지 목록 (SCR-LOG-01)', () => {
       'POST /api/worklog/logs/daily/2026-10-07': create,
       [LOG_URL]: () => json(200, workLog()),
     })
-    const { router } = renderApp('/logs')
+    const { router } = renderApp('/logs', routesWithHidden)
 
     const go = await screen.findByRole('button', { name: /부터 보기$/ })
     go.focus()
@@ -521,7 +521,7 @@ describe('일지 목록 (SCR-LOG-01)', () => {
         })
       },
     })
-    const { router } = renderApp('/logs?view=weekly')
+    const { router } = renderApp('/logs?view=weekly', routesWithHidden)
 
     expect(await screen.findByText('확정 1/5일')).toBeInTheDocument()
     // 앞으로 올 주는 상태 배지처럼 확정 일수도 숨긴다
@@ -609,12 +609,13 @@ describe('하루 마감 (SCR-LOG-03)', () => {
     await waitFor(() => expect(issue).toHaveFocus())
     await user.type(issue, '거래처 회신 지연')
     expect(screen.getByText(/다음 근무일 계획 1건/)).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: '마감하고 확정' }))
+    await user.click(screen.getByRole('button', { name: '오늘 마감' }))
 
-    await waitFor(() => expect(screen.getByRole('heading', { name: '오늘 일지를 확정했어요' })).toHaveFocus())
+    await waitFor(() => expect(screen.getByRole('heading', { name: '오늘 하루를 마감했어요' })).toHaveFocus())
     expect(sent).toEqual({ carryOverTaskIds: ['t-2'], issue: '거래처 회신 지연', version: 4 })
-    expect(screen.getByText('확정 안 된 날: 10/5')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: '주간 일지 열기' })).toHaveAttribute('href', '/logs/weekly/2026-10-05')
+    // 주간·월간 제안은 업무일지 숨김으로 보이지 않는다(문안 표 3-7)
+    expect(screen.queryByText('확정 안 된 날: 10/5')).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: '주간 일지 열기' })).not.toBeInTheDocument()
 
     // 제목에 포커스가 있을 때 Shift+Tab도 창 안 마지막 자리로(body로 빠지지 않게)
     await user.keyboard('{Shift>}{Tab}{/Shift}')
@@ -678,15 +679,15 @@ describe('하루 마감 (SCR-LOG-03)', () => {
     // 기존 이슈 1700자 + 줄바꿈 → 299자까지
     const issue = await screen.findByRole('textbox', { name: /이슈 및 특이사항/ })
     expect(issue).toHaveAttribute('maxLength', '299')
-    expect(issue).toHaveAccessibleDescription('일지의 이슈 칸이 2000자까지라 299자까지 남길 수 있어요.')
+    expect(issue).toHaveAccessibleDescription('이슈는 2000자까지라 299자 더 남길 수 있어요.')
 
-    await user.click(screen.getByRole('button', { name: '마감하고 확정' }))
+    await user.click(screen.getByRole('button', { name: '오늘 마감' }))
     expect(await screen.findByText('계획은 50줄까지예요. 넘길 업무를 줄여 주세요')).toBeInTheDocument()
     await waitFor(() => expect(screen.getByRole('heading', { name: '하루 마감 1/2' })).toHaveFocus())
 
     reply = () => problemJson('issue', 'TOO_LONG')
     await user.click(screen.getByRole('button', { name: '다음' }))
-    await user.click(await screen.findByRole('button', { name: '마감하고 확정' }))
+    await user.click(await screen.findByRole('button', { name: '오늘 마감' }))
     expect(await screen.findByText('이슈 및 특이사항은 모두 2000자까지예요. 이슈를 줄여 주세요')).toBeInTheDocument()
   })
 
@@ -739,7 +740,7 @@ describe('하루 마감 (SCR-LOG-03)', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: '하나씩 확인' })).toHaveFocus())
   })
 
-  it('이미 확정한 날은 해제 후 다시 마감하라고 알린다, Esc로 닫는다', async () => {
+  it('이미 마감한 날은 그렇다고 알리고 [마감 취소]를 둔다, Esc로 닫는다', async () => {
     const user = userEvent.setup()
     const onClose = vi.fn()
     stubFetch({
@@ -749,14 +750,15 @@ describe('하루 마감 (SCR-LOG-03)', () => {
     })
     renderApp('/', closeRoutes(onClose))
 
-    expect(await screen.findByText(/확정 해제 후 다시 마감할 수 있어요/)).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: '일지 보기' })).toHaveAttribute('href', '/logs/daily/2026-10-07')
+    expect(await screen.findByText('오늘은 이미 마감했어요.')).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: '일지 보기' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '마감 취소' })).toBeInTheDocument()
     await user.keyboard('{Escape}')
     expect(onClose).toHaveBeenCalled()
   })
 })
 
-describe('홈 일지 카드 (SCR-HOME-01 ⑤⑦)', () => {
+describe('홈 마감 카드 (SCR-HOME-01 ⑤⑦, 업무일지 숨김 문안 표 2장)', () => {
   const cardRoutes = [
     {
       path: '/',
@@ -801,11 +803,11 @@ describe('홈 일지 카드 (SCR-HOME-01 ⑤⑦)', () => {
         }),
     })
     renderApp('/', cardRoutes)
-    expect(screen.queryByText(/실적 0건/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/확정 기록 0건/)).not.toBeInTheDocument()
 
-    expect(await screen.findByText('실적 1건 · 계획 0건 · 이슈 없음')).toBeInTheDocument()
-    expect(screen.getByText('1/3칸 채웠어요')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: '일지 보기' })).toHaveAttribute('href', '/logs/daily/2026-10-07')
+    expect(await screen.findByText('확정 기록 1건 · 내일 계획 0건 · 이슈 없음')).toBeInTheDocument()
+    expect(screen.queryByText(/칸 채웠어요/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('link')).not.toBeInTheDocument()
 
     const open = screen.getByRole('button', { name: '하루 마감' })
     await user.click(open)
@@ -814,7 +816,7 @@ describe('홈 일지 카드 (SCR-HOME-01 ⑤⑦)', () => {
     await waitFor(() => expect(open).toHaveFocus())
   })
 
-  it('⑤ 확정한 날은 확정됨·확정 시각, [하루 마감] 없음. ⑦ 날마다 상태·휴일', async () => {
+  it('⑤ 마감한 날은 마감함·마감 시각, [하루 마감] 없음. ⑦ 날마다 상태·휴일(누르는 곳 없음)', async () => {
     stubFetch({
       'GET /api/users/me': me,
       [LOG_URL]: () => json(200, workLog({ status: 'CONFIRMED', confirmedAt: '2026-10-07T09:04:00Z' })),
@@ -822,20 +824,23 @@ describe('홈 일지 카드 (SCR-HOME-01 ⑤⑦)', () => {
     })
     renderApp('/', cardRoutes)
 
-    expect(await screen.findByText('확정됨')).toBeInTheDocument()
-    expect(screen.getByText('확정 2026-10-07 18:04')).toBeInTheDocument()
+    expect(await screen.findByText('마감함', { selector: 'span' })).toBeInTheDocument()
+    expect(screen.getByText('18:04에 마감했어요')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '하루 마감' })).not.toBeInTheDocument()
 
-    expect(await screen.findByRole('link', { name: '10월 5일 월요일 확정' })).toHaveAttribute(
-      'href',
-      '/logs/daily/2026-10-05',
-    )
-    expect(screen.getByRole('link', { name: '10월 6일 화요일 작성 중' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: '10월 7일 수요일 미작성' })).toHaveAttribute('aria-current', 'date')
-    expect(screen.getByRole('link', { name: '10월 8일 목요일 예정' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: '10월 9일 금요일 한글날' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: '10월 10일 토요일 휴일' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: '주간 일지' })).toHaveAttribute('href', '/logs/weekly/2026-10-05')
+    const weekBox = within(screen.getByRole('region', { name: '이번 주 마감' }))
+    const days = (await weekBox.findAllByRole('listitem')).slice(0, 7).map((li) => li.textContent)
+    expect(days).toEqual([
+      '10월 5일 월요일 마감함',
+      '10월 6일 화요일 마감 전',
+      '10월 7일 수요일 마감 전',
+      '10월 8일 목요일 예정',
+      '10월 9일 금요일 한글날',
+      '10월 10일 토요일 휴일',
+      '10월 11일 일요일 휴일',
+    ])
+    expect(weekBox.getAllByRole('listitem')[2].firstElementChild).toHaveAttribute('aria-current', 'date')
+    expect(weekBox.queryByRole('link')).not.toBeInTheDocument()
   })
 })
 
@@ -852,7 +857,7 @@ describe('일지 자동 저장 — 빈 줄', () => {
         return json(200, workLog({ version: 1 }, { achievementsAuto: false, achievements: body.achievements }))
       },
     })
-    renderApp('/logs/daily/2026-10-07')
+    renderApp('/logs/daily/2026-10-07', routesWithHidden)
 
     await user.click(await screen.findByRole('button', { name: '＋ 실적 줄 추가' }))
     const input = await screen.findByRole('textbox', { name: '2번 업무 내용' })
@@ -872,7 +877,7 @@ describe('일지 자동 저장 — 빈 줄', () => {
       'GET /api/users/me': me,
       [LOG_URL]: () => json(200, workLog()),
     })
-    renderApp('/logs/daily/2026-10-07')
+    renderApp('/logs/daily/2026-10-07', routesWithHidden)
     const unloadBlocked = () => {
       const e = new Event('beforeunload', { cancelable: true })
       window.dispatchEvent(e)
@@ -902,7 +907,7 @@ describe('일지 자동 저장 — 빈 줄', () => {
       },
       'POST /api/worklog/logs/log-1/confirm': () => json(200, { ...server, status: 'CONFIRMED', version: 2 }),
     })
-    renderApp('/logs/daily/2026-10-07')
+    renderApp('/logs/daily/2026-10-07', routesWithHidden)
 
     await user.click(await screen.findByRole('button', { name: '＋ 실적 줄 추가' }))
     await screen.findByRole('textbox', { name: '2번 업무 내용' })
@@ -935,7 +940,7 @@ describe('일지 오프라인 (UX-LOG-40)', () => {
         return json(200, workLog({ version: 1 }, { issues: body.issues }))
       },
     })
-    renderApp('/logs/daily/2026-10-07')
+    renderApp('/logs/daily/2026-10-07', routesWithHidden)
 
     const issues = await screen.findByRole('textbox', { name: '이슈 및 특이사항' })
     // 입력 직후(자동 저장 0.8초 전)에 연결이 끊긴다
@@ -974,7 +979,7 @@ describe('일지 오프라인 (UX-LOG-40)', () => {
         throw new TypeError('Failed to fetch')
       },
     })
-    renderApp('/logs/daily/2026-10-07')
+    renderApp('/logs/daily/2026-10-07', routesWithHidden)
 
     const result = await screen.findByRole('textbox', { name: '1번 결과' })
     await user.type(result, ' 추가')
@@ -1016,7 +1021,7 @@ describe('일지 줄 삭제 되돌리기 (UX-LOG-101)', () => {
       [LOG_URL]: () => json(200, workLog()),
       'PATCH /api/worklog/logs/log-1': () => json(200, workLog()),
     })
-    renderApp('/logs/daily/2026-10-07')
+    renderApp('/logs/daily/2026-10-07', routesWithHidden)
     await user.click(await screen.findByRole('button', { name: '1번 줄 삭제' }))
     await waitFor(() => expect(screen.getByRole('button', { name: '＋ 실적 줄 추가' })).toHaveFocus())
   })
@@ -1026,7 +1031,7 @@ describe('일지 줄 삭제 되돌리기 (UX-LOG-101)', () => {
     vi.spyOn(HTMLElement.prototype, 'scrollWidth', 'get').mockReturnValue(600)
     vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(320)
     stubFetch({ 'GET /api/users/me': me, [LOG_URL]: () => json(200, workLog()) })
-    renderApp('/logs/daily/2026-10-07')
+    renderApp('/logs/daily/2026-10-07', routesWithHidden)
     const region = await screen.findByRole('region', { name: '실적 표 (가로로 밀어 보기)' })
     expect(region.parentElement).toHaveAttribute('data-more')
     expect(screen.getByText('옆으로 밀어 보기 →')).toBeInTheDocument()
@@ -1045,7 +1050,7 @@ describe('일지 줄 삭제 되돌리기 (UX-LOG-101)', () => {
       [LOG_URL]: () => json(200, workLog()),
       'PATCH /api/worklog/logs/log-1': () => json(200, workLog()),
     })
-    renderApp('/logs/daily/2026-10-07')
+    renderApp('/logs/daily/2026-10-07', routesWithHidden)
     const first = await screen.findByRole('textbox', { name: '1번 업무 내용' })
     const text = (first as HTMLTextAreaElement).value
     await user.click(screen.getByRole('button', { name: '1번 줄 삭제' }))
@@ -1067,7 +1072,7 @@ describe('일지 줄 삭제 되돌리기 (UX-LOG-101)', () => {
         json(200, workLog({ id: 'log-0', periodStart: '2026-10-06', periodEnd: '2026-10-06' })),
       'PATCH /api/worklog/logs/log-1': () => json(200, workLog()),
     })
-    const { router } = renderApp('/logs/daily/2026-10-07')
+    const { router } = renderApp('/logs/daily/2026-10-07', routesWithHidden)
     await screen.findByRole('textbox', { name: '1번 업무 내용' })
     await user.click(screen.getByRole('button', { name: '1번 줄 삭제' }))
     expect(await screen.findByText('실적 줄을 지웠어요')).toBeInTheDocument()
@@ -1083,7 +1088,7 @@ describe('일지 줄 삭제 되돌리기 (UX-LOG-101)', () => {
       [LOG_URL]: () => json(200, workLog()),
       'PATCH /api/worklog/logs/log-1': () => json(200, workLog()),
     })
-    renderApp('/logs/daily/2026-10-07')
+    renderApp('/logs/daily/2026-10-07', routesWithHidden)
     await user.click(await screen.findByRole('button', { name: '＋ 실적 줄 추가' }))
     await user.type(await screen.findByRole('textbox', { name: '2번 결과' }), '고객 확인 끝남')
     const text = screen.getByRole('textbox', { name: '2번 업무 내용' })

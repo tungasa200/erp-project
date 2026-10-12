@@ -4,7 +4,7 @@ import { createMemoryRouter, RouterProvider, type RouteObject } from 'react-rout
 import { vi } from 'vitest'
 import { setSessionExpiredHandler } from '../api'
 import { MaintenanceGate } from '../app/MaintenanceGate'
-import { routes } from '../app/router'
+import { hiddenLogRoutes, hiddenProfileRoute, routes } from '../app/router'
 import { AuthProvider } from '../auth/AuthContext'
 import { handleSessionExpired } from '../auth/session'
 import { AppFrame } from '../components/AppFrame'
@@ -150,6 +150,19 @@ export function stubFetch(handlers: Record<string, Handler>) {
   vi.stubGlobal('fetch', fetchMock)
   return fetchMock
 }
+
+/** 앱 경로에서 숨긴 화면(업무일지 /logs·설정 프로필, 2026-10-12)의 돌려보내기를 원래 화면으로 바꾼 것. 숨긴 화면 코드를 시험할 때만 쓴다 */
+function withHiddenScreens(list: RouteObject[]): RouteObject[] {
+  return list.map((r) => {
+    if (!r.children) return r
+    let children = withHiddenScreens(r.children)
+    if (children.some((c) => c.path === '/logs'))
+      children = [...hiddenLogRoutes, ...children.filter((c) => !c.path?.startsWith('/logs'))]
+    children = children.map((c) => (c.path === 'profile' ? hiddenProfileRoute : c))
+    return { ...r, children } as RouteObject
+  })
+}
+export const routesWithHidden = withHiddenScreens(routes)
 
 export function renderApp(path: string, appRoutes: RouteObject[] = routes) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })

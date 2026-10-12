@@ -24,14 +24,28 @@ export const notificationApi = {
   readAll: () => api.request<void>(`${base}/read-all`, { method: 'POST' }),
 }
 
+/**
+ * 업무일지 숨김(사용자 결정 2026-10-12, 문안 표 4-4): 주간·월간 일지 제안(LOG_SUGGESTION)은 목록에서 거른다.
+ * 서버는 계속 만들므로 안 읽은 것은 받은 자리에서 읽음으로 돌려 서버의 안 읽은 수에서도 빠지게 한다(읽음 표시만 바뀜)
+ */
+function dropLogSuggestions(page: NotificationPage): NotificationPage {
+  const unreadHidden = page.items.filter((n) => n.type === 'LOG_SUGGESTION' && !n.readAt)
+  for (const n of unreadHidden) void notificationApi.read(n.id).catch(() => undefined)
+  return {
+    ...page,
+    items: page.items.filter((n) => n.type !== 'LOG_SUGGESTION'),
+    unreadCount: Math.max(0, page.unreadCount - unreadHidden.length),
+  }
+}
+
 // 하루 마감 알림은 정해진 시각에 한 번 생기므로 자주 묻지 않는다. 창으로 돌아오면 react-query가 다시 받는다
 const POLL_MS = 5 * 60_000
 
-/** 종 배지용 안 읽은 수(limit=1) */
+/** 종 배지용 안 읽은 수. 숨긴 제안을 빼려고 첫 페이지를 받는다(제안은 주·월에 한 번이라 30건 안에 든다) */
 export function useUnreadCount() {
   return useQuery({
     queryKey: UNREAD_KEY,
-    queryFn: async () => (await notificationApi.list(null, 1)).unreadCount,
+    queryFn: async () => dropLogSuggestions(await notificationApi.list(null)).unreadCount,
     refetchInterval: POLL_MS,
   })
 }
@@ -39,7 +53,7 @@ export function useUnreadCount() {
 export function useNotifications() {
   return useInfiniteQuery({
     queryKey: LIST_KEY,
-    queryFn: ({ pageParam }) => notificationApi.list(pageParam),
+    queryFn: async ({ pageParam }) => dropLogSuggestions(await notificationApi.list(pageParam)),
     initialPageParam: null as string | null,
     getNextPageParam: (last) => last.nextCursor ?? null,
   })

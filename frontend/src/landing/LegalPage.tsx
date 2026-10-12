@@ -112,10 +112,13 @@ function moveFocus(id: string) {
 }
 
 export function LegalPage({ title, doc }: { title: string; doc: LegalDoc }) {
+  // 머리에는 부칙의 가장 나중 시행일(개정이 있으면 개정 시행일)만 보인다
   const effective = doc.sections
     .at(-1)
     ?.blocks.flatMap((b) => ('ul' in b ? b.ul : []))
-    .find((t) => t.startsWith('시행일'))
+    .map((t) => /시행일: ([^/]+)/.exec(t)?.[1].trim())
+    .filter(Boolean)
+    .at(-1)
   return (
     <div className={styles.page}>
       <header className={styles.header}>
@@ -129,7 +132,7 @@ export function LegalPage({ title, doc }: { title: string; doc: LegalDoc }) {
       <main className={styles.article}>
         <h1 className={styles.title}>{title}</h1>
         <p className={styles.meta}>
-          <Text>{effective ?? `시행일: ${BLANK}`}</Text>
+          <Text>{`시행일: ${effective ?? BLANK}`}</Text>
         </p>
         {doc.intro.map((b, i) => (
           <Block key={i} block={b} label={title} />

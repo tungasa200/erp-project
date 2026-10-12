@@ -8,10 +8,10 @@ const LEGEND = [
 ] as const
 
 /** 좁은 화면에서 일지 칸이 점·고리·마름모·막대만 보일 때 아래에 두는 범례. 넓은 화면은 칸에 글자가 있어 CSS로 숨긴다 */
-export function LogStatusLegend() {
+export function LogStatusLegend({ items = LEGEND }: { items?: readonly (readonly [string, string])[] }) {
   return (
     <ul className={styles.legend}>
-      {LEGEND.map(([status, text]) => (
+      {items.map(([status, text]) => (
         <li key={status} className={styles[`cell${status}`]}>
           <span className={styles.cellStatus} aria-hidden="true" />
           {text}

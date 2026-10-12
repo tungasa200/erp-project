@@ -67,7 +67,8 @@ export function AccountSettings() {
         <div className={account.emailRow}>
           <div className={account.emailText}>
             <div className={account.email}>{user.email}</div>
-            {user.emailVerified ? (
+            {/* 미인증 안내 줄은 숨김(업무일지 숨김 2026-10-12, 문안 표 4-9: 인증이 필요한 내보내기가 숨겨짐). [인증하기]는 그대로 */}
+            {user.emailVerified && (
               <span className={account.verified}>
                 <svg
                   aria-hidden="true"
@@ -84,8 +85,6 @@ export function AccountSettings() {
                 </svg>
                 인증됨
               </span>
-            ) : (
-              <div className={account.unverified}>이메일 미인증 · 일지 내보내기 전에 인증이 필요해요</div>
             )}
           </div>
           {!user.emailVerified && (

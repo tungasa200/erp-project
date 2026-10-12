@@ -8,6 +8,7 @@ import { Link, NavLink, Outlet, useLocation, useNavigate, useSearchParams } from
 import { toastForError } from '../api/errorToast'
 import { useAuth } from '../auth/useAuth'
 import { DayCloseHost } from '../logs/DayCloseHost'
+import { openDayClose } from '../logs/openDayClose'
 import { CommandPalette } from '../palette/CommandPalette'
 import { useProjects } from '../projects/api'
 import { PendingPanel } from '../records/PendingPanel'
@@ -19,7 +20,6 @@ import { CompletionResultHost } from '../tasks/CompletionResult'
 import { stoppedMessage, useRunningTimer, useTimerCommands } from '../timer/api'
 import { TimerMiniPlayer } from '../timer/TimerMiniPlayer'
 import { TimerStartDialog } from '../timer/TimerStartDialog'
-import { UnverifiedBanner } from '../verification/UnverifiedBanner'
 import { NotificationBell } from '../notifications/NotificationBell'
 import styles from './AppShell.module.css'
 import { useFocusRescue } from './focusRescue'
@@ -39,19 +39,13 @@ const MENU = [
     label: '업무',
     icon: 'M6 3h12a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3zM8 12l3 3 5-6',
   },
-  {
-    to: '/logs',
-    label: '업무일지',
-    icon: 'M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8zM14 3v5h5M9 13h6M9 17h6',
-  },
   { to: '/stats', label: '통계', icon: 'M4 20V10M10 20V4M16 20v-7M22 20H2' },
 ]
 const ICON = {
   home: MENU[0].icon,
   calendar: MENU[1].icon,
   tasks: MENU[2].icon,
-  logs: MENU[3].icon,
-  stats: MENU[4].icon,
+  stats: MENU[3].icon,
   archive: 'M3 4h18v4H3zM5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8M10 12h4',
   more: 'M5 12h.01M12 12h.01M19 12h.01',
 }
@@ -85,6 +79,7 @@ export function AppShell() {
   const { user } = useAuth()
   const online = useOnline()
   const navigate = useNavigate()
+  const { pathname } = useLocation()
   const [paletteOpen, setPaletteOpen] = useState(false)
   const timer = usePaletteTimer()
   // 빠른 기록 시트(SCR-MOB-01). 닫아도 쓰던 글은 남긴다
@@ -105,6 +100,20 @@ export function AppShell() {
       { replace: true },
     )
   }, [quickParam, setSearchParams])
+  // 하루 마감 알림·푸시(/?close=YYYY-MM-DD)로 오면 그날 마감 창을 열고 주소에서 뺀다. 창 자리(DayCloseHost)는 자식이라 먼저 등록돼 있다
+  // 홈에서만 본다: 옛 주소 /logs/daily/{날짜}?close=1에서 먼저 지우면 LogsRedirect가 날짜를 넘기지 못한다
+  const closeParam = pathname === '/' ? searchParams.get('close') : null
+  useEffect(() => {
+    if (closeParam === null) return
+    if (/^\d{4}-\d{2}-\d{2}$/.test(closeParam)) openDayClose({ date: closeParam })
+    setSearchParams(
+      (params) => {
+        params.delete('close')
+        return params
+      },
+      { replace: true },
+    )
+  }, [closeParam, setSearchParams])
 
   // 지금 화면에 빠른 입력창이 있으면 거기로, 없으면 홈의 입력창으로 간다.
   const quickAdd = useCallback(
@@ -183,8 +192,8 @@ export function AppShell() {
           {/* SCR-COM-05 ② 종: 데스크톱·태블릿은 사이드바 위(모바일은 홈 머리 오른쪽) */}
           <NotificationBell className={styles.bell} />
         </div>
-        {/* 프로필 영역을 누르면 프로필 설정으로 (SCR-SET-01 진입 경로) */}
-        <Link to="/settings/profile" className={styles.profile} title="프로필 설정">
+        {/* 프로필 영역을 누르면 계정 설정으로(프로필 탭은 업무일지 숨김 2026-10-12로 숨김) */}
+        <Link to="/settings/account" className={styles.profile} title="계정 설정">
           <span className={styles.avatar} aria-hidden="true">
             {(user?.name ?? '나').slice(0, 1)}
           </span>
@@ -211,7 +220,7 @@ export function AppShell() {
       </nav>
 
       <div ref={contentRef} className={styles.content}>
-        <UnverifiedBanner />
+        {/* 미인증 배너(SCR-COM-07, verification/UnverifiedBanner)는 숨김(업무일지 숨김 2026-10-12, 문안 표 4-12: 막는 기능이던 내보내기가 숨겨짐) */}
         {/* 끊긴 동안에는 화면마다 저장·편집 영역만 막는다(SCR-SYS-02 ③, 오프라인 기록은 범위 밖). 이동·열람은 된다 */}
         {/* 앱 화면의 본문 랜드마크. 페이지 컴포넌트는 <main>을 따로 두지 않는다(오류·404·점검·인증 화면은 셸 밖이라 각자 둔다) */}
         <main id="main" tabIndex={-1} className={styles.main}>
@@ -244,9 +253,13 @@ export function AppShell() {
         >
           <Icon d="M12 5v14M5 12h14" size={24} />
         </button>
-        <NavLink to="/logs" className={tabClass}>
-          <Icon d={ICON.logs} size={20} />
-          일지
+        {/* 업무일지 숨김(사용자 결정 2026-10-12): 일지 자리에 업무. 보관함(/tasks/archive)은 더보기 쪽이 켜진다 */}
+        <NavLink
+          to="/tasks"
+          className={({ isActive }) => tabClass({ isActive: isActive && !pathname.startsWith('/tasks/archive') })}
+        >
+          <Icon d={ICON.tasks} size={20} />
+          업무
         </NavLink>
         <MoreMenu />
       </nav>
@@ -313,7 +326,6 @@ function usePaletteTimer() {
 // SCR-COM-01 ⑤ 하단 탭 '더보기' (P1-X-01, P4-03 아이콘·통계·보관함).
 // 열면 첫 항목으로, Esc·바깥 누르기·항목 선택으로 닫히면 더보기 버튼으로 포커스를 돌려준다.
 const MORE = [
-  { to: '/tasks', label: '업무', icon: ICON.tasks },
   { to: '/stats', label: '통계', icon: ICON.stats },
   { to: '/tasks/archive', label: '보관함', icon: ICON.archive },
   { to: '/settings', label: '설정', icon: SETTINGS_ICON },

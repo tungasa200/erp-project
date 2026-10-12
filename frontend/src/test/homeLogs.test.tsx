@@ -1,4 +1,4 @@
-// 홈 ⑤ 오늘 일지·⑦ 이번 주 일지 자리(SCR-HOME-01, P3-04)와 명령 팔레트 '하루 마감'(SCR-COM-03 → SCR-LOG-03)
+// 홈 ⑤ 오늘 마감·⑦ 이번 주 마감 자리(업무일지 숨김 2026-10-12로 이름만 바뀜)(SCR-HOME-01, P3-04)와 명령 팔레트 '하루 마감'(SCR-COM-03 → SCR-LOG-03)
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -68,16 +68,16 @@ const closePlan = {
   suggestions: [],
 }
 
-describe('홈 일지 카드 (SCR-HOME-01 ⑤⑦)', () => {
-  it('오른쪽 열에 오늘 일지 → 다가오는 일정 → 이번 주 일지 순으로 놓는다', async () => {
+describe('홈 마감 카드 (SCR-HOME-01 ⑤⑦)', () => {
+  it('오른쪽 열에 오늘 마감 → 다가오는 일정 → 이번 주 마감 순으로 놓고, 일지로 가는 링크는 없다', async () => {
     stubFetch({ 'GET /api/users/me': () => json(200, ME) })
     renderApp('/')
 
-    const today = await screen.findByRole('region', { name: '오늘 일지' })
-    expect(await within(today).findByText('실적 0건 · 계획 0건 · 이슈 없음')).toBeInTheDocument()
-    expect(within(today).getByRole('link', { name: '일지 보기' })).toHaveAttribute('href', '/logs/daily/2026-10-07')
-    const week = screen.getByRole('region', { name: '이번 주 일지' })
-    expect(within(week).getByRole('link', { name: '주간 일지' })).toHaveAttribute('href', '/logs/weekly/2026-10-05')
+    const today = await screen.findByRole('region', { name: '오늘 마감' })
+    expect(await within(today).findByText('확정 기록 0건 · 다음 근무일 계획 0건 · 이슈 없음')).toBeInTheDocument()
+    expect(within(today).queryByRole('link')).not.toBeInTheDocument()
+    const week = screen.getByRole('region', { name: '이번 주 마감' })
+    expect(within(week).queryByRole('link')).not.toBeInTheDocument()
 
     const order = screen
       .getAllByRole('region')
@@ -95,10 +95,10 @@ describe('명령 팔레트 하루 마감 (SCR-COM-03, SCR-LOG-03)', () => {
       'GET /api/users/me': () => json(200, ME),
       'GET /api/worklog/logs/daily/2026-10-07/close': () => json(200, closePlan),
     })
-    renderApp('/logs')
+    renderApp('/')
 
     const nav = await screen.findByRole('navigation', { name: '주 메뉴' })
-    const before = within(nav).getByRole('link', { name: '업무일지' })
+    const before = within(nav).getByRole('link', { name: '통계' })
     before.focus()
     await user.keyboard('{Control>}k{/Control}')
     const palette = await screen.findByRole('dialog', { name: '명령 팔레트' })
@@ -125,13 +125,13 @@ describe('명령 팔레트 하루 마감 (SCR-COM-03, SCR-LOG-03)', () => {
       'GET /api/worklog/logs/daily/2026-10-07/close': () => json(200, closePlan),
       'POST /api/worklog/logs/daily/2026-10-07/close': close,
     })
-    renderApp('/logs')
+    renderApp('/')
     await screen.findByRole('navigation', { name: '주 메뉴' })
     await user.keyboard('{Control>}k{/Control}')
     const palette = await screen.findByRole('dialog', { name: '명령 팔레트' })
     await user.type(within(palette).getByRole('combobox'), '빠른 마감')
     await user.keyboard('{Enter}')
-    expect(await screen.findByRole('heading', { name: '오늘 일지를 확정했어요' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: '오늘 하루를 마감했어요' })).toBeInTheDocument()
     expect(close).toHaveBeenCalledTimes(1)
   })
 })
@@ -163,7 +163,7 @@ describe('명령 팔레트 업무 찾기 (UX-COM-03, D-212 Q6)', () => {
       'GET /api/worklog/tasks': () =>
         json(200, { items: [found('t-2', '견적서 회신 준비'), found('t-1', '견적서 회신')], nextCursor: null }),
     })
-    const { router } = renderApp('/logs')
+    const { router } = renderApp('/')
     await screen.findByRole('navigation', { name: '주 메뉴' })
     await user.keyboard('{Control>}k{/Control}')
     const palette = await screen.findByRole('dialog', { name: '명령 팔레트' })

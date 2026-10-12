@@ -261,7 +261,17 @@ describe('SCR-HOME-01 홈 대시보드 1차', () => {
 })
 
 describe('하루 마감 띠 (X-02 C, UX-HOME-04·12)', () => {
-  it('마감 시각 전에는 띠가 없고 빠른 입력 안내는 할 일, 일지 카드에 [하루 마감]이 있다', async () => {
+  it('업무일지 숨김: 하루 마감 알림·푸시의 옛 주소(/logs/daily/{날짜}?close=1)는 홈으로 바꾸고 그날 마감 창을 연다', async () => {
+    server()
+    const { router } = renderApp('/logs/daily/2026-10-06?close=1')
+    // 그날(10/6) 마감 창이 열린다
+    expect(await screen.findByRole('dialog', { name: '하루 마감' })).toBeInTheDocument()
+    expect(vi.mocked(fetch).mock.calls.some(([url]) => String(url).includes('/logs/daily/2026-10-06'))).toBe(true)
+    expect(router.state.location.pathname).toBe('/')
+    expect(router.state.location.search).toBe('')
+  })
+
+  it('마감 시각 전에는 띠가 없고 빠른 입력 안내는 할 일, 오늘 마감 카드에 [하루 마감]이 있다', async () => {
     server()
     renderApp('/')
     expect(await screen.findByPlaceholderText('무엇을 할지 한 줄로 적어 보세요')).toBeInTheDocument()
@@ -277,12 +287,12 @@ describe('하루 마감 띠 (X-02 C, UX-HOME-04·12)', () => {
     const band = await screen.findByRole('region', { name: '하루 마감' })
     expect(band).toHaveTextContent('오늘 기록을 정리할 시간이에요')
     expect(within(band).getByRole('button', { name: '하루 마감' })).toHaveAttribute('aria-haspopup', 'dialog')
-    // 일지 카드의 [하루 마감]은 숨긴다(채움은 띠 하나)
+    // 오늘 마감 카드의 [하루 마감]은 숨긴다(채움은 띠 하나)
     expect(screen.getAllByRole('button', { name: '하루 마감' })).toHaveLength(1)
     expect(screen.getByPlaceholderText('무엇을 했는지 한 줄로 적어 보세요')).toBeInTheDocument()
   })
 
-  it('오늘 일지를 확정했으면 띠는 확정 한 줄과 [일지 보기]로 바뀌고, 카드의 [일지 보기]는 빠진다', async () => {
+  it('오늘 마감했으면 띠는 마감 한 줄로 바뀌고, 일지로 가는 링크는 띠·카드 어디에도 없다(업무일지 숨김)', async () => {
     vi.setSystemTime(new Date('2026-10-07T10:00:00Z'))
     server({
       log: {
@@ -321,11 +331,11 @@ describe('하루 마감 띠 (X-02 C, UX-HOME-04·12)', () => {
     })
     renderApp('/')
     const band = await screen.findByRole('region', { name: '하루 마감' })
-    expect(band).toHaveTextContent('✓ 오늘 일지를 확정했어요18:40 확정 · 내일 계획 1건')
-    expect(within(band).getByRole('link', { name: '일지 보기' })).toHaveAttribute('href', '/logs/daily/2026-10-07')
+    expect(band).toHaveTextContent('✓ 오늘 하루를 마감했어요18:40 마감 · 내일 계획 1건')
     expect(within(band).queryByRole('button')).not.toBeInTheDocument()
-    // 카드의 [일지 보기]는 띠와 중복이라 뺀다(UX-HOME-140)
-    await waitFor(() => expect(screen.getAllByRole('link', { name: '일지 보기' })).toHaveLength(1))
+    expect(within(band).queryByRole('link')).not.toBeInTheDocument()
+    expect(await screen.findByText('18:40에 마감했어요')).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: '일지 보기' })).not.toBeInTheDocument()
   })
 })
 

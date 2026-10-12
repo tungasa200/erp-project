@@ -147,7 +147,7 @@ export function CommandPalette({ onClose, onQuickAdd, timer }: Props) {
         id: 'day-close',
         label: '하루 마감',
         group: '동작',
-        keywords: '오늘 일지 확정 마감',
+        keywords: '오늘 기록 확정 마감',
         run: () => openDayClose(),
       },
       // 숙련자 길(X-05): 대기는 그대로, 넘길 일은 기본 선택, 이슈는 비운 채 바로 확정. 완료 창의 [확정 해제]가 안전망
@@ -156,13 +156,12 @@ export function CommandPalette({ onClose, onQuickAdd, timer }: Props) {
         label: '빠른 마감',
         group: '동작',
         detail: '바로 확정',
-        keywords: '하루 마감 오늘 일지 확정 바로',
+        keywords: '하루 마감 오늘 기록 확정 바로',
         run: () => openDayClose({ quick: true }),
       },
       { id: 'go-home', label: '홈', group: '이동', keywords: '대시보드', run: go('/') },
       { id: 'go-calendar', label: '캘린더', group: '이동', keywords: '일정', run: go('/calendar') },
       { id: 'go-tasks', label: '업무 목록', group: '이동', keywords: '할일', run: go('/tasks') },
-      { id: 'go-logs', label: '업무일지', group: '이동', keywords: '일지', run: go('/logs') },
       { id: 'go-stats', label: '통계', group: '이동', run: go('/stats') },
       { id: 'go-settings', label: '설정', group: '이동', keywords: '환경설정 프로필', run: go('/settings') },
       {

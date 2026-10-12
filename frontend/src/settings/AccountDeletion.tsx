@@ -109,7 +109,7 @@ export function AccountDeletion() {
             <li>업무와 보관한 업무·프로젝트</li>
             <li>일정과 반복 일정 전체</li>
             <li>업무 기록</li>
-            <li>작성하거나 확정한 업무일지</li>
+            <li>하루 마감 기록(다음 근무일 계획·이슈)</li>
           </ul>
           {/* 시간은 처리방침 초안 2장 1(D-176)과 같게 둔다 */}
           <p className={styles.warningNote}>
@@ -117,12 +117,7 @@ export function AccountDeletion() {
             켜진 직후) 모두 삭제되며, 백업본에 남은 데이터는 7일 이내에 자동으로 삭제됩니다.
           </p>
         </div>
-        <div className={styles.export}>
-          <span className={styles.exportText}>회사에 제출할 업무일지가 있다면 탈퇴 전에 내려받으시기 바랍니다</span>
-          <Link to="/logs" className={styles.exportLink}>
-            일지 목록으로 이동
-          </Link>
-        </div>
+        {/* 일지 내려받기 안내·링크는 업무일지 숨김(사용자 결정 2026-10-12)으로 뺐다 */}
         {/* 비밀번호 관리자가 어느 계정의 비밀번호인지 알게 한다 */}
         <input type="text" name="username" autoComplete="username" value={user.email} readOnly hidden />
         <div className={settings.field}>

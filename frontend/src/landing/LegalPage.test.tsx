@@ -63,7 +63,17 @@ describe('SCR-AUTH-06 처리방침 · SCR-AUTH-07 이용약관', () => {
     document.querySelectorAll('mark').forEach((m) => expect(m).toHaveTextContent('[확정 전]'))
     expect(document.body).not.toHaveTextContent(/빈칸|D-\d|WY-|docs\//)
     expect(document.body).not.toHaveTextContent('초안')
-    expect(screen.getAllByText('시행일: 2026-10-12')).toHaveLength(2)
+    // 개정(프로필 탭 숨김, 사용자 결정 2026-10-12) 날짜는 PR #20 병합일(D-215): 머리 시행일도 개정 시행일을 따른다
+    expect(document.querySelector('main > p')).toHaveTextContent('시행일: 2026-10-13')
+    expect(
+      within(screen.getByRole('region', { name: '10. 방침의 변경' }))
+        .getAllByRole('listitem')
+        .map((li) => li.textContent),
+    ).toEqual([
+      '제정 공고일: 2026-10-12 / 제정 시행일: 2026-10-12',
+      '개정 공고일: 2026-10-13 / 개정 시행일: 2026-10-13',
+    ])
+    expect(document.body).not.toHaveTextContent(/업무일지 머리글|설정 화면에서 프로필/)
   })
 
   it('이용약관: 12개 조와 부칙, 머리의 로고는 처음 화면으로', () => {
@@ -74,18 +84,26 @@ describe('SCR-AUTH-06 처리방침 · SCR-AUTH-07 이용약관', () => {
     expect(titles.at(-1)).toBe('부칙')
     expect(titles).toHaveLength(13)
     expect(screen.getByRole('link', { name: /처음 화면으로/ })).toHaveAttribute('href', '/')
-    // 공고일·시행일은 출시일(D-199). 머리에는 초안 표시 없이 시행일만
+    // 제정 공고일·시행일은 출시일(D-199), 개정(D-214 업무일지 숨김)은 PR #20 병합일(D-215). 머리에는 초안 표시 없이 가장 나중 시행일만
     expect(document.body).not.toHaveTextContent('초안')
-    expect(screen.getAllByText('시행일: 2026-10-12')).toHaveLength(2)
+    expect(document.querySelector('main > p')).toHaveTextContent('시행일: 2026-10-13')
     const appendix = screen.getByRole('region', { name: '부칙' })
     expect(
       within(appendix)
         .getAllByRole('listitem')
         .map((li) => li.textContent),
-    ).toEqual(['공고일: 2026-10-12', '시행일: 2026-10-12'])
+    ).toEqual([
+      '제정 공고일: 2026-10-12 / 제정 시행일: 2026-10-12',
+      '개정 공고일: 2026-10-13 / 개정 시행일: 2026-10-13',
+    ])
     // 이용 제한(제8조)은 통지·소명 절차까지 4개 항. 남은 빈칸은 문의 메일(값 없는 빌드)뿐
     expect(within(screen.getByRole('region', { name: '제8조 (이용 제한)' })).getAllByRole('listitem')).toHaveLength(4)
     expect(document.querySelectorAll('main mark')).toHaveLength(1)
+    // 업무일지 숨김(D-214): 내보내기로 보관한다는 항은 없앤다
+    expect(document.body).not.toHaveTextContent(/내보내 보관|내보내기로 따로|탈퇴 전에 내보내야/)
+    expect(within(screen.getByRole('region', { name: '제5조 (회원의 데이터)' })).getAllByRole('listitem')).toHaveLength(
+      2,
+    )
   })
 
   describe('운영자·문의 메일(REL-01)', () => {
