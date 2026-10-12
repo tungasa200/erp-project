@@ -4,3 +4,4 @@ package-lock.json
 src/api/generated
 playwright-report
 test-results
+public/manual
