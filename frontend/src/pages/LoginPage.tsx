@@ -97,16 +97,8 @@ export function LoginPage() {
   }
 
   return (
-    <AuthLayout
-      heading={
-        <>
-          따로 기록하지 않아도
-          <br />
-          일지가 써지는 도구
-        </>
-      }
-      description="계획 → 확인 → 일지. 퇴근 전 1분이면 충분해요."
-    >
+    // 소개 문구 없이 브랜드만(사용자 지시 2026-10-12)
+    <AuthLayout>
       <form ref={formRef} className={styles.form} onSubmit={onSubmit} noValidate>
         <h1 className={styles.title}>로그인</h1>
 

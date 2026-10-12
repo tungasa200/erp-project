@@ -8,22 +8,25 @@ export function AuthLayout({
   description,
   children,
 }: {
-  heading: ReactNode
-  description: string
+  heading?: ReactNode
+  description?: string
   children: ReactNode
 }) {
   const online = useOnline()
+  // 소개 문구가 없으면 키 컬러 면을 빼고 브랜드만 폼 위에 둔다(비밀번호 화면과 같은 모양)
+  const bare = !heading && !description
   return (
-    <div className={styles.page}>
-      <aside className={styles.intro}>
+    <div className={bare ? `${styles.page} ${styles.pageBare}` : styles.page}>
+      <aside className={bare ? `${styles.intro} ${styles.introBare}` : styles.intro}>
         <div className={styles.brand}>
           <span className={styles.logo} aria-hidden="true">
             w
           </span>
           <span className={styles.brandName}>worklog</span>
         </div>
-        <p className={styles.introHeading}>{heading}</p>
-        <p className={styles.introText}>{description}</p>
+        {/* 로그인은 소개 문구 없이 브랜드만 둔다(사용자 지시 2026-10-12) */}
+        {heading && <p className={styles.introHeading}>{heading}</p>}
+        {description && <p className={styles.introText}>{description}</p>}
       </aside>
       <main className={styles.main}>
         {/* 끊긴 동안에는 제출해도 서버 오류처럼 보이므로 입력을 막는다 (SCR-SYS-02 ③) */}
