@@ -1,12 +1,16 @@
 // 캘린더 날짜·시각 계산. 라이브러리 없이 Intl만 쓴다.
 // 날짜는 'yyyy-mm-dd' 문자열(시간대 없는 달력 날짜), 하루 안의 시각은 0시부터 분(0~1440)으로 다룬다.
 // 시각(instant)과 날짜를 오갈 때는 항상 시간대를 지정한다: 표시는 사용자의 현재 시간대(D-40).
+// 표기(시각→날짜·분, 오늘, "14:00", 요일, 긴 날짜)는 공용 format/datetime 한 곳에서 만든다(X-13). 여기서는 다시 내보내기만 한다.
+import { WEEKDAY_SHORT, formatMinutes, todayIn, toZoned } from '../format/datetime'
+
+export { formatMinutes, todayIn, toZoned }
 
 export type Weekday = 'MONDAY' | 'TUESDAY' | 'WEDNESDAY' | 'THURSDAY' | 'FRIDAY' | 'SATURDAY' | 'SUNDAY'
 
 /** Date.getUTCDay() 순서(일=0) */
 export const WEEKDAYS: Weekday[] = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY']
-export const WEEKDAY_LABELS = ['일', '월', '화', '수', '목', '금', '토']
+export const WEEKDAY_LABELS = WEEKDAY_SHORT
 
 export const MINUTES_PER_DAY = 24 * 60
 export const SLOT_MINUTES = 15
@@ -97,13 +101,6 @@ function offsetMinutes(epochMs: number, timeZone: string): number {
   return Math.round((asUtc - Math.floor(epochMs / 1000) * 1000) / 60_000)
 }
 
-/** 시각 → 그 시간대의 날짜와 0시부터 분 */
-export function toZoned(instant: string | number, timeZone: string): { date: string; minutes: number } {
-  const ms = typeof instant === 'number' ? instant : Date.parse(instant)
-  const local = new Date(ms + offsetMinutes(ms, timeZone) * 60_000)
-  return { date: fromUtc(local), minutes: local.getUTCHours() * 60 + local.getUTCMinutes() }
-}
-
 /**
  * 시간대의 벽시계 날짜·분 → 시각(ISO, UTC). minutes는 1440(다음 날 0시)까지 받는다.
  * 서머타임으로 없는 시각은 뒤로 밀리고, 두 번 있는 시각은 앞쪽을 쓴다.
@@ -118,24 +115,18 @@ export function fromZoned(date: string, minutes: number, timeZone: string): stri
   return new Date(exact.length ? Math.min(...exact) : Math.max(...candidates)).toISOString()
 }
 
-export function todayIn(timeZone: string, now = Date.now()): string {
-  return toZoned(now, timeZone).date
-}
-
-// ── 표시
-
-export function formatMinutes(minutes: number): string {
-  return `${pad(Math.floor(minutes / 60))}:${pad(minutes % 60)}`
+/** 같은 날 안의 시간 범위(분): "14:00 – 15:00"(X-13 표기) */
+export function minutesRange(start: number, end: number | string): string {
+  return `${formatMinutes(start)} – ${typeof end === 'number' ? formatMinutes(end) : end}`
 }
 
 export function snapMinutes(minutes: number, step = SLOT_MINUTES): number {
   return Math.min(MINUTES_PER_DAY, Math.max(0, Math.round(minutes / step) * step))
 }
 
-/** 2026년 10월 6일 (화) */
-export function formatDateLong(date: string): string {
-  const [y, m, d] = date.split('-').map(Number)
-  return `${y}년 ${m}월 ${d}일 (${WEEKDAY_LABELS[weekdayIndex(date)]})`
+/** 10월 13일 화요일 (버튼·창의 읽는 이름) */
+export function dateName(date: string): string {
+  return `${Number(date.slice(5, 7))}월 ${Number(date.slice(8))}일 ${WEEKDAY_LABELS[weekdayIndex(date)]}요일`
 }
 
 export function isValidDate(value: string | undefined): value is string {

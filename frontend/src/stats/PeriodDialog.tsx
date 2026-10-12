@@ -31,7 +31,7 @@ export function PeriodDialog({ from: initialFrom, to: initialTo, today, weekStar
   const badTo = shown !== null && !badFrom
   return (
     <Modal labelledBy={`${id}-title`} onClose={onClose} narrow sheet>
-      <h2 id={`${id}-title`} className={calendarStyles.title} style={{ fontSize: 18 }}>
+      <h2 id={`${id}-title`} className={calendarStyles.title} style={{ fontSize: 'var(--text-xl)' }}>
         기간 고르기
       </h2>
       <form

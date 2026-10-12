@@ -15,6 +15,9 @@ afterEach(() => {
 
 describe('라우팅', () => {
   it('비로그인 상태로 앱 화면에 들어오면 로그인 화면으로 보낸다', async () => {
+    // /calendar는 AppShell·캘린더 조각을 받은 뒤에야 가드가 돈다. 전체 실행 부하에서 첫 import가
+    // 기다림 시간(5초)을 넘겨 흔들렸으므로 미리 받아 둔다. 앱 동작은 같다
+    await Promise.all([import('../components/AppShell'), import('../calendar/CalendarPage')])
     stubFetch({})
     const { router } = renderApp('/calendar')
     expect(await screen.findByRole('heading', { name: '로그인' })).toBeInTheDocument()
@@ -68,11 +71,23 @@ describe('라우팅', () => {
     expect(fetchMock.mock.calls.map(([url]) => String(url))).toContain('/api/users/me')
   })
 
-  it('없는 주소는 404 화면', async () => {
-    stubFetch({})
-    renderApp('/no-such-page')
+  it('없는 주소는 404 화면. 직접 주소로 와도 [보관함]이 있고, 로그인 안 됐으면 로그인 뒤 보관함으로 (UX-SYS-171)', async () => {
+    const fetchMock = stubFetch({ 'GET /api/users/me': () => problem(401, 'UNAUTHENTICATED') })
+    const { router } = renderApp('/no-such-page')
     expect(await screen.findByRole('heading', { name: '페이지를 찾을 수 없어요' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: '홈으로' })).toHaveAttribute('href', '/')
+    expect(fetchMock).not.toHaveBeenCalled()
+    await userEvent.click(screen.getByRole('link', { name: '보관함' }))
+    await waitFor(() => expect(router.state.location.pathname).toBe('/login'))
+  })
+
+  it('앱 안에서 없는 주소로 오면 404에 보관함으로 가는 길도 보인다 (SYS-01)', async () => {
+    stubFetch({ 'GET /api/users/me': () => json(200, ME) })
+    const { router } = renderApp('/notifications')
+    await screen.findByRole('heading', { level: 1, name: '알림' })
+    await act(() => router.navigate('/no-such-page'))
+    expect(await screen.findByRole('heading', { name: '페이지를 찾을 수 없어요' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: '보관함' })).toHaveAttribute('href', '/tasks/archive')
   })
 })
 
@@ -551,6 +566,19 @@ describe('SCR-SYS-02 ③ 오프라인 띠', () => {
       '연결이 끊겼어요. 다시 연결되면 입력할 수 있어요',
     )
     expect(screen.getByRole('button', { name: '로그인' })).toBeDisabled()
+  })
+
+  it('UX-COM-13 띠는 늘 붙어 있는 낭독 영역으로 알리고, 다시 연결되면 그것도 알린다', async () => {
+    const onLine = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    stubFetch({})
+    renderApp('/login')
+    const live = document.querySelector('[data-live-region]')!
+    await waitFor(() => expect(live).toHaveTextContent('연결이 끊겼어요. 다시 연결되면 입력할 수 있어요'))
+    onLine.mockReturnValue(true)
+    act(() => {
+      window.dispatchEvent(new Event('online'))
+    })
+    await waitFor(() => expect(live).toHaveTextContent('다시 연결됐어요'))
   })
 
   it('연결되면 띠가 사라지고 입력할 수 있다', async () => {

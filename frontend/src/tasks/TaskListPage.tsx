@@ -52,8 +52,42 @@ export function TaskListPage() {
   const today = todayIn(timeZone)
   const weekStart = weekStartNumber(user?.weekStart)
   const [quickText, setQuickText] = useState('')
-  const quickSave = useQuickSave()
+  // 만든 업무가 프로젝트·태그·검색 필터에 걸려 목록에 없으면 토스트로 알리고 필터를 풀 길을 준다(UX-TASK-140).
+  // 마감 필터는 날짜 계산이 서버 몫이라 보지 않는다
+  const quickSave = useQuickSave(({ task }) => {
+    const q = params.q.trim().toLowerCase()
+    const hidden =
+      (params.project.length > 0 && !params.project.includes(task.projectId ?? '')) ||
+      (params.tag.length > 0 && !task.tagIds.some((id) => params.tag.includes(id))) ||
+      (q !== '' && !task.title.toLowerCase().includes(q))
+    return hidden ? '/tasks' : null
+  })
   const online = useOnline()
+  // 방금 만든 업무. 목록 어디(그룹 맨 아래 등)에 들어가든 그 줄을 화면 가운데로 가져와 잠깐 강조한다(UX-TASK-60).
+  // 가운데로 두면 화면 아래 되돌리기 토스트에도 가리지 않는다
+  const [justAdded, setJustAdded] = useState<string | null>(null)
+  useEffect(() => {
+    if (!justAdded) return
+    let row: HTMLElement | null = null
+    // 다시 받은 목록에 줄이 생길 때까지 잠깐 기다린다
+    const find = setInterval(() => {
+      row = document.querySelector<HTMLElement>(`[data-task-id="${justAdded}"]`)
+      if (!row) return
+      clearInterval(find)
+      row.scrollIntoView?.({ block: 'center' })
+      row.setAttribute('data-just-added', '')
+    }, 100)
+    const end = setTimeout(() => {
+      clearInterval(find)
+      row?.removeAttribute('data-just-added')
+      setJustAdded(null)
+    }, 3000)
+    return () => {
+      clearInterval(find)
+      clearTimeout(end)
+      row?.removeAttribute('data-just-added')
+    }
+  }, [justAdded])
 
   const projects = useProjects()
   const tags = useTags()
@@ -71,6 +105,25 @@ export function TaskListPage() {
   const [doneOpen, setDoneOpen] = useState(false)
 
   const update = (next: Partial<ListParams>) => setSearch(writeParams({ ...params, ...next }), { replace: true })
+
+  // X-11: 화면 안 추가는 지금 조건을 미리 채운 같은 빠른 입력이다. 프로젝트·태그를 하나씩 골랐으면 @·# 칩으로 미리 넣는다
+  // (공백 있는 이름은 한 낱말로 쓸 수 없어 뺀다). 사용자가 아직 고치지 않았으면 조건이 바뀔 때 함께 바뀐다
+  const word = (mark: string, name: string | undefined) => (name && !/\s/.test(name) ? `${mark}${name} ` : '')
+  const filterProject = params.project.length === 1 ? projects.data?.find((p) => p.id === params.project[0]) : undefined
+  const seed =
+    word('@', filterProject && !filterProject.archived ? filterProject.name : undefined) +
+    word('#', params.tag.length === 1 ? tags.data?.find((t) => t.id === params.tag[0])?.name : undefined)
+  const [lastSeed, setLastSeed] = useState('')
+  if (seed !== lastSeed) {
+    setLastSeed(seed)
+    if (quickText === lastSeed) setQuickText(seed)
+  }
+  // 새 업무는 '할 일'로 만들어진다. 그 상태를 보지 않는 보기(완료만 등)에서는 만들어도 목록에 안 보이므로 추가를 끄고 이유를 보인다
+  const addBlocked = !params.status.includes('TODO')
+    ? params.status.length === 0
+      ? '상태를 하나도 고르지 않아 새 업무를 만들 수 없어요'
+      : `${params.status.map((st) => STATUS_LABEL[st]).join('·')} 보기에서는 새 업무를 만들 수 없어요`
+    : null
   const filtered =
     params.project.length + params.tag.length + (params.due ? 1 : 0) + (params.completed ? 1 : 0) + (params.q ? 1 : 0) >
     0
@@ -148,9 +201,28 @@ export function TaskListPage() {
         </div>
 
         {/* 끊긴 동안에는 추가를 막는다(SCR-SYS-02 ③). 검색·필터·열어 보기는 그대로 */}
-        <fieldset className={styles.quickGuard} disabled={!online}>
-          <QuickInput value={quickText} onChange={setQuickText} onSubmit={quickSave} label="업무 추가" />
+        <fieldset
+          className={styles.quickGuard}
+          disabled={!online || addBlocked !== null}
+          aria-describedby={addBlocked ? 'task-add-blocked' : undefined}
+        >
+          <QuickInput
+            value={quickText}
+            onChange={setQuickText}
+            onSubmit={async (draft) => {
+              setJustAdded((await quickSave(draft)).task.id)
+              // 저장하면 입력은 비워진다. 같은 조건으로 이어 쓰게 칩을 다시 채운다
+              setTimeout(() => setQuickText((text) => (text === '' ? seed : text)))
+            }}
+            label="업무 추가"
+            placeholder="할 일을 한 줄로 적어 보세요"
+          />
         </fieldset>
+        {addBlocked && (
+          <p id="task-add-blocked" className={styles.addBlocked}>
+            {addBlocked}
+          </p>
+        )}
 
         <div className={styles.toolbar}>
           <SearchBox value={params.q} onChange={(q) => update({ q })} />
@@ -625,6 +697,7 @@ function TaskRow({ task, today, weekStart, projects, tagNames, selected, onLeave
 
   return (
     <li
+      data-task-id={task.id}
       className={[styles.row, timed && styles.rowTimed, selected && styles.rowSelected, !online && styles.rowOffline]
         .filter(Boolean)
         .join(' ')}
@@ -655,10 +728,13 @@ function TaskRow({ task, today, weekStart, projects, tagNames, selected, onLeave
         className={done ? `${styles.rowTitle} ${styles.doneTitle}` : styles.rowTitle}
         title={task.title}
       >
+        {/* 좁아져 우선순위 칸이 숨으면 '높음'만 점으로 남긴다(UX-TASK-61) */}
+        {task.priority === 'HIGH' && <span className={styles.highDot} role="img" aria-label="높음" />}
         {task.title}
       </Link>
+      {/* 기본값(보통)·마감 없음·진행 0은 비워 예외만 눈에 띄게 한다(UX-TASK-61) */}
       <span className={task.priority === 'HIGH' ? `${styles.priority} ${styles.danger}` : styles.priority}>
-        {PRIORITY_LABEL[task.priority]}
+        {task.priority === 'NORMAL' ? '' : PRIORITY_LABEL[task.priority]}
       </span>
       <span className={styles.projectCell}>
         {project && color && (
@@ -669,20 +745,23 @@ function TaskRow({ task, today, weekStart, projects, tagNames, selected, onLeave
       </span>
       <span className={styles.tags}>{tagText}</span>
       <span className={state === 'overdue' && !done ? `${styles.due} ${styles.danger}` : styles.due}>
-        {dueLabel(task.dueDate, today)}
+        {task.dueDate ? dueLabel(task.dueDate, today) : ''}
       </span>
       <span className={styles.progress} aria-label={`진행률 ${task.progress}%`}>
-        <span className={styles.progressBar}>
-          <span style={{ width: `${task.progress}%`, background: color?.base ?? 'var(--color-accent)' }} />
+        {task.progress > 0 && (
+          <span className={styles.progressBar}>
+            <span style={{ width: `${task.progress}%`, background: color?.base ?? 'var(--color-accent)' }} />
+          </span>
+        )}
+      </span>
+      {/* 꺼진 ◷는 대비 1.6:1로 흐릿하기만 해서 빼고, 일정에 놓인 업무만 표시한다(UX-TASK-62) */}
+      {task.hasSchedule ? (
+        <span className={`${styles.schedule} ${styles.scheduleOn}`} title="일정에 배치됨" aria-label="일정에 배치됨">
+          ◷
         </span>
-      </span>
-      <span
-        className={task.hasSchedule ? `${styles.schedule} ${styles.scheduleOn}` : styles.schedule}
-        title={task.hasSchedule ? '일정에 배치됨' : '일정 없음'}
-        aria-label={task.hasSchedule ? '일정에 배치됨' : '일정 없음'}
-      >
-        ◷
-      </span>
+      ) : (
+        <span className={styles.schedule} />
+      )}
       {timed && <TimerStartCell task={task} />}
     </li>
   )

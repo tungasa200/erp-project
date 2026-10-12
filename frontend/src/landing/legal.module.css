@@ -15,17 +15,17 @@
 }
 
 .header {
-  padding: 24px;
+  padding: var(--space-5);
 }
 
 .brand {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-2);
   min-height: var(--size-touch);
   color: var(--color-text);
-  font-size: 18px;
-  font-weight: 800;
+  font-size: var(--text-xl);
+  font-weight: var(--weight-strong);
   text-decoration: none;
 }
 
@@ -33,7 +33,7 @@
   width: 30px;
   height: 30px;
   flex: none;
-  border-radius: 9px;
+  border-radius: var(--radius-sm);
   background: var(--color-accent);
   color: var(--color-on-accent);
   display: flex;
@@ -42,44 +42,45 @@
 }
 
 .article {
-  margin-bottom: 48px;
+  margin-bottom: var(--space-8);
   padding: 44px;
-  border-radius: 26px;
+  border-radius: var(--radius-card);
   background: var(--color-surface);
 }
 
 .title {
   margin: 0;
-  font-size: 30px;
-  font-weight: 800;
+  font-size: var(--text-3xl);
+  font-weight: var(--weight-strong);
   letter-spacing: -0.6px;
 }
 
 .meta {
-  margin: 10px 0 0;
-  font-size: 14px;
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-md);
   color: var(--color-text-muted);
 }
 
 .blank {
-  padding: 0 4px;
+  padding: 0 var(--space-1);
   border-radius: 4px;
   background: var(--color-warning-soft);
   color: var(--color-warning-text);
 }
 
 .toc {
-  margin-top: 26px;
-  padding: 16px 22px;
-  border-radius: 18px;
+  margin-top: var(--space-5);
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius-card);
   background: var(--color-ground);
-  font-size: 14px;
+  font-size: var(--text-md);
+  scroll-margin-top: 16px;
 }
 
 .toc ol {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 2px 20px;
+  gap: 2px var(--space-4);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -94,31 +95,45 @@
 }
 
 .section {
-  margin-top: 30px;
+  margin-top: var(--space-6);
   /* 목차로 건너뛸 때 제목이 화면 맨 위에 붙지 않게 */
   scroll-margin-top: 16px;
 }
 
 .sectionTitle {
   margin: 0;
-  font-size: 19px;
-  font-weight: 800;
+  font-size: var(--text-xl);
+  font-weight: var(--weight-strong);
+}
+
+/* 장 끝의 목차로 돌아가기: 본문보다 한 단계 작게, 오른쪽에 */
+.back {
+  display: flex;
+  justify-content: flex-end;
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-md);
+}
+
+.back a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
 }
 
 .text,
 .list {
-  margin: 10px 0 0;
-  font-size: 15px;
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-md);
   line-height: 1.75;
   color: var(--color-text-body);
 }
 
 .list {
-  padding-left: 22px;
+  padding-left: var(--space-5);
 }
 
 .tableBox {
-  margin-top: 12px;
+  margin-top: var(--space-3);
   overflow-x: auto;
 }
 
@@ -127,13 +142,13 @@
   /* 국외 이전 표 7칸(연락처 포함)이 좁은 화면에서 눌리지 않게, 상자 안에서 가로로 민다 */
   min-width: 760px;
   border-collapse: collapse;
-  font-size: 13.5px;
+  font-size: var(--text-sm);
   line-height: 1.6;
 }
 
 .table th,
 .table td {
-  padding: 9px 10px;
+  padding: var(--space-2) var(--space-2);
   border-bottom: 1px solid var(--color-divider);
   text-align: left;
   vertical-align: top;
@@ -158,12 +173,14 @@
 .brand:focus-visible,
 .toc a:focus-visible,
 .link:focus-visible,
-.tableBox:focus-visible {
+.tableBox:focus-visible,
+.sectionTitle:focus-visible,
+.toc:focus-visible {
   outline: 3px solid var(--color-accent-ink);
   outline-offset: 3px;
 }
 
-@media (hover: hover) {
+@media (hover: hover) and (pointer: fine) {
   .toc a:hover {
     color: var(--color-accent-ink);
     text-decoration: underline;
@@ -172,21 +189,22 @@
 
 @media (max-width: 767px) {
   .header {
-    padding: 14px 16px;
+    padding: var(--space-3) var(--space-4);
   }
 
   .article {
     margin-bottom: 0;
-    padding: 24px 16px 40px;
-    border-radius: 22px 22px 0 0;
+    padding: var(--space-5) var(--space-4) var(--space-7);
+    border-radius: var(--radius-card) var(--radius-card) 0 0;
   }
 
   .title {
-    font-size: 24px;
+    font-size: var(--text-2xl);
   }
 
   /* 터치 화면은 누르는 높이 44px(pm 결정 2026-10-11) */
-  .toc a {
+  .toc a,
+  .back a {
     min-height: 44px;
   }
 }

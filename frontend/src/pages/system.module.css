@@ -3,17 +3,18 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 40px 24px;
+  padding: var(--space-7) var(--space-5);
   background: var(--color-ground);
 }
 
 .box {
   max-width: 460px;
+  word-break: keep-all;
   text-align: center;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 14px;
+  gap: var(--space-3);
 }
 
 .bigCode {
@@ -27,11 +28,11 @@
 .icon {
   width: 64px;
   height: 64px;
-  border-radius: 22px;
+  border-radius: var(--radius-card);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 28px;
+  font-size: var(--text-3xl);
   font-weight: 800;
 }
 
@@ -47,51 +48,72 @@
 
 .title {
   margin: 0;
-  font-size: 26px;
+  font-size: var(--text-3xl);
   font-weight: 800;
 }
 
 .text {
   margin: 0;
-  font-size: 15.5px;
+  font-size: var(--text-md);
   line-height: 1.6;
   color: var(--color-text-body);
 }
 
 .actions {
   display: flex;
-  gap: 10px;
-  margin-top: 8px;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
 }
 
 .primary {
   height: 50px;
-  padding: 0 26px;
+  padding: 0 var(--space-5);
   border: 0;
-  border-radius: 25px;
+  border-radius: var(--radius-pill);
   background: var(--color-accent);
   color: var(--color-on-accent);
-  font-size: 15px;
-  font-weight: 800;
+  font-size: var(--text-md);
+  font-weight: 600;
   line-height: 50px;
   text-decoration: none;
   cursor: pointer;
 }
 
-.primary:hover {
-  background: var(--color-accent-ink);
-  color: var(--color-on-accent);
+@media (hover: hover) and (pointer: fine) {
+  .primary:hover {
+    background: var(--color-accent-ink);
+    color: var(--color-on-accent);
+  }
+}
+
+.secondary {
+  height: 50px;
+  padding: 0 var(--space-5);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  box-shadow: inset 0 0 0 1.5px var(--color-border);
+  color: var(--color-text);
+  font-size: var(--text-md);
+  font-weight: 600;
+  line-height: 50px;
+  text-decoration: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .secondary:hover {
+    background: var(--color-surface-sunken);
+  }
 }
 
 .hint {
-  font-size: 12px;
-  color: #6e7387;
+  font-size: var(--text-xs);
+  color: var(--color-text-body);
 }
 
 .legal {
   display: flex;
-  gap: 16px;
-  font-size: 13px;
+  gap: var(--space-4);
+  font-size: var(--text-sm);
 }
 
 .legal a {

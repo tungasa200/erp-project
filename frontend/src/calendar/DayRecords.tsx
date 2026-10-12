@@ -3,14 +3,20 @@
 // 시간은 시간 기록 옵션이 켜졌을 때만 적는다(옵션은 화면 표시만 바꾼다, TIME-09).
 // 끝나기 전 회차의 확인 대기(타이머를 1분 미만으로 버리면 서버가 PENDING으로 되돌림)는 홈 ③처럼 없는 것으로 본다(D-31).
 // 확인 대기 기록은 시간이 비어 있어(D-100) 옵션과 관계없이 계획 시간을 적는다(홈 확인 대기 목록과 같게). 확인 대기 목록의 plan, 없으면(7일 넘음) 그날 회차.
-import { useId } from 'react'
+// 머리 아래 [하루 마감](SCR-LOG-03)은 오늘·지난 날에만 둔다. 창은 openDayClose로 앱 셸이 띄운다(그날로 연다).
+// 접으면 머리글 요약 한 줄("5건 · 대기 2 · 일지 초안")과 펼치기 버튼만 남긴다(X-07 D, ux2 조건). 접힘은 이 기기에 기억한다.
+import { useId, useLayoutEffect, useRef } from 'react'
 import { Skeleton } from '../components/Skeleton'
+import { useLogPeriods, type LogStatus } from '../logs/api'
+import { openDayClose } from '../logs/openDayClose'
 import type { WorkRecord } from '../records/api'
 import { planTime, usePendingRecords } from '../records/pending'
 import { useTimeTracking } from '../settings/useWorklogSettings'
 import { RecordStatusTag } from './RecordStatusTag'
 import type { Occurrence } from './api'
+import { useDayPanel } from './dayPanels'
 import { occurrenceOf, planEnded, recordTimeText, useRecordsOnDate } from './recordStatus'
+import { todayIn } from './time'
 import styles from './records.module.css'
 
 interface Props {
@@ -27,6 +33,19 @@ interface Props {
 
 export function DayRecords({ date, timeZone, occurrences, now, editable, onOpen, onAdd }: Props) {
   const id = useId()
+  const [open, setOpen] = useDayPanel('records')
+  // 접기·펼치기는 버튼이 바뀌어 그리므로 누른 뒤 새 버튼으로 포커스를 옮긴다(UX-CAL-174, 그러지 않으면 body로 떨어짐)
+  const toggleRef = useRef<HTMLButtonElement>(null)
+  const toggled = useRef(false)
+  const toggle = (next: boolean) => {
+    toggled.current = true
+    setOpen(next)
+  }
+  useLayoutEffect(() => {
+    if (!toggled.current) return
+    toggled.current = false
+    toggleRef.current?.focus()
+  }, [open])
   const timed = useTimeTracking()
   const records = useRecordsOnDate(date)
   const all = records.data ?? []
@@ -38,6 +57,34 @@ export function DayRecords({ date, timeZone, occurrences, now, editable, onOpen,
     const plan = planOf(r)
     return plan ? planTime(plan, timeZone) || null : null
   }
+
+  if (!open)
+    return (
+      <section className={styles.dayRecordsStrip} aria-labelledby={`${id}-title`}>
+        <h2 id={`${id}-title`} className={styles.dayRecordsTitle}>
+          이날의 기록
+        </h2>
+        {records.isError ? (
+          <span className={styles.dayRecordsSummary}>기록을 불러오지 못했어요</span>
+        ) : (
+          <RecordsSummary
+            date={date}
+            count={records.isSuccess ? items.length : null}
+            pending={items.filter((r) => r.status === 'PENDING').length}
+          />
+        )}
+        <button
+          type="button"
+          className={styles.panelToggle}
+          aria-expanded="false"
+          ref={toggleRef}
+          aria-label="이날의 기록 펼치기"
+          onClick={() => toggle(true)}
+        >
+          <span aria-hidden="true">‹</span>
+        </button>
+      </section>
+    )
 
   return (
     <section className={styles.dayRecords} aria-labelledby={`${id}-title`}>
@@ -55,7 +102,27 @@ export function DayRecords({ date, timeZone, occurrences, now, editable, onOpen,
         >
           기록 추가
         </button>
+        <button
+          type="button"
+          className={styles.panelToggle}
+          aria-expanded="true"
+          ref={toggleRef}
+          aria-label="이날의 기록 접기"
+          onClick={() => toggle(false)}
+        >
+          <span aria-hidden="true">›</span>
+        </button>
       </div>
+      {date <= todayIn(timeZone, now) && (
+        <button
+          type="button"
+          className={styles.dayCloseLink}
+          aria-haspopup="dialog"
+          onClick={() => openDayClose({ date })}
+        >
+          하루 마감
+        </button>
+      )}
       {records.isPending ? (
         records.fetchStatus === 'paused' ? (
           <p className={styles.dayRecordsNote} role="status">
@@ -102,4 +169,18 @@ export function DayRecords({ date, timeZone, occurrences, now, editable, onOpen,
       )}
     </section>
   )
+}
+
+const LOG_TEXT: Partial<Record<LogStatus, string>> = { DRAFT: '일지 초안', CONFIRMED: '일지 확정' }
+
+/** 접힌 패널의 요약. 일지 상태는 접혔을 때만 묻는다(펼친 패널은 목록이 대신 보여 준다) */
+function RecordsSummary({ date, count, pending }: { date: string; count: number | null; pending: number }) {
+  const periods = useLogPeriods('DAILY', date, date)
+  const status = periods.data?.items.find((p) => p.periodStart === date)?.status
+  const parts = [
+    count === null ? null : `${count}건`,
+    pending ? `대기 ${pending}` : null,
+    status ? LOG_TEXT[status] : null,
+  ].filter(Boolean)
+  return <span className={styles.dayRecordsSummary}>{parts.join(' · ')}</span>
 }

@@ -3,11 +3,12 @@
 // ② 문서(LogPaper) ④ 데스크톱 오른쪽: 이 기간 원본 기록 — "실적에 넣기"(끌기 대신 버튼, 키보드로도 같은 일)
 // 내보내기(SCR-LOG-05, P3-10)는 고친 내용을 먼저 저장하고 연다. 고칠 수 있는 일지에 처음 들어오면 프로필 빈 칸을 묻는다(SCR-ONB-01).
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useRef, useState } from 'react'
-import { Link, useParams } from 'react-router'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { Link, useBlocker, useParams } from 'react-router'
 import { useAuth } from '../auth/useAuth'
 import { addMonths } from '../calendar/time'
 import { Skeleton } from '../components/Skeleton'
+import { useOnline } from '../components/useOnline'
 import { useToast } from '../components/useToast'
 import { ApiError } from '../api/client'
 import { useProjects } from '../projects/api'
@@ -18,9 +19,9 @@ import { ExportDialog } from './ExportDialog'
 import { LogPaper, type PaperEditor } from './LogPaper'
 import { logApi, logHref, refreshLogs, storeLog, useLog, type LogAchievement, type LogType, type WorkLog } from './api'
 import { parseLogPath, periodText, STATUS_LABEL } from './format'
-import { shouldAskProfile } from './profileAsk'
+import { profileIncomplete } from './profileAsk'
 import { ProfilePrompt } from './ProfilePrompt'
-import { useLogEditor } from './useLogEditor'
+import { hasBlankRows, hasStrandedRows, useLogEditor } from './useLogEditor'
 import styles from './logs.module.css'
 
 const TYPE_NAME: Record<LogType, string> = { DAILY: '일간', WEEKLY: '주간', MONTHLY: '월간' }
@@ -29,6 +30,17 @@ function shift(type: LogType, start: string, by: number) {
   if (type === 'DAILY') return addDays(start, by)
   if (type === 'WEEKLY') return addDays(start, 7 * by)
   return addMonths(start, by)
+}
+
+/** [다시 확정]이 확정 해제 뒤 단계에서 실패했을 때: 일지는 초안으로 남아 있다(UX-LOG-153) */
+class ReconfirmError extends Error {
+  readonly draft: WorkLog
+  readonly refilled: boolean
+  constructor(draft: WorkLog, refilled: boolean, cause: unknown) {
+    super('reconfirm failed after unconfirm', { cause })
+    this.draft = draft
+    this.refilled = refilled
+  }
 }
 
 export function LogPage() {
@@ -56,11 +68,23 @@ function LogView({ type, start }: { type: LogType; start: string }) {
   const { showToast } = useToast()
   const query = useLog(type, start)
   const log = query.data
+  // 이 기간 원본 기록(④)을 일지와 함께 받는다. 기간 끝은 경로로 계산해 일지 응답을 기다리지 않는다(LOG-69)
+  const guessEnd = type === 'DAILY' ? start : type === 'WEEKLY' ? addDays(start, 6) : addDays(addMonths(start, 1), -1)
+  useEffect(() => {
+    void queryClient.prefetchQuery({
+      queryKey: sourceRecordsKey(start, guessEnd),
+      queryFn: () => logApi.records(start, guessEnd),
+    })
+  }, [queryClient, start, guessEnd])
   const projects = useProjects()
   const [announce, setAnnounce] = useState('')
-  const [dialog, setDialog] = useState<'refill' | 'unconfirm' | 'revisions' | 'export' | null>(null)
+  const [dialog, setDialog] = useState<'refill' | 'unconfirm' | 'reconfirm' | 'revisions' | 'export' | null>(null)
   const [busy, setBusy] = useState(false)
+  const [tipHidden, setTipHidden] = useState(false)
   const headingRef = useRef<HTMLHeadingElement>(null)
+  const online = useOnline()
+  // 줄 버튼에 포커스가 있을 때 오프라인이 되면 버튼이 꺼져 포커스가 빠진다. 마지막 포커스를 기억해 칸으로 옮긴다
+  const lastFocus = useRef<HTMLElement | null>(null)
 
   const editor = useLogEditor(log, {
     onPinned: () => setAnnounce('실적을 고정했어요. 원본이 바뀌어도 그대로예요'),
@@ -68,9 +92,11 @@ function LogView({ type, start }: { type: LogType; start: string }) {
   })
 
   const editable = !!log && log.status !== 'CONFIRMED' && start <= today
-  // 일지를 처음 받았을 때 한 번만 정한다(이 화면 안에서 다시 묻지 않음). 렌더 중 한 번 맞춤
-  const [askProfile, setAskProfile] = useState<boolean | null>(null)
-  if (log && askProfile == null) setAskProfile(editable && shouldAskProfile(user, `${type}-${start}`))
+  // 프로필 창은 저절로 띄우지 않는다. 고칠 수 있는 일지이고 프로필이 비었으면 문서 위 한 줄에서 연다(재평가 §4 #26, D-212 Q5).
+  // 채우면 한 줄은 사라진다
+  const [profileOpen, setProfileOpen] = useState(false)
+  const profileButton = useRef<HTMLButtonElement>(null)
+  const askProfile = editable && !!user && profileIncomplete(user)
   const view = log && {
     ...log.content,
     achievements: editor.edits?.achievements ?? log.content.achievements,
@@ -82,7 +108,19 @@ function LogView({ type, start }: { type: LogType; start: string }) {
   const pinned = !!log && (!log.content.achievementsAuto || localPin)
 
   const fail = (error: unknown) => {
-    if (error instanceof ApiError && error.code === 'LOG_CONFIRMED') showToast('이미 확정된 일지예요')
+    if (error instanceof ReconfirmError) {
+      // 확정은 이미 풀렸다. 일반 실패 문구로는 확정이 그대로라고 읽히므로 지금 상태를 말한다(UX-LOG-153)
+      editor.reset()
+      storeLog(queryClient, error.draft)
+      setDialog(null)
+      headingRef.current?.focus()
+      showToast(
+        error.refilled
+          ? '다시 확정하지 못했어요. 일지는 실적을 지금 기록으로 채운 초안으로 남았어요. [확정]을 눌러 마무리해 주세요'
+          : '다시 확정하지 못했어요. 일지는 초안으로 남았어요. [확정]을 눌러 다시 확정해 주세요',
+        { traceId: (error.cause as ApiError)?.traceId },
+      )
+    } else if (error instanceof ApiError && error.code === 'LOG_CONFIRMED') showToast('이미 확정된 일지예요')
     else if (error instanceof ApiError && error.code === 'LOG_NOT_CONFIRMED') showToast('이미 초안이에요')
     else if (error instanceof ApiError && error.code === 'VERSION_CONFLICT')
       showToast('다른 곳에서 먼저 수정돼서 새로 불러왔어요. 다시 해 주세요')
@@ -94,6 +132,8 @@ function LogView({ type, start }: { type: LogType; start: string }) {
     if (!log || busy) return
     setBusy(true)
     try {
+      // 남은 빈 줄은 저장하지 않으므로 확정 문서에도 없다. 말없이 빠지지 않게 알린다(UX-LOG-140)
+      const blank = hasBlankRows(editor.edits)
       const saved = (await editor.flush()) ?? log
       const ready = await editor.ensureSaved(saved)
       const next = await action(ready)
@@ -101,7 +141,7 @@ function LogView({ type, start }: { type: LogType; start: string }) {
       editor.reset()
       storeLog(queryClient, next)
       void queryClient.invalidateQueries({ queryKey: ['logs', 'revisions', next.id] })
-      showToast(done)
+      showToast(blank ? `${done}. 빈 줄은 빼고 저장했어요` : done)
       setDialog(null)
       // 누른 버튼이 사라지므로(확정 ↔ 확정 해제) 화면 제목으로
       headingRef.current?.focus()
@@ -119,8 +159,26 @@ function LogView({ type, start }: { type: LogType; start: string }) {
           onAchievements: (achievements) => editor.change({ achievements }),
           onPlans: (plans) => editor.change({ plans }),
           onIssues: (issues) => editor.change({ issues }),
+          readOnly: !online,
         }
       : undefined
+
+  // 보내지 못한 수정(오프라인·저장 실패)이 남은 채 다른 화면으로 가면 사라지므로 먼저 묻는다(UX-LOG-40).
+  // 탭 닫기는 useLogEditor의 beforeunload 경고가 맡는다
+  const unsent = !!editor.edits && (!online || editor.state === 'error')
+  // 업무 내용 없이 결과만 쓴 줄은 보낼 수 없어 남아 있다. 앱 안에서 떠날 때도 묻는다(UX-LOG-143)
+  const stranded = hasStrandedRows(editor.edits)
+  const blocker = useBlocker(unsent || stranded)
+
+  useLayoutEffect(() => {
+    const el = lastFocus.current
+    if (online || !(el instanceof HTMLButtonElement) || !el.disabled) return
+    if (document.activeElement !== el && document.activeElement !== document.body) return
+    const field = el.closest('tr, section')?.querySelector<HTMLElement>('textarea')
+    ;(field ?? headingRef.current)?.focus()
+  }, [online])
+
+  const confirm = () => run((l) => logApi.confirm(l.id!, l.version), '일지를 확정했어요')
 
   const prev = shift(type, start, -1)
   const next = shift(type, start, 1)
@@ -148,9 +206,26 @@ function LogView({ type, start }: { type: LogType; start: string }) {
         </div>
         {log && (
           <div className={styles.barTools}>
-            <span className={`${styles.badge} ${styles[`badge${log.status}`]}`}>{STATUS_LABEL[log.status]}</span>
+            {/* 초안은 종이 제목의 '초안' 표시와 같은 말이 두 번 나와 배지를 뺀다(UX-LOG-50). 미작성·확정만 배지 */}
+            {log.status !== 'DRAFT' && (
+              <span className={`${styles.badge} ${styles[`badge${log.status}`]}`}>{STATUS_LABEL[log.status]}</span>
+            )}
             {log.status === 'DRAFT' && (
-              <span className={styles.pill} tabIndex={0} aria-describedby="log-pill-tip">
+              // 말풍선은 Esc로 닫고, 포커스·포인터가 떠나면 다시 뜰 수 있다(LOG-102, WCAG 1.4.13)
+              <span
+                className={styles.pill}
+                tabIndex={0}
+                aria-describedby="log-pill-tip"
+                data-tip-hidden={tipHidden || undefined}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape' && !tipHidden) {
+                    e.stopPropagation()
+                    setTipHidden(true)
+                  }
+                }}
+                onBlur={() => setTipHidden(false)}
+                onMouseLeave={() => setTipHidden(false)}
+              >
                 {pinned ? '실적 고정' : '실적 자동'}
                 <span id="log-pill-tip" role="tooltip" className={styles.tip}>
                   {pinned
@@ -159,7 +234,7 @@ function LogView({ type, start }: { type: LogType; start: string }) {
                 </span>
               </span>
             )}
-            <SaveText state={editor.state} />
+            <SaveText state={editor.state} offlinePending={!online && !!editor.edits} />
             <span className={styles.spacer} />
             {log.status === 'DRAFT' && pinned && (
               <button type="button" className={styles.secondary} onClick={() => setDialog('refill')}>
@@ -189,12 +264,8 @@ function LogView({ type, start }: { type: LogType; start: string }) {
               </button>
             ) : (
               editable && (
-                <button
-                  type="button"
-                  className={styles.primary}
-                  disabled={busy}
-                  onClick={() => void run((l) => logApi.confirm(l.id!, l.version), '일지를 확정했어요')}
-                >
+                // 화면의 채움은 문서 끝 확정 줄 하나다(X-02). 위쪽은 도구 모음의 보조 버튼
+                <button type="button" className={styles.secondary} disabled={busy} onClick={() => void confirm()}>
                   확정
                 </button>
               )
@@ -221,9 +292,22 @@ function LogView({ type, start }: { type: LogType; start: string }) {
         </div>
       )}
       {log?.status === 'CONFIRMED' && log.sourceChangedAfterConfirm && (
-        <p className={styles.notice} role="note">
-          원본이 바뀌었어요(확정 일지는 그대로)
-        </p>
+        // 보이는 띠 + 한 번에 이어지는 동작(UX-LOG-49). 해제 → 원본에서 다시 채우기 → 확정을 한 번에 한다
+        <section className={styles.sourceChanged} aria-label="원본이 바뀜">
+          <p className={styles.sourceChangedText}>
+            <strong>확정한 뒤 원본 기록이 바뀌었어요</strong>
+            <span>확정 일지는 그대로예요. 바뀐 기록으로 다시 확정할 수 있어요.</span>
+          </p>
+          <button
+            type="button"
+            className={styles.secondary}
+            aria-haspopup="dialog"
+            disabled={busy || !online}
+            onClick={() => setDialog('reconfirm')}
+          >
+            다시 확정하기
+          </button>
+        </section>
       )}
 
       {query.isPending ? (
@@ -236,23 +320,50 @@ function LogView({ type, start }: { type: LogType; start: string }) {
           </button>
         </div>
       ) : (
-        <div className={styles.layout}>
-          <LogPaper
-            type={type}
-            periodStart={log.periodStart}
-            periodEnd={log.periodEnd}
-            content={view}
-            draft={log.status !== 'CONFIRMED'}
-            confirmedAt={log.confirmedAt}
-            timeZone={timeZone}
-            editor={paperEditor}
-            projectName={(id) => projects.data?.find((p) => p.id === id)?.name ?? null}
-          />
+        <div className={styles.layout} onFocus={(e) => (lastFocus.current = e.target)}>
+          <div className={styles.docColumn}>
+            {askProfile && (
+              <p className={styles.profileLine}>
+                <span>이름·소속을 넣으면 문서에 들어가요</span>
+                <button
+                  ref={profileButton}
+                  type="button"
+                  className={styles.inlineButton}
+                  aria-haspopup="dialog"
+                  onClick={() => setProfileOpen(true)}
+                >
+                  입력
+                </button>
+              </p>
+            )}
+            <LogPaper
+              type={type}
+              periodStart={log.periodStart}
+              periodEnd={log.periodEnd}
+              content={view}
+              draft={log.status !== 'CONFIRMED'}
+              draftMark={log.status === 'DRAFT'}
+              confirmedAt={log.confirmedAt}
+              timeZone={timeZone}
+              editor={paperEditor}
+              projectName={(id) => projects.data?.find((p) => p.id === id)?.name ?? null}
+            />
+            {editable && log.status !== 'CONFIRMED' && (
+              // 문서 끝(이슈 칸 아래, 문서 바깥)에서 끝낸다(UX-LOG-41). 긴 일지에서 맨 위로 돌아가지 않게
+              <div className={styles.endRow}>
+                <p className={styles.endRowText}>다 썼으면 확정해요. 확정한 뒤에도 해제할 수 있어요.</p>
+                <button type="button" className={styles.primary} disabled={busy} onClick={() => void confirm()}>
+                  일지 확정
+                </button>
+              </div>
+            )}
+          </div>
           {paperEditor && (
             <SourceRecords
               from={log.periodStart}
               to={log.periodEnd}
               achievements={view.achievements}
+              disabled={!online}
               onAdd={(record, name) =>
                 editor.change({ achievements: [...view.achievements, fromRecord(record, name)] })
               }
@@ -284,7 +395,31 @@ function LogView({ type, start }: { type: LogType; start: string }) {
           busy={busy}
           onCancel={() => setDialog(null)}
           onConfirm={() =>
-            void run((l) => logApi.unconfirm(l.id!, l.version), '확정을 해제했어요. 초안으로 고칠 수 있어요')
+            void run(
+              (l) => logApi.unconfirm(l.id!, l.version),
+              '확정을 해제했어요. 일지는 초안으로 돌아가고 내보낸 파일은 그대로예요',
+            )
+          }
+        />
+      )}
+      {dialog === 'reconfirm' && log && (
+        <ConfirmDialog
+          title="바뀐 기록으로 다시 확정할까요?"
+          body="확정을 풀고 실적을 지금 기록으로 다시 채운 뒤 확정해요. 직접 고친 실적은 지금 기록으로 바뀌고, 계획과 이슈는 그대로예요. 이미 내보낸 파일은 바뀌지 않아요."
+          action="다시 확정"
+          busy={busy}
+          onCancel={() => setDialog(null)}
+          onConfirm={() =>
+            void run(async (l) => {
+              const draft = await logApi.unconfirm(l.id!, l.version)
+              let current = draft
+              try {
+                current = await logApi.refill(draft.id!, draft.version)
+                return await logApi.confirm(current.id!, current.version)
+              } catch (error) {
+                throw new ReconfirmError(current, current !== draft, error)
+              }
+            }, '바뀐 기록으로 다시 확정했어요')
           }
         />
       )}
@@ -294,21 +429,49 @@ function LogView({ type, start }: { type: LogType; start: string }) {
       {dialog === 'export' && log && view && (
         <ExportDialog log={{ ...log, content: view }} timeZone={timeZone} onClose={() => setDialog(null)} />
       )}
-      {askProfile && user && (
+      {blocker.state === 'blocked' && (
+        <ConfirmDialog
+          title="저장 안 된 변경이 있어요"
+          body={
+            !unsent
+              ? '업무 내용 없이 결과만 쓴 줄은 저장되지 않아요. 지금 나가면 그 줄은 사라져요.'
+              : online
+                ? '보내지 못한 수정이 있어요. 지금 나가면 이 수정은 사라져요.'
+                : '연결이 끊겨 보내지 못한 수정이 있어요. 지금 나가면 이 수정은 사라져요. 머무르면 다시 연결될 때 저장해요.'
+          }
+          action="나가기"
+          busy={false}
+          onCancel={() => blocker.reset()}
+          onConfirm={() => blocker.proceed()}
+        />
+      )}
+      {profileOpen && user && (
         <ProfilePrompt
           user={user}
-          logKey={`${type}-${start}`}
           type={type}
           start={start}
           end={log?.periodEnd ?? start}
-          onDone={() => setAskProfile(false)}
+          onDone={(saved) => {
+            setProfileOpen(false)
+            // 저장하면 한 줄과 [입력]이 사라지므로 화면 제목으로, 아니면 [입력]으로
+            ;(saved ? headingRef.current : profileButton.current)?.focus()
+          }}
         />
       )}
     </div>
   )
 }
 
-function SaveText({ state }: { state: ReturnType<typeof useLogEditor>['state'] }) {
+function SaveText({
+  state,
+  offlinePending,
+}: {
+  state: ReturnType<typeof useLogEditor>['state']
+  /** 오프라인인데 보내지 못한 수정이 남음: 다시 연결되면 편집기가 보낸다(UX-LOG-40) */
+  offlinePending: boolean
+}) {
+  if (offlinePending && state !== 'conflict')
+    return <span className={styles.saveError}>저장 안 된 변경 · 연결되면 저장해요</span>
   const text = { idle: '', saving: '저장 중…', saved: '저장됨', error: '저장하지 못했어요', conflict: '' }[state]
   return <span className={state === 'error' ? styles.saveError : styles.saveText}>{text}</span>
 }
@@ -350,16 +513,20 @@ async function copyEdits(
   }
 }
 
+const sourceRecordsKey = (from: string, to: string) => ['records', 'range', from, to, 'CONFIRMED']
+
 /** ④ 이 기간 원본 기록(확정). 이미 실적에 들어간 기록은 표시만 */
 function SourceRecords(props: {
   from: string
   to: string
   achievements: LogAchievement[]
+  /** 오프라인이면 [실적에 넣기]를 끈다 */
+  disabled: boolean
   onAdd: (r: WorkRecord, projectName: string | null) => void
   projectName: (id: string | null) => string | null
 }) {
   const records = useQuery({
-    queryKey: ['records', 'range', props.from, props.to, 'CONFIRMED'],
+    queryKey: sourceRecordsKey(props.from, props.to),
     queryFn: () => logApi.records(props.from, props.to),
     select: (d) => d.items,
   })
@@ -400,6 +567,7 @@ function SourceRecords(props: {
                   type="button"
                   className={styles.sourceAdd}
                   data-record={r.id}
+                  disabled={props.disabled}
                   aria-label={`${r.content} 실적에 넣기`}
                   onClick={() => add(r, i)}
                 >

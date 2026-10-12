@@ -71,9 +71,17 @@ describe('SCR-HOME-01 첫 화면 (UX-04)', () => {
 })
 
 describe('SCR-COM-02 빠른 입력창', () => {
-  it('안내 문구를 바꾸지 않으면 기본 문구를 쓴다(캘린더 업무 패널은 짧은 문구를 넘긴다)', async () => {
+  it('UX-COM-25 치기를 멈추면 해석 결과를 늘 붙어 있는 낭독 영역으로 한 번 알린다', async () => {
     const { input } = await openHome()
-    expect(input).toHaveAttribute('placeholder', '무엇을 하셨나요? 한 줄로 적어 보세요')
+    await userEvent.type(input, '보고서 14-15 #결제')
+    const live = document.querySelector('[data-live-region]')!
+    expect(live).toHaveAttribute('aria-live', 'polite')
+    await waitFor(() => expect(live).toHaveTextContent(/^일정과 업무, .*#결제/), { timeout: 2000 })
+  })
+
+  it('UX-HOME-12 홈 안내는 하루 마감 시각 전에는 할 일로 묻는다(뒤에는 한 일, home.test)', async () => {
+    const { input } = await openHome()
+    expect(input).toHaveAttribute('placeholder', '무엇을 할지 한 줄로 적어 보세요')
   })
 
   it('알약의 빈 곳을 눌러도 입력칸에 포커스가 간다 (P1-X-10)', async () => {
@@ -87,13 +95,13 @@ describe('SCR-COM-02 빠른 입력창', () => {
     const { input } = await openHome()
     await userEvent.type(input, '14-16 견적서 작성 @영업 #결제 #견적 !높음 ~금')
     const list = screen.getByRole('list', { name: '해석 결과' })
-    // 목록을 받으면 없는 태그(견적)에 "새"가 붙는다
+    // 목록을 받으면 없는 태그(견적)는 "+ 새 태그 ‘…’"가 된다
     await waitFor(() =>
       expect(
         within(list)
           .getAllByRole('listitem')
           .map((c) => c.textContent),
-      ).toEqual(['오늘 14:00–16:00', '영업', '#결제', '#견적새', '우선순위 높음', '마감 10/9(금)']),
+      ).toEqual(['오늘 14:00–16:00', '영업', '#결제', '+ 새 태그 ‘견적’', '우선순위 높음', '마감 10/9(금)']),
     )
     expect(screen.getByText('일정과 업무가 함께 만들어져요')).toBeInTheDocument()
   })
@@ -102,13 +110,16 @@ describe('SCR-COM-02 빠른 입력창', () => {
     const { input } = await openHome()
     await userEvent.type(input, '보고 @영업 #결제 #정산')
     // 사이드바 프로젝트 목록에도 같은 이름이 있어 해석 결과 안에서 찾는다
-    const project = await within(await screen.findByRole('list', { name: '해석 결과' })).findByText('영업')
+    // 글자는 24em에서 줄이는 span 안에 있다. 색은 칩 버튼에
+    const project = (await within(await screen.findByRole('list', { name: '해석 결과' })).findByText('영업')).closest(
+      'button',
+    )
     expect(project).toHaveStyle({ background: 'var(--project-p2-tint)', color: 'var(--project-p2-ink)' })
-    expect(screen.getByText('#결제')).toHaveClass('chip', 'tag')
+    expect(screen.getByText('#결제').closest('button')).toHaveClass('chip', 'tag')
     expect(await screen.findByRole('button', { name: '새 태그 정산' })).toHaveClass('tag', 'tagNew')
   })
 
-  it('없는 프로젝트는 "새 프로젝트 만들기" 칩을 눌러 만든다', async () => {
+  it('없는 프로젝트는 "+ 새 프로젝트 ‘…’" 칩을 눌러 만든다', async () => {
     const created: unknown[] = []
     stubFetch({
       'GET /api/users/me': () => json(200, ME),
@@ -129,10 +140,12 @@ describe('SCR-COM-02 빠른 입력창', () => {
     })
     renderApp('/')
     await userEvent.type(await screen.findByRole('textbox', { name: '빠른 기록' }), '보도자료 @마케팅')
-    await userEvent.click(await screen.findByRole('button', { name: '+ 새 프로젝트 "마케팅" 만들기' }))
+    await userEvent.click(await screen.findByRole('button', { name: '+ 새 프로젝트 ‘마케팅’' }))
     // 영업(P2)만 쓰는 중이라 첫 빈 색 P1
     await waitFor(() => expect(created).toEqual([{ name: '마케팅', color: 'P1' }]))
-    expect(await within(screen.getByRole('list', { name: '해석 결과' })).findByText('마케팅')).toHaveStyle({
+    expect(
+      (await within(screen.getByRole('list', { name: '해석 결과' })).findByText('마케팅')).closest('button'),
+    ).toHaveStyle({
       background: 'var(--project-p1-tint)',
     })
   })
@@ -252,10 +265,11 @@ describe('SCR-COM-02 빠른 입력창', () => {
     expect(input).toHaveValue('보고서')
   })
 
-  it('Esc로 입력을 비운다', async () => {
+  it('Esc는 포커스만 빼고 쓰던 글은 남긴다(UX-COM-01)', async () => {
     const { input } = await openHome()
     await userEvent.type(input, '회의{Escape}')
-    expect(input).toHaveValue('')
+    expect(input).toHaveValue('회의')
+    expect(input).not.toHaveFocus()
   })
 
   it('? 아이콘으로 문법 도움말을 열고 예시를 고르면 채운 뒤 닫는다', async () => {
@@ -284,7 +298,7 @@ describe('UX-09 키보드 단축키', () => {
     await screen.findByRole('heading', { name: '업무일지' })
     await userEvent.keyboard('n')
     expect(await screen.findByRole('textbox', { name: '빠른 기록' })).toHaveFocus()
-    expect(router.state.location.pathname).toBe('/')
+    await waitFor(() => expect(router.state.location.pathname).toBe('/'))
   })
 
   it('오프라인이면 N으로 기록하러 가지 않는다 (SCR-SYS-02 ③)', async () => {
@@ -293,7 +307,7 @@ describe('UX-09 키보드 단축키', () => {
     const { router } = renderApp('/logs')
     await screen.findByRole('heading', { name: '업무일지' })
     await userEvent.keyboard('n')
-    expect(router.state.location.pathname).toBe('/logs')
+    await waitFor(() => expect(router.state.location.pathname).toBe('/logs'))
     onLine.mockRestore()
   })
 
@@ -313,7 +327,7 @@ describe('SCR-COM-03 명령 팔레트', () => {
     const palette = screen.getByRole('dialog', { name: '명령 팔레트' })
     expect(within(palette).getByRole('option', { name: /업무 추가/ })).toHaveTextContent('N')
     await userEvent.keyboard('업무일지{Enter}')
-    expect(router.state.location.pathname).toBe('/logs')
+    await waitFor(() => expect(router.state.location.pathname).toBe('/logs'))
     expect(screen.queryByRole('dialog', { name: '명령 팔레트' })).not.toBeInTheDocument()
   })
 
@@ -359,7 +373,7 @@ describe('SCR-COM-03 명령 팔레트', () => {
     await userEvent.keyboard('{Control>}k{/Control}10/12')
     expect(screen.getByRole('option', { name: /10\/12\(월\) 캘린더 보기/ })).toBeInTheDocument()
     await userEvent.keyboard('{Enter}')
-    expect(router.state.location.pathname).toBe('/calendar/day/2026-10-12')
+    await waitFor(() => expect(router.state.location.pathname).toBe('/calendar/day/2026-10-12'))
   })
 })
 
@@ -424,6 +438,7 @@ describe('SCR-COM-04 되돌리기 토스트', () => {
     const { calls, button } = setup()
     fireEvent.click(button)
     const field = document.createElement('input')
+    field.value = '쓰던 글'
     document.body.append(field)
     fireEvent.keyDown(field, { code: 'KeyZ', key: 'z', ctrlKey: true })
     expect(calls).toEqual([])
@@ -432,5 +447,120 @@ describe('SCR-COM-04 되돌리기 토스트', () => {
     expect(calls).toEqual(['undo-1'])
     expect(screen.queryByText(/보관했어요/)).not.toBeInTheDocument()
     field.remove()
+  })
+
+  it('빈 입력칸의 Ctrl+Z는 토스트 되돌리기로 넘긴다(UX-COM-02)', async () => {
+    const { calls, button } = setup()
+    fireEvent.click(button)
+    const field = document.createElement('input')
+    document.body.append(field)
+    fireEvent.keyDown(field, { code: 'KeyZ', key: 'z', ctrlKey: true })
+    await act(async () => {})
+    expect(calls).toEqual(['undo-1'])
+    field.remove()
+  })
+})
+
+describe('디자인 개선 묶음 3a (X-04 [×], X-11 COM-29·COM-06)', () => {
+  function renderQuick(onSubmit = vi.fn()) {
+    stubFetch({ 'GET /api/users/me': () => json(200, ME), ...WORKLOG })
+    function Wrapper() {
+      const [value, setValue] = useState('')
+      return <QuickInput value={value} onChange={setValue} onSubmit={onSubmit} />
+    }
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <AuthProvider>
+          <ToastProvider>
+            <Wrapper />
+          </ToastProvider>
+        </AuthProvider>
+      </QueryClientProvider>,
+    )
+    return { onSubmit }
+  }
+
+  it('[입력 지우기]는 글이 있을 때만 보이고, 누르면 비우고 입력칸에 포커스를 둔다. Esc는 글을 남긴다', async () => {
+    renderQuick()
+    const input = await screen.findByRole('textbox', { name: '빠른 입력' })
+    expect(screen.queryByRole('button', { name: '입력 지우기' })).not.toBeInTheDocument()
+    await userEvent.type(input, '보고서{Escape}')
+    expect(input).toHaveValue('보고서')
+    await userEvent.click(screen.getByRole('button', { name: '입력 지우기' }))
+    expect(input).toHaveValue('')
+    expect(input).toHaveFocus()
+    expect(screen.queryByRole('button', { name: '입력 지우기' })).not.toBeInTheDocument()
+  })
+
+  it('없는 태그는 "+ 새 태그 ‘…’" 점선 칩, !뒤 값이 틀리면 경고 칩', async () => {
+    renderQuick()
+    const input = await screen.findByRole('textbox', { name: '빠른 입력' })
+    await userEvent.type(input, '보고 #정산 !1')
+    const chips = await screen.findByRole('list', { name: '해석 결과' })
+    expect(await within(chips).findByRole('button', { name: '새 태그 정산' })).toHaveTextContent('+ 새 태그 ‘정산’')
+    // 오타 경고는 입력칸 아래 팝오버에(COM-07)
+    expect(
+      within(screen.getByRole('list', { name: '확인할 것' })).getByText(
+        '우선순위는 !1 대신 !높음·!보통·!낮음으로 적어요',
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('UX-COM-06 없는 @프로젝트면 미리보기가 Enter의 동작을 말하고, Enter는 저장 대신 새 프로젝트 칩으로 가서 묻는다', async () => {
+    const { onSubmit } = renderQuick()
+    const input = await screen.findByRole('textbox', { name: '빠른 입력' })
+    await userEvent.type(input, '보도자료 @마케팅')
+    const chip = await screen.findByRole('button', { name: '+ 새 프로젝트 ‘마케팅’' })
+    expect(screen.getByText('Enter를 누르면 새 프로젝트를 만들지 물어요')).toBeInTheDocument()
+    await userEvent.keyboard('{Enter}')
+    expect(onSubmit).not.toHaveBeenCalled()
+    expect(chip).toHaveFocus()
+    expect(screen.getByRole('alert')).toHaveTextContent('‘마케팅’ 프로젝트를 새로 만들까요?')
+
+    // Esc는 질문만 거두고 입력칸으로 돌아간다. 쓴 글은 남는다(UX-COM-142)
+    await userEvent.keyboard('{Escape}')
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(input).toHaveFocus()
+    expect(input).toHaveValue('보도자료 @마케팅')
+  })
+
+  it('COM-07 해석 칩은 입력칸 안 한 줄에, 확인·미리보기는 아래 팝오버에 두고 팝오버 안 Tab은 안에서 돈다', async () => {
+    renderQuick()
+    const input = await screen.findByRole('textbox', { name: '빠른 입력' })
+    await userEvent.type(input, '보도자료 14-15 @마케팅 #결제')
+    // 시간·태그 칩은 입력칸(알약) 안
+    const fieldChips = await screen.findByRole('list', { name: '해석 결과' })
+    expect(fieldChips.parentElement).toContainElement(input)
+    expect(await within(fieldChips).findByText('#결제')).toBeInTheDocument()
+    // 새 프로젝트 확인 칩과 안내는 입력칸 밖 팝오버
+    const chip = await screen.findByRole('button', { name: '+ 새 프로젝트 ‘마케팅’' })
+    expect(fieldChips).not.toContainElement(chip)
+    expect(chip.closest('[id$="-preview"]')).toHaveTextContent('Enter를 누르면 새 프로젝트를 만들지 물어요')
+
+    await userEvent.keyboard('{Enter}')
+    expect(chip).toHaveFocus()
+    await userEvent.tab()
+    expect(chip).toHaveFocus()
+    await userEvent.tab({ shift: true })
+    expect(chip).toHaveFocus()
+    await userEvent.keyboard('{Escape}')
+    expect(input).toHaveFocus()
+  })
+
+  it('COM-07 칩 줄 밖에 띄운 칩 메뉴도 칩을 다시 누르면 닫히고, 고르면 그 낱말만 바꾼다', async () => {
+    renderQuick()
+    const input = await screen.findByRole('textbox', { name: '빠른 입력' })
+    await userEvent.type(input, '보고 !낮음')
+    const priority = await screen.findByRole('button', { name: '우선순위 낮음' })
+    await userEvent.click(priority)
+    expect(priority).toHaveAttribute('aria-expanded', 'true')
+    await userEvent.click(priority)
+    expect(priority).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+
+    await userEvent.click(priority)
+    await userEvent.click(await screen.findByRole('menuitemradio', { name: '높음' }))
+    expect(input).toHaveValue('보고 !높음')
+    expect(input).toHaveFocus()
   })
 })

@@ -13,10 +13,14 @@ export function NotFoundPage() {
         <p className={styles.text}>
           주소가 바뀌었거나 보관된 항목일 수 있어요. 보관한 업무는 보관함에서 찾을 수 있어요.
         </p>
-        {/* 보관함 버튼은 보관함 화면(SCR-TASK-04, P4-10)이 생기면 추가 */}
         <div className={styles.actions}>
           <Link to="/" className={styles.primary}>
             홈으로
+          </Link>
+          {/* 문구가 말하는 보관함으로 가는 길(SYS-01). 로그인 여부와 무관하게 늘 둔다: 404는 내 정보를 조회하지 않고(D-189),
+              로그인 안 된 사용자는 RequireAuth가 로그인 뒤 보관함으로 돌려보낸다(UX-SYS-171) */}
+          <Link to="/tasks/archive" className={styles.secondary}>
+            보관함
           </Link>
         </div>
       </div>

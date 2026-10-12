@@ -8,10 +8,10 @@
 /* 왼쪽 소개 영역 */
 .intro {
   flex: 1 1 420px;
-  padding: 48px;
+  padding: var(--space-8);
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: var(--space-5);
   background: var(--color-accent);
   color: var(--color-on-accent);
 }
@@ -19,13 +19,13 @@
 .brand {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-2);
 }
 
 .logo {
   width: 32px;
   height: 32px;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   background: var(--color-on-accent);
   color: var(--color-accent);
   display: flex;
@@ -35,13 +35,13 @@
 }
 
 .brandName {
-  font-size: 19px;
+  font-size: var(--text-xl);
   font-weight: 800;
 }
 
 .introHeading {
   margin: auto 0 0;
-  font-size: 34px;
+  font-size: var(--text-3xl);
   line-height: 1.3;
   font-weight: 800;
   letter-spacing: -0.8px;
@@ -49,7 +49,7 @@
 
 .introText {
   margin: 0;
-  font-size: 16px;
+  font-size: var(--text-lg);
   line-height: 1.6;
   opacity: 0.88;
 }
@@ -58,15 +58,15 @@
 @media (max-width: 767px) {
   .intro {
     flex-basis: 100%;
-    padding: 20px 16px;
-    gap: 8px;
+    padding: var(--space-4) var(--space-4);
+    gap: var(--space-2);
   }
   .introHeading {
-    margin: 12px 0 0;
-    font-size: 22px;
+    margin: var(--space-3) 0 0;
+    font-size: var(--text-2xl);
   }
   .introText {
-    font-size: 14px;
+    font-size: var(--text-md);
   }
 }
 
@@ -75,12 +75,12 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 40px 24px;
+  padding: var(--space-7) var(--space-5);
 }
 
 @media (max-width: 767px) {
   .main {
-    padding: 24px 16px 40px;
+    padding: var(--space-5) var(--space-4) var(--space-7);
   }
 }
 
@@ -103,12 +103,12 @@
   max-width: 400px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--space-4);
 }
 
 .title {
-  margin: 0 0 8px;
-  font-size: 28px;
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-3xl);
   font-weight: 800;
   letter-spacing: -0.5px;
 }
@@ -116,12 +116,12 @@
 .field {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--space-1);
 }
 
 .label {
-  font-size: 14px;
-  font-weight: 700;
+  font-size: var(--text-md);
+  font-weight: 600;
 }
 
 .input,
@@ -130,25 +130,25 @@
   border: 1.5px solid var(--color-border);
   border-radius: var(--radius-input);
   background: var(--color-surface);
-  font-size: 15px;
-  font-weight: 500;
+  font-size: var(--text-md);
+  font-weight: 400;
 }
 
 .input {
   width: 100%;
-  padding: 0 16px;
+  padding: 0 var(--space-4);
 }
 
-.input:focus,
-.inputGroup:focus-within {
-  border: 2px solid var(--color-accent);
-  outline: none;
+/* 포커스는 전역 :focus-visible 윤곽선 하나(COM-34). 묶음 칸은 안의 입력이 포커스를 받으면 칸에 같은 윤곽선 */
+.inputGroup:has(input:focus-visible) {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
 }
 
 .inputGroup {
   display: flex;
   align-items: center;
-  padding: 0 4px 0 16px;
+  padding: 0 var(--space-1) 0 var(--space-4);
 }
 
 .inputGroup input {
@@ -156,8 +156,11 @@
   min-width: 0;
   height: 100%;
   border: 0;
-  outline: none;
   background: transparent;
+}
+
+.inputGroup input:focus-visible {
+  outline: none;
 }
 
 .input[aria-invalid='true'],
@@ -169,7 +172,7 @@
   width: 44px;
   height: 44px;
   border: 0;
-  border-radius: 22px;
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--color-text-muted);
   display: flex;
@@ -180,66 +183,89 @@
 
 .fieldError {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--text-sm);
   font-weight: 600;
   color: var(--color-danger);
 }
 
 .submit {
   height: 52px;
-  margin-top: 6px;
+  margin-top: var(--space-1);
   border: 0;
-  border-radius: 26px;
+  border-radius: var(--radius-pill);
   background: var(--color-accent);
   color: var(--color-on-accent);
-  font-size: 16px;
-  font-weight: 800;
+  font-size: var(--text-lg);
+  font-weight: 600;
   cursor: pointer;
 }
 
-.submit:hover:not(:disabled, [aria-disabled='true']) {
-  background: var(--color-accent-ink);
+@media (hover: hover) and (pointer: fine) {
+  .submit:hover:not(:disabled, [aria-disabled='true']) {
+    background: var(--color-accent-ink);
+  }
 }
 
 .submit:disabled,
 .submit[aria-disabled='true'] {
   background: var(--color-disabled);
-  color: #ffffff;
+  color: var(--color-surface);
   cursor: not-allowed;
 }
 
 .links {
   display: flex;
   justify-content: space-between;
-  font-size: 14px;
+  font-size: var(--text-md);
   font-weight: 600;
+}
+
+/* 글자 링크도 누르는 영역 44px(화면정의서 2.5, UX-AUTH-83) */
+.links a,
+.checkLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--size-touch);
+}
+
+/* 문장 안 링크는 줄 높이를 바꾸지 않고 투명한 영역으로 위아래를 넓힌다 */
+.center a,
+.overseas a {
+  position: relative;
+}
+
+.center a::after,
+.overseas a::after {
+  content: '';
+  position: absolute;
+  inset: -12px -4px;
 }
 
 .center {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--text-md);
   text-align: center;
 }
 
 .note {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--text-sm);
   line-height: 1.6;
   text-align: center;
   color: var(--color-text-muted);
 }
 
 .strong {
-  font-weight: 700;
+  font-weight: 600;
 }
 
 /* 폼 상단 안내 */
 .alert {
   display: flex;
-  gap: 12px;
-  padding: 14px 16px;
-  border-radius: 16px;
-  font-size: 14px;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-input);
+  font-size: var(--text-md);
   line-height: 1.55;
 }
 
@@ -256,15 +282,15 @@
 .alertInfo {
   background: var(--color-accent-soft);
   color: var(--color-accent-ink);
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .alertDone {
   align-items: center;
-  padding-right: 6px;
+  padding-right: var(--space-1);
   background: var(--color-text);
-  color: #ffffff;
-  font-weight: 700;
+  color: var(--color-on-banner);
+  font-weight: 600;
 }
 
 .alertBody {
@@ -285,7 +311,7 @@
 }
 
 .alertClose:focus-visible {
-  outline: 2px solid #ffffff;
+  outline: 2px solid var(--color-on-banner);
   outline-offset: -4px;
 }
 
@@ -300,7 +326,7 @@
 
 .alert a {
   color: inherit;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 /* 비밀번호 규칙 */
@@ -310,8 +336,8 @@
   list-style: none;
   display: flex;
   flex-wrap: wrap;
-  gap: 6px 14px;
-  font-size: 13px;
+  gap: var(--space-1) var(--space-3);
+  font-size: var(--text-sm);
   font-weight: 600;
 }
 
@@ -328,21 +354,22 @@
 /* 동의 */
 .agreements {
   margin: 0;
-  padding: 14px 16px;
+  padding: var(--space-3) var(--space-4);
   border: 0;
-  border-radius: 16px;
+  border-radius: var(--radius-input);
   background: var(--color-surface);
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  font-size: 14px;
+  gap: var(--space-2);
+  font-size: var(--text-md);
 }
 
 .check {
   display: flex;
   align-items: center;
-  gap: 10px;
-  min-height: 28px;
+  gap: var(--space-2);
+  /* 줄 전체가 체크박스 라벨이라 줄 높이가 곧 누르는 영역이다 */
+  min-height: var(--size-touch);
 }
 
 .check input {
@@ -361,20 +388,20 @@
 }
 
 .checkLink {
-  font-size: 13px;
+  font-size: var(--text-sm);
 }
 
 .overseas {
   margin: 2px 0 0;
-  padding-top: 10px;
-  border-top: 1px solid #f0f1f6;
-  font-size: 12.5px;
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-divider-soft);
+  font-size: var(--text-xs);
   line-height: 1.6;
   color: var(--color-text-muted);
 }
 
 .overseas a {
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .tight {

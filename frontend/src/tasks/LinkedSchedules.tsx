@@ -5,9 +5,9 @@ import { Link, useNavigate } from 'react-router'
 import { useAuth } from '../auth/useAuth'
 import type { Occurrence } from '../calendar/api'
 import type { CalendarLocationState } from '../calendar/CalendarPage'
-import { addDays, formatMinutes, fromZoned, toZoned, todayIn } from '../calendar/time'
+import { addDays, fromZoned } from '../calendar/time'
+import { shortDate, timeRange, toZoned, todayIn } from '../format/datetime'
 import { Skeleton } from '../components/Skeleton'
-import { shortDate } from '../quickInput/dates'
 import { useTaskOccurrences, type Task } from './api'
 import own from './LinkedSchedules.module.css'
 import styles from './tasks.module.css'
@@ -41,7 +41,7 @@ export function LinkedSchedules({ task, archived }: { task: Task; archived: bool
           연결된 일정
         </span>
         {!archived && (
-          <button type="button" className={styles.smallButton} onClick={placeOnCalendar}>
+          <button type="button" className={`${styles.smallButton} ${styles.placeButton}`} onClick={placeOnCalendar}>
             캘린더에 배치
           </button>
         )}
@@ -87,9 +87,5 @@ export function LinkedSchedules({ task, archived }: { task: Task; archived: bool
 
 function timeText(o: Occurrence, timeZone: string) {
   if (o.allDay) return o.startDate === o.endDate ? '종일' : `종일 · ${shortDate(o.endDate!, todayIn(timeZone))}까지`
-  const s = toZoned(o.startAt!, timeZone)
-  const e = toZoned(o.endAt!, timeZone)
-  const end =
-    e.date === s.date ? formatMinutes(e.minutes) : `${shortDate(e.date, todayIn(timeZone))} ${formatMinutes(e.minutes)}`
-  return `${formatMinutes(s.minutes)} – ${end}`
+  return timeRange(o.startAt!, o.endAt!, timeZone)
 }

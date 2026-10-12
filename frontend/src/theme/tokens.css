@@ -1,6 +1,9 @@
 /* 색·모양 토큰 (화면정의서 2.2·2.3). 사용자 설정값은 --color-accent·--color-ground 2개뿐이고
    applyTheme()이 바꾼다. 파생 색은 color-mix로 계산한다. */
 :root {
+  /* 밝은 테마만 있다. 폼 컨트롤·스크롤바가 기기 다크 모드로 바뀌지 않게(COM-26) */
+  color-scheme: light;
+
   /* 누르는 영역 최소 크기 (화면정의서 2장: 터치 영역 44px 이상) */
   --size-touch: 44px;
 
@@ -22,8 +25,11 @@
   /* 고정 색 */
   --color-surface: #ffffff;
   --color-text: #1a1c2b;
+  --color-scrim: rgba(26, 28, 43, 0.45); /* 모달·시트 뒤 덮개(먹색 45%) */
   --color-text-muted: #5e6377;
   --color-text-body: #4a4f63;
+  /* 입력 안내 글(placeholder). 빠른 입력에서는 이것이 유일한 보이는 라벨이라 본문 기준 4.5:1을 맞춘다: 흰색 5.13, 바탕 4종 4.59 이상(UX-COM-09) */
+  --color-placeholder: #686d81;
   --color-border: #d5d8e5;
   --color-divider: #e1e4ee;
   --color-skeleton: #e1e4ee;
@@ -31,10 +37,37 @@
   --color-danger: #a02613;
   --color-danger-soft: #fde2dd;
   --color-danger-text: #7a1c0e;
+  /* 공휴일 글자. 값은 위험색과 같지만 뜻이 달라 따로 둔다(X-03: 위험색은 되돌릴 수 없는 동작·기한 초과에만) */
+  --color-holiday: #a02613;
   --color-warning-soft: #fff0c7;
   --color-warning-text: #6b4500;
   --color-success-text: #0a5c4e;
   --color-banner: #1a1c2b;
+  /* 보조 고정 색(X-01 토큰 밖 hex 정리) */
+  --color-text-strong: #3b3f52; /* 본문보다 진한 보조 글자: 탭·메뉴·보조 버튼 */
+  --color-text-disabled: #8a8fa3; /* 꺼진 글자·장식 아이콘·점선 테두리. 정보 글자에는 쓰지 않는다(4.5:1 미만) */
+  --color-surface-sunken: #f7f8fc; /* 카드 안 들어간 면 */
+  --color-surface-muted: #eef0f6; /* 중립 칩·누름 면 */
+  --color-divider-soft: #eef0f6; /* 카드 안 옅은 줄 */
+  --color-grip: #b9bdcc; /* 시트 손잡이 */
+  --color-success-soft: #f4fbf9;
+  /* 어두운 띠(토스트·배너·말풍선) 위 색 */
+  --color-on-banner: #ffffff;
+  --color-on-danger: #ffffff;
+  --color-on-banner-muted: #c9ccdb;
+  --color-on-banner-link: #b7b1f2;
+  --color-banner-hover: #2a2d42;
+  --color-live-dot: #ff6b5e; /* 진행 중 타이머·오프라인 점 */
+  /* 앱 아이콘 색: 테마 키 컬러를 따르지 않는다(설치 안내) */
+  --color-brand: #4b3fd6;
+  --color-brand-soft: #e9e8fa;
+  --color-brand-ink: #3c32ab;
+  /* 일지 문서 미리보기(제출 표 모양, 테마 무관). 일지 서식 자체는 paper.module.css의 서식 전용 값 */
+  --doc-ink: #111111;
+  --doc-rule: #c9c9c9;
+  --doc-head: #f3f3f3;
+  --doc-surface: #ffffff;
+  --doc-muted: #6b6f80;
 
   /* 기록 상태 색: 테마와 무관하게 고정 (화면정의서 2.3). 계획·진행 중·확정은 프로젝트 색을 쓴다(P1). */
   --status-pending-bg: #ffe9b8;
@@ -47,7 +80,7 @@
   --status-skipped-bg: #eceef4;
   --status-skipped-text: #8a8fa3;
 
-  /* 프로젝트 전용 팔레트 P1~P8 (테마와 무관). base: 색 점·확정 블록 채움, tint/ink: 칩·배지 배경/글자 (erp-design 확정) */
+  /* 프로젝트 전용 팔레트 P1~P8 (테마와 무관). base: 색 점·확정 블록 채움, tint/ink: 칩·배지 배경/글자 (WY-design 확정) */
   --project-p1: #2d5bd8; /* 파랑 */
   --project-p1-tint: #e5ecfc;
   --project-p1-ink: #1e3f9e;
@@ -73,10 +106,44 @@
   --project-p8-tint: #eaebed;
   --project-p8-ink: #424553;
 
-  /* 모양 */
-  --radius-input: 14px;
-  --radius-card: 20px;
+  /* 글자 9단계(X-01). 반 픽셀은 쓰지 않는다. 767px 이하 입력은 global.css가 --text-lg로 올린다 */
+  --text-dense: 11px; /* 캘린더 시간 그리드 블록 안 한 줄 전용 */
+  --text-xs: 12px; /* 배지·칩·캡션 */
+  --text-sm: 13px; /* 보조 글·표 보조 열 */
+  --text-md: 14px; /* 본문·목록·데스크톱 입력 */
+  --text-lg: 16px; /* 강조 본문·휴대폰 입력 */
+  --text-xl: 18px; /* 카드 제목·요약 숫자 */
+  --text-2xl: 22px; /* 화면 제목·홈 인사 */
+  --text-3xl: 28px; /* 큰 제목(랜딩·빈 상태) */
+  --text-4xl: 34px; /* 랜딩 주제목 전용. 앱 화면에는 쓰지 않는다 */
+  /* 굵기 3단계 */
+  --weight-body: 400;
+  --weight-title: 600; /* 제목·버튼 */
+  --weight-strong: 800; /* 숫자·배지 */
+
+  /* 간격 6단계(4의 배수) + 쪽 여백 2단계. 그 밖의 값은 가까운 단계로 */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  /* 쪽 여백·큰 구획 전용(랜딩·인증·빈 상태). 화면 안 칸 사이에는 쓰지 않는다 */
+  --space-7: 40px;
+  --space-8: 48px;
+
+  /* 모서리: 위계별 3단계 + pill */
+  --radius-sm: 8px; /* 칩·작은 버튼·표 입력 */
+  --radius-input: 12px; /* 입력·버튼 */
+  --radius-card: 20px; /* 카드·모달 */
   --radius-pill: 999px;
+
+  /* 그림자 3단계. --shadow-accent는 하단 + 전용 */
+  --shadow-1: 0 2px 10px rgba(40, 44, 90, 0.08); /* 떠 있는 칩·끌기 잡힘 */
+  --shadow-2: 0 10px 30px rgba(40, 44, 90, 0.18); /* 팝오버·토스트 */
+  --shadow-3: 0 18px 44px rgba(40, 44, 90, 0.2); /* 모달·시트 */
+
+  /* 모양 */
   --font-sans:
     'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, system-ui, 'Apple SD Gothic Neo',
     'Noto Sans KR', 'Malgun Gothic', sans-serif;

@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -52,7 +52,7 @@ const render = (recurring?: boolean) => renderApp('/', [{ path: '/', element: <H
 afterEach(() => vi.unstubAllGlobals())
 
 describe('일정 상세 연결 업무 (P1-05-06)', () => {
-  it('검색해 키보드로 고르면 업무 이름 링크와 [해제]가 보이고, 해제하면 검색으로 돌아간다', async () => {
+  it('검색해 키보드로 고르면 업무 이름 칩(창을 떠나는 링크 아님, UX-COM-05)과 [해제]가 보이고, 해제하면 검색으로 돌아간다', async () => {
     stubServer()
     const user = userEvent.setup()
     render()
@@ -62,8 +62,9 @@ describe('일정 상세 연결 업무 (P1-05-06)', () => {
     expect(box).toHaveAttribute('aria-expanded', 'true')
     await user.keyboard('{Enter}')
 
-    const linked = await screen.findByRole('link', { name: '9월 매출 보고서' })
-    expect(linked).toHaveAttribute('href', '/tasks/task-report')
+    const linked = await screen.findByRole('group', { name: '연결 업무' })
+    expect(await within(linked).findByText('9월 매출 보고서')).toBeInTheDocument()
+    expect(within(linked).queryByRole('link')).toBeNull()
     await user.click(screen.getByRole('button', { name: '해제' }))
     // 사라진 [해제] 대신 검색 칸으로 포커스
     expect(await screen.findByRole('combobox', { name: '연결 업무' })).toHaveFocus()
@@ -80,7 +81,8 @@ describe('일정 상세 연결 업무 (P1-05-06)', () => {
     expect(await screen.findByText(/맞는 업무가 없어요/)).toHaveAttribute('role', 'status')
 
     await user.click(screen.getByRole('button', { name: '새 업무' }))
-    expect(await screen.findByRole('link', { name: '새 할 일' })).toHaveAttribute('href', '/tasks/task-new')
+    const linked = await screen.findByRole('group', { name: '연결 업무' })
+    expect(await within(linked).findByText('새 할 일')).toBeInTheDocument()
     const post = fetchMock.mock.calls.find(([, init]) => init?.method === 'POST')
     expect(JSON.parse(String(post![1]!.body))).toEqual({ title: '새 할 일' })
   })

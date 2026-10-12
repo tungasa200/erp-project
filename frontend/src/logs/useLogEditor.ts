@@ -16,6 +16,29 @@ export type SaveState = 'idle' | 'saving' | 'saved' | 'error' | 'conflict'
 
 const SAVE_DELAY_MS = 800
 
+const filled = <T extends { text: string }>(rows: T[]) => rows.filter((r) => r.text.trim())
+
+/** 실적·계획에 글자가 빈 줄이 남아 있는지(확정할 때 "빈 줄은 빼고" 알림) */
+export function hasBlankRows(edits: LogEdits | null) {
+  const blank = (rows: { text: string }[] | undefined) => !!rows?.some((r) => !r.text.trim())
+  return !!edits && (blank(edits.achievements) || blank(edits.plans))
+}
+
+/** 업무 내용은 비었는데 결과·진척을 적은 실적 줄. 서버로 보낼 수 없어(text 필수) 남겨 두고, 떠나기 전에 묻는다(UX-LOG-143) */
+export const isStranded = (a: LogAchievement) =>
+  !a.text.trim() && (!!a.result?.trim() || a.outcome != null || a.progress != null)
+
+export function hasStrandedRows(edits: LogEdits | null) {
+  return !!edits?.achievements?.some(isStranded)
+}
+
+/** 빈 줄을 뺀 목록이 서버 목록과 다르면 보낼 목록을, 같으면 undefined */
+function changedList<T extends { text: string }>(edited: T[] | undefined, server: T[]): T[] | undefined {
+  if (!edited) return undefined
+  const rows = filled(edited)
+  return JSON.stringify(rows) === JSON.stringify(server) ? undefined : rows
+}
+
 export function useLogEditor(log: WorkLog | undefined, callbacks: { onPinned: () => void; onConfirmed: () => void }) {
   const queryClient = useQueryClient()
   const [edits, setEdits] = useState<LogEdits | null>(null)
@@ -25,9 +48,11 @@ export function useLogEditor(log: WorkLog | undefined, callbacks: { onPinned: ()
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const inFlight = useRef<Promise<WorkLog | null> | null>(null)
   const cb = useRef(callbacks)
+  const stateRef = useRef(state)
   useLayoutEffect(() => {
     logRef.current = log
     cb.current = callbacks
+    stateRef.current = state
   })
 
   const apply = useCallback((next: LogEdits | null) => {
@@ -56,19 +81,20 @@ export function useLogEditor(log: WorkLog | undefined, callbacks: { onPinned: ()
     const sent = editsRef.current
     const current = logRef.current
     if (!sent || !current) return current ?? null
-    // 글자가 빈 줄이 있는 칸은 아직 보내지 않는다(계약 text minLength 1). 줄만 추가해서는 고정되지 않게
-    const blank = (rows: { text: string }[] | undefined) => !!rows?.some((r) => !r.text.trim())
-    const held = blank(sent.achievements) || blank(sent.plans)
-    const sendAchievements = sent.achievements && !blank(sent.achievements)
-    const sendPlans = sent.plans && !blank(sent.plans)
+    // 글자가 빈 줄은 서버로 보내지 않고 편집 상태에만 둔다(계약 text minLength 1). 나머지 줄은 그대로 보낸다(UX-LOG-140:
+    // 빈 줄 하나 때문에 목록 전체를 보류하면 그 사이 지운 줄이 확정 문서에 되살아난다). 빈 줄을 빼면 서버 목록과 같을 때는
+    // 보내지 않는다(줄만 추가해서는 자동 실적이 고정되지 않게)
+    const held = hasBlankRows(sent)
+    const sendAchievements = changedList(sent.achievements, current.content.achievements)
+    const sendPlans = changedList(sent.plans, current.content.plans)
     if (!sendAchievements && !sendPlans && sent.issues === undefined) return current
     const run = (async () => {
       setState('saving')
       try {
         const saved = await ensureSaved(current)
         const body: WorkLogPatch = { version: saved.version }
-        if (sendAchievements) body.achievements = sent.achievements
-        if (sendPlans) body.plans = sent.plans
+        if (sendAchievements) body.achievements = sendAchievements
+        if (sendPlans) body.plans = sendPlans
         if (sent.issues !== undefined) body.issues = sent.issues || null
         const next = await logApi.patch(saved.id!, body)
         const pinned = !!sendAchievements && saved.content.achievementsAuto && !next.content.achievementsAuto
@@ -112,13 +138,31 @@ export function useLogEditor(log: WorkLog | undefined, callbacks: { onPinned: ()
   )
 
   // 화면을 떠날 때 남은 수정을 보낸다
-  // 아직 보내지 않은 수정이 있으면 탭을 닫기 전에 묻는다(자동 저장 0.8초 사이)
+  // 아직 보내지 않은 수정이 있으면 탭을 닫기 전에 묻는다(자동 저장 0.8초 사이). 서버 값과 다른 글이 있을 때만이다:
+  // 아무것도 안 쓴 빈 줄은 저장 전후 모두 잃을 것이 없으니 묻지 않는다(UX-LOG-145·151). 결과만 쓴 줄은 보내지 못했으니 묻는다(UX-LOG-143)
+  const differs =
+    !!edits &&
+    !!log &&
+    (!!changedList(edits.achievements, log.content.achievements) ||
+      !!changedList(edits.plans, log.content.plans) ||
+      (edits.issues !== undefined && (edits.issues || null) !== (log.content.issues || null)))
+  const unsaved = state === 'saving' || differs || hasStrandedRows(edits)
   useEffect(() => {
-    if (!edits && state !== 'saving') return
+    if (!unsaved) return
     const warn = (e: BeforeUnloadEvent) => e.preventDefault()
     window.addEventListener('beforeunload', warn)
     return () => window.removeEventListener('beforeunload', warn)
-  }, [edits, state])
+  }, [unsaved])
+
+  // 오프라인이 되기 직전의 수정은 보내지 못하고 남는다. 다시 연결되면 바로 보낸다(UX-LOG-40, 조용히 사라지지 않게).
+  // 충돌 상태는 사용자가 고를 때까지 보내지 않는다
+  useEffect(() => {
+    const retry = () => {
+      if (editsRef.current && !timer.current && stateRef.current !== 'conflict') void flush()
+    }
+    window.addEventListener('online', retry)
+    return () => window.removeEventListener('online', retry)
+  }, [flush])
 
   useEffect(
     () => () => {
@@ -148,5 +192,5 @@ export function useLogEditor(log: WorkLog | undefined, callbacks: { onPinned: ()
     setState('idle')
   }, [apply])
 
-  return { edits, state, change, flush, discard, reset, ensureSaved }
+  return { edits, state, unsaved, change, flush, discard, reset, ensureSaved }
 }

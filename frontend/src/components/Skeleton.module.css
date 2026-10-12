@@ -1,25 +1,25 @@
 /* 로딩 스켈레톤. 색은 --color-skeleton 토큰 */
 .group {
   display: flex;
-  gap: 10px;
+  gap: var(--space-2);
 }
 
 .lines,
 .card,
 .block {
   flex-direction: column;
-  padding: 10px 0;
+  padding: var(--space-2) 0;
 }
 
 .chip {
   flex-wrap: wrap;
-  gap: 6px;
+  gap: var(--space-1);
 }
 
 .offline {
   margin: 0;
-  padding: 10px 0;
-  font-size: 14px;
+  padding: var(--space-2) 0;
+  font-size: var(--text-md);
   color: var(--color-text-muted);
 }
 
@@ -58,17 +58,17 @@
 .chipItem {
   width: 64px;
   height: 22px;
-  border-radius: 11px;
+  border-radius: var(--radius-pill);
 }
 
 .cardItem {
   height: 88px;
-  border-radius: 16px;
+  border-radius: var(--radius-input);
 }
 
 .blockItem {
   height: 120px;
-  border-radius: 12px;
+  border-radius: var(--radius-input);
 }
 
 @keyframes pulse {

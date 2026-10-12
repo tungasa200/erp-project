@@ -1,4 +1,4 @@
-import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Occurrence } from '../calendar/api'
@@ -300,14 +300,69 @@ describe('SCR-TASK-01 업무 목록', () => {
     })
   })
 
-  it('없는 @프로젝트로는 저장하지 않고 입력을 남긴다', async () => {
+  it('UX-TASK-60 빠른 입력으로 만든 업무 줄을 화면 가운데로 보이고 잠깐 표시한다', async () => {
+    server([])
+    const scroll = vi.spyOn(Element.prototype, 'scrollIntoView')
+    renderApp('/tasks')
+    const input = await screen.findByRole('textbox', { name: '업무 추가' })
+    await userEvent.type(input, '견적서 회신{Enter}')
+    await waitFor(() => expect(document.querySelector('[data-task-id="new"]')).toHaveAttribute('data-just-added'))
+    expect(scroll).toHaveBeenCalledWith({ block: 'center' })
+    scroll.mockRestore()
+  })
+
+  it('없는 @프로젝트로는 저장하지 않고 입력을 남긴 채 새 프로젝트를 만들지 묻는다(UX-COM-06)', async () => {
     const { calls } = server([])
     renderApp('/')
     const input = await screen.findByRole('textbox', { name: '빠른 기록' })
-    await userEvent.type(input, '보도자료 @마케팅{Enter}')
-    expect(await screen.findByText('"마케팅" 프로젝트가 없어요. 아래 칩을 눌러 먼저 만들어 주세요')).toBeInTheDocument()
+    await userEvent.type(input, '보도자료 @마케팅')
+    await screen.findByRole('button', { name: '+ 새 프로젝트 ‘마케팅’' })
+    await userEvent.keyboard('{Enter}')
+    expect(await screen.findByRole('alert')).toHaveTextContent('‘마케팅’ 프로젝트를 새로 만들까요?')
     expect(input).toHaveValue('보도자료 @마케팅')
     expect(calls.some((c) => c.method === 'POST')).toBe(false)
+  })
+
+  it('X-11 프로젝트·태그를 하나씩 고른 목록의 빠른 입력은 @·# 칩을 미리 채우고, 만든 뒤에도 다시 채운다', async () => {
+    const { calls } = server([])
+    renderApp('/tasks?project=p-sales&tag=t-quote')
+    await waitFor(() => expect(screen.getByRole('textbox', { name: '업무 추가' })).toHaveValue('@영업 #견적 '))
+    const chips = screen.getByRole('list', { name: '해석 결과' })
+    expect(within(chips).getByText('영업')).toBeInTheDocument()
+    cleanup()
+    // 만들기는 프로젝트만 고른 목록에서 본다(태그를 만드는 요청은 이 시험의 서버에 없다)
+    renderApp('/tasks?project=p-sales')
+    const input = await screen.findByRole('textbox', { name: '업무 추가' })
+    await waitFor(() => expect(input).toHaveValue('@영업 '))
+    await userEvent.click(input)
+    await userEvent.keyboard('{End}견적서 회신{Enter}')
+    expect(await screen.findByText('업무 1개를 추가했어요')).toBeInTheDocument()
+    expect(calls.find((c) => c.method === 'POST')?.body).toMatchObject({ title: '견적서 회신', projectId: 'p-sales' })
+    await waitFor(() => expect(input).toHaveValue('@영업 '))
+  })
+
+  it('UX-TASK-140 미리 채운 값을 지워 필터 밖 업무를 만들면 안 보인다고 알리고 [필터 해제]로 푼다', async () => {
+    server([])
+    const { router } = renderApp('/tasks?project=p-sales')
+    const input = await screen.findByRole('textbox', { name: '업무 추가' })
+    await waitFor(() => expect(input).toHaveValue('@영업 '))
+    expect(input).toHaveAttribute('placeholder', '할 일을 한 줄로 적어 보세요')
+    await userEvent.clear(input)
+    await userEvent.type(input, '필터밖 업무{Enter}')
+    expect(await screen.findByText('업무를 추가했어요. 지금 필터에서는 안 보여요')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('link', { name: '필터 해제' }))
+    await waitFor(() => expect(router.state.location.search).toBe(''))
+    expect(router.state.location.pathname).toBe('/tasks')
+  })
+
+  it('X-11 새 업무가 안 보이는 보기(완료만)에서는 추가를 끄고 이유를 보인다', async () => {
+    server([])
+    renderApp('/tasks?status=DONE')
+    const input = await screen.findByRole('textbox', { name: '업무 추가' })
+    expect(input).toBeDisabled()
+    expect(screen.getByRole('group', { name: '' })).toHaveAccessibleDescription(
+      '완료 보기에서는 새 업무를 만들 수 없어요',
+    )
   })
 })
 

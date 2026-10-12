@@ -103,10 +103,6 @@ export function AccountSettings() {
           로그아웃
           <span aria-hidden="true">›</span>
         </button>
-        <Link to="/settings/account/deletion" className={`${account.linkRow} ${account.linkDanger}`}>
-          회원 탈퇴
-          <span aria-hidden="true">›</span>
-        </Link>
       </section>
 
       <section aria-label="약관·정책" className={`${styles.panel} ${account.links}`}>
@@ -116,6 +112,14 @@ export function AccountSettings() {
         </Link>
         <Link to="/terms" className={account.linkRow}>
           이용약관
+          <span aria-hidden="true">›</span>
+        </Link>
+      </section>
+
+      {/* 되돌릴 수 없는 탈퇴는 로그아웃과 떨어뜨려 맨 아래 따로 둔다(SET-81) */}
+      <section aria-label="회원 탈퇴" className={`${styles.panel} ${account.links}`}>
+        <Link to="/settings/account/deletion" className={`${account.linkRow} ${account.linkDanger}`}>
+          회원 탈퇴
           <span aria-hidden="true">›</span>
         </Link>
       </section>

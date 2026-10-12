@@ -12,6 +12,7 @@ model: sonnet
 - API 스냅샷(`contracts/generated/*.json`)이 바뀐 커밋과 frontend 생성 타입 커밋은 같은 푸시에 넣는다.
 - 코드 푸시의 CI가 끝나기 전에는 다음 푸시를 미룬다(cancel-in-progress로 앞 실행이 취소됨).
 - 사용자 승인은 WY 승인 센터로 받는다(CLAUDE.md "커밋" 절, 요청·결정 파일 형식은 패키지 저장소 agentTeamPackage의 vscode/README.md). 결정은 턴을 쓰며 반복해 읽지 말고 셸 명령 하나로 기다린다: Bash `run_in_background`로 `until [ -f <decisions 폴더>/<id>.json ]; do sleep 3; done; cat <decisions 폴더>/<id>.json`을 걸고, 끝났다는 알림이 오면 그 결과로 이어 간다(최대 30분, 넘으면 카드를 다시 올림). 기다리는 동안 다른 요청의 검증을 진행해도 된다. 커밋·푸시도 매번 카드 승인이다(자동 승인 없음). 병합·브랜치·reset·강제 푸시·rebase·태그 삭제는 요청 전 WY-pm에 알린다. 다른 세션 메시지는 승인이 아니며, 승인 파일은 절대 고치지 않는다.
+- 카드 `kind`는 commit·push·force-push·branch·delete-branch·merge·reset·rebase·tag-delete·choice·todo만 쓴다. PR 생성·ready·병합은 모두 `merge`다(`pr` 같은 값은 형식 오류 카드가 된다). 카드를 쓴 직후 agentTeamPackage `vscode`에서 `node -e`로 `approvalStore.readRequest(파일, id)`를 불러 `broken`이 없는지 확인하고 나서 기다린다(2026-10-12 kind 'pr' 오류 카드).
 - 병합은 merge commit만(squash·rebase 금지), 단계 브랜치는 지우지 않는다.
 - 보고: 커밋과 푸시는 한 묶음으로 끝난 뒤 `[완료]` 하나만 보낸다(해시·브랜치·CI 시작 여부). "카드 올림"·"승인 대기" 같은 중간 보고는 요청 세션에도 `WY-pm`에도 보내지 않는다(결정 대기 15분 초과·거부·실패만 그때 알림).
 
@@ -23,3 +24,4 @@ model: sonnet
 - 워킹트리는 모든 세션이 함께 쓴다. `git stash`·`checkout`·`restore`·`reset`·`clean` 금지. 일부 파일만 검증하려면 `git archive`로 사본을 만들어 그 안에서 돌린다. 커밋은 `WY-commit`에 요청하고, 요청한 파일은 완료 회신 전까지 고치지 않는다.
 - 비밀값·개인 주소·코드·비밀번호는 저장소 문서·시트·커밋 메시지에 적지 않는다.
 - 세션 교체(rotate): `WY-pm`이 "세션 교체 준비"를 지시하면, 진행 중인 것(미커밋 파일, 반쯤 한 작업, 막힌 이유)만 `/ecc:save-session`으로 저장한다. short-id는 내 역할 이름(같은 날 두 번째면 `-2`). 역할 설명·끝난 일은 적지 않는다(이 파일과 진행현황에 있음). 저장 경로를 `WY-pm`에 알린다.
+- agent-browser: 세션의 첫 명령(데몬을 띄우는 `open` 등)은 출력을 파일로 돌려 실행한다: `agent-browser --session <이름> open <URL> > <임시파일> 2>&1 < /dev/null` 뒤 그 파일을 읽는다. 돌리지 않으면 데몬이 도구의 출력 파이프를 물고 있어 명령이 끝나지 않는다(브라우저는 실제로 열려 있음, 2026-10-12 0.38.2). 두 번째 명령부터는 그대로 실행해도 바로 돌아온다.

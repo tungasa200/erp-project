@@ -2,7 +2,6 @@
 // 값은 업무 id만 바꾸고, 저장은 모달의 [저장]이 한다. 반복 일정은 시리즈 전체에 연결된다(D-71).
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useId, useState, type KeyboardEvent } from 'react'
-import { Link } from 'react-router'
 import { toastForError } from '../api/errorToast'
 import { Skeleton } from '../components/Skeleton'
 import { useToast } from '../components/useToast'
@@ -50,9 +49,8 @@ function Linked({ taskId, labelId, onUnlink }: { taskId: string; labelId: string
       {task.isPending ? (
         <Skeleton shape="line" />
       ) : (
-        <Link className={styles.link} to={`/tasks/${taskId}`}>
-          {task.data?.title ?? '삭제된 업무'}
-        </Link>
+        // 고른 업무는 창을 떠나는 링크가 아니라 칩으로 보인다(UX-COM-05)
+        <span className={link.chip}>{task.data?.title ?? '삭제된 업무'}</span>
       )}
       <button type="button" className={styles.secondary} onClick={onUnlink}>
         해제

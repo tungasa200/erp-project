@@ -2,22 +2,20 @@
 .page {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: var(--space-4);
 }
 
 .header {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 16px;
+  flex-direction: column;
+  gap: var(--space-4);
 }
 
 .heading {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 /* 종은 모바일에서만(데스크톱·태블릿은 사이드바에 있다) */
@@ -26,10 +24,6 @@
 }
 
 @media (max-width: 767px) {
-  .heading {
-    flex: 1 1 100%;
-  }
-
   .bell {
     display: flex;
   }
@@ -37,22 +31,21 @@
 
 .date {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--text-md);
   font-weight: 600;
   color: var(--color-text-muted);
 }
 
 .title {
-  margin: 4px 0 0;
-  font-size: 28px;
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-2xl);
   font-weight: 800;
   letter-spacing: -0.5px;
 }
 
 .quick {
-  flex: 1 1 340px;
+  /* 빠른 입력이 머리 전체 폭의 주인공(X-02 A). 입력 글자는 16px(QuickInput) */
   min-width: 0;
-  max-width: 520px;
   margin: 0;
   padding: 0;
   border: 0;
@@ -67,50 +60,46 @@
 .empty {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 28px;
-  border-radius: 22px;
+  gap: var(--space-2);
+  padding: var(--space-5);
+  border-radius: var(--radius-card);
   background: var(--color-surface);
 }
 
 .emptyTitle {
   margin: 0;
-  font-size: 19px;
+  font-size: var(--text-xl);
   font-weight: 800;
 }
 
 .emptyText {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--text-md);
   color: var(--color-text-muted);
 }
 
 .examples {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 8px;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
 }
 
 .example {
   min-height: 44px;
-  padding: 0 14px;
+  padding: 0 var(--space-3);
   border: 1.5px dashed var(--color-disabled);
-  border-radius: 14px;
+  border-radius: var(--radius-input);
   background: var(--color-surface);
   color: var(--color-text);
   font: inherit;
-  font-size: 14px;
+  font-size: var(--text-md);
   font-weight: 600;
   cursor: pointer;
 }
 
 @media (max-width: 767px) {
-  .title {
-    font-size: 24px;
-  }
-
   .empty {
-    padding: 22px;
+    padding: var(--space-5);
   }
 }

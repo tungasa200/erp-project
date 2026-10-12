@@ -2,7 +2,7 @@
 .page {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--space-4);
   max-width: 620px;
 }
 
@@ -14,51 +14,53 @@
   /* "← 계정" 글자 폭이 44px보다 좁아(≤767px QA) 누르는 너비를 맞춘다 */
   min-width: var(--size-touch);
   color: var(--color-accent-ink);
-  font-size: 14px;
-  font-weight: 700;
+  font-size: var(--text-md);
+  font-weight: 600;
   text-decoration: none;
 }
 
-.back:hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .back:hover {
+    text-decoration: underline;
+  }
 }
 
 .card {
-  padding: 30px;
-  border-radius: 24px;
+  padding: var(--space-6);
+  border-radius: var(--radius-card);
 }
 
 .title {
   margin: 0;
-  font-size: 26px;
+  font-size: var(--text-3xl);
   font-weight: 800;
   letter-spacing: -0.5px;
 }
 
 .warning {
-  padding: 18px;
-  border-radius: 18px;
+  padding: var(--space-4);
+  border-radius: var(--radius-card);
   background: var(--color-danger-soft);
   color: var(--color-danger-text);
 }
 
 .warningTitle {
   margin: 0;
-  font-size: 15px;
+  font-size: var(--text-md);
   font-weight: 800;
   line-height: 1.5;
 }
 
 .warningList {
-  margin: 10px 0 0;
-  padding-left: 20px;
-  font-size: 14px;
+  margin: var(--space-2) 0 0;
+  padding-left: var(--space-4);
+  font-size: var(--text-md);
   line-height: 1.8;
 }
 
 .warningNote {
-  margin: 10px 0 0;
-  font-size: 13px;
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-sm);
   line-height: 1.6;
 }
 
@@ -66,17 +68,17 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
-  padding: 14px 16px;
-  border-radius: 16px;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-input);
   background: var(--color-accent-soft);
   color: var(--color-accent-ink-strong);
 }
 
 .exportText {
   flex: 1 1 240px;
-  font-size: 14px;
-  font-weight: 700;
+  font-size: var(--text-md);
+  font-weight: 600;
   line-height: 1.5;
 }
 
@@ -84,12 +86,12 @@
   display: inline-flex;
   align-items: center;
   min-height: var(--size-touch);
-  padding: 0 16px;
-  border-radius: 22px;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-pill);
   background: var(--color-surface);
   color: var(--color-accent-ink);
-  font-size: 13.5px;
-  font-weight: 800;
+  font-size: var(--text-sm);
+  font-weight: 600;
   text-decoration: none;
 }
 
@@ -100,7 +102,7 @@
 
 .hint {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--text-sm);
   color: var(--color-text-muted);
 }
 
@@ -108,15 +110,15 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: var(--space-2);
   min-height: 52px;
   border: 0;
-  border-radius: 26px;
+  border-radius: var(--radius-pill);
   background: var(--color-danger);
-  color: #ffffff;
+  color: var(--color-on-danger);
   font: inherit;
-  font-size: 15px;
-  font-weight: 800;
+  font-size: var(--text-md);
+  font-weight: 600;
   cursor: pointer;
 }
 
@@ -127,7 +129,7 @@
 
 .submit:disabled {
   background: var(--color-disabled);
-  color: #3b3f52;
+  color: var(--color-text-strong);
   cursor: not-allowed;
 }
 
@@ -140,11 +142,11 @@
 
 @media (max-width: 767px) {
   .card {
-    padding: 20px 18px;
+    padding: var(--space-4) var(--space-4);
   }
 
   .title {
-    font-size: 24px;
+    font-size: var(--text-2xl);
   }
 
   .export {

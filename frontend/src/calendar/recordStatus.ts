@@ -15,7 +15,7 @@ export function recordTimeText(r: WorkRecord, timeZone: string): string | null {
     if (!r.endAt) return `${s}~ 진행 중`
     const e = toZoned(r.endAt, timeZone)
     const nextDay = e.date !== toZoned(r.startAt, timeZone).date ? '다음 날 ' : ''
-    return `${s}–${nextDay}${formatMinutes(e.minutes)}`
+    return `${s} – ${nextDay}${formatMinutes(e.minutes)}`
   }
   return r.durationMin ? durationText(r.durationMin) : null
 }

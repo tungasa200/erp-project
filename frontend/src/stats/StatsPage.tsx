@@ -10,11 +10,11 @@ import { useTimeSummary } from '../home/gaps'
 import { useProjects, type Project } from '../projects/api'
 import { useTimeTracking } from '../settings/useWorklogSettings'
 import { usePlanVsActual, useStats, type Stats } from './api'
-import { completedBuckets, projectName, readiness, weekAligned } from './buckets'
+import { completedBuckets, projectName, readiness, READY_DAYS, weekAligned } from './buckets'
 import { ProjectBars, TimeShare, WeeklyChart } from './charts'
 import { count, diffText, diffTone, hoursText } from './format'
 import { PeriodDialog } from './PeriodDialog'
-import { rangeLabel, readPeriod, thisMonth, thisWeek, writePeriod, type Period } from './period'
+import { rangeLabel, readPeriod, shortDay, thisMonth, thisWeek, writePeriod, type Period } from './period'
 import { addDays } from '../calendar/time'
 import styles from './stats.module.css'
 
@@ -29,6 +29,13 @@ export function StatsPage() {
   const choose = (next: Period) => setSearch(writePeriod(next), { replace: true })
 
   const stats = useStats(period.from, period.to)
+  // 7일이 안 됐으면 추이를 막고 기간도 끈다. 꺼진 버튼은 이유를 바로 아래에 보인다(X-08, STAT-67)
+  const ready = stats.data ? readiness(stats.data.firstRecordDate, today) : null
+  const locked = ready !== null && !ready.ready
+  const lockProps = locked ? { 'aria-disabled': true, 'aria-describedby': 'stats-period-reason' } : {}
+  const pick = (go: () => void) => () => {
+    if (!locked) go()
+  }
 
   return (
     <div className={styles.page}>
@@ -38,11 +45,17 @@ export function StatsPage() {
           <button
             type="button"
             aria-pressed={period.kind === 'week'}
-            onClick={() => choose(thisWeek(today, weekStart))}
+            {...lockProps}
+            onClick={pick(() => choose(thisWeek(today, weekStart)))}
           >
             이번 주
           </button>
-          <button type="button" aria-pressed={period.kind === 'month'} onClick={() => choose(thisMonth(today))}>
+          <button
+            type="button"
+            aria-pressed={period.kind === 'month'}
+            {...lockProps}
+            onClick={pick(() => choose(thisMonth(today)))}
+          >
             이번 달
           </button>
           {/* 고른 뒤에는 기간을 보인다. 이름은 보이는 글자를 담은 채 "직접 선택"을 앞에 붙인다(2.5.3) */}
@@ -51,11 +64,17 @@ export function StatsPage() {
             aria-pressed={period.kind === 'custom'}
             aria-haspopup="dialog"
             aria-label={period.kind === 'custom' ? `직접 선택 ${rangeLabel(period.from, period.to, today)}` : undefined}
-            onClick={() => setPicking(true)}
+            {...lockProps}
+            onClick={pick(() => setPicking(true))}
           >
             {period.kind === 'custom' ? rangeLabel(period.from, period.to, today) : '직접 선택'}
           </button>
         </div>
+        {locked && stats.data && (
+          <p id="stats-period-reason" className={styles.periodReason}>
+            {lockReason(stats.data.firstRecordDate, today)}
+          </p>
+        )}
       </div>
       {picking && (
         <PeriodDialog
@@ -72,7 +91,7 @@ export function StatsPage() {
       )}
       {/* 다시 받다 실패해도 받아 둔 내용은 그대로 둔다 */}
       {stats.data ? (
-        <StatsBody report={stats.data} today={today} weekStart={weekStart} />
+        <StatsBody report={stats.data} today={today} weekStart={weekStart} kind={period.kind} locked={locked} />
       ) : stats.isPending ? (
         <StatsLoading />
       ) : (
@@ -120,38 +139,67 @@ function StatsLoading() {
   )
 }
 
-function StatsBody({ report, today, weekStart }: { report: Stats; today: string; weekStart: Weekday }) {
+/** 기간을 끈 이유. 기준 날짜(첫 기록 + 7일)를 문구에 쓴다 */
+function lockReason(firstRecordDate: string | null, today: string) {
+  if (!firstRecordDate) return `첫 기록을 남기면 ${READY_DAYS}일 뒤부터 추이와 기간을 볼 수 있어요`
+  return `추이는 ${shortDay(addDays(firstRecordDate, READY_DAYS), today)}부터 볼 수 있어요(기록이 ${READY_DAYS}일치 쌓이면)`
+}
+
+/** 홈 "이번 주 완료" 칸과 같은 이름을 쓴다(X-08) */
+const COMPLETED_LABEL: Record<Period['kind'], string> = {
+  week: '이번 주 완료',
+  month: '이번 달 완료',
+  custom: '기간 안 완료',
+}
+
+function StatsBody(props: { report: Stats; today: string; weekStart: Weekday; kind: Period['kind']; locked: boolean }) {
+  const { report, today, weekStart } = props
   const timeTracking = useTimeTracking()
   const projects = useProjects().data ?? []
 
-  const ready = readiness(report.firstRecordDate, today)
-  if (!ready.ready) {
+  const summary = (
+    <ul className={styles.summary} aria-label="요약">
+      <li className={`${styles.summaryCard} ${styles.summaryAccent}`}>
+        <span className={styles.summaryLabel}>{COMPLETED_LABEL[props.kind]}</span>
+        <span className={styles.summaryValue}>{count(report.completedTaskCount)}</span>
+      </li>
+      <li className={styles.summaryCard}>
+        <span className={styles.summaryLabel}>확정 일지</span>
+        <span className={styles.summaryValue}>{count(report.confirmedLogCount)}</span>
+      </li>
+      <li className={styles.summaryCard}>
+        <span className={styles.summaryLabel}>업무 기록</span>
+        <span className={styles.summaryValue}>{count(report.recordCount)}</span>
+      </li>
+    </ul>
+  )
+
+  // 숫자 카드는 첫날부터 보이고, 추이(차트·시간 통계)만 7일 뒤에 연다(X-08 안 C)
+  if (props.locked) {
     return (
-      <section aria-labelledby="stats-not-ready" className={`${styles.card} ${styles.empty}`}>
-        <svg
-          aria-hidden="true"
-          width="44"
-          height="44"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.8"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className={styles.emptyIcon}
-        >
-          <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />
-        </svg>
-        <h2 id="stats-not-ready" className={styles.emptyTitle}>
-          1주일 기록이 쌓이면 보여 드려요
-        </h2>
-        <p className={styles.muted}>
-          {ready.daysLeft !== null && `앞으로 ${ready.daysLeft}일 남았어요. `}그동안은 홈에서 기록을 확인해 주세요.
-        </p>
-        <Link to="/" className={styles.primaryLink}>
-          홈으로
-        </Link>
-      </section>
+      <>
+        {summary}
+        <section aria-labelledby="stats-not-ready" className={`${styles.card} ${styles.empty}`}>
+          <svg
+            aria-hidden="true"
+            width="44"
+            height="44"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className={styles.emptyIcon}
+          >
+            <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />
+          </svg>
+          <h2 id="stats-not-ready" className={styles.emptyTitle}>
+            1주일 기록이 쌓이면 추이를 보여 드려요
+          </h2>
+          <p className={styles.muted}>그때까지는 위 숫자로 확인해 주세요.</p>
+        </section>
+      </>
     )
   }
 
@@ -173,20 +221,7 @@ function StatsBody({ report, today, weekStart }: { report: Stats; today: string;
   const completedProjects = report.projects.filter((p) => p.completedTaskCount > 0)
   return (
     <>
-      <ul className={styles.summary} aria-label="요약">
-        <li className={`${styles.summaryCard} ${styles.summaryAccent}`}>
-          <span className={styles.summaryLabel}>완료 업무</span>
-          <span className={styles.summaryValue}>{count(report.completedTaskCount)}</span>
-        </li>
-        <li className={styles.summaryCard}>
-          <span className={styles.summaryLabel}>확정 일지</span>
-          <span className={styles.summaryValue}>{count(report.confirmedLogCount)}</span>
-        </li>
-        <li className={styles.summaryCard}>
-          <span className={styles.summaryLabel}>업무 기록</span>
-          <span className={styles.summaryValue}>{count(report.recordCount)}</span>
-        </li>
-      </ul>
+      {summary}
       <div className={styles.row}>
         <section aria-labelledby="stats-weekly" className={`${styles.card} ${styles.wide}`}>
           <h2 id="stats-weekly" className={styles.cardTitle}>

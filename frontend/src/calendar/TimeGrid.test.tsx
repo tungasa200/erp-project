@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Occurrence } from './api'
 import { TimeGrid } from './TimeGrid'
@@ -421,5 +421,249 @@ describe('손가락 터치 규칙 (SCR-CAL 공통: 바로 밀면 스크롤, 짧�
     fireEvent.pointerMove(column, { button: 0, ...at(780) })
     fireEvent.pointerUp(column, { button: 0, ...at(780) })
     expect(onCreate).toHaveBeenCalledWith({ date: DAY, start: 720, end: 795 })
+  })
+})
+
+describe('처음 스크롤 위치 (UX-CAL-73·74)', () => {
+  const renderAt = (nowIso: string, nowSignal?: number) => (
+    <TimeGrid
+      days={[DAY]}
+      occurrences={[]}
+      timeZone="UTC"
+      today={DAY}
+      now={Date.parse(nowIso)}
+      colorOf={() => null}
+      pending={null}
+      onCreate={vi.fn()}
+      onCreateAllDay={vi.fn()}
+      onOpen={vi.fn()}
+      onMove={vi.fn()}
+      nowSignal={nowSignal}
+    />
+  )
+  const scroller = () => document.querySelector<HTMLElement>('[class*="gridScroll"]')!
+
+  it('08시부터 보이되 첫 라벨이 잘리지 않게 조금 위에서 시작한다', () => {
+    render(renderAt(`${DAY}T10:00:00Z`))
+    expect(scroller().scrollTop).toBe(8 * 48 - 12)
+  })
+
+  it('이른 아침에 열면 지금 한 시간 전부터 보인다', () => {
+    render(renderAt(`${DAY}T03:00:00Z`))
+    expect(scroller().scrollTop).toBe(2 * 48)
+  })
+
+  it('[오늘]을 누르면(nowSignal) 지금이 화면 밖일 때만 지금으로 스크롤한다', () => {
+    const { rerender } = render(renderAt(`${DAY}T10:00:00Z`, 0))
+    scroller().scrollTop = 0
+    rerender(renderAt(`${DAY}T10:00:00Z`, 1))
+    expect(scroller().scrollTop).toBe(0)
+    rerender(renderAt(`${DAY}T21:00:00Z`, 2))
+    expect(scroller().scrollTop).toBe(20 * 48)
+  })
+})
+
+describe('끌기 중 가장자리 자동 스크롤 (UX-CAL-94)', () => {
+  let frames: FrameRequestCallback[] = []
+  let scrollerBottom = 400
+  beforeEach(() => {
+    frames = []
+    scrollerBottom = 400
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => frames.push(cb))
+    vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => {})
+    // 스크롤 영역은 화면 위 0~400px, 날짜 칸은 스크롤만큼 위로 밀린다
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+      const scroller = document.querySelector<HTMLElement>('[class*="gridScroll"]')!
+      if (this === scroller)
+        return { left: 0, top: 0, width: 100, height: scrollerBottom, bottom: scrollerBottom } as DOMRect
+      return { left: 0, top: -scroller.scrollTop, width: 100, height: 1152, bottom: 1152 } as DOMRect
+    })
+  })
+  afterEach(() => vi.restoreAllMocks())
+
+  it('아래 가장자리에 머무르면 스크롤하며 블록도 함께 늦은 시각으로 옮긴다', () => {
+    const onMove = vi.fn()
+    render(
+      <TimeGrid
+        days={[DAY]}
+        occurrences={[
+          {
+            scheduleId: 'a',
+            title: '회의',
+            allDay: false,
+            startAt: `${DAY}T09:00:00Z`,
+            endAt: `${DAY}T10:00:00Z`,
+          } as Occurrence,
+        ]}
+        timeZone="UTC"
+        today={DAY}
+        now={Date.parse(`${DAY}T10:00:00Z`)}
+        colorOf={() => null}
+        pending={null}
+        onCreate={vi.fn()}
+        onCreateAllDay={vi.fn()}
+        onOpen={vi.fn()}
+        onMove={onMove}
+      />,
+    )
+    const scroller = document.querySelector<HTMLElement>('[class*="gridScroll"]')!
+    const block = screen.getByRole('button', { name: /회의/ })
+    const start = 9 * 60 * PX_PER_MINUTE - scroller.scrollTop + 10
+    fireEvent.pointerDown(block, { button: 0, clientX: 50, clientY: start })
+    // 아래 가장자리 40px 안(390px): 한 프레임에 약 10.5px
+    fireEvent.pointerMove(block, { button: 0, clientX: 50, clientY: 390 })
+    const before = scroller.scrollTop
+    act(() => {
+      for (let i = 0; i < 20; i++) frames.shift()?.(0)
+    })
+    expect(scroller.scrollTop).toBeGreaterThan(before + 150)
+    fireEvent.pointerUp(block, { button: 0, clientX: 50, clientY: 390 })
+    const moved = onMove.mock.calls[0][1].startAt as string
+    // 손가락 자리(390px)는 그대로지만 스크롤만큼 늦은 시각이 된다
+    const minutes = (390 + scroller.scrollTop) / PX_PER_MINUTE - (start + before) / PX_PER_MINUTE + 9 * 60
+    expect(Date.parse(moved)).toBe(Date.parse(`${DAY}T00:00:00Z`) + Math.round(minutes / 15) * 15 * 60_000)
+  })
+
+  it('그리드 아래 끝이 창 밖이면 창 아래 가장자리에서 스크롤한다(배너가 있는 1280×800)', () => {
+    scrollerBottom = window.innerHeight + 52
+    render(
+      <TimeGrid
+        days={[DAY]}
+        occurrences={[]}
+        timeZone="UTC"
+        today={DAY}
+        now={Date.parse(`${DAY}T10:00:00Z`)}
+        colorOf={() => null}
+        pending={null}
+        onCreate={vi.fn()}
+        onCreateAllDay={vi.fn()}
+        onOpen={vi.fn()}
+        onMove={vi.fn()}
+      />,
+    )
+    const scroller = document.querySelector<HTMLElement>('[class*="gridScroll"]')!
+    scroller.scrollTop = 0
+    const column = document.querySelector<HTMLElement>('[class*="columns"]')!
+    fireEvent.pointerDown(column, { button: 0, clientX: 50, clientY: 100 })
+    fireEvent.pointerMove(column, { button: 0, clientX: 50, clientY: window.innerHeight - 4 })
+    act(() => {
+      for (let i = 0; i < 5; i++) frames.shift()?.(0)
+    })
+    expect(scroller.scrollTop).toBeGreaterThan(0)
+  })
+
+  it('가운데에서는 스크롤하지 않는다', () => {
+    render(
+      <TimeGrid
+        days={[DAY]}
+        occurrences={[]}
+        timeZone="UTC"
+        today={DAY}
+        now={Date.parse(`${DAY}T10:00:00Z`)}
+        colorOf={() => null}
+        pending={null}
+        onCreate={vi.fn()}
+        onCreateAllDay={vi.fn()}
+        onOpen={vi.fn()}
+        onMove={vi.fn()}
+      />,
+    )
+    const scroller = document.querySelector<HTMLElement>('[class*="gridScroll"]')!
+    const column = document.querySelector<HTMLElement>('[class*="columns"]')!
+    fireEvent.pointerDown(column, { button: 0, clientX: 50, clientY: 100 })
+    fireEvent.pointerMove(column, { button: 0, clientX: 50, clientY: 200 })
+    const before = scroller.scrollTop
+    act(() => {
+      for (let i = 0; i < 5; i++) frames.shift()?.(0)
+    })
+    expect(scroller.scrollTop).toBe(before)
+  })
+})
+
+describe('겹침 상한 "+n" (CAL-70, UX-CAL-171)', () => {
+  beforeEach(() => {
+    // 날짜 칸 폭 196px → "+n" 28px을 뺀 168px에 56px 블록 3열
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(196)
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        cb: () => void
+        constructor(cb: () => void) {
+          this.cb = cb
+        }
+        observe() {
+          this.cb()
+        }
+        disconnect() {}
+      },
+    )
+  })
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+  })
+
+  const at = (id: string, start: string, end: string) =>
+    ({
+      scheduleId: id,
+      occurrenceStart: `${DAY}T${start}:00Z`,
+      title: id,
+      allDay: false,
+      startAt: `${DAY}T${start}:00Z`,
+      endAt: `${DAY}T${end}:00Z`,
+    }) as Occurrence
+
+  it('넘친 일정은 Tab으로 닿는 "+n"으로 묶고, 팝오버는 첫 항목 포커스·↑↓·Enter로 상세·Esc로 "+n"에 돌아간다', () => {
+    const onOpen = vi.fn()
+    render(
+      <TimeGrid
+        days={[DAY]}
+        occurrences={[
+          at('회의', '14:00', '15:00'),
+          at('검토', '14:00', '15:30'),
+          at('통화', '14:15', '15:15'),
+          at('리뷰', '14:30', '15:00'),
+          at('면접', '14:30', '15:30'),
+          at('문서', '14:45', '15:15'),
+        ]}
+        timeZone="UTC"
+        today={DAY}
+        now={Date.parse(`${DAY}T00:00:00Z`)}
+        colorOf={() => null}
+        pending={null}
+        onCreate={vi.fn()}
+        onCreateAllDay={vi.fn()}
+        onOpen={onOpen}
+        onMove={vi.fn()}
+      />,
+    )
+    expect(screen.getAllByRole('button', { name: /^계획 · / })).toHaveLength(3)
+    const more = screen.getByRole('button', { name: '14시대 일정 3개 더' })
+    expect(more).toHaveTextContent('+3')
+
+    act(() => more.click())
+    const popover = screen.getByRole('dialog', { name: '14시대 일정 3개 더' })
+    const items = within(popover).getAllByRole('button')
+    expect(items).toHaveLength(3)
+    expect(items[0]).toHaveFocus()
+    fireEvent.keyDown(items[0], { key: 'ArrowDown' })
+    expect(items[1]).toHaveFocus()
+    fireEvent.keyDown(items[1], { key: 'ArrowUp' })
+    fireEvent.keyDown(items[0], { key: 'ArrowUp' })
+    expect(items[2]).toHaveFocus()
+    // Tab은 팝오버 안을 돈다(UX-CAL-141)
+    fireEvent.keyDown(items[2], { key: 'Tab' })
+    expect(items[0]).toHaveFocus()
+    fireEvent.keyDown(items[0], { key: 'Tab', shiftKey: true })
+    expect(items[2]).toHaveFocus()
+
+    fireEvent.keyDown(items[2], { key: 'Escape' })
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(more).toHaveFocus()
+
+    act(() => more.click())
+    act(() => within(screen.getByRole('dialog')).getAllByRole('button')[0].click())
+    expect(onOpen).toHaveBeenCalledTimes(1)
+    expect(screen.queryByRole('dialog')).toBeNull()
   })
 })

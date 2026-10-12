@@ -4,7 +4,7 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--space-4);
 }
 
 .back {
@@ -12,26 +12,27 @@
   display: inline-flex;
   align-items: center;
   /* 화살표 뒤 공백이 inline-flex에서 사라지므로 간격으로 띄운다 */
-  gap: 4px;
+  gap: var(--space-1);
   min-height: var(--size-touch);
   /* '← 업무'는 글자가 짧아 너비가 40px 남짓이라 누르는 너비도 44px로 채운다 */
   min-width: var(--size-touch);
-  font-size: 14px;
-  font-weight: 700;
+  font-size: var(--text-md);
+  font-weight: var(--weight-title);
   color: var(--color-accent-ink);
 }
 
 .title {
   margin: 0;
-  font-size: 28px;
-  font-weight: 800;
+  /* 화면 제목은 --text-2xl(X-01, UX-STAT-151과 같은 규칙) */
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-strong);
   letter-spacing: -0.5px;
 }
 
 .lead,
 .muted {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--text-md);
   line-height: 1.6;
   color: var(--color-text-muted);
 }
@@ -39,72 +40,72 @@
 .tabs {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: var(--space-1);
 }
 
 .tab {
   min-height: var(--size-touch);
-  padding: 0 18px;
+  padding: 0 var(--space-4);
   border: 0;
-  border-radius: 22px;
+  border-radius: var(--radius-pill);
   background: var(--color-surface);
   color: var(--color-text-body);
   font: inherit;
-  font-size: 14px;
-  font-weight: 700;
+  font-size: var(--text-md);
+  font-weight: var(--weight-title);
   cursor: pointer;
 }
 
 .tab[aria-selected='true'] {
   background: var(--color-text);
   color: var(--color-surface);
-  font-weight: 800;
+  font-weight: var(--weight-title);
 }
 
 .panel {
-  padding: 8px 20px;
-  border-radius: 22px;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-card);
   background: var(--color-surface);
 }
 
 .panel > .muted,
 .panel > [role='status'],
 .panel > .error {
-  padding: 14px 0;
+  padding: var(--space-3) 0;
 }
 
 .emptyState {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  padding: 36px 4px;
+  gap: var(--space-1);
+  padding: var(--space-6) var(--space-1);
   text-align: center;
 }
 
 .emptyIcon {
   color: var(--color-disabled);
-  margin-bottom: 4px;
+  margin-bottom: var(--space-1);
 }
 
 .emptyLink {
   display: inline-flex;
   align-items: center;
   min-height: var(--size-touch);
-  margin-top: 8px;
-  padding: 0 18px;
-  border-radius: 22px;
+  margin-top: var(--space-2);
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-pill);
   background: var(--color-ground);
   color: var(--color-text);
-  font-size: 14px;
-  font-weight: 800;
+  font-size: var(--text-md);
+  font-weight: var(--weight-title);
   text-decoration: none;
 }
 
 .emptyTitle {
   margin: 0;
-  font-size: 17px;
-  font-weight: 800;
+  font-size: var(--text-xl);
+  font-weight: var(--weight-strong);
 }
 
 .list {
@@ -117,8 +118,8 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px 12px;
-  padding: 14px 0;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-3) 0;
 }
 
 .item + .item {
@@ -130,26 +131,26 @@
   min-width: 0;
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 15px;
-  font-weight: 600;
+  gap: var(--space-2);
+  font-size: var(--text-md);
+  font-weight: var(--weight-title);
   color: var(--color-text-body);
   overflow-wrap: anywhere;
 }
 
 .chip {
   max-width: 220px;
-  padding: 3px 9px;
-  border-radius: 8px;
-  font-size: 11.5px;
-  font-weight: 800;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-strong);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .chipNote {
-  font-weight: 700;
+  font-weight: var(--weight-title);
 }
 
 .swatch {
@@ -160,13 +161,13 @@
 }
 
 .count {
-  font-size: 13px;
+  font-size: var(--text-sm);
   color: var(--color-text-muted);
 }
 
 .when {
   min-width: 150px;
-  font-size: 13px;
+  font-size: var(--text-sm);
   color: var(--color-text-muted);
 }
 
@@ -174,14 +175,14 @@
 .softButton,
 .more {
   min-height: var(--size-touch);
-  padding: 0 16px;
+  padding: 0 var(--space-4);
   border: 0;
-  border-radius: 22px;
+  border-radius: var(--radius-pill);
   background: var(--color-accent-soft);
   color: var(--color-accent-ink);
   font: inherit;
-  font-size: 13.5px;
-  font-weight: 800;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-title);
   cursor: pointer;
 }
 
@@ -193,7 +194,7 @@
 
 .more {
   align-self: center;
-  margin: 4px 0 12px;
+  margin: var(--space-1) 0 var(--space-3);
 }
 
 .restore:disabled,
@@ -208,19 +209,15 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-2);
   margin: 0;
-  font-size: 14px;
-  font-weight: 700;
+  font-size: var(--text-md);
+  font-weight: var(--weight-title);
 }
 
 @media (max-width: 767px) {
-  .title {
-    font-size: 24px;
-  }
-
   .panel {
-    padding: 4px 16px;
+    padding: var(--space-1) var(--space-4);
   }
 
   /* 이름 옆에서 글자 단위로 꺾이지 않게: 자리가 모자라면 날짜가 통째로 다음 줄로 */

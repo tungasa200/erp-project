@@ -30,6 +30,7 @@ import { QuickInput } from '../quickInput/QuickInput'
 import { TaskPanel } from './TaskPanel'
 import { YearView } from './YearView'
 import { useTaskPanel } from './useTaskPanel'
+import { useDayPanel } from './dayPanels'
 import { shiftByDays, useScheduleActions, type Scope, type ScopeAction } from './useScheduleActions'
 import {
   MINUTES_PER_DAY,
@@ -175,14 +176,21 @@ function Calendar({ view, date, today, timeZone, weekStart }: CalendarProps) {
   const mainRef = useRef<HTMLElement>(null)
   const pageRef = useRef<HTMLDivElement>(null)
   useFocusRescue(pageRef)
-  // 업무 패널(SCR-CAL-09): 1280px 이상은 기본 열림, 그보다 좁으면 접힘(P로 열면 떠서 보임). P로 열고 닫는다
-  const [panelOpen, setPanelOpen] = useState(() => window.matchMedia?.(PANEL_OPEN_QUERY).matches ?? true)
+  // 업무 패널(SCR-CAL-09): 기본 접힘(X-07 D, 카드 1701 Q7 ①). 1280px 이상에서 펼치면 이 기기에 기억하고,
+  // 그보다 좁으면 늘 접힌 채 시작한다(P나 레일로 열면 떠서 보임). P로 열고 닫는다
+  const [panelPref, setPanelPref] = useDayPanel('tasks')
+  const [panelOpen, setPanelOpen] = useState(() => (window.matchMedia?.(PANEL_OPEN_QUERY).matches ?? true) && panelPref)
   // 그 폭을 넘나들면 폭의 기본으로 맞춘다. 새로고침 없이 줄여도 패널이 캘린더를 덮지 않게
   const wide = useMediaQuery(PANEL_OPEN_QUERY, true)
   const [prevWide, setPrevWide] = useState(wide)
   if (wide !== prevWide) {
     setPrevWide(wide)
-    setPanelOpen(wide)
+    setPanelOpen(wide && panelPref)
+  }
+  const railRef = useRef<HTMLButtonElement>(null)
+  const togglePanel = (open = !panelOpen) => {
+    setPanelOpen(open)
+    if (wide) setPanelPref(open)
   }
   // 떠 있는 패널(1279px 이하)은 Esc로 닫고 연 곳(P 단축키 → 캘린더 제목)으로 포커스를 돌린다.
   // 모달·팝오버가 열려 있으면 그쪽 Esc가 먼저다. 그리드 옆에 붙은 패널(1280px 이상)은 P로만 닫는다
@@ -242,6 +250,12 @@ function Calendar({ view, date, today, timeZone, weekStart }: CalendarProps) {
   )
 
   const go = useCallback((v: CalendarView, d: string) => navigate(calendarPath(v, d)), [navigate])
+  // [오늘]·T: 오늘로 가고, 일·주 보기면 현재 시각선이 보이게 스크롤(UX-CAL-74)
+  const [nowSignal, setNowSignal] = useState(0)
+  const goToday = () => {
+    go(view, today)
+    setNowSignal((n) => n + 1)
+  }
   const step = (direction: 1 | -1) => {
     if (view === 'day') go(view, addDays(date, direction))
     else if (view === 'week') go(view, addDays(date, 7 * direction))
@@ -285,12 +299,12 @@ function Calendar({ view, date, today, timeZone, weekStart }: CalendarProps) {
     KeyM: () => go('month', date),
     KeyY: () => go('year', date),
     KeyA: () => go('list', date),
-    KeyT: () => go(view, today),
+    KeyT: goToday,
     // 관례(Google 캘린더·vim)대로 J=다음, K=이전
     KeyJ: () => step(1),
     KeyK: () => step(-1),
     KeyC: () => online && openCreate(),
-    KeyP: () => setPanelOpen((open) => !open),
+    KeyP: () => togglePanel(),
   })
 
   // ── 제목
@@ -373,6 +387,7 @@ function Calendar({ view, date, today, timeZone, weekStart }: CalendarProps) {
       overview={view === 'week' && mobile}
       editable={online}
       actual={actual}
+      nowSignal={nowSignal}
     />
   )
 
@@ -445,7 +460,7 @@ function Calendar({ view, date, today, timeZone, weekStart }: CalendarProps) {
             </button>
           ) : (
             <>
-              <button type="button" className={styles.pillButton} onClick={() => go(view, today)} title="단축키 T">
+              <button type="button" className={styles.pillButton} onClick={goToday} title="단축키 T">
                 오늘
               </button>
               {/* 이전·다음은 한 묶음으로 줄바꿈하지 않는다(390px) */}
@@ -553,6 +568,8 @@ function Calendar({ view, date, today, timeZone, weekStart }: CalendarProps) {
             projectNameOf={projectNameOf}
             onOpen={(o) => setDialog({ kind: 'edit', occurrence: o })}
             onLoadMore={() => setListWindows((w) => ({ ...w, future: w.future + 1 }))}
+            onCreate={() => openCreate()}
+            editable={online}
           />
         )}
         {query.isError && (
@@ -565,8 +582,32 @@ function Calendar({ view, date, today, timeZone, weekStart }: CalendarProps) {
         )}
       </section>
 
+      {!panelOpen && (
+        // 접힌 업무 패널: 오른쪽 레일. 보이는 글자 "업무"를 이름에 담는다(2.5.3)
+        <div className={styles.panelRail}>
+          <button
+            type="button"
+            ref={railRef}
+            className={styles.panelRailButton}
+            aria-expanded="false"
+            aria-label="업무 패널 펼치기"
+            aria-keyshortcuts="P"
+            onClick={() => togglePanel(true)}
+          >
+            업무
+          </button>
+          <kbd className={styles.kbd} aria-hidden="true">
+            P
+          </kbd>
+        </div>
+      )}
       {panelOpen && (
         <TaskPanel
+          onCollapse={() => {
+            togglePanel(false)
+            // 사라진 접기 버튼 대신 레일 버튼으로 포커스
+            requestAnimationFrame(() => railRef.current?.focus())
+          }}
           tasks={panel.tasks.items}
           projects={projects.data ?? []}
           today={today}

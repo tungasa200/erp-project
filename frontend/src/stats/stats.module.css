@@ -4,7 +4,7 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: var(--space-4);
   font-variant-numeric: tabular-nums;
 }
 
@@ -12,64 +12,79 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .title {
   flex: 1;
   margin: 0;
-  font-size: 28px;
-  font-weight: 800;
+  /* 화면 제목은 다른 화면과 같은 --text-2xl(UX-STAT-151). 28은 카드 숫자 몫 */
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-strong);
   letter-spacing: -0.5px;
 }
 
 /* ① 기간 */
 .segment {
   display: flex;
-  padding: 4px;
-  border-radius: 22px;
+  padding: var(--space-1);
+  border-radius: var(--radius-pill);
   background: var(--color-surface);
 }
 
 .segment button {
   min-height: var(--size-touch);
-  padding: 0 16px;
+  padding: 0 var(--space-4);
   border: 0;
-  border-radius: 22px;
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--color-text-muted);
   font: inherit;
-  font-size: 14px;
-  font-weight: 700;
+  font-size: var(--text-md);
+  font-weight: var(--weight-title);
   white-space: nowrap;
   cursor: pointer;
+}
+
+/* 7일 전에는 기간을 끈다. 포커스는 받아 이유(aria-describedby)를 읽게 둔다 */
+.segment button[aria-disabled='true'] {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.periodReason {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  text-align: right;
 }
 
 .segment button[aria-pressed='true'] {
   background: var(--color-text);
   color: var(--color-surface);
-  font-weight: 800;
+  font-weight: var(--weight-title);
 }
 
 /* 카드 공통 */
 .card {
   min-width: 0;
   box-sizing: border-box;
-  padding: 22px;
-  border-radius: 22px;
+  padding: var(--space-5);
+  border-radius: var(--radius-card);
   background: var(--color-surface);
 }
 
 .cardTitle {
   margin: 0;
-  font-size: 17px;
-  font-weight: 800;
+  font-size: var(--text-lg);
+  font-weight: var(--weight-strong);
 }
 
 .row {
   display: flex;
   flex-wrap: wrap;
-  gap: 18px;
+  gap: var(--space-4);
 }
 
 .wide {
@@ -81,8 +96,8 @@
 }
 
 .muted {
-  margin: 6px 0 0;
-  font-size: 13.5px;
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-sm);
   line-height: 1.6;
   color: var(--color-text-muted);
 }
@@ -91,7 +106,7 @@
 .summary {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 14px;
+  gap: var(--space-3);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -100,8 +115,8 @@
 .summaryCard {
   display: flex;
   flex-direction: column;
-  padding: 18px 20px;
-  border-radius: 20px;
+  padding: var(--space-4) var(--space-4);
+  border-radius: var(--radius-card);
   background: var(--color-surface);
   color: var(--color-text);
 }
@@ -112,20 +127,20 @@
 }
 
 .summaryLabel {
-  font-size: 13px;
-  font-weight: 700;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-title);
 }
 
 .summaryValue {
-  margin-top: 6px;
+  margin-top: var(--space-1);
   overflow-wrap: anywhere;
-  font-size: 34px;
-  font-weight: 800;
+  font-size: var(--text-3xl);
+  font-weight: var(--weight-strong);
 }
 
 /* ③ 주별 완료 (SVG) */
 .chart {
-  margin-top: 18px;
+  margin-top: var(--space-4);
   min-width: 0;
 }
 
@@ -144,22 +159,22 @@
 
 .barValue {
   fill: var(--color-text);
-  font-size: 13px;
-  font-weight: 800;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-strong);
 }
 
 .barLabel {
   fill: var(--color-text-muted);
-  font-size: 12px;
-  font-weight: 600;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-title);
 }
 
 /* ④ 프로젝트별 완료 */
 .projectList {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  margin: 12px 0 0;
+  gap: var(--space-1);
+  margin: var(--space-3) 0 0;
   padding: 0;
   list-style: none;
 }
@@ -168,24 +183,26 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 6px;
+  gap: var(--space-1);
   min-height: 44px;
-  padding: 4px 0;
-  border-radius: 10px;
+  padding: var(--space-1) 0;
+  border-radius: var(--radius-sm);
   color: var(--color-text);
   text-decoration: none;
 }
 
-a.projectRow:hover .projectName {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  a.projectRow:hover .projectName {
+    text-decoration: underline;
+  }
 }
 
 .projectHead {
   display: flex;
   justify-content: space-between;
-  gap: 8px;
-  font-size: 14px;
-  font-weight: 700;
+  gap: var(--space-2);
+  font-size: var(--text-md);
+  font-weight: var(--weight-title);
 }
 
 .projectName {
@@ -200,7 +217,7 @@ a.projectRow:hover .projectName {
 .track {
   display: block;
   overflow: hidden;
-  border-radius: 7px;
+  border-radius: var(--radius-sm);
 }
 
 .trackBg {
@@ -212,36 +229,36 @@ a.projectRow:hover .projectName {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   margin: 0;
-  font-size: 13px;
-  font-weight: 800;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-strong);
   color: var(--color-accent-ink);
 }
 
 .timeTag {
-  padding: 5px 10px;
-  border-radius: 12px;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-input);
   background: var(--color-accent-soft);
 }
 
 /* ⑤ 소요시간 비중 */
 .shareBar {
   display: block;
-  margin-top: 18px;
+  margin-top: var(--space-4);
   overflow: hidden;
-  border-radius: 14px;
+  border-radius: var(--radius-input);
 }
 
 .legend {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px 16px;
-  margin: 12px 0 0;
+  gap: var(--space-2) var(--space-4);
+  margin: var(--space-3) 0 0;
   padding: 0;
   list-style: none;
-  font-size: 13.5px;
-  font-weight: 700;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-title);
 }
 
 .legend li {
@@ -249,7 +266,7 @@ a.projectRow:hover .projectName {
   overflow-wrap: anywhere;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-1);
 }
 
 .swatch {
@@ -261,28 +278,28 @@ a.projectRow:hover .projectName {
 
 /* ⑥ 예상 대비 실제 */
 .tableBox {
-  margin-top: 12px;
+  margin-top: var(--space-3);
   overflow-x: auto;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
 }
 
 .table {
   width: 100%;
   min-width: 480px;
   border-collapse: collapse;
-  font-size: 14px;
+  font-size: var(--text-md);
 }
 
 .table th,
 .table td {
-  padding: 9px 0;
+  padding: var(--space-2) 0;
   text-align: right;
 }
 
 .table thead th {
   padding-top: 0;
-  font-size: 12.5px;
-  font-weight: 700;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-title);
   color: var(--color-text-muted);
 }
 
@@ -295,7 +312,7 @@ a.projectRow:hover .projectName {
 }
 
 .table tbody th {
-  font-weight: 700;
+  font-weight: var(--weight-title);
 }
 
 .mutedCell {
@@ -306,7 +323,7 @@ a.projectRow:hover .projectName {
 .over,
 .under,
 .even {
-  font-weight: 800;
+  font-weight: var(--weight-strong);
 }
 
 .over {
@@ -322,13 +339,13 @@ a.projectRow:hover .projectName {
 }
 
 .subTitle {
-  margin: 18px 0 0;
-  font-size: 14.5px;
-  font-weight: 800;
+  margin: var(--space-4) 0 0;
+  font-size: var(--text-md);
+  font-weight: var(--weight-strong);
 }
 
 .overList {
-  margin: 6px 0 0;
+  margin: var(--space-1) 0 0;
   padding: 0;
   list-style: none;
 }
@@ -337,29 +354,31 @@ a.projectRow:hover .projectName {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 84px 84px 76px;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   min-height: 44px;
   border-top: 1px solid var(--color-divider);
-  font-size: 14px;
+  font-size: var(--text-md);
   color: var(--color-text);
   text-decoration: none;
 }
 
-.overRow:hover .overTitle {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .overRow:hover .overTitle {
+    text-decoration: underline;
+  }
 }
 
 .overTitle {
   min-width: 0;
   overflow: hidden;
-  font-weight: 700;
+  font-weight: var(--weight-title);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .footnote {
-  margin: 10px 0 0;
-  font-size: 12.5px;
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-xs);
   color: var(--color-text-muted);
 }
 
@@ -367,8 +386,8 @@ a.projectRow:hover .projectName {
   display: inline-flex;
   align-items: center;
   min-height: 44px;
-  font-size: 14px;
-  font-weight: 700;
+  font-size: var(--text-md);
+  font-weight: var(--weight-title);
   color: var(--color-accent-ink);
 }
 
@@ -377,8 +396,8 @@ a.projectRow:hover .projectName {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
-  padding: 40px 26px;
+  gap: var(--space-1);
+  padding: var(--space-7) var(--space-5);
   text-align: center;
 }
 
@@ -387,44 +406,30 @@ a.projectRow:hover .projectName {
 }
 
 .emptyTitle {
-  margin: 6px 0 0;
-  font-size: 18px;
-  font-weight: 800;
-}
-
-.primaryLink {
-  display: inline-flex;
-  align-items: center;
-  min-height: 44px;
-  margin-top: 10px;
-  padding: 0 20px;
-  border-radius: 22px;
-  background: var(--color-accent);
-  color: var(--color-on-accent);
-  font-size: 14px;
-  font-weight: 800;
-  text-decoration: none;
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-xl);
+  font-weight: var(--weight-strong);
 }
 
 /* 불러오는 중·실패 */
 .loading {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: var(--space-3);
 }
 
 .sk {
   display: block;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   background: var(--color-skeleton);
 }
 
 .skBars {
   display: flex;
   align-items: flex-end;
-  gap: 14px;
+  gap: var(--space-3);
   height: 160px;
-  margin-top: 16px;
+  margin-top: var(--space-4);
 }
 
 .skBars .sk {
@@ -435,25 +440,25 @@ a.projectRow:hover .projectName {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .errorText {
   flex: 1 1 200px;
-  font-size: 14px;
-  font-weight: 700;
+  font-size: var(--text-md);
+  font-weight: var(--weight-title);
 }
 
 .softButton {
   min-height: 44px;
-  padding: 0 18px;
+  padding: 0 var(--space-4);
   border: 0;
-  border-radius: 22px;
+  border-radius: var(--radius-pill);
   background: var(--color-ground);
   color: var(--color-text);
   font: inherit;
-  font-size: 14px;
-  font-weight: 800;
+  font-size: var(--text-md);
+  font-weight: var(--weight-title);
   cursor: pointer;
 }
 
@@ -461,60 +466,61 @@ a.projectRow:hover .projectName {
 .periodForm {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  margin-top: 14px;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
 }
 
 .quickRanges {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .quickButton {
   min-height: 44px;
-  padding: 0 14px;
+  padding: 0 var(--space-3);
   border: 0;
-  border-radius: 22px;
+  border-radius: var(--radius-pill);
   background: var(--color-ground);
   color: var(--color-text-body);
   font: inherit;
-  font-size: 13.5px;
-  font-weight: 700;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-title);
   cursor: pointer;
 }
 
 .quickButton[aria-pressed='true'] {
   background: var(--color-accent-soft);
   color: var(--color-accent-ink);
-  font-weight: 800;
+  font-weight: var(--weight-title);
 }
 
 .dateFields {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 10px;
+  gap: var(--space-2);
 }
 
 .field {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  font-size: 14px;
-  font-weight: 700;
+  gap: var(--space-1);
+  font-size: var(--text-md);
+  font-weight: var(--weight-title);
 }
 
 .field input {
   min-width: 0;
   height: 48px;
   box-sizing: border-box;
-  padding: 0 12px;
+  padding: 0 var(--space-3);
   border: 1.5px solid var(--color-border);
-  border-radius: 14px;
+  border-radius: var(--radius-input);
   background: var(--color-surface);
   color: var(--color-text);
   font: inherit;
-  font-size: 16px;
+  font-size: var(--text-lg);
+  font-weight: var(--weight-body);
 }
 
 .field input[aria-invalid='true'] {
@@ -522,9 +528,9 @@ a.projectRow:hover .projectName {
 }
 
 .fieldError {
-  margin: -4px 0 0;
-  font-size: 13px;
-  font-weight: 700;
+  margin: calc(-1 * var(--space-1)) 0 0;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-title);
   color: var(--color-danger-text);
 }
 
@@ -534,10 +540,6 @@ a.projectRow:hover .projectName {
 
 /* 모바일(~767px): 한 열, 요약은 세 칸 작게 */
 @media (max-width: 767px) {
-  .title {
-    font-size: 24px;
-  }
-
   .head {
     flex-direction: column;
     align-items: stretch;
@@ -545,30 +547,34 @@ a.projectRow:hover .projectName {
 
   .segment button {
     flex: 1;
-    padding: 0 10px;
+    padding: 0 var(--space-2);
+  }
+
+  .periodReason {
+    text-align: left;
   }
 
   .summary {
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 8px;
+    gap: var(--space-2);
   }
 
   .summaryCard {
-    padding: 12px;
-    border-radius: 16px;
+    padding: var(--space-3);
+    border-radius: var(--radius-input);
   }
 
   .summaryLabel {
-    font-size: 12px;
+    font-size: var(--text-xs);
   }
 
   .summaryValue {
     margin-top: 2px;
-    font-size: 24px;
+    font-size: var(--text-2xl);
   }
 
   .card {
-    padding: 18px;
+    padding: var(--space-4);
   }
 
   .wide,
@@ -578,8 +584,8 @@ a.projectRow:hover .projectName {
 
   .overRow {
     grid-template-columns: repeat(3, max-content);
-    gap: 2px 14px;
-    padding: 8px 0;
+    gap: 2px var(--space-3);
+    padding: var(--space-2) 0;
   }
 
   .overRow .overTitle {
@@ -595,18 +601,28 @@ a.projectRow:hover .projectName {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-2);
 }
 
 .retryButton {
   min-height: var(--size-touch);
-  padding: 0 18px;
+  padding: 0 var(--space-4);
   border: 0;
-  border-radius: 22px;
+  border-radius: var(--radius-pill);
   background: var(--color-ground);
   color: var(--color-text);
   font: inherit;
-  font-size: 14px;
-  font-weight: 800;
+  font-size: var(--text-md);
+  font-weight: var(--weight-title);
   cursor: pointer;
+}
+
+/* 누름 피드백: 배경 한 단계 어둡게, 0ms(X-12 2) */
+.segment button:not([aria-pressed='true'], [aria-disabled='true']):active,
+.softButton:active,
+.quickButton:not([aria-pressed='true']):active,
+.retryButton:active,
+a.projectRow:active,
+.overRow:active {
+  background: var(--color-surface-muted);
 }

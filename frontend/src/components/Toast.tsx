@@ -25,6 +25,9 @@ interface UndoItem {
 
 const DURATION_MS = 5000
 
+const isEmptyField = (target: EventTarget | null) =>
+  (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) && target.value === ''
+
 function CloseIcon() {
   return (
     <svg
@@ -101,6 +104,13 @@ export function ToastProvider({ children, navigate }: { children: ReactNode; nav
     clearUndo()
     item?.commits.forEach((commit) => commit({ keepalive: false }))
   }, [clearUndo])
+
+  const dismissUndo = useCallback(
+    (group: string) => {
+      if (undoRef.current?.group === group) closeUndo()
+    },
+    [closeUndo],
+  )
 
   const startTimer = useCallback(
     (ms: number) => {
@@ -186,8 +196,9 @@ export function ToastProvider({ children, navigate }: { children: ReactNode; nav
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (!(e.ctrlKey || e.metaKey) || e.shiftKey || e.altKey || e.code !== 'KeyZ') return
-      // 입력창 안의 Ctrl+Z는 글자 되돌리기로 남겨 둔다.
-      if (!undoRef.current || isEditable(e.target)) return
+      // 입력창 안의 Ctrl+Z는 글자 되돌리기로 남겨 둔다. 다만 빈 칸이면 되돌릴 글자가 없으니 토스트 되돌리기로 넘긴다
+      // (빠른 입력은 저장하면 칸을 비우고 포커스를 남긴다, UX-COM-02)
+      if (!undoRef.current || (isEditable(e.target) && !isEmptyField(e.target))) return
       e.preventDefault()
       void runUndo()
     }
@@ -204,7 +215,7 @@ export function ToastProvider({ children, navigate }: { children: ReactNode; nav
     }
   }, [])
 
-  const value = useMemo(() => ({ showToast, showUndo }), [showToast, showUndo])
+  const value = useMemo(() => ({ showToast, showUndo, dismissUndo }), [showToast, showUndo, dismissUndo])
 
   // 토스트 버튼을 누르면 토스트가 사라지므로, 그 버튼에 포커스가 있었으면 토스트를 띄울 때 포커스가 있던 곳으로
   // 먼저 옮긴다. 그 요소가 사라졌으면(완료·보관한 행) 화면 제목으로

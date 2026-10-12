@@ -13,14 +13,14 @@
     ); /* 탭(72px) + 솟은 + 버튼(26px) + 틈. 타이머 미니 플레이어와 같은 높이 */
     z-index: 21;
     display: block;
-    padding: 18px;
-    border-radius: 24px;
+    padding: var(--space-4);
+    border-radius: var(--radius-card);
     background: var(--color-surface);
-    box-shadow: 0 18px 44px rgba(26, 28, 43, 0.25);
+    box-shadow: var(--shadow-3);
   }
 
   .ios {
-    padding: 20px;
+    padding: var(--space-4);
   }
 }
 
@@ -35,21 +35,21 @@
 .row {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .icon {
   flex: none;
   width: 48px;
   height: 48px;
-  border-radius: 14px;
+  border-radius: var(--radius-input);
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #4b3fd6; /* 앱 아이콘 색 그대로(테마 키 컬러를 따르지 않음) */
-  color: #fff;
-  font-size: 17px;
-  font-weight: 900;
+  background: var(--color-brand); /* 앱 아이콘 색 그대로(테마 키 컬러를 따르지 않음) */
+  color: var(--color-on-accent);
+  font-size: var(--text-xl);
+  font-weight: 800;
 }
 
 .text {
@@ -60,31 +60,31 @@
 .title {
   margin: 0;
   overflow-wrap: anywhere;
-  font-size: 16px;
+  font-size: var(--text-lg);
   font-weight: 800;
 }
 
 .titleIos {
-  font-size: 17px;
+  font-size: var(--text-xl);
 }
 
 .description {
   margin: 2px 0 0;
-  font-size: 13px;
+  font-size: var(--text-sm);
   color: var(--color-text-muted);
 }
 
 .install {
   flex: none;
   height: var(--size-touch);
-  padding: 0 18px;
+  padding: 0 var(--space-4);
   border: 0;
-  border-radius: 22px;
+  border-radius: var(--radius-pill);
   background: var(--color-accent);
   color: var(--color-on-accent);
   font: inherit;
-  font-size: 14px;
-  font-weight: 800;
+  font-size: var(--text-md);
+  font-weight: 600;
   cursor: pointer;
 }
 
@@ -109,24 +109,24 @@
 }
 
 .steps {
-  margin: 14px 0 0;
+  margin: var(--space-3) 0 0;
   padding: 0;
   list-style: none;
   counter-reset: step;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .step {
   counter-increment: step;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 12px;
-  border-radius: 14px;
-  background: #f7f8fc;
-  font-size: 14.5px;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-radius: var(--radius-input);
+  background: var(--color-surface-sunken);
+  font-size: var(--text-md);
   font-weight: 600;
 }
 
@@ -139,9 +139,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #e9e8fa;
-  color: #3c32ab;
-  font-size: 13px;
+  background: var(--color-brand-soft);
+  color: var(--color-brand-ink);
+  font-size: var(--text-sm);
   font-weight: 800;
 }
 
@@ -151,7 +151,7 @@
 
 .share {
   flex: none;
-  color: #2d6be4;
+  color: var(--project-p1);
 }
 
 /* 320px(REL-10, D-193): 카드 높이를 180px 이하로. 설명 줄은 제목과 뜻이 겹쳐 뺀다. [설치]·×는 44px 그대로.
@@ -164,12 +164,12 @@
 
   .card,
   .ios {
-    padding: 14px;
+    padding: var(--space-3);
   }
 
   .title,
   .titleIos {
-    font-size: 15px;
+    font-size: var(--text-md);
   }
 
   .description {
@@ -177,13 +177,13 @@
   }
 
   .steps {
-    margin-top: 10px;
-    gap: 6px;
+    margin-top: var(--space-2);
+    gap: var(--space-1);
   }
 
   .step {
-    padding: 8px 10px;
-    font-size: 13.5px;
+    padding: var(--space-2) var(--space-2);
+    font-size: var(--text-sm);
   }
 
   .step::before {

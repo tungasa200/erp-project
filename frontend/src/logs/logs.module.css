@@ -2,13 +2,13 @@
 .page {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--space-4);
   min-width: 0;
 }
 
 .title {
   margin: 0;
-  font-size: 22px;
+  font-size: var(--text-2xl);
   font-weight: 800;
   color: var(--color-text);
 }
@@ -26,17 +26,19 @@
 .muted {
   margin: 0;
   color: var(--color-text-muted);
-  font-size: 14px;
+  font-size: var(--text-md);
 }
 
 .textLink {
   color: var(--color-accent-ink);
-  font-weight: 700;
+  font-weight: 600;
   text-decoration: none;
 }
 
-.textLink:hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .textLink:hover {
+    text-decoration: underline;
+  }
 }
 
 /* 홈 패널 머리 링크: 다른 패널 머리 링크(TodayTimeline .dayLink)와 같은 44px */
@@ -44,16 +46,18 @@
   display: inline-flex;
   align-items: center;
   min-height: var(--size-touch);
-  padding: 0 10px;
-  border-radius: 12px;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-input);
   color: var(--color-accent-ink);
-  font-size: 14px;
-  font-weight: 700;
+  font-size: var(--text-md);
+  font-weight: 600;
   text-decoration: none;
 }
 
-.headLink:hover {
-  background: var(--color-accent-faint);
+@media (hover: hover) and (pointer: fine) {
+  .headLink:hover {
+    background: var(--color-accent-faint);
+  }
 }
 
 .headLink:focus-visible {
@@ -63,9 +67,9 @@
 
 .crumbs {
   display: flex;
-  gap: 8px;
+  gap: var(--space-2);
   align-items: center;
-  font-size: 14px;
+  font-size: var(--text-md);
   color: var(--color-text-muted);
 }
 
@@ -73,13 +77,13 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 12px 16px;
+  gap: var(--space-3) var(--space-4);
 }
 
 .periodNav {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
 }
 
 .navButton {
@@ -94,19 +98,20 @@
   background: transparent;
   color: var(--color-text);
   font: inherit;
-  font-size: 22px;
+  font-size: var(--text-2xl);
   text-decoration: none;
   cursor: pointer;
 }
 
-.navButton:hover {
-  background: var(--color-accent-softer);
+@media (hover: hover) and (pointer: fine) {
+  .navButton:hover {
+    background: var(--color-accent-softer);
+  }
 }
 
 .navButton:focus-visible,
 .primary:focus-visible,
 .secondary:focus-visible,
-.dangerFill:focus-visible,
 .pill:focus-visible,
 .sourceAdd:focus-visible,
 .revision:focus-visible,
@@ -123,7 +128,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   min-width: 0;
 }
 
@@ -145,9 +150,9 @@
   display: inline-flex;
   align-items: center;
   height: 28px;
-  padding: 0 12px;
+  padding: 0 var(--space-3);
   border-radius: var(--radius-pill);
-  font-size: 13px;
+  font-size: var(--text-sm);
   font-weight: 800;
 }
 
@@ -177,13 +182,13 @@
   display: inline-flex;
   align-items: center;
   height: 28px;
-  padding: 0 12px;
+  padding: 0 var(--space-3);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-pill);
   background: var(--color-ground);
   color: var(--color-text-body);
-  font-size: 13px;
-  font-weight: 700;
+  font-size: var(--text-sm);
+  font-weight: 600;
   cursor: default;
 }
 
@@ -194,12 +199,12 @@
   z-index: 5;
   width: max-content;
   max-width: min(280px, calc(100vw - 32px));
-  padding: 8px 12px;
-  border-radius: 10px;
-  background: #1f2233;
-  color: #fff;
-  font-size: 13px;
-  font-weight: 500;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-banner);
+  color: var(--color-on-banner);
+  font-size: var(--text-sm);
+  font-weight: 600;
   line-height: 1.45;
   white-space: normal;
   visibility: hidden;
@@ -207,15 +212,27 @@
   transition: opacity 0.12s;
 }
 
-.pill:hover .tip,
 .pill:focus .tip {
   visibility: visible;
   opacity: 1;
 }
 
+@media (hover: hover) and (pointer: fine) {
+  .pill:hover .tip {
+    visibility: visible;
+    opacity: 1;
+  }
+}
+
+/* Esc로 닫은 말풍선(LOG-102). hover·focus 규칙보다 뒤에 둬서 이긴다 */
+.pill[data-tip-hidden] .tip {
+  visibility: hidden;
+  opacity: 0;
+}
+
 .saveText,
 .saveError {
-  font-size: 13px;
+  font-size: var(--text-sm);
   color: var(--color-text-muted);
 }
 
@@ -224,13 +241,12 @@
 }
 
 .primary,
-.secondary,
-.dangerFill {
+.secondary {
   font: inherit;
-  font-size: 14px;
-  font-weight: 800;
+  font-size: var(--text-md);
+  font-weight: 600;
   min-height: var(--size-touch);
-  padding: 0 18px;
+  padding: 0 var(--space-4);
   border: 0;
   border-radius: var(--radius-pill);
   cursor: pointer;
@@ -241,8 +257,7 @@
   color: var(--color-on-accent);
 }
 
-.primary:disabled,
-.dangerFill:disabled {
+.primary:disabled {
   background: var(--color-disabled);
   cursor: default;
 }
@@ -253,48 +268,85 @@
   box-shadow: inset 0 0 0 1px var(--color-border);
 }
 
-.secondary:hover {
-  background: var(--color-accent-softer);
-}
-
-.dangerFill {
-  background: var(--color-danger);
-  color: #fff;
+@media (hover: hover) and (pointer: fine) {
+  .secondary:hover {
+    background: var(--color-accent-softer);
+  }
 }
 
 .conflict {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px 16px;
-  padding: 12px 16px;
-  border-radius: 14px;
+  gap: var(--space-2) var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-input);
   background: var(--color-warning-soft);
   color: var(--color-warning-text);
-  font-size: 14px;
-  font-weight: 700;
+  font-size: var(--text-md);
+  font-weight: 600;
 }
 
 .conflictTools {
   display: flex;
-  gap: 8px;
+  gap: var(--space-2);
   margin-left: auto;
 }
 
-.notice {
+/* 확정 뒤 원본이 바뀜(UX-LOG-49): 보이는 띠. 바탕과 구분되게 흰 면 + 상태 노랑 윤곽 */
+.sourceChanged {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-input);
+  background: var(--status-pending-card-bg);
+  box-shadow: inset 0 0 0 1px var(--status-pending-card-border);
+  color: var(--status-pending-text);
+}
+
+.sourceChangedText {
   margin: 0;
-  padding: 10px 14px;
-  border-radius: 12px;
-  background: var(--color-accent-softer);
-  color: var(--color-accent-ink-strong);
-  font-size: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: var(--text-md);
+}
+
+.sourceChangedText span {
+  font-size: var(--text-sm);
+}
+
+/* 문서 열: 일지 문서 + 문서 끝 확정 줄 */
+.docColumn {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* 문서 끝 확정 줄(UX-LOG-41). 문서 서식 밖이라 내보내기 결과와 무관하다 */
+.endRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2) var(--space-4);
+}
+
+.endRowText {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
 }
 
 .failed {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 8px;
+  gap: var(--space-2);
   color: var(--color-text-body);
 }
 
@@ -305,7 +357,7 @@
 .layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 280px;
-  gap: 20px;
+  gap: var(--space-4);
   align-items: start;
 }
 
@@ -318,8 +370,8 @@
   top: 16px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 16px;
+  gap: var(--space-2);
+  padding: var(--space-4);
   border-radius: var(--radius-card);
   background: var(--color-surface);
   max-height: calc(100vh - 32px);
@@ -328,7 +380,7 @@
 
 .sourcesTitle {
   margin: 0;
-  font-size: 15px;
+  font-size: var(--text-md);
   font-weight: 800;
 }
 
@@ -338,53 +390,58 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .source {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 4px;
-  padding: 10px 12px;
-  border-radius: 12px;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-input);
   background: var(--color-ground);
-  font-size: 14px;
+  font-size: var(--text-md);
 }
 
 .sourceText {
   color: var(--color-text);
-  font-weight: 700;
+  font-weight: 600;
   overflow-wrap: anywhere;
 }
 
 .sourceUsed {
-  font-size: 12px;
+  font-size: var(--text-xs);
   color: var(--color-text-muted);
 }
 
 .sourceAdd {
   min-height: var(--size-touch);
-  padding: 0 12px;
+  padding: 0 var(--space-3);
   border: 0;
   border-radius: var(--radius-pill);
   background: var(--color-accent-soft);
   color: var(--color-accent-ink-strong);
   font: inherit;
-  font-size: 13px;
-  font-weight: 800;
+  font-size: var(--text-sm);
+  font-weight: 600;
   cursor: pointer;
+}
+
+.sourceAdd:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .dialogTitle {
   margin: 0;
-  font-size: 18px;
+  font-size: var(--text-xl);
   font-weight: 800;
 }
 
 .dialogBody {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--text-md);
   line-height: 1.55;
   color: var(--color-text-body);
 }
@@ -395,23 +452,23 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--space-1);
 }
 
 .revision {
   width: 100%;
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 12px;
+  gap: var(--space-1) var(--space-3);
   align-items: baseline;
   min-height: var(--size-touch);
-  padding: 10px 14px;
+  padding: var(--space-2) var(--space-3);
   border: 0;
-  border-radius: 12px;
+  border-radius: var(--radius-input);
   background: var(--color-ground);
   color: var(--color-text);
   font: inherit;
-  font-size: 14px;
+  font-size: var(--text-md);
   text-align: left;
   cursor: pointer;
 }
@@ -428,7 +485,7 @@
 .dialogHeading {
   margin: 0;
   flex: 1;
-  font-size: 18px;
+  font-size: var(--text-xl);
   font-weight: 800;
 }
 
@@ -444,7 +501,7 @@
 
 .stepTitle {
   margin: 0;
-  font-size: 15px;
+  font-size: var(--text-md);
   font-weight: 800;
 }
 
@@ -462,14 +519,14 @@
 .capNote,
 .capOver {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--text-sm);
   line-height: 1.5;
   color: var(--color-text-body);
 }
 
 .capOver {
   color: var(--color-danger-text);
-  font-weight: 700;
+  font-weight: 800;
 }
 
 .carryTitle {
@@ -481,12 +538,12 @@
 .mini {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 14px 16px;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-4);
   border: 1px solid var(--color-border);
-  border-radius: 12px;
+  border-radius: var(--radius-input);
   background: var(--color-surface);
-  font-size: 14px;
+  font-size: var(--text-md);
 }
 
 .miniHead {
@@ -496,7 +553,7 @@
 
 .miniList {
   margin: 0;
-  padding-left: 20px;
+  padding-left: var(--space-4);
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -509,18 +566,18 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .suggestion {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 4px;
-  padding: 12px 14px;
-  border-radius: 12px;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-3);
+  border-radius: var(--radius-input);
   background: var(--color-accent-softer);
-  font-size: 14px;
+  font-size: var(--text-md);
 }
 
 .suggestion .textLink {
@@ -534,16 +591,29 @@
   align-items: center;
   justify-content: center;
   min-height: var(--size-touch);
-  padding: 0 18px;
+  padding: 0 var(--space-4);
   border-radius: var(--radius-pill);
   background: var(--color-accent);
   color: var(--color-on-accent);
-  font-size: 14px;
-  font-weight: 800;
+  font-size: var(--text-md);
+  font-weight: 600;
   text-decoration: none;
 }
 
 .primaryLink:focus-visible,
+/* 경로 링크는 보이는 글자 높이(21px)를 그대로 두고 누르는 영역만 44px로 늘린다(UX-LOG-55) */
+.crumbs .textLink {
+  position: relative;
+}
+
+.crumbs .textLink::after {
+  content: '';
+  position: absolute;
+  inset: 50% -4px auto;
+  height: var(--size-touch);
+  transform: translateY(-50%);
+}
+
 .textLink:focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
@@ -552,8 +622,8 @@
 /* SCR-LOG-01 목록 */
 .tabs {
   display: flex;
-  gap: 4px;
-  padding: 4px;
+  gap: var(--space-1);
+  padding: var(--space-1);
   border-radius: var(--radius-pill);
   background: var(--color-ground);
   align-self: flex-start;
@@ -563,53 +633,89 @@
   display: inline-flex;
   align-items: center;
   min-height: var(--size-touch);
-  padding: 0 18px;
+  padding: 0 var(--space-4);
   border-radius: var(--radius-pill);
   color: var(--color-text-body);
-  font-size: 14px;
-  font-weight: 700;
+  font-size: var(--text-md);
+  font-weight: 600;
   text-decoration: none;
 }
 
 .tabActive {
   background: var(--color-surface);
   color: var(--color-text);
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .stepLabel {
   margin: 0;
   min-width: 120px;
   text-align: center;
-  font-size: 17px;
+  font-size: var(--text-xl);
   font-weight: 800;
 }
 
 .band {
+  /* 면 없는 한 줄: 상태 점 + 굵은 제목 + 보조 설명 + 링크(LOG-51, X-02 상태 강조는 면을 칠하지 않는다) */
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: var(--space-2);
   margin: 0;
-  padding: 10px 14px;
-  border-radius: 12px;
-  background: var(--color-warning-soft);
-  color: var(--color-warning-text);
-  font-size: 14px;
+  color: var(--color-text-muted);
+  font-size: var(--text-md);
+}
+
+.bandDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--status-pending-border);
+}
+
+.bandTitle {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.bandAction {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--size-touch);
+  padding: 0 var(--space-2);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-accent-ink);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .bandAction:hover {
+    background: var(--color-accent-softer);
+  }
 }
 
 .calendar {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--space-1);
 }
 
 .weekHead,
 .days {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 6px;
+  gap: var(--space-1);
 }
 
 .weekHead {
-  font-size: 13px;
-  font-weight: 700;
+  font-size: var(--text-sm);
+  font-weight: 600;
   color: var(--color-text-muted);
   text-align: center;
 }
@@ -627,21 +733,23 @@
   flex-direction: column;
   align-items: flex-start;
   gap: 2px;
-  padding: 8px;
+  padding: var(--space-2);
   border: 0;
-  border-radius: 12px;
+  border-radius: var(--radius-input);
   background: var(--color-surface);
   color: var(--color-text);
   font: inherit;
-  font-size: 12px;
+  font-size: var(--text-xs);
   text-align: left;
   text-decoration: none;
   word-break: keep-all;
   cursor: pointer;
 }
 
-.cell:hover {
-  background: var(--color-accent-softer);
+@media (hover: hover) and (pointer: fine) {
+  .cell:hover {
+    background: var(--color-accent-softer);
+  }
 }
 
 .cell:disabled {
@@ -659,8 +767,27 @@
 }
 
 .dayNo {
-  font-size: 14px;
+  font-size: var(--text-md);
   font-weight: 800;
+}
+
+/* 오늘 칸은 테두리만으로는 무엇인지 몰라 글자를 붙인다(UX-LOG-51). 좁은 칸에서는 테두리만 */
+.todayTag {
+  margin-left: var(--space-1);
+  color: var(--color-accent-ink);
+  font-size: var(--text-xs);
+  font-weight: 800;
+}
+
+/* 지난 평일마다 '기록 없음'이 줄지어 반복돼 흐린 짧은 막대로 줄인다. 이름은 낭독기 이름에 남아 있다(UX-LOG-51) */
+.cell.cellNO_RECORDS .cellStatus {
+  width: 8px;
+  height: 2px;
+  overflow: hidden;
+  border-radius: 1px;
+  background: var(--color-text-muted);
+  font-size: 0;
+  forced-color-adjust: none;
 }
 
 .holiday {
@@ -670,7 +797,7 @@
 
 .cellStatus {
   margin-top: auto;
-  font-weight: 700;
+  font-weight: 800;
 }
 
 .cellCONFIRMED .cellStatus {
@@ -688,7 +815,7 @@
   word-break: keep-all;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--space-1);
 }
 
 .row {
@@ -696,21 +823,23 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px 14px;
+  gap: var(--space-1) var(--space-3);
   min-height: var(--size-touch);
-  padding: 10px 16px;
+  padding: var(--space-2) var(--space-4);
   border: 0;
-  border-radius: 14px;
+  border-radius: var(--radius-input);
   background: var(--color-surface);
   color: var(--color-text);
   font: inherit;
-  font-size: 14px;
+  font-size: var(--text-md);
   text-align: left;
   cursor: pointer;
 }
 
-.row:hover {
-  background: var(--color-accent-softer);
+@media (hover: hover) and (pointer: fine) {
+  .row:hover {
+    background: var(--color-accent-softer);
+  }
 }
 
 .rowTitle {
@@ -740,6 +869,10 @@
 }
 
 @media (max-width: 767px) {
+  .todayTag {
+    display: none;
+  }
+
   /* 좁은 화면은 주간처럼 기간 이동 아래 줄에 도구를 둔다(SCR-LOG-02 ①) */
   .barTools {
     flex-basis: 100%;
@@ -750,7 +883,7 @@
      점은 색만으로 구분하지 않게 모양도 다르다: 확정 ● · 초안 ○ · 미작성 ◆ · 기록 없음 – */
   .cell {
     align-items: center;
-    padding: 8px 4px;
+    padding: var(--space-2) var(--space-1);
   }
 
   .holiday {
@@ -797,11 +930,11 @@
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 4px 14px;
+  gap: var(--space-1) var(--space-3);
   list-style: none;
-  margin: 4px 0 0;
+  margin: var(--space-1) 0 0;
   padding: 0;
-  font-size: 12px;
+  font-size: var(--text-xs);
   font-weight: 600;
   color: var(--color-text-muted);
 }
@@ -809,7 +942,7 @@
 .legend li {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-1);
 }
 
 .legend .cellStatus {
@@ -828,13 +961,13 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px 12px;
-  margin-top: 8px;
+  gap: var(--space-2) var(--space-3);
+  margin-top: var(--space-2);
 }
 
 .fillBar {
   display: inline-flex;
-  gap: 4px;
+  gap: var(--space-1);
 }
 
 .fillBar > span {
@@ -851,40 +984,42 @@
 }
 
 .fillText {
-  font-size: 14px;
-  font-weight: 700;
+  font-size: var(--text-md);
+  font-weight: 600;
   color: var(--color-text);
 }
 
 .cardActions {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 12px;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
 }
 
 .secondaryLink {
   display: inline-flex;
   align-items: center;
   min-height: var(--size-touch);
-  padding: 0 18px;
+  padding: 0 var(--space-4);
   border-radius: var(--radius-pill);
   background: var(--color-surface);
   color: var(--color-text);
   box-shadow: inset 0 0 0 1px var(--color-border);
-  font-size: 14px;
-  font-weight: 800;
+  font-size: var(--text-md);
+  font-weight: 600;
   text-decoration: none;
 }
 
-.secondaryLink:hover {
-  background: var(--color-accent-softer);
+@media (hover: hover) and (pointer: fine) {
+  .secondaryLink:hover {
+    background: var(--color-accent-softer);
+  }
 }
 
 /* 요일 칸은 44px 아래로 줄이지 않는다(TC-P3-prod-HOME01-07-tap). 폭이 모자라면 간격을 줄이고, 그래도 안 되면 4칸 두 줄 */
 .weekDaysBox {
   container-type: inline-size;
-  margin-top: 8px;
+  margin-top: var(--space-2);
 }
 
 .weekDays {
@@ -893,7 +1028,7 @@
   padding: 0;
   display: grid;
   grid-template-columns: repeat(7, minmax(var(--size-touch), 1fr));
-  gap: 6px;
+  gap: var(--space-1);
 }
 
 @container (width < 344px) {
@@ -905,7 +1040,7 @@
 @container (width < 320px) {
   .weekDays {
     grid-template-columns: repeat(4, minmax(var(--size-touch), 1fr));
-    gap: 6px;
+    gap: var(--space-1);
   }
 }
 
@@ -916,18 +1051,20 @@
   justify-content: center;
   gap: 2px;
   min-height: 56px;
-  padding: 6px 2px;
-  border-radius: 12px;
+  padding: var(--space-1) 2px;
+  border-radius: var(--radius-input);
   background: var(--color-ground);
   color: var(--color-text);
-  font-size: 12px;
+  font-size: var(--text-xs);
   text-align: center;
   text-decoration: none;
   overflow-wrap: anywhere;
 }
 
-.weekDay:hover {
-  background: var(--color-accent-softer);
+@media (hover: hover) and (pointer: fine) {
+  .weekDay:hover {
+    background: var(--color-accent-softer);
+  }
 }
 
 .secondaryLink:focus-visible,
@@ -939,14 +1076,14 @@
 /* SCR-ONB-01 프로필 입력 요청 */
 .profileFields {
   display: grid;
-  gap: 12px;
-  margin: 16px 0 0;
+  gap: var(--space-3);
+  margin: var(--space-4) 0 0;
 }
 
 .profileCaption {
-  margin: 16px 0 6px;
-  font-size: 13px;
-  font-weight: 700;
+  margin: var(--space-4) 0 var(--space-1);
+  font-size: var(--text-sm);
+  font-weight: 600;
   color: var(--color-text-body);
 }
 
@@ -955,24 +1092,24 @@
   display: grid;
   grid-template-columns: 64px minmax(0, 1fr);
   margin: 0;
-  border: 1px solid #111111;
-  background: #ffffff;
-  color: #111111;
-  font-size: 13px;
+  border: 1px solid var(--doc-ink);
+  background: var(--doc-surface);
+  color: var(--doc-ink);
+  font-size: var(--text-sm);
 }
 
 .profilePreview dt,
 .profilePreview dd {
   margin: 0;
-  padding: 6px 8px;
-  border-bottom: 1px solid #c9c9c9;
+  padding: var(--space-1) var(--space-2);
+  border-bottom: 1px solid var(--doc-rule);
   overflow-wrap: anywhere;
 }
 
 .profilePreview dt {
-  background: #f3f3f3;
-  font-weight: 700;
-  border-right: 1px solid #c9c9c9;
+  background: var(--doc-head);
+  font-weight: 600;
+  border-right: 1px solid var(--doc-rule);
 }
 
 .profilePreview dt:last-of-type,
@@ -981,11 +1118,200 @@
 }
 
 .profileBlank {
-  color: #6b6f80;
+  color: var(--doc-muted);
 }
 
 .profileError {
-  margin: 12px 0 0;
-  font-size: 14px;
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-md);
   color: var(--color-danger-text);
+}
+
+/* SCR-LOG-03 하루 마감 v1.1(X-05) */
+.dayClose {
+  display: contents;
+}
+
+.doneMark {
+  color: var(--color-success-text);
+}
+
+.pendingList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-input);
+  background: var(--color-surface);
+}
+
+.pendingItem {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-md);
+}
+
+.pendingItem + .pendingItem {
+  border-top: 1px solid var(--color-divider);
+}
+
+.pendingTime {
+  flex: none;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.pendingTitle {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-weight: 600;
+}
+
+.dateBadge {
+  flex: none;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--color-ground);
+  color: var(--color-text-body);
+  font-size: var(--text-xs);
+  font-weight: 800;
+}
+
+/* [그대로 다음]은 글자 링크로 낮추고 왼쪽에 둔다 */
+.pendingActions {
+  flex-wrap: wrap;
+}
+
+.skipLink,
+.inlineButton {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--size-touch);
+  padding: 0 var(--space-2);
+  border: 0;
+  background: transparent;
+  color: var(--color-accent-ink);
+  font: inherit;
+  font-size: var(--text-md);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.skipLink {
+  margin-right: auto;
+}
+
+.skipLink:focus-visible,
+.inlineButton:focus-visible,
+.neutralFill:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.keyHint {
+  margin: 0;
+  text-align: right;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.profileLine {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+  padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3);
+  border-radius: var(--radius-input);
+  background: var(--color-ground);
+  font-size: var(--text-md);
+}
+
+/* 상시 [확정 해제]: 구분선 아래 중립 글자 버튼(X-03: 위험색 아님) */
+.undoRow {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-1);
+  margin: 0;
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-divider);
+  font-size: var(--text-md);
+}
+
+.undoConfirm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-input);
+  background: var(--color-ground);
+}
+
+.undoText {
+  margin: 0;
+  font-size: var(--text-md);
+  line-height: 1.5;
+}
+
+.undoActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+/* 중립 채움(확정 해제 확인): 먹색 바탕 흰 글자 */
+.neutralFill {
+  height: var(--size-touch);
+  padding: 0 var(--space-4);
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--color-text);
+  color: var(--color-on-banner);
+  font: inherit;
+  font-size: var(--text-md);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.neutralFill:disabled {
+  background: var(--color-disabled);
+  cursor: default;
+}
+
+/* 홈 일지 카드 [하루 마감]: 마감 띠 전에는 채움이 아니라 accent-soft + 1px accent 윤곽(X-02, 화면당 채움 하나) */
+.softButton {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--size-touch);
+  padding: 0 var(--space-4);
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent-soft);
+  color: var(--color-accent-ink);
+  box-shadow: inset 0 0 0 1px var(--color-accent);
+  font: inherit;
+  font-size: var(--text-md);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.softButton:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .softButton:hover {
+    background: var(--color-accent-softer);
+  }
 }

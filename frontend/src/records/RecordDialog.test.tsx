@@ -126,6 +126,19 @@ describe('기록 추가·수정 (SCR-REC-01)', () => {
     expect(screen.getByRole('button', { name: '열기' })).toHaveFocus()
   })
 
+  it('REC-58 한 일 칸의 Enter는 줄바꿈이고, Ctrl+Enter로 어디서든 저장한다', async () => {
+    const { sent } = server()
+    const { user, dialog } = await open()
+    const content = within(dialog).getByRole('textbox', { name: '한 일' })
+    await waitFor(() => expect(content).toHaveFocus())
+    expect(within(dialog).getByRole('button', { name: '저장' })).toHaveAccessibleDescription(/Enter로 저장$/)
+    await user.type(content, '배포 점검')
+    await user.click(within(dialog).getByRole('textbox', { name: '결과 한 줄' }))
+    await user.keyboard('{Control>}{Enter}{/Control}')
+    await waitFor(() => expect(screen.getByText('바뀜')).toBeInTheDocument())
+    expect(sent.find((x) => x.key === 'POST')?.body).toMatchObject({ content: '배포 점검' })
+  })
+
   it('확인 대기 기록을 고치면 출처를 보이고, 바꾼 칸과 status=CONFIRMED를 한 요청으로 보낸다', async () => {
     const pending = record({
       status: 'PENDING',
@@ -258,7 +271,9 @@ describe('기록 추가·수정 (SCR-REC-01)', () => {
     await user.clear(end)
     await user.type(end, '11:00')
     // 서울 10:00~11:00 = UTC 01:00~02:00 → 고객 통화(00:30~01:30)와 겹친다
-    expect(await within(dialog).findByText(/다른 기록과 시간이 겹쳐요: 고객 통화 \(09:30~10:30\)/)).toBeInTheDocument()
+    expect(
+      await within(dialog).findByText(/다른 기록과 시간이 겹쳐요: 고객 통화 \(09:30 – 10:30\)/),
+    ).toBeInTheDocument()
     expect(within(dialog).getByLabelText('또는 소요시간(분)')).toHaveValue(60)
 
     await user.click(within(dialog).getByRole('button', { name: '저장' }))

@@ -105,6 +105,12 @@ function Block({ block, label }: { block: LegalBlock; label: string }) {
   )
 }
 
+/** 문서 안 이동(목차 ↔ 장): 화면 이동은 브라우저에 맡기고 읽기 위치(포커스)를 도착한 제목으로 옮긴다(UX-AUTH-84) */
+function moveFocus(id: string) {
+  // 브라우저의 해시 이동이 포커스를 body로 되돌리므로 이동이 끝난 다음 프레임에 옮긴다
+  requestAnimationFrame(() => document.getElementById(id)?.focus({ preventScroll: true }))
+}
+
 export function LegalPage({ title, doc }: { title: string; doc: LegalDoc }) {
   const effective = doc.sections
     .at(-1)
@@ -128,23 +134,30 @@ export function LegalPage({ title, doc }: { title: string; doc: LegalDoc }) {
         {doc.intro.map((b, i) => (
           <Block key={i} block={b} label={title} />
         ))}
-        <nav aria-label="목차" className={styles.toc}>
+        <nav id="legal-toc" aria-label="목차" className={styles.toc} tabIndex={-1}>
           <ol>
             {doc.sections.map((s, i) => (
               <li key={s.title}>
-                <a href={`#legal-${i + 1}`}>{s.title}</a>
+                <a href={`#legal-${i + 1}`} onClick={() => moveFocus(`legal-${i + 1}-h`)}>
+                  {s.title}
+                </a>
               </li>
             ))}
           </ol>
         </nav>
         {doc.sections.map((s, i) => (
           <section key={s.title} id={`legal-${i + 1}`} aria-labelledby={`legal-${i + 1}-h`} className={styles.section}>
-            <h2 id={`legal-${i + 1}-h`} className={styles.sectionTitle}>
+            <h2 id={`legal-${i + 1}-h`} className={styles.sectionTitle} tabIndex={-1}>
               {s.title}
             </h2>
             {s.blocks.map((b, j) => (
               <Block key={j} block={b} label={s.title} />
             ))}
+            <p className={styles.back}>
+              <a href="#legal-toc" className={styles.link} onClick={() => moveFocus('legal-toc')}>
+                목차로 돌아가기
+              </a>
+            </p>
           </section>
         ))}
       </main>

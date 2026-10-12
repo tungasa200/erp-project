@@ -18,6 +18,8 @@ export interface ToastValue {
   showToast: (message: string, options?: { traceId?: string }) => void
   /** SCR-COM-04 되돌리기 토스트. 일지 확정 해제·회원 탈퇴·원본에서 다시 채우기는 확인창을 쓴다(UX-03) */
   showUndo: (options: UndoOptions) => void
+  /** 그 group의 되돌리기 토스트가 떠 있으면 되돌리지 않고 닫는다(미뤄 둔 동작은 확정). 되돌릴 대상이 화면에서 사라질 때 */
+  dismissUndo: (group: string) => void
 }
 
 export const ToastContext = createContext<ToastValue | null>(null)

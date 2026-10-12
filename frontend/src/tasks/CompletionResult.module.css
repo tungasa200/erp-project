@@ -6,12 +6,12 @@
   z-index: 110;
   width: min(400px, calc(100vw - 48px));
   box-sizing: border-box;
-  padding: 16px;
+  padding: var(--space-4);
   border: 1px solid var(--color-divider);
   border-radius: var(--radius-card);
   background: var(--color-surface);
   color: var(--color-text);
-  box-shadow: 0 12px 32px rgba(26, 28, 43, 0.18);
+  box-shadow: var(--shadow-2);
 }
 
 @media (max-width: 767px) {
@@ -25,24 +25,24 @@
 
   /* iOS Safari는 16px보다 작은 입력칸에 포커스가 가면 화면을 확대한다 */
   .input {
-    font-size: 16px;
+    font-size: var(--text-lg);
   }
 }
 
 .form {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--space-2);
 }
 
 .title {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   margin: 0;
   min-width: 0;
-  font-size: 14px;
-  font-weight: 700;
+  font-size: var(--text-md);
+  font-weight: 600;
 }
 
 .done {
@@ -52,10 +52,10 @@
   justify-content: center;
   width: 22px;
   height: 22px;
-  border-radius: 11px;
+  border-radius: var(--radius-pill);
   background: var(--color-accent);
   color: var(--color-on-accent);
-  font-size: 13px;
+  font-size: var(--text-sm);
 }
 
 .taskTitle {
@@ -68,19 +68,14 @@
 .input {
   height: 46px;
   box-sizing: border-box;
-  padding: 0 14px;
+  padding: 0 var(--space-3);
   border: 1.5px solid var(--color-border);
   border-radius: var(--radius-input);
   background: var(--color-surface);
   color: var(--color-text);
   font: inherit;
-  font-size: 15px;
+  font-size: var(--text-md);
   font-weight: 600;
-}
-
-.input:focus-visible {
-  outline: none;
-  border: 2px solid var(--color-accent);
 }
 
 .input[aria-invalid='true'] {
@@ -90,7 +85,7 @@
 .chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--space-2);
   margin: 0;
   padding: 0;
   border: 0;
@@ -103,13 +98,13 @@
   display: inline-flex;
   align-items: center;
   min-height: var(--size-touch);
-  padding: 0 16px;
+  padding: 0 var(--space-4);
   border: 1.5px solid var(--color-border);
   border-radius: var(--radius-pill);
   background: var(--color-surface);
   color: var(--color-text-body);
-  font-size: 14px;
-  font-weight: 700;
+  font-size: var(--text-md);
+  font-weight: 600;
   cursor: pointer;
 }
 
@@ -140,10 +135,10 @@
 .progress {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
   min-height: var(--size-touch);
-  font-size: 13px;
-  font-weight: 700;
+  font-size: var(--text-sm);
+  font-weight: 800;
   color: var(--color-text-muted);
 }
 
@@ -155,7 +150,7 @@
 .error {
   margin: 0;
   color: var(--color-danger);
-  font-size: 13px;
+  font-size: var(--text-sm);
   font-weight: 600;
 }
 
@@ -164,13 +159,13 @@
   flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .hint {
   flex: 1;
   color: var(--color-text-muted);
-  font-size: 12px;
+  font-size: var(--text-xs);
 }
 
 /* 터치 기기에는 키보드 안내가 쓸모없다 */
@@ -183,12 +178,12 @@
 .skip,
 .save {
   min-height: var(--size-touch);
-  padding: 0 18px;
+  padding: 0 var(--space-4);
   border: 0;
-  border-radius: 22px;
+  border-radius: var(--radius-pill);
   font: inherit;
-  font-size: 14px;
-  font-weight: 700;
+  font-size: var(--text-md);
+  font-weight: 600;
   cursor: pointer;
 }
 

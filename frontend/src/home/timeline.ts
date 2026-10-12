@@ -4,7 +4,8 @@ import { useQuery } from '@tanstack/react-query'
 import { api } from '../api'
 import type { components } from '../api/generated/worklog'
 import type { Occurrence } from '../calendar/api'
-import { MINUTES_PER_DAY, toZoned } from '../calendar/time'
+import { MINUTES_PER_DAY } from '../calendar/time'
+import { toZoned } from '../format/datetime'
 import type { WorkRecord } from '../records/api'
 
 /** 그날 기록 전체(확인 대기·하지 않음 포함 — 계획 블록의 상태로 그린다) */

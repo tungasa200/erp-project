@@ -12,7 +12,7 @@ import type { WorkRecord } from '../records/api'
 import { colorVars } from './colors'
 import { drawnRange, MIN_BLOCK_MINUTES } from './layout'
 import { useRecordsOnDate } from './recordStatus'
-import { formatMinutes, MINUTES_PER_DAY, toZoned } from './time'
+import { formatMinutes, MINUTES_PER_DAY, minutesRange, toZoned } from './time'
 import styles from './dayActual.module.css'
 
 const NO_GAPS: TimeGap[] = []
@@ -75,7 +75,7 @@ export function DayActualColumn({ date, timeZone, now, pxPerMinute, editable, on
       ))}
       {/* 빈 구간을 먼저 그려 겹치면 기록 블록이 위에 온다 */}
       {gapSpans.map(({ gap, start, end }) => {
-        const label = `빈 시간 ${formatMinutes(start)}–${endText(end)}, ${durationText(gap.minutes)}${editable ? ', 눌러서 채우기' : ', 연결되면 채울 수 있어요'}`
+        const label = `빈 시간 ${minutesRange(start, endText(end))}, ${durationText(gap.minutes)}${editable ? ', 눌러서 채우기' : ', 연결되면 채울 수 있어요'}`
         return (
           <button
             key={gap.startAt}
@@ -95,7 +95,7 @@ export function DayActualColumn({ date, timeZone, now, pxPerMinute, editable, on
         )
       })}
       {packLanes(actual.timed, MIN_BLOCK_MINUTES).map(({ item: a, lane, lanes }) => {
-        const time = `${formatMinutes(a.start)}–${a.running ? '지금' : endText(a.end)}`
+        const time = minutesRange(a.start, a.running ? '지금' : endText(a.end))
         const label = `${a.record.content}, ${time}${a.running ? ', 진행 중' : ''}`
         const [s, e] = drawnRange(a.start, a.end)
         return (

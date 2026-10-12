@@ -15,13 +15,15 @@ import { ApiError } from '../api/problem'
 import { useAuth } from '../auth/useAuth'
 import { Modal } from '../calendar/Modal'
 import { TaskLinkField } from '../calendar/TaskLinkField'
-import { MINUTES_PER_DAY, addDays, formatMinutes, fromZoned, toZoned } from '../calendar/time'
+import { MINUTES_PER_DAY, addDays, fromZoned } from '../calendar/time'
+import { formatMinutes, timeRange, toZoned } from '../format/datetime'
 import calendar from '../calendar/calendar.module.css'
 import { Skeleton } from '../components/Skeleton'
 import { useOnline } from '../components/useOnline'
 import { useToast } from '../components/useToast'
 import { shortDate, todayIn } from '../quickInput/dates'
 import { useTimeTracking } from '../settings/useWorklogSettings'
+import { modKey } from '../shortcuts/useShortcuts'
 import { RECORDS_QUERY_KEY, recordApi, type WorkRecord, type WorkRecordCreate, type WorkRecordOutcome } from './api'
 import { OutcomeChips } from './OutcomeChips'
 import { plannedOf, usePendingRecords } from './pending'
@@ -415,7 +417,18 @@ export function RecordDialog({ recordId, defaults, planned, capped, onClose }: P
           <Skeleton shape="lines" count={4} />
         )
       ) : (
-        <form ref={formRef} className={calendar.fieldset} onSubmit={(e) => void submit(e)} noValidate>
+        <form
+          ref={formRef}
+          className={calendar.fieldset}
+          onSubmit={(e) => void submit(e)}
+          // 내용 칸이 여러 줄이라 Enter는 줄바꿈이다. Ctrl/⌘+Enter로 어디서든 저장한다(REC-58)
+          onKeyDown={(e) => {
+            if (e.key !== 'Enter' || !(e.ctrlKey || e.metaKey) || e.nativeEvent.isComposing) return
+            e.preventDefault()
+            formRef.current?.requestSubmit()
+          }}
+          noValidate
+        >
           {!online && (
             <p className={calendar.muted} role="status">
               연결이 끊겼어요. 다시 연결되면 고칠 수 있어요
@@ -544,8 +557,7 @@ export function RecordDialog({ recordId, defaults, planned, capped, onClose }: P
                 {clash && !errors.time && (
                   <p className={styles.warning} role="status">
                     다른 기록과 시간이 겹쳐요: {clip(clash.content)} (
-                    {formatMinutes(toZoned(clash.startAt!, timeZone).minutes)}~
-                    {formatMinutes(toZoned(clash.endAt!, timeZone).minutes)}). 그래도 저장할 수 있어요
+                    {timeRange(clash.startAt!, clash.endAt!, timeZone)}). 그래도 저장할 수 있어요
                   </p>
                 )}
               </fieldset>
@@ -564,10 +576,18 @@ export function RecordDialog({ recordId, defaults, planned, capped, onClose }: P
               </button>
             )}
             <span className={calendar.grow} />
+            <span id={`${id}-save-key`} className={styles.keyHint}>
+              {modKey('Enter')}로 저장
+            </span>
             <button type="button" className={calendar.secondary} onClick={() => onClose(false)}>
               취소
             </button>
-            <button type="submit" className={calendar.primary} disabled={saving || !editable}>
+            <button
+              type="submit"
+              className={calendar.primary}
+              disabled={saving || !editable}
+              aria-describedby={`${id}-save-key`}
+            >
               {saving ? '저장 중…' : '저장'}
             </button>
           </div>

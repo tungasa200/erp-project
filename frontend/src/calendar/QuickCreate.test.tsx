@@ -67,7 +67,7 @@ describe('일정 빠른 생성 해석 칩·업무로도 만들기 (P1-09-09)', (
     expect(within(chips).getByText('#견적')).toBeInTheDocument()
     expect(within(chips).getByText('우선순위 높음')).toBeInTheDocument()
     expect(within(chips).getByText(/^마감 /)).toBeInTheDocument()
-    expect(within(dialog).getByRole('button', { name: /^10월 7일 \(수\) 15:00–16:00, / })).toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: /^10\/7\(수\) 15:00 – 16:00, / })).toBeInTheDocument()
 
     await user.click(within(dialog).getByRole('button', { name: '저장' }))
     await waitFor(() => expect(onClose).toHaveBeenCalled())

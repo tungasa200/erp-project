@@ -3,12 +3,12 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react'
 import { occurrenceKey, type Occurrence } from './api'
 import { colorVars, type BlockColor } from './colors'
-import { focusGroup, markFocus, occurrenceFocusId, restoreFocus } from './focus'
+import { cycleTab, focusGroup, markFocus, occurrenceFocusId, restoreFocus } from './focus'
 import { holidayName } from './holidays'
 import { occurrencesByDate } from './layout'
 import { RepeatIcon } from './TimeGrid'
 import { useTouchHold } from './touchHold'
-import { WEEKDAY_LABELS, diffDays, formatMinutes, toZoned, weekdayIndex } from './time'
+import { WEEKDAY_LABELS, dateName, diffDays, formatMinutes, toZoned, weekdayIndex } from './time'
 import styles from './calendar.module.css'
 
 const MAX_CHIPS = 3
@@ -157,7 +157,7 @@ export function MonthView({
                   data-today={date === today || undefined}
                   data-holiday={!!holiday || undefined}
                   data-rest={wd === 0 || wd === 6 || !!holiday || undefined}
-                  aria-label={`${Number(date.slice(5, 7))}월 ${Number(date.slice(8))}일 ${WEEKDAY_LABELS[wd]}요일${holiday ? ` ${holiday}` : ''}, 일정 ${list.length}개`}
+                  aria-label={`${dateName(date)}${holiday ? ` ${holiday}` : ''}, 일정 ${list.length}개`}
                   onClick={() => props.onOpenDay(date)}
                 >
                   <span className={styles.dateNumber}>{Number(date.slice(8))}</span>
@@ -185,7 +185,7 @@ export function MonthView({
                   <button
                     type="button"
                     className={styles.dateNumber}
-                    aria-label={`${date}${holiday ? ` ${holiday}` : ''} 일 보기`}
+                    aria-label={`${dateName(date)}${holiday ? ` ${holiday}` : ''} 일 보기`}
                     onClick={() => props.onOpenDay(date)}
                   >
                     {Number(date.slice(8))}
@@ -225,7 +225,7 @@ export function MonthView({
                       setPopover({ date, x: rect.left, y: rect.bottom + 4, opener: e.currentTarget })
                     }}
                   >
-                    +{list.length - shown.length}개 더보기
+                    <span className={styles.moreText}>+{list.length - shown.length}개 더보기</span>
                   </button>
                 )}
               </div>
@@ -238,7 +238,8 @@ export function MonthView({
           <div
             role="dialog"
             data-day-popover
-            aria-label={`${popover.date} 일정`}
+            onKeyDown={(e) => cycleTab(e, e.currentTarget)}
+            aria-label={`${dateName(popover.date)} 일정`}
             className={styles.dayPopover}
             style={{
               left: Math.min(popover.x, window.innerWidth - 256),

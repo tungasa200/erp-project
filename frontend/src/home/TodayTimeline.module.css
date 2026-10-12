@@ -1,30 +1,32 @@
 /* SCR-HOME-01 ③ 오늘 일정 (P2-08). 기록 상태 색은 화면정의서 2.3: 계획·확정은 프로젝트 색, 확인 대기 노랑, 하지 않음 회색 */
 .panel {
-  margin-bottom: 18px;
+  margin-bottom: var(--space-4);
 }
 
 .dayLink {
   display: inline-flex;
   align-items: center;
   min-height: var(--size-touch);
-  padding: 0 10px;
-  border-radius: 12px;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-input);
   color: var(--color-accent-ink);
-  font-size: 14px;
-  font-weight: 700;
+  font-size: var(--text-md);
+  font-weight: 600;
   text-decoration: none;
 }
 
-.dayLink:hover {
-  background: var(--color-accent-faint);
+@media (hover: hover) and (pointer: fine) {
+  .dayLink:hover {
+    background: var(--color-accent-faint);
+  }
 }
 
 /* ── 옵션 꺼짐: 목록 ── */
 .list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  margin: 8px 0 0;
+  gap: var(--space-1);
+  margin: var(--space-2) 0 0;
   padding: 0;
   list-style: none;
 }
@@ -35,12 +37,12 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px 12px;
+  gap: var(--space-1) var(--space-3);
   min-height: var(--size-touch);
   box-sizing: border-box;
-  padding: 8px 12px;
+  padding: var(--space-2) var(--space-3);
   border: 1px solid transparent;
-  border-radius: 12px;
+  border-radius: var(--radius-input);
   background: var(--plan-tint);
   color: var(--color-text);
 }
@@ -72,7 +74,7 @@
 .time {
   flex: none;
   min-width: 104px;
-  font-size: 13px;
+  font-size: var(--text-sm);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   color: inherit;
@@ -83,7 +85,7 @@
   flex: 1 1 140px;
   min-width: 0;
   overflow: hidden;
-  font-weight: 700;
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -92,7 +94,7 @@
   display: flex;
   flex: none;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-1);
   margin-left: auto;
 }
 
@@ -100,7 +102,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-1);
 }
 
 .tagNow,
@@ -108,9 +110,9 @@
 .tagSkipped,
 .tagPending,
 .tagMuted {
-  padding: 3px 9px;
+  padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-pill);
-  font-size: 12px;
+  font-size: var(--text-xs);
   font-weight: 800;
   white-space: nowrap;
 }
@@ -142,22 +144,25 @@
 .yes,
 .no {
   min-height: var(--size-touch);
-  padding: 0 12px;
-  border-radius: 12px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-input);
   font: inherit;
-  font-size: 13.5px;
-  font-weight: 700;
+  font-size: var(--text-sm);
+  font-weight: 600;
   cursor: pointer;
 }
 
+/* 목록 안 반복 동작이라 채움이 아니라 accent-soft(X-02, UX-HOME-140). 홈 한 시야의 채움은 마감 띠 하나 */
 .yes {
   border: 0;
-  background: var(--color-accent);
-  color: var(--color-on-accent);
+  background: var(--color-accent-soft);
+  color: var(--color-accent-ink);
 }
 
-.yes:not(:disabled):hover {
-  background: var(--color-accent-ink);
+@media (hover: hover) and (pointer: fine) {
+  .yes:not(:disabled):hover {
+    box-shadow: inset 0 0 0 1px var(--color-accent);
+  }
 }
 
 .no {
@@ -185,16 +190,17 @@
   content: '';
   position: absolute;
   inset: 50% 0 auto;
-  border-top: 2px solid var(--color-danger);
+  /* "지금" 선은 캘린더와 같은 키 컬러(HOME-05, X-03: 위험색은 되돌릴 수 없는 동작·기한 초과에만) */
+  border-top: 2px solid var(--color-accent);
 }
 
 .nowLabel {
   position: relative;
-  padding: 1px 8px;
+  padding: 1px var(--space-2);
   border-radius: var(--radius-pill);
-  background: var(--color-danger);
-  color: var(--color-surface);
-  font-size: 11.5px;
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  font-size: var(--text-xs);
   font-weight: 800;
   font-variant-numeric: tabular-nums;
 }
@@ -203,26 +209,26 @@
 .grid {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin-top: 8px;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
 }
 
 .allDay {
   margin: 0;
   overflow: hidden;
-  font-size: 13.5px;
+  font-size: var(--text-sm);
   font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .allDayLabel {
-  margin-right: 8px;
-  padding: 2px 8px;
+  margin-right: var(--space-2);
+  padding: 2px var(--space-2);
   border-radius: var(--radius-pill);
   background: var(--color-ground);
   color: var(--color-text-muted);
-  font-size: 12px;
+  font-size: var(--text-xs);
   font-weight: 800;
 }
 
@@ -230,11 +236,11 @@
 .gridBody {
   display: grid;
   grid-template-columns: 48px minmax(0, 1fr) minmax(0, 1fr);
-  column-gap: 8px;
+  column-gap: var(--space-2);
 }
 
 .gridHead {
-  font-size: 12.5px;
+  font-size: var(--text-xs);
   font-weight: 800;
   color: var(--color-text-muted);
 }
@@ -251,7 +257,7 @@
   position: absolute;
   right: 0;
   transform: translateY(-50%);
-  font-size: 11.5px;
+  font-size: var(--text-xs);
   color: var(--color-text-muted);
   font-variant-numeric: tabular-nums;
 }
@@ -261,7 +267,7 @@
   margin: 0;
   padding: 0;
   list-style: none;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   background: repeating-linear-gradient(to bottom, var(--color-divider) 0 1px, transparent 1px 56px);
 }
 
@@ -272,7 +278,7 @@
   box-sizing: border-box;
   overflow: hidden;
   border: 1px solid var(--plan-base);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   background: var(--plan-tint);
   color: var(--color-text);
 }
@@ -302,12 +308,12 @@
   flex-wrap: wrap;
   align-content: flex-start;
   align-items: baseline;
-  gap: 0 6px;
+  gap: 0 var(--space-1);
   width: 100%;
   height: 100%;
   box-sizing: border-box;
-  padding: 3px 6px;
-  font-size: 12.5px;
+  padding: var(--space-1) var(--space-1);
+  font-size: var(--text-xs);
   text-align: left;
 }
 
@@ -316,7 +322,7 @@
   background: transparent;
   color: inherit;
   font: inherit;
-  font-size: 12.5px;
+  font-size: var(--text-xs);
   cursor: pointer;
 }
 
@@ -329,13 +335,13 @@
   min-width: 0;
   max-width: 100%;
   overflow: hidden;
-  font-weight: 700;
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .blockTag {
-  font-size: 11px;
+  font-size: var(--text-xs);
   font-weight: 800;
   opacity: 0.85;
 }
@@ -347,13 +353,15 @@
   color: var(--color-text-muted);
 }
 
-.block.gap:hover {
-  background: var(--color-accent-faint);
-  color: var(--color-accent-ink);
+@media (hover: hover) and (pointer: fine) {
+  .block.gap:hover {
+    background: var(--color-accent-faint);
+    color: var(--color-accent-ink);
+  }
 }
 
 .total {
-  font-weight: 700;
+  font-weight: 800;
   font-variant-numeric: tabular-nums;
 }
 
@@ -363,9 +371,9 @@
   right: 0;
   width: calc((100% - 64px) / 2);
   margin: 0;
-  padding: 0 6px;
+  padding: 0 var(--space-1);
   box-sizing: border-box;
-  font-size: 12.5px;
+  font-size: var(--text-xs);
   color: var(--color-text-muted);
 }
 
@@ -386,8 +394,8 @@
   /* 오른쪽 끝은 시간 열과 계획 열 사이 간격(8px) 안까지 */
   right: calc(100% - 6px);
   /* 시간 열(48px)+패널 여백(22px) 안에 들어가게 좁힌다 */
-  padding: 1px 5px;
-  font-size: 11px;
+  padding: 1px var(--space-1);
+  font-size: var(--text-xs);
   white-space: nowrap;
   transform: translateY(-50%);
 }

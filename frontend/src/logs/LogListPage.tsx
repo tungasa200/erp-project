@@ -11,6 +11,7 @@ import { useToast } from '../components/useToast'
 import { isoWeekday, todayIn, WEEKDAY_NAMES, weekStartNumber } from '../quickInput/dates'
 import { logApi, logHref, storeLog, useLogPeriods, type LogPeriod, type LogType } from './api'
 import { periodText, STATUS_LABEL } from './format'
+import { LogStatusLegend } from './LogStatusLegend'
 import styles from './logs.module.css'
 
 const VIEWS: { key: string; type: LogType; label: string }[] = [
@@ -101,11 +102,27 @@ function useOpenPeriod() {
   return { open, opening }
 }
 
-function UnconfirmedBand({ count }: { count: number | undefined }) {
+// 어느 날인지 알 수 있게 첫 미확정 날로 가는 버튼을 붙인다(UX-LOG-51). 미작성이면 초안을 만든 뒤 연다
+function UnconfirmedBand({ count, days, today }: { count: number | undefined; days: LogPeriod[]; today: string }) {
+  const { open, opening } = useOpenPeriod()
   if (!count) return null
+  const first = days.find((p) => p.periodStart <= today && (p.status === 'DRAFT' || p.status === 'NOT_WRITTEN'))
   return (
     <p className={styles.band}>
-      <strong>확정 안 된 날 {count}일</strong> — 기록은 있는데 일지를 확정하지 않은 날이에요
+      <span className={styles.bandDot} aria-hidden="true" />
+      <strong className={styles.bandTitle}>확정 안 된 날 {count}일</strong>
+      <span>기록은 있는데 일지를 확정하지 않은 날이에요</span>
+      {first && (
+        <button
+          type="button"
+          className={styles.bandAction}
+          aria-busy={opening != null || undefined}
+          disabled={opening != null}
+          onClick={() => void open(first)}
+        >
+          {periodText('DAILY', first.periodStart, first.periodStart)}부터 보기
+        </button>
+      )}
     </p>
   )
 }
@@ -128,7 +145,7 @@ function MonthPeriods(props: {
   return (
     <>
       <Stepper label={`${y}년 ${m}월`} onPrev={() => shiftMonth(-1)} onNext={() => shiftMonth(1)} />
-      <UnconfirmedBand count={daily.data?.unconfirmedDays} />
+      <UnconfirmedBand count={daily.data?.unconfirmedDays} days={daily.data?.items ?? []} today={today} />
       {query.isPending ? (
         <Skeleton shape="block" height={360} offlineText="연결되면 일지를 불러올게요" />
       ) : query.isError ? (
@@ -189,7 +206,10 @@ function DayGrid({
             .join(' ')
           const body = (
             <>
-              <span className={styles.dayNo}>{Number(p.periodStart.slice(8))}</span>
+              <span className={styles.dayNo}>
+                {Number(p.periodStart.slice(8))}
+                {p.periodStart === today && <span className={styles.todayTag}>오늘</span>}
+              </span>
               {p.holiday && <span className={styles.holiday}>{p.holiday}</span>}
               {label && <span className={styles.cellStatus}>{label}</span>}
             </>
@@ -201,6 +221,7 @@ function DayGrid({
                   type="button"
                   className={cls}
                   aria-label={`${text} — 초안 만들기`}
+                  aria-current={p.periodStart === today ? 'date' : undefined}
                   aria-busy={opening === p.periodStart || undefined}
                   disabled={opening != null}
                   onClick={() => void open(p)}
@@ -208,7 +229,12 @@ function DayGrid({
                   {body}
                 </button>
               ) : (
-                <Link to={logHref('DAILY', p.periodStart)} className={cls} aria-label={text}>
+                <Link
+                  to={logHref('DAILY', p.periodStart)}
+                  className={cls}
+                  aria-label={text}
+                  aria-current={p.periodStart === today ? 'date' : undefined}
+                >
                   {body}
                 </Link>
               )}
@@ -217,24 +243,10 @@ function DayGrid({
         })}
       </ul>
       {/* 좁은 화면에서만: 칸이 점만 보이므로 점 모양 범례 한 줄(pm 결정, 목업 LOG-01m 버전 33). 점은 칸 점과 같은 규칙 */}
-      <ul className={styles.legend}>
-        {LEGEND.map(([status, text]) => (
-          <li key={status} className={styles[`cell${status}`]}>
-            <span className={styles.cellStatus} aria-hidden="true" />
-            {text}
-          </li>
-        ))}
-      </ul>
+      <LogStatusLegend />
     </div>
   )
 }
-
-const LEGEND = [
-  ['CONFIRMED', '확정'],
-  ['DRAFT', '초안'],
-  ['NOT_WRITTEN', '미작성'],
-  ['NO_RECORDS', '기록 없음'],
-] as const
 
 function PeriodRows({ items, today }: { items: LogPeriod[]; today: string }) {
   const { open, opening } = useOpenPeriod()

@@ -6,7 +6,7 @@
   z-index: 100;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
   max-width: calc(100vw - 48px);
 }
 
@@ -30,8 +30,14 @@
   .region {
     left: 16px;
     right: 16px;
-    bottom: var(--toast-bottom-mobile, 88px);
+    bottom: calc(var(--toast-bottom-mobile, 88px) + env(safe-area-inset-bottom));
     max-width: none;
+  }
+
+  /* 바텀시트가 열려 있으면 화면 위로: 시트의 주 버튼 줄(아래 고정)을 덮지 않게(UX-LOG-154) */
+  :global(:root:has([aria-modal='true'])) .region {
+    top: calc(var(--space-4) + env(safe-area-inset-top));
+    bottom: auto;
   }
 }
 
@@ -39,15 +45,41 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: var(--space-2);
   min-height: 52px;
-  padding: 10px 10px 10px 18px;
-  border-radius: 16px;
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-4);
+  border-radius: var(--radius-input);
   background: var(--color-banner);
-  color: #ffffff;
-  font-size: 14px;
+  color: var(--color-on-banner);
+  font-size: var(--text-md);
   font-weight: 600;
-  box-shadow: 0 8px 24px rgba(26, 28, 43, 0.2);
+  box-shadow: var(--shadow-2);
+  /* 진입은 opacity + 이동 180ms ease-out, 퇴장은 즉시. 움직임 줄이기면 opacity만(X-12 4·7번) */
+  animation: toast-fade 180ms ease-out;
+}
+
+@keyframes toast-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .toast {
+    animation-name: toast-in;
+  }
+
+  @keyframes toast-in {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+  }
+}
+
+/* 어두운 띠 위에서는 키 컬러 링이 2.39:1이라 흰 링을 쓴다(16.9:1, UX-COM-23) */
+.toast :focus-visible {
+  outline-color: var(--color-on-banner);
 }
 
 .message {
@@ -58,9 +90,9 @@
   width: 44px;
   height: 44px;
   border: 0;
-  border-radius: 22px;
+  border-radius: var(--radius-pill);
   background: transparent;
-  color: #c9ccdb;
+  color: var(--color-on-banner-muted);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -72,21 +104,21 @@
   position: relative;
   overflow: hidden;
   min-width: min(420px, 100%);
-  border-radius: 18px;
+  border-radius: var(--radius-card);
 }
 
 .undoButton {
   /* 누르는 영역 44px(QA P4 운영 390) */
   height: var(--size-touch);
   min-width: var(--size-touch);
-  padding: 0 16px;
+  padding: 0 var(--space-4);
   border: 0;
-  border-radius: 22px;
+  border-radius: var(--radius-pill);
   background: var(--color-accent-light);
   color: var(--color-text);
   font: inherit;
-  font-size: 14px;
-  font-weight: 800;
+  font-size: var(--text-md);
+  font-weight: 600;
   cursor: pointer;
 }
 
@@ -97,16 +129,18 @@
   justify-content: center;
   min-height: var(--size-touch);
   min-width: var(--size-touch);
-  padding: 0 8px;
-  border-radius: 12px;
-  color: #b7b1f2;
-  font-size: 14px;
-  font-weight: 800;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-input);
+  color: var(--color-on-banner-link);
+  font-size: var(--text-md);
+  font-weight: 600;
   text-decoration: none;
 }
 
-.viewLink:hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .viewLink:hover {
+    text-decoration: underline;
+  }
 }
 
 .progress {

@@ -78,7 +78,7 @@ describe('SCR-TASK-02 ⑥ 기록 이력 (P2)', () => {
     renderApp('/tasks/t1')
     const list = await screen.findByRole('list', { name: '기록 이력' })
     const rows = within(list).getAllByRole('button')
-    expect(rows[0]).toHaveTextContent('10/6(화)고객 피드백 반영진행 중 40% — 단가표만 남음 · 10:00–11:30')
+    expect(rows[0]).toHaveTextContent('10/6(화)고객 피드백 반영진행 중 40% — 단가표만 남음 · 10:00 – 11:30')
     expect(rows[1]).toHaveTextContent('10/5(월)초안 작성1시간 30분')
     const url = fetchMock.mock.calls.map((c) => String(c[0])).find((u) => u.startsWith('/api/worklog/records?'))
     expect(url).toBe('/api/worklog/records?from=2025-10-02&to=2026-11-06&taskId=t1&status=CONFIRMED')

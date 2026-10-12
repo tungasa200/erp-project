@@ -1,6 +1,6 @@
 // 일지 글자 규칙: 문서 영역(LogPaper)과 텍스트 복사(SCR-LOG-05 ①, 서식명세 3.4)가 함께 쓴다.
 import { useQueries } from '@tanstack/react-query'
-import { formatMinutes, toZoned } from '../calendar/time'
+import { formatMinutes, toZoned } from '../format/datetime'
 import { taskApi, taskKey } from '../tasks/api'
 import { WEEKDAY_NAMES, isoWeekday } from '../quickInput/dates'
 import type { LogContent, LogPlan, LogType } from './api'

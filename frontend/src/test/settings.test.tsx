@@ -192,6 +192,9 @@ describe('SCR-SET-02 일반', () => {
     renderApp('/settings/general')
     await userEvent.selectOptions(await screen.findByRole('combobox', { name: '주 시작 요일' }), 'SUNDAY')
     await waitFor(() => expect(server.patches).toEqual([{ weekStart: 'SUNDAY', version: 0 }]))
+    // 말없이 저장하지 않는다: 제목 옆 표시 + 낭독(UX-SET-171)
+    expect(await screen.findByText('✓ 저장됨')).toBeInTheDocument()
+    await waitFor(() => expect(document.querySelector('[data-live-region]')).toHaveTextContent('저장했어요'))
   })
 
   it('업무 요일은 비트마스크로 저장하고, 하루도 고르지 않으면 보내지 않는다', async () => {
@@ -217,7 +220,7 @@ describe('SCR-SET-02 일반', () => {
     const toggle = await screen.findByRole('switch', { name: '키보드 단축키 사용' })
     expect(toggle).toHaveAttribute('aria-checked', 'true')
 
-    // 행 제목을 눌러도 켜고 끈다(누르는 영역 넓히기, erp-design)
+    // 행 제목을 눌러도 켜고 끈다(누르는 영역 넓히기, WY-design)
     expect(screen.getByText('키보드 단축키').tagName).toBe('LABEL')
 
     await userEvent.click(toggle)

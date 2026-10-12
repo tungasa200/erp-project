@@ -32,10 +32,10 @@ describe('SCR-SET-07 회원 탈퇴', () => {
     server()
     const { router } = renderApp('/settings/account')
     await userEvent.click(await screen.findByRole('link', { name: '회원 탈퇴' }))
-    expect(router.state.location.pathname).toBe('/settings/account/deletion')
+    await waitFor(() => expect(router.state.location.pathname).toBe('/settings/account/deletion'))
     expect(await screen.findByRole('heading', { level: 1, name: '회원 탈퇴' })).toBeInTheDocument()
     await userEvent.click(screen.getByRole('link', { name: '계정' }))
-    expect(router.state.location.pathname).toBe('/settings/account')
+    await waitFor(() => expect(router.state.location.pathname).toBe('/settings/account'))
   })
 
   it('지워지는 데이터·파기 시간·일지 내려받기 안내를 보여 주고, 비밀번호를 넣어야 버튼이 켜진다', async () => {
@@ -100,7 +100,7 @@ describe('SCR-SET-07 회원 탈퇴', () => {
     expect(password()).toHaveAttribute('aria-invalid', 'true')
     expect(password()).toHaveAccessibleDescription('비밀번호가 일치하지 않습니다.')
     expect(password()).toHaveFocus()
-    expect(router.state.location.pathname).toBe('/settings/account/deletion')
+    await waitFor(() => expect(router.state.location.pathname).toBe('/settings/account/deletion'))
     // 다시 입력하면 오류가 걷힌다
     await userEvent.keyboard('a')
     expect(screen.queryByText('비밀번호가 일치하지 않습니다.')).not.toBeInTheDocument()

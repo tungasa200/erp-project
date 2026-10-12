@@ -155,11 +155,40 @@ describe('SCR-STAT-01 통계', () => {
     expect(screen.getByRole('link', { name: /결제 API 설계/ })).toHaveAttribute('href', '/tasks/t-1')
   })
 
-  it('가입 1주일 전이면 남은 날과 홈으로', async () => {
-    setup(() => json(200, { ...REPORT, firstRecordDate: '2026-10-05' }))
-    expect(await screen.findByRole('heading', { name: '1주일 기록이 쌓이면 보여 드려요' })).toBeInTheDocument()
-    expect(screen.getByText(/앞으로 4일 남았어요/)).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: '홈으로' })).toHaveAttribute('href', '/')
+  it('첫 기록 7일 전이면 숫자 카드는 보이고 추이는 막고, 기간 버튼은 꺼진 이유와 함께 (STAT-67)', async () => {
+    const { fetchMock } = setup(() => json(200, { ...REPORT, firstRecordDate: '2026-10-05' }))
+    const summary = await screen.findByRole('list', { name: '요약' })
+    expect(within(summary).getByText('이번 달 완료')).toBeInTheDocument()
+    expect(within(summary).getByText('12')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: '1주일 기록이 쌓이면 추이를 보여 드려요' })).toBeInTheDocument()
+    expect(screen.queryByRole('table', { name: '주별 완료 업무' })).not.toBeInTheDocument()
+
+    const week = screen.getByRole('button', { name: '이번 주' })
+    expect(week).toHaveAttribute('aria-disabled', 'true')
+    expect(week).toHaveAccessibleDescription('추이는 10/12부터 볼 수 있어요(기록이 7일치 쌓이면)')
+    fireEvent.click(week)
+    fireEvent.click(screen.getByRole('button', { name: '직접 선택' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(statsCalls(fetchMock)).toEqual(['/api/worklog/stats?from=2026-10-01&to=2026-10-31'])
+  })
+
+  it('첫 기록이 없으면 기준 날짜 대신 첫 기록 뒤 7일이라고 알린다', async () => {
+    setup(() =>
+      json(200, {
+        ...REPORT,
+        firstRecordDate: null,
+        completedTaskCount: 0,
+        recordCount: 0,
+        confirmedLogCount: 0,
+        daily: [],
+        projects: [],
+      }),
+    )
+    const summary = await screen.findByRole('list', { name: '요약' })
+    expect(within(summary).getAllByText('0')).toHaveLength(3)
+    expect(screen.getByRole('button', { name: '이번 달' })).toHaveAccessibleDescription(
+      '첫 기록을 남기면 7일 뒤부터 추이와 기간을 볼 수 있어요',
+    )
   })
 
   it('고른 기간에 아무것도 없으면 다른 기간 안내', async () => {

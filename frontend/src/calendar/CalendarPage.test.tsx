@@ -10,7 +10,7 @@ const routes = [
   { path: '/calendar/:view/:date', element: <CalendarPage /> },
 ]
 
-// 2026-10-07(수) 서울 10:00–11:00, 평일 반복
+// 2026-10-07(수) 서울 10:00 – 11:00, 평일 반복
 const standup = {
   id: 'schedule-standup',
   title: '팀 스탠드업',
@@ -136,6 +136,9 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
+/** 업무 패널을 펼친 채 기억한 기기(X-07 D 기본은 접힘) */
+const openTaskPanelPref = () => localStorage.setItem('wy.calendar.dayPanels', JSON.stringify({ tasks: true }))
+
 describe('캘린더', () => {
   it('주 보기: 주 시작 요일·공휴일·반복 회차를 그린다', async () => {
     stubServer()
@@ -145,7 +148,19 @@ describe('캘린더', () => {
     expect(await screen.findByText('대체공휴일(개천절)')).toBeInTheDocument()
     expect(screen.getByText('한글날')).toBeInTheDocument()
     // until 10/9까지 수·목·금 3회
-    expect(await screen.findAllByRole('button', { name: /^팀 스탠드업, 10:00–11:00, 반복$/ })).toHaveLength(3)
+    expect(await screen.findAllByRole('button', { name: /^계획 · 팀 스탠드업, 10:00 – 11:00, 반복$/ })).toHaveLength(3)
+  })
+
+  it('미니 달력 날짜 버튼은 "10월 13일 화요일"처럼 읽히고, 누르면 그 주로 간다 (UX-CAL-96)', async () => {
+    stubServer()
+    const user = userEvent.setup()
+    renderApp('/calendar/week/2026-10-07', routes)
+    await screen.findByRole('heading', { name: '2026년 10월 5일 – 11일' })
+    const mini = screen.getByRole('region', { name: '미니 달력' })
+    expect(within(mini).queryByRole('button', { name: /\d{4}-\d{2}-\d{2}/ })).toBeNull()
+    expect(within(mini).getByRole('button', { name: '10월 9일 금요일 한글날' })).toBeInTheDocument()
+    await user.click(within(mini).getByRole('button', { name: '10월 13일 화요일' }))
+    expect(await screen.findByRole('heading', { name: '2026년 10월 12일 – 18일' })).toBeInTheDocument()
   })
 
   it('단축키 M으로 월 보기, J로 다음 달, K로 이전 달', async () => {
@@ -176,14 +191,14 @@ describe('캘린더', () => {
     await user.click(within(dialog).getByRole('button', { name: '저장' }))
     await waitFor(() => expect(screen.queryByRole('dialog', { name: '새 일정' })).not.toBeInTheDocument())
     expect(fetchMock.mock.calls.some(([, init]) => init?.method === 'POST')).toBe(true)
-    expect(await screen.findByRole('button', { name: /^견적서 작성, / })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: /^계획 · 견적서 작성, / })).toBeInTheDocument()
   })
 
   it('반복 일정 삭제: 범위를 묻고, "이 일정만"이면 그 회차만 빠진 뒤 토스트로 되돌릴 수 있다', async () => {
     stubServer()
     const user = userEvent.setup()
     renderApp('/calendar/week/2026-10-07', routes)
-    const blocks = await screen.findAllByRole('button', { name: /^팀 스탠드업, / })
+    const blocks = await screen.findAllByRole('button', { name: /^계획 · 팀 스탠드업, / })
     blocks[0].focus()
     await user.keyboard('{Enter}')
     const dialog = await screen.findByRole('dialog', { name: '일정 편집' })
@@ -193,36 +208,36 @@ describe('캘린더', () => {
     expect(within(scope).getByLabelText('이 일정만')).toBeChecked()
     await user.click(within(scope).getByRole('button', { name: '확인' }))
 
-    await waitFor(() => expect(screen.getAllByRole('button', { name: /^팀 스탠드업, / })).toHaveLength(2))
+    await waitFor(() => expect(screen.getAllByRole('button', { name: /^계획 · 팀 스탠드업, / })).toHaveLength(2))
     // 대화상자가 돌려준 블록이 사라지면 포커스는 body가 아니라 캘린더 제목으로(P1-07-18)
     await waitFor(() => expect(document.activeElement).toHaveAttribute('data-focus-fallback'))
     expect(screen.getByText('일정을 삭제했어요')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: '되돌리기' }))
-    await waitFor(() => expect(screen.getAllByRole('button', { name: /^팀 스탠드업, / })).toHaveLength(3))
+    await waitFor(() => expect(screen.getAllByRole('button', { name: /^계획 · 팀 스탠드업, / })).toHaveLength(3))
   })
 
   it('상세 모달에서 시간을 바꿔 저장하면 포커스는 다시 그려진 같은 일정 블록으로', async () => {
-    // 반복 없는 일정: 10-08(목) 서울 14:00–15:00
+    // 반복 없는 일정: 10-08(목) 서울 14:00 – 15:00
     const review = { ...standup, id: 'schedule-review', title: '주간 리뷰', recurrence: null }
     Object.assign(review, { startAt: '2026-10-08T05:00:00.000Z', endAt: '2026-10-08T06:00:00.000Z' })
     localStorage.setItem('worklog.mock.schedules', JSON.stringify([standup, review]))
     stubServer()
     const user = userEvent.setup()
     renderApp('/calendar/week/2026-10-07', routes)
-    ;(await screen.findByRole('button', { name: /^주간 리뷰, 14:00–15:00/ })).focus()
+    ;(await screen.findByRole('button', { name: /^계획 · 주간 리뷰, 14:00 – 15:00/ })).focus()
     await user.keyboard('{Enter}')
     const dialog = await screen.findByRole('dialog', { name: '일정 편집' })
     fireEvent.change(within(dialog).getByLabelText('시작'), { target: { value: '16:00' } })
     fireEvent.change(within(dialog).getByLabelText('종료'), { target: { value: '17:00' } })
     await user.click(within(dialog).getByRole('button', { name: '저장' }))
 
-    const moved = await screen.findByRole('button', { name: /^주간 리뷰, 16:00–17:00/ })
+    const moved = await screen.findByRole('button', { name: /^계획 · 주간 리뷰, 16:00 – 17:00/ })
     await waitFor(() => expect(moved).toHaveFocus())
   })
 
   it.each([
-    ['이 일정만', /^팀 스탠드업, 11:00–12:00/, 1],
-    ['모든 일정', /^팀 스탠드업, 11:00–12:00/, 3],
+    ['이 일정만', /^계획 · 팀 스탠드업, 11:00 – 12:00/, 1],
+    ['모든 일정', /^계획 · 팀 스탠드업, 11:00 – 12:00/, 3],
   ])(
     '반복 회차 시간을 범위 대화상자(%s)를 거쳐 저장하면 포커스는 그날의 같은 일정 블록으로',
     async (label, moved, count) => {
@@ -230,7 +245,7 @@ describe('캘린더', () => {
       const user = userEvent.setup()
       renderApp('/calendar/week/2026-10-07', routes)
       // 10-07(수) 회차
-      ;(await screen.findAllByRole('button', { name: /^팀 스탠드업, 10:00–11:00/ }))[0].focus()
+      ;(await screen.findAllByRole('button', { name: /^계획 · 팀 스탠드업, 10:00 – 11:00/ }))[0].focus()
       await user.keyboard('{Enter}')
       const dialog = await screen.findByRole('dialog', { name: '일정 편집' })
       fireEvent.change(within(dialog).getByLabelText('시작'), { target: { value: '11:00' } })
@@ -264,6 +279,7 @@ describe('캘린더', () => {
       })),
     )
     stubServer()
+    openTaskPanelPref()
     renderApp('/calendar/week/2026-10-07', routes)
     expect(await screen.findByRole('complementary', { name: '할 일 상자' })).toBeInTheDocument()
 
@@ -324,7 +340,7 @@ describe('캘린더', () => {
     stubServer()
     const user = userEvent.setup()
     renderApp('/calendar/week/2026-10-07', routes)
-    ;(await screen.findByRole('button', { name: /^주간 리뷰, / })).focus()
+    ;(await screen.findByRole('button', { name: /^계획 · 주간 리뷰, / })).focus()
     await user.keyboard('{Enter}')
     const dialog = await screen.findByRole('dialog', { name: '일정 편집' })
     await waitFor(() => expect(within(dialog).getByLabelText('제목')).toHaveValue('주간 리뷰'))
@@ -400,13 +416,14 @@ describe('캘린더', () => {
     stubServer()
     const user = userEvent.setup()
     const onLine = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    openTaskPanelPref()
     renderApp('/calendar/week/2026-10-07', routes)
     const panel = await screen.findByRole('complementary', { name: '할 일 상자' })
     expect(await within(panel).findByRole('button', { name: '9월 매출 보고서 일정 잡기' })).toBeDisabled()
     expect(within(panel).getByLabelText('업무 빠른 입력')).toBeDisabled()
     expect(screen.getByRole('button', { name: '일정 만들기' })).toBeDisabled()
 
-    ;(await screen.findAllByRole('button', { name: /^팀 스탠드업, / }))[0].focus()
+    ;(await screen.findAllByRole('button', { name: /^계획 · 팀 스탠드업, / }))[0].focus()
     await user.keyboard('{Enter}')
     const dialog = await screen.findByRole('dialog', { name: '일정 편집' })
     await waitFor(() => expect(within(dialog).getByLabelText('제목')).toHaveValue('팀 스탠드업'))
@@ -426,7 +443,7 @@ describe('캘린더', () => {
     stubServer()
     const user = userEvent.setup()
     renderApp('/calendar/week/2026-10-07', routes)
-    ;(await screen.findAllByRole('button', { name: /^팀 스탠드업, / }))[0].focus()
+    ;(await screen.findAllByRole('button', { name: /^계획 · 팀 스탠드업, / }))[0].focus()
     await user.keyboard('{Enter}')
     const dialog = await screen.findByRole('dialog', { name: '일정 편집' })
     const title = within(dialog).getByLabelText('제목')
@@ -450,7 +467,7 @@ describe('캘린더', () => {
     stubServer()
     const user = userEvent.setup()
     renderApp('/calendar/week/2026-10-07', routes)
-    ;(await screen.findAllByRole('button', { name: /^팀 스탠드업, / }))[0].focus()
+    ;(await screen.findAllByRole('button', { name: /^계획 · 팀 스탠드업, / }))[0].focus()
     const onLine = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
     act(() => {
       window.dispatchEvent(new Event('offline'))
@@ -460,7 +477,7 @@ describe('캘린더', () => {
       const dialog = await screen.findByRole('dialog', { name: '일정 편집' })
       expect(await within(dialog).findByText('연결이 끊겼어요. 연결되면 나머지를 불러와요')).toBeInTheDocument()
       expect(within(dialog).getByText('팀 스탠드업')).toBeInTheDocument()
-      expect(within(dialog).getByText(/10:00~11:00$/)).toBeInTheDocument()
+      expect(within(dialog).getByText(/10:00 – 11:00$/)).toBeInTheDocument()
       expect(within(dialog).getByText('반복 일정')).toBeInTheDocument()
       // 고칠 칸·삭제·저장은 없다(열어 보기만)
       expect(within(dialog).queryByRole('textbox')).toBeNull()
@@ -488,15 +505,14 @@ describe('캘린더', () => {
     const fetchMock = stubServer()
     const user = userEvent.setup()
     renderApp('/calendar/week/2026-10-07', routes)
-    ;(await screen.findByRole('button', { name: /^주간 리뷰, / })).focus()
+    ;(await screen.findByRole('button', { name: /^계획 · 주간 리뷰, / })).focus()
     await user.keyboard('{Enter}')
     const dialog = await screen.findByRole('dialog', { name: '일정 편집' })
     await user.type(await within(dialog).findByRole('combobox', { name: '연결 업무' }), '보고')
     await user.click(await within(dialog).findByRole('option', { name: '9월 매출 보고서' }))
-    expect(await within(dialog).findByRole('link', { name: '9월 매출 보고서' })).toHaveAttribute(
-      'href',
-      '/tasks/task-report',
-    )
+    expect(
+      await within(within(dialog).getByRole('group', { name: '연결 업무' })).findByText('9월 매출 보고서'),
+    ).toBeInTheDocument()
     await user.click(within(dialog).getByRole('button', { name: '저장' }))
     await waitFor(() => expect(screen.queryByRole('dialog', { name: '일정 편집' })).not.toBeInTheDocument())
     const patch = fetchMock.mock.calls.find(
@@ -515,7 +531,7 @@ describe('캘린더', () => {
     )
     const user = userEvent.setup()
     renderApp('/calendar/week/2026-10-07', routes)
-    ;(await screen.findAllByRole('button', { name: /^팀 스탠드업, 10:00–11:00/ }))[0].focus()
+    ;(await screen.findAllByRole('button', { name: /^계획 · 팀 스탠드업, 10:00 – 11:00/ }))[0].focus()
     await user.keyboard('{Enter}')
     const dialog = await screen.findByRole('dialog', { name: '일정 편집' })
     await waitFor(() => expect(within(dialog).getByLabelText('시작')).toHaveValue('10:00'))
@@ -568,6 +584,7 @@ describe('캘린더', () => {
   it('1280px 이상에서 그리드 옆 업무 패널은 Esc로 닫히지 않는다', async () => {
     stubServer()
     const user = userEvent.setup()
+    openTaskPanelPref()
     renderApp('/calendar/week/2026-10-07', routes)
     await screen.findByRole('complementary', { name: '할 일 상자' })
     await user.keyboard('{Escape}')
@@ -580,7 +597,7 @@ describe('캘린더', () => {
       stubServer()
       const user = userEvent.setup()
       renderApp('/calendar/week/2026-10-07', routes)
-      ;(await screen.findAllByRole('button', { name: /^팀 스탠드업, / }))[0].focus()
+      ;(await screen.findAllByRole('button', { name: /^계획 · 팀 스탠드업, / }))[0].focus()
       await user.keyboard('{Enter}')
       const dialog = await screen.findByRole('dialog', { name: '일정 편집' })
       within(dialog).getByRole('button', { name: '삭제' }).focus()
@@ -597,6 +614,7 @@ describe('캘린더', () => {
   it('업무 패널: 마감순 카드, 날짜 없는 업무는 접고, "일정 잡기"로 업무에 연결된 일정을 만든다', async () => {
     const fetchMock = stubServer()
     const user = userEvent.setup()
+    openTaskPanelPref()
     renderApp('/calendar/week/2026-10-07', routes)
     const panel = await screen.findByRole('complementary', { name: '할 일 상자' })
     expect(await within(panel).findByText('9월 매출 보고서')).toBeInTheDocument()
@@ -616,20 +634,31 @@ describe('캘린더', () => {
     expect(JSON.parse(String(post![1]!.body))).toMatchObject({ title: '9월 매출 보고서', taskId: 'task-report' })
   })
 
-  it('P로 업무 패널을 닫고 연다', async () => {
+  it('업무 패널은 기본 접힘(레일), 펼치면 이 기기에 기억하고 접기는 레일로 포커스, P로도 열고 닫는다 (X-07 D)', async () => {
     stubServer()
     const user = userEvent.setup()
     renderApp('/calendar/week/2026-10-07', routes)
-    await screen.findByRole('complementary', { name: '할 일 상자' })
-    await user.keyboard('p')
+    const rail = await screen.findByRole('button', { name: '업무 패널 펼치기' })
     expect(screen.queryByRole('complementary', { name: '할 일 상자' })).not.toBeInTheDocument()
+    await user.click(rail)
+    const panel = screen.getByRole('complementary', { name: '할 일 상자' })
+    expect(JSON.parse(localStorage.getItem('wy.calendar.dayPanels')!)).toMatchObject({ tasks: true })
+
+    await user.click(within(panel).getByRole('button', { name: '업무 패널 접기' }))
+    expect(screen.queryByRole('complementary', { name: '할 일 상자' })).not.toBeInTheDocument()
+    await waitFor(() => expect(screen.getByRole('button', { name: '업무 패널 펼치기' })).toHaveFocus())
+    expect(JSON.parse(localStorage.getItem('wy.calendar.dayPanels')!)).toMatchObject({ tasks: false })
+
     await user.keyboard('p')
     expect(screen.getByRole('complementary', { name: '할 일 상자' })).toBeInTheDocument()
+    await user.keyboard('p')
+    expect(screen.queryByRole('complementary', { name: '할 일 상자' })).not.toBeInTheDocument()
   })
 
   it('업무 패널 빠른 입력으로 업무를 만들면 되돌리기 토스트가 뜬다', async () => {
     const fetchMock = stubServer()
     const user = userEvent.setup()
+    openTaskPanelPref()
     renderApp('/calendar/week/2026-10-07', routes)
     const panel = await screen.findByRole('complementary', { name: '할 일 상자' })
     expect(within(panel).getByLabelText('업무 빠른 입력')).toHaveAttribute('placeholder', '+ 업무 추가')
@@ -672,7 +701,7 @@ describe('캘린더', () => {
   })
 
   it('일 보기 "이날의 기록": 끝나기 전 회차의 확인 대기는 홈 ③처럼 보이지 않는다 (D-31)', async () => {
-    // 2026-10-07 서울 10:30 — 스탠드업(10:00–11:00)이 아직 진행 중. 타이머를 1분 미만으로 버리면 서버가 PENDING을 준다
+    // 2026-10-07 서울 10:30 — 스탠드업(10:00 – 11:00)이 아직 진행 중. 타이머를 1분 미만으로 버리면 서버가 PENDING을 준다
     vi.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-10-07T01:30:00.000Z'))
     stubServer()
     records = [
@@ -706,7 +735,7 @@ describe('캘린더', () => {
     ]
     const user = userEvent.setup()
     renderApp('/calendar/week/2026-10-07', routes)
-    const [block] = await screen.findAllByRole('button', { name: /^팀 스탠드업, 10:00–11:00, 반복$/ })
+    const [block] = await screen.findAllByRole('button', { name: /^계획 · 팀 스탠드업, 10:00 – 11:00, 반복$/ })
     block.focus()
     await user.keyboard('{Enter}')
     const dialog = await screen.findByRole('dialog', { name: '일정 편집' })
@@ -718,12 +747,12 @@ describe('캘린더', () => {
     await waitFor(() => expect(within(recordDialog).getByLabelText(/한 일/)).toHaveFocus())
     await user.keyboard('{Escape}')
     await waitFor(() =>
-      expect(screen.getAllByRole('button', { name: /^팀 스탠드업, 10:00–11:00, 반복$/ })[0]).toHaveFocus(),
+      expect(screen.getAllByRole('button', { name: /^계획 · 팀 스탠드업, 10:00 – 11:00, 반복$/ })[0]).toHaveFocus(),
     )
   })
 
   describe('일 보기 계획/실제 두 열 (SCR-CAL-02 ④, D-105)', () => {
-    // 2026-10-07 서울 13:00–14:30 확정 기록, 15:00–16:00 빈 시간
+    // 2026-10-07 서울 13:00 – 14:30 확정 기록, 15:00 – 16:00 빈 시간
     const timedRecord = () =>
       workRecord('r-quote', {
         content: '견적서 작성',
@@ -751,18 +780,18 @@ describe('캘린더', () => {
       const column = await screen.findByRole('group', { name: '실제, 1시간 30분' })
       expect(screen.getByText('계획')).toBeInTheDocument()
       // 계획 열의 일정 블록은 그대로 있다
-      expect(await screen.findByRole('button', { name: /^팀 스탠드업, 10:00–11:00/ })).toBeInTheDocument()
+      expect(await screen.findByRole('button', { name: /^계획 · 팀 스탠드업, 10:00 – 11:00/ })).toBeInTheDocument()
 
-      const block = await within(column).findByRole('button', { name: '견적서 작성, 13:00–14:30' })
+      const block = await within(column).findByRole('button', { name: '견적서 작성, 13:00 – 14:30' })
       await user.click(block)
       const dialog = await screen.findByRole('dialog', { name: '기록 수정' })
       await user.keyboard('{Escape}')
       expect(dialog).not.toBeInTheDocument()
       await waitFor(() =>
-        expect(within(column).getByRole('button', { name: '견적서 작성, 13:00–14:30' })).toHaveFocus(),
+        expect(within(column).getByRole('button', { name: '견적서 작성, 13:00 – 14:30' })).toHaveFocus(),
       )
 
-      await user.click(within(column).getByRole('button', { name: /^빈 시간 15:00–16:00, 1시간/ }))
+      await user.click(within(column).getByRole('button', { name: /^빈 시간 15:00 – 16:00, 1시간/ }))
       expect(await screen.findByRole('dialog', { name: '빈 시간 메우기' })).toBeInTheDocument()
     })
 
@@ -773,14 +802,14 @@ describe('캘린더', () => {
       gaps = [gap]
       renderApp('/calendar/day/2026-10-07', routes)
       const column = await screen.findByRole('group', { name: '실제' })
-      const gapButton = await within(column).findByRole('button', { name: /^빈 시간 15:00–16:00/ })
+      const gapButton = await within(column).findByRole('button', { name: /^빈 시간 15:00 – 16:00/ })
       const onLine = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
       act(() => {
         window.dispatchEvent(new Event('offline'))
       })
       await waitFor(() => expect(gapButton).toBeDisabled())
       expect(gapButton).toHaveAccessibleName(/연결되면 채울 수 있어요/)
-      expect(within(column).getByRole('button', { name: '견적서 작성, 13:00–14:30' })).toBeEnabled()
+      expect(within(column).getByRole('button', { name: '견적서 작성, 13:00 – 14:30' })).toBeEnabled()
       onLine.mockRestore()
       // react-query의 연결 상태는 전역이라 다음 테스트를 위해 다시 연결한다
       act(() => {
@@ -809,7 +838,7 @@ describe('캘린더', () => {
       records = [timedRecord()]
       renderApp('/calendar/day/2026-10-07', routes)
       await screen.findByRole('region', { name: '이날의 기록' })
-      await screen.findByRole('button', { name: /^팀 스탠드업, 10:00–11:00/ })
+      await screen.findByRole('button', { name: /^계획 · 팀 스탠드업, 10:00 – 11:00/ })
       expect(screen.queryByRole('group', { name: /^실제/ })).not.toBeInTheDocument()
       expect(screen.queryByText('계획')).not.toBeInTheDocument()
     })

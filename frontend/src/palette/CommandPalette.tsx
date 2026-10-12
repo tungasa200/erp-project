@@ -4,10 +4,12 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { Command } from 'cmdk'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
+import { openDayClose } from '../logs/openDayClose'
 import { useAuth } from '../auth/useAuth'
 import { shortDate, todayIn, weekStartNumber } from '../quickInput/dates'
 import { parseQuickInput } from '../quickInput/parse'
 import { modKey, useShortcutsEnabled } from '../shortcuts/useShortcuts'
+import { announce } from '../components/announce'
 import { Skeleton } from '../components/Skeleton'
 import { taskApi, type Task } from '../tasks/api'
 import { STATUS_LABEL } from '../tasks/view'
@@ -111,11 +113,9 @@ interface Props {
   onQuickAdd: (text?: string) => void
   /** 타이머 명령. 시간 기록 옵션이 꺼져 있으면 null(명령을 숨긴다) */
   timer?: { running: boolean; offline?: boolean; start: () => void; stop: () => void } | null
-  /** 오늘 하루 마감(SCR-LOG-03)을 연다 */
-  onDayClose: () => void
 }
 
-export function CommandPalette({ onClose, onQuickAdd, onDayClose, timer }: Props) {
+export function CommandPalette({ onClose, onQuickAdd, timer }: Props) {
   const navigate = useNavigate()
   const { user } = useAuth()
   const shortcutsEnabled = useShortcutsEnabled()
@@ -133,8 +133,32 @@ export function CommandPalette({ onClose, onQuickAdd, onDayClose, timer }: Props
         shortcut: shortcutsEnabled ? 'N' : undefined,
         run: () => onQuickAdd(),
       },
+      // 일정도 같은 빠른 입력으로 만든다: 시간을 적으면 일정이 함께 생긴다(UX-COM-04, 화면정의서 SCR-COM-03 ②)
+      {
+        id: 'add-schedule',
+        label: '일정 추가',
+        group: '동작',
+        detail: '시간을 함께 적어요',
+        keywords: '새 일정 캘린더 회의 약속 빠른 입력',
+        run: () => onQuickAdd(),
+      },
       ...timerCommands(timer),
-      { id: 'day-close', label: '하루 마감', group: '동작', keywords: '오늘 일지 확정 마감', run: onDayClose },
+      {
+        id: 'day-close',
+        label: '하루 마감',
+        group: '동작',
+        keywords: '오늘 일지 확정 마감',
+        run: () => openDayClose(),
+      },
+      // 숙련자 길(X-05): 대기는 그대로, 넘길 일은 기본 선택, 이슈는 비운 채 바로 확정. 완료 창의 [확정 해제]가 안전망
+      {
+        id: 'day-close-quick',
+        label: '빠른 마감',
+        group: '동작',
+        detail: '바로 확정',
+        keywords: '하루 마감 오늘 일지 확정 바로',
+        run: () => openDayClose({ quick: true }),
+      },
       { id: 'go-home', label: '홈', group: '이동', keywords: '대시보드', run: go('/') },
       { id: 'go-calendar', label: '캘린더', group: '이동', keywords: '일정', run: go('/calendar') },
       { id: 'go-tasks', label: '업무 목록', group: '이동', keywords: '할일', run: go('/tasks') },
@@ -149,7 +173,7 @@ export function CommandPalette({ onClose, onQuickAdd, onDayClose, timer }: Props
         run: go('/settings/recording'),
       },
     ]
-  }, [navigate, onQuickAdd, onDayClose, shortcutsEnabled, timer])
+  }, [navigate, onQuickAdd, shortcutsEnabled, timer])
 
   const q = query.trim()
   const today = todayIn(user?.timezone ?? 'Asia/Seoul')
@@ -183,6 +207,28 @@ export function CommandPalette({ onClose, onQuickAdd, onDayClose, timer }: Props
     .filter((g) => g.items.length > 0)
   // 업무 검색 결과는 명령이 아니므로, 맞는 명령이 없으면 결과가 있어도 '업무로 추가'를 맨 앞에 둔다
   const nothing = visible.matched.length === 0 && !jumpDate
+  // 결과 수·업무 검색 실패를 낭독기에 알린다(UX-COM-25). 치기를 멈추고 업무 검색이 끝난 뒤 한 번
+  const resultCount = visible.matched.length + taskSearch.items.length + (jumpDate ? 1 : 0)
+  const resultMessage =
+    q === '' || taskSearch.loading
+      ? ''
+      : `${resultCount === 0 ? '맞는 결과가 없어요' : `결과 ${resultCount}개`}${taskSearch.error ? ', 업무를 불러오지 못했어요' : ''}`
+  useEffect(() => {
+    if (!resultMessage) return
+    const timer = setTimeout(() => announce(resultMessage), 500)
+    return () => clearTimeout(timer)
+  }, [resultMessage])
+  // 제목이 정확히 같은 업무가 있으면 그 업무가 첫 항목이고 Enter로 연다(UX-COM-03, D-212 Q6). 같은 이름으로 또 만들려면 ↓ 한 번
+  const exactTask = q === '' ? undefined : taskSearch.items.find((t) => t.title.trim() === q)
+  const otherTasks = exactTask ? taskSearch.items.filter((t) => t !== exactTask) : taskSearch.items
+  // 검색 결과는 늦게 오므로 cmdk가 먼저 고른 첫 항목을 그 업무로 옮긴다
+  const [selected, setSelected] = useState('')
+  const exactValue = exactTask ? `task-${exactTask.id}` : ''
+  const [lastExact, setLastExact] = useState('')
+  if (exactValue !== lastExact) {
+    setLastExact(exactValue)
+    if (exactValue) setSelected(exactValue)
+  }
   const openTask = (task: Task) => {
     onClose()
     navigate(`/tasks/${task.id}`)
@@ -204,7 +250,14 @@ export function CommandPalette({ onClose, onQuickAdd, onDayClose, timer }: Props
           if (e.key === 'Tab') e.preventDefault()
         }}
       >
-        <Command shouldFilter={false} loop label="명령 팔레트" className={styles.command}>
+        <Command
+          shouldFilter={false}
+          loop
+          label="명령 팔레트"
+          className={styles.command}
+          value={selected}
+          onValueChange={setSelected}
+        >
           <div className={styles.search}>
             <svg
               width="20"
@@ -225,9 +278,18 @@ export function CommandPalette({ onClose, onQuickAdd, onDayClose, timer }: Props
               placeholder="명령, 화면 이름, 업무를 찾아보세요"
               className={styles.input}
             />
-            <kbd className={styles.kbd}>Esc</kbd>
+            <kbd className={`${styles.kbd} ${styles.escHint}`}>Esc</kbd>
+            {/* 휴대폰 폭에는 Esc 키가 없어 닫기 버튼을 보인다(COM-31) */}
+            <button type="button" className={styles.close} aria-label="닫기" onClick={onClose}>
+              ×
+            </button>
           </div>
-          <Command.List className={styles.list}>
+          <Command.List label="결과" className={styles.list}>
+            {exactTask && (
+              <Command.Group heading="업무" className={styles.group}>
+                <TaskItem task={exactTask} onOpen={openTask} />
+              </Command.Group>
+            )}
             {nothing && (
               <Command.Group heading="동작" className={styles.group}>
                 <Command.Item
@@ -284,16 +346,10 @@ export function CommandPalette({ onClose, onQuickAdd, onDayClose, timer }: Props
                 <Skeleton count={2} />
               </div>
             )}
-            {(taskSearch.items.length > 0 || taskSearch.error) && (
-              <Command.Group heading="업무" className={styles.group}>
-                {taskSearch.items.map((t) => (
-                  <Command.Item key={t.id} value={`task-${t.id}`} className={styles.item} onSelect={() => openTask(t)}>
-                    <span className={styles.icon} aria-hidden="true">
-                      {t.status === 'DONE' ? '✓' : '○'}
-                    </span>
-                    <span className={styles.label}>{t.title}</span>
-                    {t.status !== 'TODO' && <span className={styles.detail}>{STATUS_LABEL[t.status]}</span>}
-                  </Command.Item>
+            {(otherTasks.length > 0 || taskSearch.error) && (
+              <Command.Group heading={exactTask ? '다른 업무' : '업무'} className={styles.group}>
+                {otherTasks.map((t) => (
+                  <TaskItem key={t.id} task={t} onOpen={openTask} />
                 ))}
                 {taskSearch.error && <p className={styles.notice}>업무를 불러오지 못했어요</p>}
               </Command.Group>
@@ -308,6 +364,18 @@ export function CommandPalette({ onClose, onQuickAdd, onDayClose, timer }: Props
         </Command>
       </div>
     </div>
+  )
+}
+
+function TaskItem({ task, onOpen }: { task: Task; onOpen: (t: Task) => void }) {
+  return (
+    <Command.Item value={`task-${task.id}`} className={styles.item} onSelect={() => onOpen(task)}>
+      <span className={styles.icon} aria-hidden="true">
+        {task.status === 'DONE' ? '✓' : '○'}
+      </span>
+      <span className={styles.label}>{task.title}</span>
+      {task.status !== 'TODO' && <span className={styles.detail}>{STATUS_LABEL[task.status]}</span>}
+    </Command.Item>
   )
 }
 

@@ -7,7 +7,7 @@ import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate, useSearchParams } from 'react-router'
 import { toastForError } from '../api/errorToast'
 import { useAuth } from '../auth/useAuth'
-import { DayClose } from '../logs/DayClose'
+import { DayCloseHost } from '../logs/DayCloseHost'
 import { CommandPalette } from '../palette/CommandPalette'
 import { useProjects } from '../projects/api'
 import { PendingPanel } from '../records/PendingPanel'
@@ -86,7 +86,6 @@ export function AppShell() {
   const online = useOnline()
   const navigate = useNavigate()
   const [paletteOpen, setPaletteOpen] = useState(false)
-  const [dayClose, setDayClose] = useState<{ today: string; timeZone: string } | null>(null)
   const timer = usePaletteTimer()
   // 빠른 기록 시트(SCR-MOB-01). 닫아도 쓰던 글은 남긴다
   const [sheetOpen, setSheetOpen] = useState(false)
@@ -123,11 +122,6 @@ export function AppShell() {
     lastFocus.current = document.activeElement
     setPaletteOpen(true)
   }, [])
-  // 연 순간의 오늘로 고정한다(자정을 넘겨도 마감하던 날이 바뀌지 않게)
-  const openDayClose = useCallback(() => {
-    const timeZone = user?.timezone ?? 'Asia/Seoul'
-    setDayClose({ today: todayIn(timeZone), timeZone })
-  }, [user?.timezone])
   const closePalette = useCallback(() => {
     setPaletteOpen(false)
     if (lastFocus.current instanceof HTMLElement) lastFocus.current.focus()
@@ -176,6 +170,10 @@ export function AppShell() {
 
   return (
     <div className={styles.shell}>
+      {/* 키보드로 메뉴를 건너뛰고 본문으로(COM-18). 포커스를 받을 때만 보인다 */}
+      <a href="#main" className={styles.skip}>
+        본문으로 건너뛰기
+      </a>
       <nav className={styles.sidebar} aria-label="주 메뉴" data-app-sidebar>
         <div className={styles.brand}>
           <span className={styles.logo} aria-hidden="true">
@@ -216,7 +214,7 @@ export function AppShell() {
         <UnverifiedBanner />
         {/* 끊긴 동안에는 화면마다 저장·편집 영역만 막는다(SCR-SYS-02 ③, 오프라인 기록은 범위 밖). 이동·열람은 된다 */}
         {/* 앱 화면의 본문 랜드마크. 페이지 컴포넌트는 <main>을 따로 두지 않는다(오류·404·점검·인증 화면은 셸 밖이라 각자 둔다) */}
-        <main className={styles.main}>
+        <main id="main" tabIndex={-1} className={styles.main}>
           {/* 업무 완료 결과 입력(SCR-TASK-03)은 목록·홈·상세 어디서 완료해도 같은 팝오버를 띄운다 */}
           <CompletionResultHost>
             <Outlet />
@@ -240,7 +238,7 @@ export function AppShell() {
         <button
           type="button"
           className={styles.quick}
-          aria-label="빠른 기록"
+          aria-label="빠른 기록 열기"
           aria-haspopup="dialog"
           onClick={() => setSheetOpen(true)}
         >
@@ -269,17 +267,8 @@ export function AppShell() {
         <PendingPanel today={pendingFrom.today} timeZone={pendingFrom.timeZone} onClose={() => setPendingFrom(null)} />
       )}
 
-      {paletteOpen && (
-        <CommandPalette onClose={closePalette} onQuickAdd={quickAdd} onDayClose={openDayClose} timer={timer.commands} />
-      )}
-      {dayClose && (
-        <DayClose
-          date={dayClose.today}
-          today={dayClose.today}
-          timeZone={dayClose.timeZone}
-          onClose={() => setDayClose(null)}
-        />
-      )}
+      {paletteOpen && <CommandPalette onClose={closePalette} onQuickAdd={quickAdd} timer={timer.commands} />}
+      <DayCloseHost />
       {timer.dialog}
     </div>
   )

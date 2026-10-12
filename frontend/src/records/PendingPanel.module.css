@@ -6,7 +6,7 @@
   z-index: 90;
   display: flex;
   justify-content: flex-end;
-  background: rgba(26, 28, 43, 0.35);
+  background: var(--color-scrim);
 }
 
 .sheet {
@@ -15,21 +15,21 @@
   width: min(440px, 100%);
   height: 100dvh;
   box-sizing: border-box;
-  padding: 24px 24px 0;
+  padding: var(--space-5) var(--space-5) 0;
   background: var(--color-surface);
-  box-shadow: -12px 0 40px rgba(26, 28, 43, 0.2);
+  box-shadow: var(--shadow-3);
 }
 
 .head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .title {
   margin: 0;
-  font-size: 22px;
+  font-size: var(--text-2xl);
   font-weight: 800;
   letter-spacing: -0.4px;
 }
@@ -45,16 +45,16 @@
   width: var(--size-touch);
   height: var(--size-touch);
   border: 0;
-  border-radius: 22px;
+  border-radius: var(--radius-pill);
   background: var(--color-ground);
   color: var(--color-text-body);
-  font-size: 20px;
+  font-size: var(--text-xl);
   cursor: pointer;
 }
 
 .lead {
-  margin: 8px 0 16px;
-  font-size: 14px;
+  margin: var(--space-2) 0 var(--space-4);
+  font-size: var(--text-md);
   color: var(--color-text-muted);
 }
 
@@ -62,26 +62,27 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
   /* 포커스 테두리가 스크롤 영역에 잘리지 않게 */
   margin: 0 -4px;
-  padding: 0 4px 16px;
+  padding: 0 var(--space-1) var(--space-4);
 }
 
 .group + .group {
-  margin-top: 18px;
+  margin-top: var(--space-4);
 }
 
 .day {
-  margin: 0 0 8px;
-  font-size: 13px;
-  font-weight: 700;
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: 600;
   color: var(--color-text-muted);
 }
 
 .rows {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -91,10 +92,10 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px 12px;
-  padding: 12px 14px;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-3) var(--space-3);
   border: 1px solid var(--status-pending-card-border);
-  border-radius: 16px;
+  border-radius: var(--radius-input);
   background: var(--status-pending-card-bg);
   color: var(--status-pending-text);
 }
@@ -108,7 +109,7 @@
 
 .name {
   overflow: hidden;
-  font-weight: 700;
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -117,7 +118,7 @@
   display: flex;
   flex-direction: column;
   margin-top: 2px;
-  font-size: 13px;
+  font-size: var(--text-sm);
   font-variant-numeric: tabular-nums;
 }
 
@@ -131,7 +132,7 @@
 .actions {
   display: flex;
   flex: none;
-  gap: 6px;
+  gap: var(--space-1);
 }
 
 .yes,
@@ -139,18 +140,19 @@
 .primary,
 .retry {
   min-height: var(--size-touch);
-  padding: 0 14px;
-  border-radius: 12px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-input);
   font: inherit;
-  font-size: 14px;
-  font-weight: 700;
+  font-size: var(--text-md);
+  font-weight: 600;
   cursor: pointer;
 }
 
+/* 목록 안 반복 동작은 채우지 않는다: accent-soft 바탕 + accent-ink 글자 + 1px 윤곽. 채움은 아래 [n건 모두 했어요] 하나(X-02, UX-REC-59) */
 .yes {
-  border: 0;
-  background: var(--color-accent);
-  color: var(--color-on-accent);
+  border: 1px solid var(--color-accent);
+  background: var(--color-accent-soft);
+  color: var(--color-accent-ink);
 }
 
 .no {
@@ -171,7 +173,7 @@
 .foot {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
   padding: 14px 0 max(18px, env(safe-area-inset-bottom));
   border-top: 1px solid var(--color-divider);
 }
@@ -183,16 +185,21 @@
   color: var(--color-on-accent);
 }
 
-.primary:not(:disabled):hover,
-.yes:not(:disabled):hover {
-  background: var(--color-accent-ink);
+@media (hover: hover) and (pointer: fine) {
+  .primary:not(:disabled):hover {
+    background: var(--color-accent-ink);
+  }
+
+  .yes:not(:disabled):hover {
+    background: var(--color-accent-softer);
+  }
 }
 
 .error {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   color: var(--color-danger-text);
 }
 
@@ -204,7 +211,7 @@
 
 .muted {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--text-sm);
   color: var(--color-text-muted);
 }
 
@@ -220,7 +227,7 @@
 @media (max-width: 640px) {
   .sheet {
     width: 100%;
-    padding: 18px 16px 0;
+    padding: var(--space-4) var(--space-4) 0;
   }
 }
 

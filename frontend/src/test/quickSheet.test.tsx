@@ -51,7 +51,7 @@ const pending = (id: string, title: string): PendingRecord => ({
 async function openSheet(path = '/tasks') {
   const result = renderApp(path)
   const tabs = await screen.findByRole('navigation', { name: '하단 탭' })
-  const plus = within(tabs).getByRole('button', { name: '빠른 기록' })
+  const plus = within(tabs).getByRole('button', { name: '빠른 기록 열기' })
   await userEvent.click(plus)
   const sheet = await screen.findByRole('dialog', { name: '빠른 기록' })
   return { ...result, tabs, plus, sheet }
@@ -105,6 +105,28 @@ describe('SCR-MOB-01 빠른 기록 바텀시트 (P4-03)', () => {
     expect(screen.getByRole('button', { name: '되돌리기' })).toBeInTheDocument()
   })
 
+  it('UX-MOB-01 누르는 [저장]: 비어 있으면 꺼짐과 이유, 쓰면 눌러 저장한다. 리턴 키는 완료로 보인다', async () => {
+    const fetchMock = stubFetch({
+      'GET /api/users/me': () => json(200, ME),
+      'POST /api/worklog/tasks': () => json(201, { id: 't-new', title: '견적서 작성', version: 0 }),
+    })
+    const { sheet } = await openSheet()
+    const input = within(sheet).getByRole('textbox', { name: '한 줄 입력' })
+    expect(input).toHaveAttribute('enterkeyhint', 'done')
+    const save = within(sheet).getByRole('button', { name: '저장' })
+    expect(save).toHaveAttribute('aria-disabled', 'true')
+    expect(save).toHaveAccessibleDescription('내용을 적으면 저장할 수 있어요')
+    await userEvent.click(save)
+    expect(fetchMock).not.toHaveBeenCalledWith('/api/worklog/tasks', expect.anything())
+
+    await userEvent.type(input, '견적서 작성')
+    expect(save).not.toHaveAttribute('aria-disabled')
+    expect(within(sheet).queryByText('내용을 적으면 저장할 수 있어요')).not.toBeInTheDocument()
+    await userEvent.click(save)
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: '빠른 기록' })).not.toBeInTheDocument())
+    expect(fetchMock).toHaveBeenCalledWith('/api/worklog/tasks', expect.objectContaining({ method: 'POST' }))
+  })
+
   it('입력 중에는 확인 대기를 숨기고, 비우면 다시 보인다', async () => {
     stubFetch({
       'GET /api/users/me': () => json(200, ME),
@@ -141,7 +163,7 @@ describe('SCR-MOB-01 빠른 기록 바텀시트 (P4-03)', () => {
   it('확인 대기가 없으면 카드 자리를 두지 않는다', async () => {
     stubFetch({ 'GET /api/users/me': () => json(200, ME) })
     const { sheet } = await openSheet()
-    expect(within(sheet).getByText('시간을 적으면 일정도 함께 만들어져요.')).toBeInTheDocument()
+    expect(within(sheet).getByText('시간을 적으면 일정과 업무가 함께 만들어져요.')).toBeInTheDocument()
     expect(within(sheet).queryByText(/확인 대기/)).not.toBeInTheDocument()
     expect(within(sheet).queryByRole('button', { name: /타이머/ })).not.toBeInTheDocument()
   })

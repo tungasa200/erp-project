@@ -1,7 +1,7 @@
 // SCR-AUTH-05 비밀번호 재설정. 코드가 맞으면 새 비밀번호 칸을 연다. 저장하면 서버가 이메일 인증을 마치고
 // 모든 기기의 로그인을 끊으므로(쿠키도 지움) 로그인 화면으로 보낸다.
 import { useEffect, useState, type FormEvent } from 'react'
-import { Navigate, useLocation, useNavigate } from 'react-router'
+import { Link, Navigate, useLocation, useNavigate } from 'react-router'
 import { toastForError } from '../../api/errorToast'
 import { ApiError } from '../../api/problem'
 import { passwordViolations, type PasswordRuleCode } from '../../auth/passwordRules'
@@ -88,6 +88,10 @@ function ResetForm({ email, times }: { email: string; times: CodeTimes }) {
         <p className={styles.lead}>
           <b className={styles.email}>{email}</b>으로 보낸 6자리 숫자를 입력하세요.
         </p>
+        {/* 주소를 잘못 쓴 사용자가 돌아갈 길(UX-AUTH-171). 로고만으로는 로그인 화면으로 가 버린다 */}
+        <Link to="/password/forgot" state={{ email }} className={styles.back}>
+          이메일 바꾸기
+        </Link>
 
         <CodeStep
           key={codeStep.key}

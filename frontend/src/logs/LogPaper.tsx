@@ -1,18 +1,22 @@
 // SCR-LOG-02 ② 문서 영역: 내보낼 파일과 같은 모습(docs/업무일지_서식명세.md, 화면 px = pt × 1.35).
 // 테마 색을 쓰지 않는다. 초안을 고칠 수 있을 때만(editor) 칸이 입력으로 바뀌고 줄 버튼·계획 후보 칩이 붙는다.
 import { useEffect, useId, useLayoutEffect, useRef, useState, type ComponentProps, type ReactNode } from 'react'
+import { useToast } from '../components/useToast'
 import { WEEKDAY_NAMES, isoWeekday, todayIn } from '../quickInput/dates'
 import type { LogAchievement, LogContent, LogPlan, LogType, PlanCandidate } from './api'
 import { durationLabel, progressLabel } from './api'
 import { periodText, stamp } from './format'
 import { SECTION, md, mdw, metricsLine, planWhen, useProgressTitles } from './logText'
 import styles from './paper.module.css'
+import { isStranded } from './useLogEditor'
 
 export interface PaperEditor {
   candidates: PlanCandidate[]
   onAchievements: (next: LogAchievement[]) => void
   onPlans: (next: LogPlan[]) => void
   onIssues: (next: string) => void
+  /** 오프라인: 칸은 읽기 전용, 줄 버튼은 끈다(배너 "다시 연결되면 입력할 수 있어요"와 같게, UX-LOG-40) */
+  readOnly?: boolean
 }
 
 interface Props {
@@ -22,6 +26,8 @@ interface Props {
   content: LogContent
   /** 초안·미리보기는 "초안" 표시와 바닥글 "초안 — 확정 전 일지" */
   draft: boolean
+  /** 제목 옆 "초안" 표시. 미작성(아직 초안 없음)이면 머리 배지 "미작성"과 겹치므로 숨긴다(LOG-50). 기본은 draft */
+  draftMark?: boolean
   confirmedAt: string | null
   timeZone: string
   editor?: PaperEditor
@@ -37,12 +43,14 @@ export function LogPaper(props: Props) {
   const withProject = c.achievements.some((a) => a.projectName)
   const pending = c.metrics.pendingCount
   const titles = useProgressTitles(type, c)
+  // 진행 현황 '완료'는 완료한 업무도 센다(D-113). 실적 줄의 '완료'보다 많으면 왜 다른지 한 줄(LOG-50, 맞으면 아무것도 없음)
+  const doneGap = type === 'MONTHLY' ? 0 : c.metrics.done - c.achievements.filter((a) => a.outcome === 'DONE').length
   return (
     <article className={styles.paper} aria-label="일지 문서">
       <header className={styles.head}>
         <h2 className={styles.docTitle}>
           {c.title}
-          {draft && <span className={styles.draftMark}>초안</span>}
+          {(props.draftMark ?? draft) && <span className={styles.draftMark}>초안</span>}
         </h2>
         <table className={styles.sign} aria-label="결재란">
           <tbody>
@@ -87,6 +95,7 @@ export function LogPaper(props: Props) {
 
       <Section title="진행 현황">
         <p className={styles.body}>{metricsLine(type, c, titles)}</p>
+        {doneGap > 0 && <p className={styles.aux}>실적 줄에 아직 없는 완료 {doneGap}건</p>}
         {type === 'MONTHLY' && c.projects.length > 0 && <ProjectStats content={c} />}
       </Section>
 
@@ -101,6 +110,7 @@ export function LogPaper(props: Props) {
             aria-label="이슈 및 특이사항"
             value={c.issues ?? ''}
             maxLength={2000}
+            readOnly={editor.readOnly}
             onChange={(e) => editor.onIssues(e.target.value)}
           />
         ) : (
@@ -176,27 +186,62 @@ function profileValue(value: string | null, label: string) {
 
 /**
  * 좁은 화면(~767px)에서 표에 최소 폭을 주고 표만 가로로 민다(P3-QA-LOG-02-M1: 칸이 좁아 한 글자씩 꺾이던 문제).
- * 실제로 넘칠 때만 키보드로 닿게 탭 순서에 넣는다
+ * 실제로 넘칠 때만 키보드로 닿게 탭 순서에 넣는다. 오른쪽에 더 있으면 가장자리 그림자를 두고,
+ * 처음 한 번은 "옆으로 밀어 보기"를 보인다(X-06 1단계, UX-LOG-43). 한 번 밀면 이 기기에서는 다시 보이지 않는다
  */
+const SWIPE_HINT_KEY = 'wy.log.swipeHintSeen'
+
 function ScrollX({ label, children }: { label: string; children: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null)
   const [overflow, setOverflow] = useState(false)
+  const [atEnd, setAtEnd] = useState(false)
+  const [hintSeen, setHintSeen] = useState(() => {
+    try {
+      return localStorage.getItem(SWIPE_HINT_KEY) === '1'
+    } catch {
+      return true
+    }
+  })
   useEffect(() => {
     const el = ref.current
     if (!el) return
-    const check = () => setOverflow(el.scrollWidth > el.clientWidth + 1)
+    const check = () => {
+      setOverflow(el.scrollWidth > el.clientWidth + 1)
+      setAtEnd(el.scrollLeft + el.clientWidth >= el.scrollWidth - 1)
+    }
     check()
     const observer = new ResizeObserver(check)
     observer.observe(el)
     return () => observer.disconnect()
   }, [])
+  const onScroll = () => {
+    const el = ref.current
+    if (!el) return
+    setAtEnd(el.scrollLeft + el.clientWidth >= el.scrollWidth - 1)
+    if (!hintSeen && el.scrollLeft > 0) {
+      setHintSeen(true)
+      try {
+        localStorage.setItem(SWIPE_HINT_KEY, '1')
+      } catch {
+        // 저장할 수 없으면 이 화면에서만 숨긴다
+      }
+    }
+  }
   return (
-    <div
-      ref={ref}
-      className={styles.scrollX}
-      {...(overflow && { tabIndex: 0, role: 'region', 'aria-label': `${label} (가로로 밀어 보기)` })}
-    >
-      {children}
+    <div className={styles.scrollWrap} data-more={(overflow && !atEnd) || undefined}>
+      <div
+        ref={ref}
+        className={styles.scrollX}
+        onScroll={onScroll}
+        {...(overflow && { tabIndex: 0, role: 'region', 'aria-label': `${label} (가로로 밀어 보기)` })}
+      >
+        {children}
+      </div>
+      {overflow && !hintSeen && (
+        <p className={styles.swipeHint} aria-hidden="true">
+          옆으로 밀어 보기 →
+        </p>
+      )}
     </div>
   )
 }
@@ -267,9 +312,53 @@ function MonthDays({ days }: { days: LogContent['days'] }) {
   )
 }
 
+/**
+ * 줄 삭제를 바로 반영하고 5초 되돌리기 토스트를 띄운다(UX-LOG-101, 규칙 X-04-2). 되돌리면 지운 자리에 다시 넣고 그 줄로 포커스.
+ * 토스트가 떠 있는 동안 여러 줄을 지우면 하나로 합치고, 되돌릴 때는 나중 것부터 넣는다(latest를 바로 고쳐 연달아 써도 맞게)
+ */
+function useUndoableRemove<T>(rows: T[], apply: (next: T[]) => void, what: string, focusRow: (index: number) => void) {
+  const { showUndo, dismissUndo } = useToast()
+  const latest = useRef(rows)
+  useLayoutEffect(() => {
+    latest.current = rows
+  }, [rows])
+  // 다른 일지로 옮기면 이 편집기는 내려가 되돌려도 반영할 곳이 없다. 토스트를 닫아 [되돌리기]가 조용히 실패하지 않게 한다(UX-LOG-142)
+  const group = `log-${what}-remove`
+  useEffect(() => () => dismissUndo(group), [dismissUndo, group])
+  return (index: number) => {
+    const removed = latest.current[index]
+    const next = latest.current.filter((_, j) => j !== index)
+    latest.current = next
+    apply(next)
+    showUndo({
+      group,
+      message: (count) => (count > 1 ? `${what} ${count}줄을 지웠어요` : `${what} 줄을 지웠어요`),
+      undo: () => {
+        const current = latest.current
+        const at = Math.min(index, current.length)
+        const back = [...current.slice(0, at), removed, ...current.slice(at)]
+        latest.current = back
+        apply(back)
+        focusRow(at)
+      },
+    })
+  }
+}
+
 function Achievements(props: { type: LogType; rows: LogAchievement[]; withProject: boolean; editor?: PaperEditor }) {
   const { rows, editor, type } = props
   const tableRef = useRef<HTMLTableElement>(null)
+  const addRef = useRef<HTMLButtonElement>(null)
+  // 섹션은 부를 때 잡는다. 마지막 줄을 지우면 표가 사라져 다음 프레임에는 표에서 찾을 수 없다(UX-LOG-141: 제목으로 빠지던 것)
+  const focusText = (i: number) => {
+    const section = (tableRef.current ?? addRef.current)?.closest('section')
+    requestAnimationFrame(() => {
+      const list = section?.querySelectorAll<HTMLElement>('tbody tr [data-field="text"]')
+      const target = list?.[Math.min(i, list.length - 1)] ?? section?.querySelector<HTMLElement>('[data-add]')
+      target?.focus()
+    })
+  }
+  const removeRow = useUndoableRemove(rows, (next) => editor?.onAchievements(next), '실적', focusText)
   const showProject = props.withProject
   if (rows.length === 0 && !editor) return <p className={styles.none}>없음</p>
   const set = (i: number, patch: Partial<LogAchievement>) =>
@@ -287,13 +376,8 @@ function Achievements(props: { type: LogType; rows: LogAchievement[]; withProjec
     })
   }
   const remove = (i: number) => {
-    editor!.onAchievements(rows.filter((_, j) => j !== i))
-    requestAnimationFrame(() => {
-      const list = tableRef.current?.querySelectorAll<HTMLElement>('tbody tr [data-field="text"]')
-      const target =
-        list?.[Math.min(i, list.length - 1)] ?? tableRef.current?.closest('section')?.querySelector('[data-add]')
-      ;(target as HTMLElement | null | undefined)?.focus()
-    })
+    removeRow(i)
+    focusText(i)
   }
   const add = () => {
     editor!.onAchievements([
@@ -329,9 +413,17 @@ function Achievements(props: { type: LogType; rows: LogAchievement[]; withProjec
                 <th scope="col" className={styles.no}>
                   No
                 </th>
-                {showProject && <th scope="col">프로젝트</th>}
-                <th scope="col">{type === 'DAILY' ? '업무 내용' : '업무'}</th>
-                <th scope="col">결과</th>
+                {showProject && (
+                  <th scope="col" className={styles.colProject}>
+                    프로젝트
+                  </th>
+                )}
+                <th scope="col" className={styles.colText}>
+                  {type === 'DAILY' ? '업무 내용' : '업무'}
+                </th>
+                <th scope="col" className={styles.colResult}>
+                  결과
+                </th>
                 <th scope="col" className={styles.center}>
                   진행률
                 </th>
@@ -363,7 +455,11 @@ function Achievements(props: { type: LogType; rows: LogAchievement[]; withProjec
                         data-field="text"
                         aria-label={`${i + 1}번 업무 내용`}
                         value={a.text}
+                        // 결과만 쓴 줄은 저장되지 않는다. 칸 안에 무엇이 빠졌는지 보인다(UX-LOG-143)
+                        placeholder={isStranded(a) ? '업무 내용을 적어 주세요' : undefined}
+                        aria-invalid={isStranded(a) || undefined}
                         maxLength={500}
+                        readOnly={editor.readOnly}
                         onValue={(text) => set(i, { text })}
                       />
                     ) : (
@@ -376,6 +472,7 @@ function Achievements(props: { type: LogType; rows: LogAchievement[]; withProjec
                         aria-label={`${i + 1}번 결과`}
                         value={a.result ?? ''}
                         maxLength={200}
+                        readOnly={editor.readOnly}
                         onValue={(result) => set(i, { result: result || null })}
                       />
                     ) : (
@@ -393,6 +490,7 @@ function Achievements(props: { type: LogType; rows: LogAchievement[]; withProjec
                         <button
                           type="button"
                           className={styles.tool}
+                          disabled={editor.readOnly}
                           data-move="-1"
                           aria-label={`${i + 1}번 위로`}
                           onClick={() => move(i, -1)}
@@ -404,6 +502,7 @@ function Achievements(props: { type: LogType; rows: LogAchievement[]; withProjec
                         <button
                           type="button"
                           className={styles.tool}
+                          disabled={editor.readOnly}
                           data-move="1"
                           aria-label={`${i + 1}번 아래로`}
                           onClick={() => move(i, 1)}
@@ -414,6 +513,7 @@ function Achievements(props: { type: LogType; rows: LogAchievement[]; withProjec
                       <button
                         type="button"
                         className={styles.tool}
+                        disabled={editor.readOnly}
                         aria-label={`${i + 1}번 줄 삭제`}
                         onClick={() => remove(i)}
                       >
@@ -429,7 +529,7 @@ function Achievements(props: { type: LogType; rows: LogAchievement[]; withProjec
       )}
       {/* 계약 최대 200줄(WorkLogPatch) */}
       {editor && rows.length < 200 && (
-        <button type="button" className={styles.addRow} data-add onClick={add}>
+        <button ref={addRef} type="button" className={styles.addRow} disabled={editor.readOnly} data-add onClick={add}>
           ＋ 실적 줄 추가
         </button>
       )}
@@ -454,6 +554,12 @@ function Plans({ plans, editor, timeZone }: { plans: LogPlan[]; editor?: PaperEd
       const target = list?.[Math.min(index, (list?.length ?? 1) - 1)] ?? listRef.current?.querySelector('[data-add]')
       ;(target as HTMLElement | null | undefined)?.focus()
     })
+  const removePlan = useUndoableRemove(
+    plans,
+    (next) => editor?.onPlans(next),
+    '계획',
+    (i) => focusAfter('[data-plan]', i),
+  )
   const addCandidate = (c: PlanCandidate, i: number) => {
     editor!.onPlans([...plans, { id: newId(), taskId: c.taskId, text: c.title, dueDate: c.dueDate, scheduledAt: null }])
     focusAfter('[data-chip]', i)
@@ -495,6 +601,7 @@ function Plans({ plans, editor, timeZone }: { plans: LogPlan[]; editor?: PaperEd
                       aria-label={`계획 ${i + 1}`}
                       value={p.text}
                       maxLength={200}
+                      readOnly={editor.readOnly}
                       onValue={(text) => editor.onPlans(plans.map((x, j) => (j === i ? { ...x, text } : x)))}
                     />
                   ) : (
@@ -507,9 +614,10 @@ function Plans({ plans, editor, timeZone }: { plans: LogPlan[]; editor?: PaperEd
                     <button
                       type="button"
                       className={styles.tool}
+                      disabled={editor.readOnly}
                       aria-label={`계획 ${i + 1} 삭제`}
                       onClick={() => {
-                        editor.onPlans(plans.filter((_, j) => j !== i))
+                        removePlan(i)
                         focusAfter('[data-plan]', i)
                       }}
                     >
@@ -529,7 +637,13 @@ function Plans({ plans, editor, timeZone }: { plans: LogPlan[]; editor?: PaperEd
             <ul className={styles.chips} aria-label="계획 후보">
               {chips.map((c, i) => (
                 <li key={c.taskId}>
-                  <button type="button" className={styles.chip} data-chip onClick={() => addCandidate(c, i)}>
+                  <button
+                    type="button"
+                    className={styles.chip}
+                    disabled={editor.readOnly}
+                    data-chip
+                    onClick={() => addCandidate(c, i)}
+                  >
                     <span aria-hidden="true">＋</span> {c.title}
                     <span className={styles.chipReason}>{REASON[c.reason](c)}</span>
                   </button>
@@ -538,7 +652,7 @@ function Plans({ plans, editor, timeZone }: { plans: LogPlan[]; editor?: PaperEd
             </ul>
           )}
           {plans.length < 50 && (
-            <button type="button" className={styles.addRow} data-add onClick={addEmpty}>
+            <button type="button" className={styles.addRow} disabled={editor.readOnly} data-add onClick={addEmpty}>
               ＋ 계획 직접 쓰기
             </button>
           )}

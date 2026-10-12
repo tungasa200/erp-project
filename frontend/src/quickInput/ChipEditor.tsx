@@ -1,7 +1,7 @@
 // SCR-COM-02 칩 수정 드롭다운 (P1-09-12). 칩을 누르면 그 값만 고친다.
 // 입력창 글자가 원본이라 고른 값은 그 칩의 낱말 자리에 글자로 바꿔 쓴다(onPick). 빈 글자는 그 낱말을 뺀다.
 // 포커스: 열면 지금 값(없으면 첫 항목)으로, Esc·Tab은 칩으로 돌아가고, 고르면 입력창으로 간다(QuickInput이 맡음).
-import { useId, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useId, useLayoutEffect, useRef, useState } from 'react'
 import { fitInClip, refitOnResize } from './fitInClip'
 import styles from './QuickInput.module.css'
 
@@ -23,10 +23,17 @@ interface Props {
   onPick: (replacement: string) => void
   /** Esc·Tab: 칩으로 포커스를 돌린다. outside: 바깥을 눌렀거나 포커스가 나가서 그대로 둔다 */
   onClose: (by: 'keyboard' | 'outside') => void
+  /** 메뉴를 칩 밖(입력칸 아래 자리)에 띄울 때 칩 버튼. 이것을 누른 것도 바깥으로 치지 않는다(COM-07) */
+  chip?: () => HTMLElement | undefined
 }
 
-export function ChipEditor({ edit, onPick, onClose }: Props) {
+export function ChipEditor({ edit, onPick, onClose, chip }: Props) {
   const ref = useRef<HTMLDivElement>(null)
+  // 칩(부모 li)이나 칩 버튼 안이면 바깥이 아니다
+  const inside = useCallback(
+    (node: Node) => Boolean(ref.current?.parentElement?.contains(node) || chip?.()?.contains(node)),
+    [chip],
+  )
 
   useLayoutEffect(() => {
     const el = ref.current
@@ -43,11 +50,11 @@ export function ChipEditor({ edit, onPick, onClose }: Props) {
   // 바깥을 누르면 닫는다. 칩(부모 li) 안을 누른 것은 칩 버튼이 열고 닫기를 맡는다
   useLayoutEffect(() => {
     const onPointerDown = (e: PointerEvent) => {
-      if (!ref.current?.parentElement?.contains(e.target as Node)) onClose('outside')
+      if (!inside(e.target as Node)) onClose('outside')
     }
     document.addEventListener('pointerdown', onPointerDown)
     return () => document.removeEventListener('pointerdown', onPointerDown)
-  }, [onClose])
+  }, [onClose, inside])
 
   const common = {
     ref,
@@ -55,7 +62,7 @@ export function ChipEditor({ edit, onPick, onClose }: Props) {
     'aria-label': edit.title,
     onBlur: (e: React.FocusEvent) => {
       // 마우스로 다른 곳을 눌러 포커스가 나가면 닫는다(칩 버튼으로 간 것은 칩 버튼이 처리)
-      if (e.relatedTarget && !ref.current?.parentElement?.contains(e.relatedTarget as Node)) onClose('outside')
+      if (e.relatedTarget && !inside(e.relatedTarget as Node)) onClose('outside')
     },
   }
 

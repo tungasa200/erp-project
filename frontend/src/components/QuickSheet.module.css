@@ -3,7 +3,7 @@
   position: fixed;
   inset: 0;
   z-index: 40;
-  background: rgba(26, 28, 43, 0.45);
+  background: var(--color-scrim);
 }
 
 .sheet {
@@ -13,12 +13,14 @@
   bottom: 0;
   max-height: calc(100dvh - 24px);
   overflow-y: auto;
+  /* 끝까지 밀어도 뒤 화면이 따라 스크롤되지 않게(UX-COM-16) */
+  overscroll-behavior: contain;
   box-sizing: border-box;
   padding: 0 18px calc(28px + env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  border-radius: 28px 28px 0 0;
+  gap: var(--space-3);
+  border-radius: var(--radius-card) var(--radius-card) 0 0;
   background: var(--color-surface);
   color: var(--color-text);
 }
@@ -42,12 +44,12 @@
   width: 40px;
   height: 5px;
   border-radius: 3px;
-  background: #b9bdcc;
+  background: var(--color-grip);
 }
 
 .title {
   margin: 0;
-  font-size: 19px;
+  font-size: var(--text-xl);
   font-weight: 800;
 }
 
@@ -60,12 +62,12 @@
 
 /* 16px 아래면 iOS가 입력칸에 포커스할 때 화면을 확대한다 */
 .input input[data-quick-input] {
-  font-size: 16px;
+  font-size: var(--text-lg);
 }
 
 .hint {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--text-sm);
   line-height: 1.6;
   color: var(--color-text-muted);
 }
@@ -73,15 +75,15 @@
 .pending {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 14px;
-  border-radius: 18px;
-  background: #fff7e3;
-  border: 2px solid #e0a100;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius-card);
+  background: var(--status-pending-card-bg);
+  border: 2px solid var(--status-pending-tag-bg);
 }
 
 .pending:has(.done:disabled) {
-  background: #f7f8fc;
+  background: var(--color-surface-sunken);
   border-color: var(--color-border);
 }
 
@@ -92,14 +94,14 @@
 
 .pendingMeta {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--text-xs);
   font-weight: 800;
   color: var(--color-warning-text);
 }
 
 .pendingTitle {
   margin: 2px 0 0;
-  font-size: 15px;
+  font-size: var(--text-md);
   font-weight: 800;
   overflow-wrap: anywhere;
 }
@@ -111,8 +113,8 @@
   border: 0;
   background: transparent;
   font: inherit;
-  font-size: 13px;
-  font-weight: 700;
+  font-size: var(--text-sm);
+  font-weight: 600;
   color: var(--color-warning-text);
   text-decoration: underline;
   cursor: pointer;
@@ -121,14 +123,14 @@
 .done {
   flex: none;
   height: var(--size-touch);
-  padding: 0 16px;
+  padding: 0 var(--space-4);
   border: 0;
-  border-radius: 22px;
+  border-radius: var(--radius-pill);
   background: var(--color-text);
   color: var(--color-on-accent);
   font: inherit;
-  font-size: 14px;
-  font-weight: 800;
+  font-size: var(--text-md);
+  font-weight: 600;
   cursor: pointer;
 }
 
@@ -141,16 +143,16 @@
 .timer {
   height: 52px;
   border: 0;
-  border-radius: 26px;
+  border-radius: var(--radius-pill);
   background: var(--color-text);
   color: var(--color-on-accent);
   font: inherit;
-  font-size: 15px;
+  font-size: var(--text-md);
   font-weight: 800;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: var(--space-2);
   cursor: pointer;
 }
 
@@ -158,7 +160,23 @@
   width: 8px;
   height: 8px;
   border-radius: 4px;
-  background: #ff6b5e;
+  background: var(--color-live-dot);
+}
+
+/* 진입은 opacity + 이동 180ms ease-out. 움직임 줄이기면 이동 없이 opacity만(X-12 4·7번) */
+.sheet {
+  animation: fade 180ms ease-out;
+}
+
+/* 끌다 놓았을 때 제자리로 돌아가는 동안만(X-12 5번) */
+.settling {
+  transition: transform 200ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+@keyframes fade {
+  from {
+    opacity: 0.6;
+  }
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -170,6 +188,12 @@
       transform: translateY(24px);
       opacity: 0.6;
     }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settling {
+    transition: none;
   }
 }
 

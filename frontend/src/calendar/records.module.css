@@ -2,10 +2,10 @@
 .tag {
   display: inline-flex;
   align-items: center;
-  padding: 2px 8px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 800;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-pill);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-strong);
   white-space: nowrap;
 }
 
@@ -29,15 +29,15 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px 10px;
-  padding: 8px 12px;
-  border-radius: 14px;
+  gap: var(--space-1) var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-input);
   background: var(--color-ground);
-  font-size: 13px;
+  font-size: var(--text-sm);
 }
 
 .statusLabel {
-  font-weight: 800;
+  font-weight: var(--weight-strong);
 }
 
 .statusTime {
@@ -56,6 +56,12 @@
   min-width: 0;
 }
 
+/* 기록 패널을 접으면 요약 줄을 그리드 위에 두고 그리드가 폭을 다 쓴다 */
+.dayLayout:has(> .dayRecordsStrip) {
+  flex-direction: column;
+  align-items: stretch;
+}
+
 .dayGrid {
   flex: 1;
   min-width: 0;
@@ -65,36 +71,89 @@
   flex: none;
   width: 280px;
   box-sizing: border-box;
-  padding: 12px 16px 16px;
+  padding: var(--space-3) var(--space-4) var(--space-4);
   border-inline-start: 1px solid var(--color-border);
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--space-2);
 }
 
 .dayRecordsHead {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .dayRecordsTitle {
+  flex: 1;
   margin: 0;
-  font-size: 14px;
-  font-weight: 800;
+  font-size: var(--text-md);
+  font-weight: var(--weight-strong);
+}
+
+/* 접힌 기록 패널: 그리드 위 한 줄 요약 + 펼치기(X-07 D) */
+.dayRecordsStrip {
+  order: -1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-1) var(--space-1) var(--space-4);
+  margin-bottom: var(--space-2);
+  border-radius: var(--radius-input);
+  background: var(--color-surface);
+}
+
+.dayRecordsStrip .dayRecordsTitle {
+  flex: none;
+}
+
+.dayRecordsSummary {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.panelToggle {
+  flex: none;
+  width: var(--size-touch);
+  height: var(--size-touch);
+  border: 0;
+  border-radius: var(--radius-input);
+  background: transparent;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: var(--text-xl);
+  cursor: pointer;
+}
+
+.panelToggle:active,
+.addButton:active:not(:disabled),
+.recordItem:active {
+  background: var(--color-surface-muted);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .panelToggle:hover {
+    background: var(--color-ground);
+    color: var(--color-text);
+  }
 }
 
 .addButton {
   min-height: var(--size-touch);
-  padding: 0 12px;
+  padding: 0 var(--space-3);
   border: 0;
-  border-radius: 12px;
+  border-radius: var(--radius-input);
   background: var(--color-ground);
   color: var(--color-text);
   font: inherit;
-  font-size: 13px;
-  font-weight: 800;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-title);
   cursor: pointer;
 }
 
@@ -109,16 +168,16 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--space-1);
 }
 
 .recordItem {
   width: 100%;
   min-height: var(--size-touch);
   box-sizing: border-box;
-  padding: 8px 10px;
+  padding: var(--space-2) var(--space-2);
   border: 1px solid var(--color-border);
-  border-radius: 12px;
+  border-radius: var(--radius-input);
   background: var(--color-surface);
   color: var(--color-text);
   font: inherit;
@@ -126,26 +185,28 @@
   cursor: pointer;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--space-1);
 }
 
-.recordItem:hover {
-  background: var(--color-ground);
+@media (hover: hover) and (pointer: fine) {
+  .recordItem:hover {
+    background: var(--color-ground);
+  }
 }
 
 .recordMeta {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px 8px;
-  font-size: 12px;
+  gap: var(--space-1) var(--space-2);
+  font-size: var(--text-xs);
   color: var(--color-text-muted);
   font-variant-numeric: tabular-nums;
 }
 
 .recordContent {
-  font-size: 13.5px;
-  font-weight: 700;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-title);
   overflow-wrap: anywhere;
   /* 한 일은 500자까지라 목록에서는 세 줄로 줄인다(전체는 기록 창에서) */
   display: -webkit-box;
@@ -160,7 +221,7 @@
 }
 
 .recordResult {
-  font-size: 12.5px;
+  font-size: var(--text-xs);
   color: var(--color-text-body);
   overflow-wrap: anywhere;
   display: -webkit-box;
@@ -169,9 +230,34 @@
   overflow: hidden;
 }
 
+/* 머리 아래 [하루 마감]: 글자 링크 모양. 보이는 높이 24px, 누르는 높이는 ::after로 44px(UX-CAL-143).
+   위는 머리 제목(누르는 것 아님) 쪽, 아래는 기록 목록과 겹치지 않게 아래 여백 2px(간격 8 + 2 = 위아래 10) */
+.dayCloseLink {
+  position: relative;
+  align-self: flex-start;
+  min-height: 24px;
+  margin-block-end: 2px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-accent-ink);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-title);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.dayCloseLink::after {
+  content: '';
+  position: absolute;
+  inset: -10px 0;
+}
+
 .dayRecordsNote {
   margin: 0;
-  font-size: 12.5px;
+  font-size: var(--text-xs);
   color: var(--color-text-muted);
 }
 

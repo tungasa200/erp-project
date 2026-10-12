@@ -2,14 +2,14 @@
 
 .lead {
   margin: -6px 0 0;
-  font-size: 14px;
+  font-size: var(--text-md);
   color: var(--color-text-muted);
 }
 
 .form {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: var(--space-3);
 }
 
 .group {
@@ -19,32 +19,32 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .legend {
   padding: 0;
-  margin-bottom: 8px;
-  font-size: 13px;
-  font-weight: 700;
+  margin-bottom: var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: 600;
   color: var(--color-text-body);
 }
 
 .formats {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .option {
   display: grid;
   grid-template-columns: auto 1fr;
-  column-gap: 10px;
+  column-gap: var(--space-2);
   align-items: center;
   min-height: var(--size-touch);
-  padding: 10px 12px;
+  padding: var(--space-2) var(--space-3);
   box-sizing: border-box;
-  border-radius: 14px;
+  border-radius: var(--radius-input);
   border: 2px solid transparent;
   background: var(--color-ground);
   cursor: pointer;
@@ -74,45 +74,45 @@
 }
 
 .optionName {
-  font-size: 15px;
-  font-weight: 700;
+  font-size: var(--text-md);
+  font-weight: 600;
   color: var(--color-text);
 }
 
 .optionHint {
   grid-column: 2;
-  font-size: 12.5px;
+  font-size: var(--text-xs);
   color: var(--color-text-muted);
 }
 
 .range {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .warning {
   margin: 0;
-  padding: 10px 14px;
-  border-radius: 12px;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-input);
   background: var(--color-warning-soft);
   color: var(--color-warning-text);
-  font-size: 14px;
-  font-weight: 700;
+  font-size: var(--text-md);
+  font-weight: 600;
 }
 
 .fileName {
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  font-size: 13px;
-  font-weight: 700;
+  gap: var(--space-1);
+  font-size: var(--text-sm);
+  font-weight: 600;
   color: var(--color-text-body);
 }
 
 .fileName output {
-  font-size: 14px;
+  font-size: var(--text-md);
   font-weight: 600;
   color: var(--color-text);
   overflow-wrap: anywhere;
@@ -120,15 +120,15 @@
 
 .error {
   margin: 0;
-  font-size: 13.5px;
-  font-weight: 700;
+  font-size: var(--text-sm);
+  font-weight: 600;
   color: var(--color-danger-text);
 }
 
 .progress {
   flex: 1;
   margin: 0;
-  font-size: 13.5px;
+  font-size: var(--text-sm);
   color: var(--color-text-muted);
 }
 

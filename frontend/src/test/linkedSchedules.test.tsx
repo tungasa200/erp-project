@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Occurrence } from '../calendar/api'
@@ -86,7 +86,7 @@ describe('SCR-TASK-02 ⑤ 연결 일정 목록 (P1-05-06)', () => {
     expect(fetchMock.mock.calls.some((c) => String(c[0]).startsWith('/api/worklog/schedules'))).toBe(false)
 
     await userEvent.click(screen.getByRole('button', { name: '캘린더에 배치' }))
-    expect(router.state.location.pathname).toBe('/calendar/day/2026-10-07')
+    await waitFor(() => expect(router.state.location.pathname).toBe('/calendar/day/2026-10-07'))
     const dialog = await screen.findByRole('dialog', { name: '새 일정' })
     expect(within(dialog).getByLabelText('제목')).toHaveValue('팀 회고 정리')
   })

@@ -24,7 +24,7 @@ export function TimeZoneCombobox({ value, onChange, labelledBy, describedBy }: P
   const [listStyle, setListStyle] = useState<CSSProperties>({})
 
   // 목록 폭: 입력창 이상, 최소 360px, 최대 min(480px, 화면 폭 - 32px). 입력창 왼쪽 끝에 맞추되
-  // 화면 오른쪽 밖으로 나가면 오른쪽(화면 끝 16px)에 맞춘다. 모바일은 화면 폭 - 32px (erp-design).
+  // 화면 오른쪽 밖으로 나가면 오른쪽(화면 끝 16px)에 맞춘다. 모바일은 화면 폭 - 32px (WY-design).
   const openList = () => {
     const rect = inputRef.current?.getBoundingClientRect()
     if (rect && window.innerWidth > 0) {

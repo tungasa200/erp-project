@@ -13,9 +13,18 @@ import {
 } from 'react'
 import { occurrenceKey, type Occurrence } from './api'
 import { colorVars, type BlockColor } from './colors'
-import { focusGroup, occurrenceFocusId } from './focus'
+import { cycleTab, focusGroup, markFocus, occurrenceFocusId, restoreFocus } from './focus'
 import { holidayName } from './holidays'
-import { allDayBars, drawnRange, timedSegments, type TimedSegment } from './layout'
+import {
+  allDayBars,
+  MORE_PX,
+  capColumns,
+  drawnRange,
+  timedSegments,
+  type CappedSegment,
+  type MoreGroup,
+  type TimedSegment,
+} from './layout'
 import { useTouchHold } from './touchHold'
 import type { TimeChange } from './useScheduleActions'
 import {
@@ -23,8 +32,10 @@ import {
   SLOT_MINUTES,
   WEEKDAY_LABELS,
   addDays,
+  dateName,
   formatMinutes,
   fromZoned,
+  minutesRange,
   toZoned,
   weekdayIndex,
 } from './time'
@@ -34,7 +45,13 @@ import actualStyles from './dayActual.module.css'
 const HOUR_HEIGHT = 48
 export const PX_PER_MINUTE = HOUR_HEIGHT / 60
 const DEFAULT_SCROLL_HOUR = 8
+/** 처음 보이는 시각 라벨(08:00)이 위 경계에 잘리지 않게 남기는 여백(UX-CAL-73) */
+const LABEL_ROOM = 12
 const DRAG_THRESHOLD = 4
+/** 끄는 손가락·커서가 스크롤 영역 위아래 이 거리 안에 들면 그쪽으로 저절로 스크롤한다(UX-CAL-94) */
+const EDGE_ZONE = 40
+/** 가장자리 끝에서의 한 프레임 스크롤 양. 가장자리에 가까울수록 빨라진다 */
+const EDGE_MAX_SPEED = 12
 export const TASK_DRAG_TYPE = 'application/x-worklog-task'
 
 export interface TimeRange {
@@ -63,6 +80,8 @@ interface Props {
   overview?: boolean
   /** false면(오프라인, P1-X-04) 끌기·길이 조절·빈 칸 만들기·업무 끌어 놓기를 끈다. 보기는 그대로 */
   editable?: boolean
+  /** 늘어날 때마다 오늘이 보이는 기간이면 현재 시각선이 화면 안에 들게 스크롤한다([오늘]·T, UX-CAL-74) */
+  nowSignal?: number
   /** 일 보기 실제 열(SCR-CAL-02 ④, 시간 기록 옵션 켜짐). 있으면 날짜 칸을 왼쪽 반(계획)으로 줄이고 오른쪽 반에 그린다 */
   actual?: { head: ReactNode; column: ReactNode }
 }
@@ -87,12 +106,20 @@ const floorSlot = (m: number) =>
   Math.max(0, Math.min(MINUTES_PER_DAY - SLOT_MINUTES, Math.floor(m / SLOT_MINUTES) * SLOT_MINUTES))
 const roundSlot = (m: number) => Math.round(m / SLOT_MINUTES) * SLOT_MINUTES
 
-function blockStyle(color: BlockColor | null, top: number, height: number, column = 0, columns = 1): CSSProperties {
+/** reserve: 오른쪽에 떼어 둔 "+n" 자리(px). 블록은 그 왼쪽 폭을 열 수로 나눈다(UX-CAL-171) */
+function blockStyle(
+  color: BlockColor | null,
+  top: number,
+  height: number,
+  column = 0,
+  columns = 1,
+  reserve = 0,
+): CSSProperties {
   return {
     top,
     height,
-    left: `calc(${(column / columns) * 100}% + 2px)`,
-    width: `calc(${100 / columns}% - 4px)`,
+    left: `calc((100% - ${reserve}px) * ${column / columns} + 2px)`,
+    width: `calc((100% - ${reserve}px) / ${columns} - 4px)`,
     ...colorVars(color),
   }
 }
@@ -100,7 +127,7 @@ function blockStyle(color: BlockColor | null, top: number, height: number, colum
 function timeLabel(o: Occurrence, timeZone: string) {
   const s = toZoned(o.startAt!, timeZone)
   const e = toZoned(o.endAt!, timeZone)
-  return `${formatMinutes(s.minutes)}–${formatMinutes(e.minutes)}`
+  return minutesRange(s.minutes, e.minutes)
 }
 
 export function TimeGrid(props: Props) {
@@ -117,13 +144,42 @@ export function TimeGrid(props: Props) {
   const allDayHold = useTouchHold(allDayRef)
 
   const segments = useMemo(() => timedSegments(occurrences, days, timeZone), [occurrences, days, timeZone])
+  // 겹침 상한: 열 폭이 MIN_BLOCK_PX보다 좁아지면 앞 열만 그리고 오른쪽 "+n"으로(CAL-70, UX-CAL-171·172). 폭을 모르면(jsdom) 상한 없음
+  const [dayWidth, setDayWidth] = useState(0)
+  useLayoutEffect(() => {
+    const el = columnsRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(() => setDayWidth(el.clientWidth / days.length))
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [days.length])
+  const capped = useMemo(
+    () => new Map([...segments].map(([date, list]) => [date, capColumns(list, dayWidth)])),
+    [segments, dayWidth],
+  )
+  const [morePopover, setMorePopover] = useState<{ group: MoreGroup; opener: HTMLElement } | null>(null)
   const bars = useMemo(() => allDayBars(occurrences, days), [occurrences, days])
   const allDayRows = Math.max(1, ...bars.map((b) => b.row + 1))
   const nowZoned = toZoned(now, timeZone)
 
+  // 처음에는 08시부터 보인다. 오늘이 든 기간인데 지금이 그 밖(이른 아침·늦은 밤)이면 지금 한 시간 전부터(UX-CAL-74)
+  // 효과는 처음과 [오늘]에만 돌므로 그 순간의 값을 ref로 읽는다
+  const nowView = useRef({ showsToday: false, nowTop: 0 })
+  nowView.current = { showsToday: days.includes(today), nowTop: nowZoned.minutes * PX_PER_MINUTE }
+  const firstScroll = useRef(true)
   useLayoutEffect(() => {
-    if (scrollRef.current) scrollRef.current.scrollTop = DEFAULT_SCROLL_HOUR * HOUR_HEIGHT
-  }, [])
+    const el = scrollRef.current
+    if (!el) return
+    const first = firstScroll.current
+    firstScroll.current = false
+    const top = first ? DEFAULT_SCROLL_HOUR * HOUR_HEIGHT - LABEL_ROOM : el.scrollTop
+    // 높이를 모를 때(그리기 전)는 기본 범위 08~19시로 본다
+    const height = el.clientHeight || 11 * HOUR_HEIGHT
+    const { showsToday, nowTop } = nowView.current
+    const nowHidden = nowTop < top || nowTop > top + height - HOUR_HEIGHT / 2
+    el.scrollTop = showsToday && nowHidden ? Math.max(0, nowTop - HOUR_HEIGHT) : top
+    // 기간을 넘기거나 시각이 흘러도 스크롤은 그대로 둔다. 처음과 [오늘]을 누를 때만
+  }, [props.nowSignal])
 
   // 드래그 중 Esc는 취소
   useEffect(() => {
@@ -147,10 +203,15 @@ export function TimeGrid(props: Props) {
 
   /** 블록이 그려진 범위 안이지만 블록 밖인 곳(블록 사이 틈). 누름을 빈 칸으로 받으면 24px 간격 예외가 깨진다(D-76) */
   const inBlockGap = (dayIndex: number, minutes: number, xInDay: number) =>
-    segments.get(days[dayIndex])!.some((s) => {
+    capped.get(days[dayIndex])!.visible.some((s) => {
       const [start, end] = drawnRange(s.start, s.end)
+      // "+n" 자리를 뗀 블록은 칸 폭에서 그만큼 뺀 비율로 잰다
+      const span = s.reserve && dayWidth ? 1 - s.reserve / dayWidth : 1
       return (
-        minutes >= start && minutes <= end && xInDay >= s.column / s.columns && xInDay <= (s.column + 1) / s.columns
+        minutes >= start &&
+        minutes <= end &&
+        xInDay >= (s.column / s.columns) * span &&
+        xInDay <= ((s.column + 1) / s.columns) * span
       )
     })
 
@@ -162,6 +223,8 @@ export function TimeGrid(props: Props) {
   const onPointerDown = (e: PointerEvent<HTMLDivElement>) => {
     if (e.button !== 0) return
     const target = e.target as HTMLElement
+    // "+n"은 누르면 팝오버를 연다(빈 칸 만들기로 받지 않는다)
+    if (target.closest('[data-more]')) return
     const blockEl = target.closest<HTMLElement>('[data-segment]')
     const { dayIndex, minutes, xInDay } = locate(e.clientX, e.clientY)
     if (blockEl) {
@@ -228,6 +291,14 @@ export function TimeGrid(props: Props) {
   const onPointerMove = (e: PointerEvent<HTMLDivElement>) => {
     if (gridHold.move(e)) return
     if (!drag || drag.kind === 'moveAllDay') return
+    pointer.current = { x: e.clientX, y: e.clientY }
+    updateDrag(e.clientX, e.clientY)
+  }
+
+  /** 끄는 중인 자리를 화면 좌표로 다시 계산한다(손가락이 움직일 때와 저절로 스크롤된 뒤) */
+  function updateDrag(clientX: number, clientY: number) {
+    if (!drag || drag.kind === 'moveAllDay') return
+    const e = { clientX, clientY }
     const { dayIndex, minutes } = locate(e.clientX, e.clientY)
     if (drag.kind === 'create') {
       const moved = drag.moved || Math.abs(e.clientY - drag.y) > DRAG_THRESHOLD
@@ -245,6 +316,40 @@ export function TimeGrid(props: Props) {
       setDrag({ ...drag, end: Math.max(min, Math.min(MINUTES_PER_DAY, roundSlot(minutes))) })
     }
   }
+
+  // 가장자리 자동 스크롤: 손가락으로 길게 눌러 끌면 스크롤이 막히므로, 보이는 시간 밖으로 옮기려면 그리드가 따라 움직여야 한다
+  const pointer = useRef<{ x: number; y: number } | null>(null)
+  const updateRef = useRef(updateDrag)
+  useLayoutEffect(() => {
+    updateRef.current = updateDrag
+  })
+  const gridDragging = !!drag && drag.kind !== 'moveAllDay'
+  useEffect(() => {
+    if (!gridDragging) {
+      pointer.current = null
+      return
+    }
+    let frame = 0
+    const tick = () => {
+      const el = scrollRef.current
+      const p = pointer.current
+      if (el && p) {
+        // 가장자리는 창에 보이는 부분으로 자른다: 배너 등으로 그리드 끝이 창 밖이면 창 끝이 가장자리다(CAL-94)
+        const rect = el.getBoundingClientRect()
+        const top = Math.max(rect.top, 0)
+        const bottom = Math.min(rect.bottom, window.innerHeight)
+        const into =
+          p.y < top + EDGE_ZONE ? p.y - (top + EDGE_ZONE) : p.y > bottom - EDGE_ZONE ? p.y - (bottom - EDGE_ZONE) : 0
+        const speed = Math.max(-1, Math.min(1, into / EDGE_ZONE)) * EDGE_MAX_SPEED
+        const before = el.scrollTop
+        if (speed) el.scrollTop = before + speed
+        if (el.scrollTop !== before) updateRef.current(p.x, p.y)
+      }
+      frame = requestAnimationFrame(tick)
+    }
+    frame = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(frame)
+  }, [gridDragging])
 
   const onPointerUp = (e: PointerEvent<HTMLDivElement>) => {
     if (gridHold.end(e)) return
@@ -393,7 +498,7 @@ export function TimeGrid(props: Props) {
                 data-today={date === today || undefined}
                 data-holiday={!!holiday || undefined}
                 data-weekend={wd === 0 || wd === 6 || undefined}
-                aria-label={`${date}${holiday ? ` ${holiday}` : ''} 일 보기`}
+                aria-label={`${dateName(date)}${holiday ? ` ${holiday}` : ''} 일 보기`}
                 onClick={() => props.onOpenDay?.(date)}
                 disabled={!props.onOpenDay}
               >
@@ -514,14 +619,22 @@ export function TimeGrid(props: Props) {
                   data-rest={wd === 0 || wd === 6 || !!holidayName(date) || undefined}
                   {...(overview && {
                     type: 'button' as const,
-                    'aria-label': `${Number(date.slice(5, 7))}월 ${Number(date.slice(8))}일 ${WEEKDAY_LABELS[wd]}요일, 일정 ${count}개`,
+                    'aria-label': `${dateName(date)}, 일정 ${count}개`,
                     onClick: () => props.onOpenDay?.(date),
                   })}
                 >
                   {Array.from({ length: 24 }, (_, h) => (
                     <div key={h} className={styles.hourLine} style={{ top: h * HOUR_HEIGHT }} />
                   ))}
-                  {segments.get(date)!.map((segment) => (
+                  {capped.get(date)!.more.map((group) => (
+                    <MoreButton
+                      key={group.start}
+                      group={group}
+                      overview={overview}
+                      onOpen={(opener) => setMorePopover({ group, opener })}
+                    />
+                  ))}
+                  {capped.get(date)!.visible.map((segment) => (
                     <Block
                       key={occurrenceKey(segment.occurrence)}
                       segment={segment}
@@ -547,9 +660,7 @@ export function TimeGrid(props: Props) {
                       )}
                     >
                       <strong>(제목 없음)</strong>
-                      <span>
-                        {formatMinutes(preview.start)}–{formatMinutes(preview.end)}
-                      </span>
+                      <span>{minutesRange(preview.start, preview.end)}</span>
                     </div>
                   )}
                   {date === nowZoned.date && (
@@ -563,6 +674,125 @@ export function TimeGrid(props: Props) {
           </div>
           {actual?.column}
         </div>
+      </div>
+      {morePopover && (
+        <MorePopover
+          group={morePopover.group}
+          opener={morePopover.opener}
+          timeZone={timeZone}
+          onClose={() => setMorePopover(null)}
+          onOpen={(o) => {
+            setMorePopover(null)
+            props.onOpen(o)
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+/** "+n" 이름: "14시대 일정 3개 더" */
+function moreLabel(group: MoreGroup) {
+  return `${Math.floor(group.start / 60)}시대 일정 ${group.hidden.length}개 더`
+}
+
+/** 상한을 넘은 겹친 일정 묶음. Tab으로 닿는 버튼이고 높이는 28px, 누르는 영역은 ::after로 44px(목업 묶음0_B G1) */
+function MoreButton({
+  group,
+  overview,
+  onOpen,
+}: {
+  group: MoreGroup
+  overview: boolean
+  onOpen: (opener: HTMLElement) => void
+}) {
+  // 오른쪽 "+n" 자리(MORE_PX - 4). 보이는 블록이 없으면 칸 폭 전체(UX-CAL-172)
+  const style: CSSProperties = group.full
+    ? { top: group.start * PX_PER_MINUTE + 1, left: 2, right: 2 }
+    : { top: group.start * PX_PER_MINUTE + 1, right: 2, width: MORE_PX - 4 }
+  // 훑어보기(D-77): 하루 칸 버튼 안이라 보여 주기만 한다
+  if (overview)
+    return (
+      <div className={styles.moreBlock} style={style} aria-hidden="true">
+        +{group.hidden.length}
+      </div>
+    )
+  return (
+    <button
+      type="button"
+      data-more
+      className={styles.moreBlock}
+      style={style}
+      aria-haspopup="dialog"
+      aria-label={moreLabel(group)}
+      onClick={(e) => onOpen(e.currentTarget)}
+    >
+      +{group.hidden.length}
+    </button>
+  )
+}
+
+/** "+n" 팝오버(G2): 열면 첫 항목에 포커스, ↑↓로 옮기고 Enter로 상세, Esc·바깥 누르기로 닫고 "+n"으로 돌아간다 */
+function MorePopover({
+  group,
+  opener,
+  timeZone,
+  onClose,
+  onOpen,
+}: {
+  group: MoreGroup
+  opener: HTMLElement
+  timeZone: string
+  onClose: () => void
+  onOpen: (o: Occurrence) => void
+}) {
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    ref.current?.querySelector<HTMLElement>('button')?.focus()
+    return () => restoreFocus(markFocus(opener))
+  }, [opener])
+  const rect = opener.getBoundingClientRect()
+  return (
+    <div className={styles.popoverLayer} onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
+      <div
+        ref={ref}
+        role="dialog"
+        aria-label={moreLabel(group)}
+        className={styles.dayPopover}
+        style={{
+          left: Math.max(8, Math.min(rect.left, window.innerWidth - 256)),
+          top: Math.max(8, Math.min(rect.bottom + 4, window.innerHeight - 300)),
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') {
+            e.stopPropagation()
+            onClose()
+            return
+          }
+          cycleTab(e, ref.current)
+          if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
+          e.preventDefault()
+          const items = Array.from(ref.current!.querySelectorAll<HTMLElement>('button'))
+          const at = items.indexOf(document.activeElement as HTMLElement)
+          const next = (at + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length
+          items[next].focus()
+        }}
+      >
+        <h2 className={styles.cardTitle}>{moreLabel(group)}</h2>
+        {group.hidden.map((s) => (
+          <button
+            key={occurrenceKey(s.occurrence)}
+            type="button"
+            className={styles.morePopoverItem}
+            onClick={() => onOpen(s.occurrence)}
+          >
+            <strong>
+              {s.occurrence.recurring && <RepeatIcon />}
+              {s.occurrence.title}
+            </strong>
+            <span>{timeLabel(s.occurrence, timeZone)}</span>
+          </button>
+        ))}
       </div>
     </div>
   )
@@ -578,7 +808,7 @@ function Block({
   readOnly,
   onOpen,
 }: {
-  segment: TimedSegment
+  segment: CappedSegment
   color: BlockColor | null
   timeZone: string
   now: number
@@ -612,7 +842,7 @@ function Block({
         className={styles.block}
         data-overview
         data-now={active || undefined}
-        style={blockStyle(color, top, height, segment.column, segment.columns)}
+        style={blockStyle(color, top, height, segment.column, segment.columns, segment.reserve)}
         aria-hidden="true"
       >
         {content}
@@ -628,9 +858,10 @@ function Block({
       data-now={active || undefined}
       data-dragging={dragging || undefined}
       data-held={held || undefined}
-      style={blockStyle(color, top, height, segment.column, segment.columns)}
+      style={blockStyle(color, top, height, segment.column, segment.columns, segment.reserve)}
       onClick={(e) => (e.detail === 0 || readOnly) && onOpen(o)}
-      aria-label={`${o.title}, ${timeLabel(o, timeZone)}${o.recurring ? ', 반복' : ''}`}
+      // 낭독 접두는 테두리와 같다: 점선은 계획, 실선(지금 진행 중)은 진행 중(X-11, CAL-93, UX-CAL-144)
+      aria-label={`${active ? '진행 중' : '계획'} · ${o.title}, ${timeLabel(o, timeZone)}${o.recurring ? ', 반복' : ''}`}
     >
       {content}
       {height >= 34 && <span className={styles.blockTime}>{timeLabel(o, timeZone)}</span>}
@@ -664,9 +895,7 @@ function MoveGhost({
       aria-hidden="true"
     >
       <strong>{seg.occurrence.title}</strong>
-      <span>
-        {formatMinutes(start)}–{formatMinutes(end)}
-      </span>
+      <span>{minutesRange(start, end)}</span>
     </div>
   )
 }

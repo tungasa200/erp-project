@@ -1,7 +1,7 @@
 // 타이머 시작·업무 전환 창 (SCR-COM-06 ④ 업무 전환, TIME-03). 업무를 고르거나 할 일을 적어 시작한다.
 // 실행 중인 타이머가 있으면 서버가 먼저 정지한다(동시 1개). 명령 팔레트의 "타이머 시작"도 이 창을 연다.
 // preset을 주면 고르는 칸 없이 "전환할까요?" 확인만 한다(일정 상세·업무 목록에서 시작할 때 이미 실행 중이면, useTimerLauncher).
-import { useId, useState, type FormEvent } from 'react'
+import { useId, useRef, useState, type FormEvent } from 'react'
 import { ApiError } from '../api/problem'
 import { Modal } from '../calendar/Modal'
 import { TaskLinkField } from '../calendar/TaskLinkField'
@@ -29,6 +29,7 @@ export function TimerStartDialog({ runningName, preset, onClose }: Props) {
   const [taskId, setTaskId] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const contentRef = useRef<HTMLInputElement>(null)
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
@@ -79,12 +80,19 @@ export function TimerStartDialog({ runningName, preset, onClose }: Props) {
               onChange={(next) => {
                 setTaskId(next)
                 setError('')
+                // 고르면 고르는 칸이 '업무 링크 + 해제'로 바뀌어 포커스가 문서 맨 위로 빠진다. 다음 칸(할 일)으로 옮긴다(UX-COM-05)
+                if (next) requestAnimationFrame(() => contentRef.current?.focus())
               }}
               recurring={false}
             />
             <label className={calendar.field}>
-              할 일 {taskId && <span className={calendar.muted}>(비우면 업무 제목)</span>}
+              {/* 두 칸의 관계를 처음부터 알린다(UX-COM-05) */}
+              <span>
+                할 일{' '}
+                <span className={calendar.muted}>{taskId ? '(비우면 업무 제목)' : '(업무를 고르면 비워도 돼요)'}</span>
+              </span>
               <input
+                ref={contentRef}
                 className={calendar.input}
                 maxLength={500}
                 autoComplete="off"

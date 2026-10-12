@@ -39,7 +39,7 @@ describe('SCR-COM-01 ⑤ 모바일 하단 탭 (P1-X-01)', () => {
     const tabs = await screen.findByRole('navigation', { name: '하단 탭' })
     await userEvent.click(within(tabs).getByRole('button', { name: '더보기' }))
     await userEvent.click(within(tabs).getByRole('link', { name: '업무' }))
-    expect(router.state.location.pathname).toBe('/tasks')
+    await waitFor(() => expect(router.state.location.pathname).toBe('/tasks'))
     expect(within(tabs).queryByRole('list', { name: '더보기 메뉴' })).not.toBeInTheDocument()
     expect(within(tabs).getByRole('button', { name: '더보기' })).toHaveFocus()
   })
@@ -127,7 +127,7 @@ describe('P4 화면 경로 연결 (통계·보관함)', () => {
 
     await router.navigate('/tasks')
     await userEvent.click(await screen.findByRole('link', { name: '보관함' }))
-    expect(router.state.location.pathname).toBe('/tasks/archive')
+    await waitFor(() => expect(router.state.location.pathname).toBe('/tasks/archive'))
     expect(await screen.findByRole('heading', { level: 1, name: '보관함' })).toBeInTheDocument()
   })
 })
