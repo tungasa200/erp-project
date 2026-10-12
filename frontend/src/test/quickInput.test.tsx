@@ -252,10 +252,11 @@ describe('SCR-COM-02 빠른 입력창', () => {
     expect(input).toHaveValue('보고서')
   })
 
-  it('Esc로 입력을 비운다', async () => {
+  it('Esc는 포커스만 빼고 쓰던 글은 남긴다(UX-COM-01)', async () => {
     const { input } = await openHome()
     await userEvent.type(input, '회의{Escape}')
-    expect(input).toHaveValue('')
+    expect(input).toHaveValue('회의')
+    expect(input).not.toHaveFocus()
   })
 
   it('? 아이콘으로 문법 도움말을 열고 예시를 고르면 채운 뒤 닫는다', async () => {
@@ -424,6 +425,7 @@ describe('SCR-COM-04 되돌리기 토스트', () => {
     const { calls, button } = setup()
     fireEvent.click(button)
     const field = document.createElement('input')
+    field.value = '쓰던 글'
     document.body.append(field)
     fireEvent.keyDown(field, { code: 'KeyZ', key: 'z', ctrlKey: true })
     expect(calls).toEqual([])
@@ -431,6 +433,17 @@ describe('SCR-COM-04 되돌리기 토스트', () => {
     await act(async () => {})
     expect(calls).toEqual(['undo-1'])
     expect(screen.queryByText(/보관했어요/)).not.toBeInTheDocument()
+    field.remove()
+  })
+
+  it('빈 입력칸의 Ctrl+Z는 토스트 되돌리기로 넘긴다(UX-COM-02)', async () => {
+    const { calls, button } = setup()
+    fireEvent.click(button)
+    const field = document.createElement('input')
+    document.body.append(field)
+    fireEvent.keyDown(field, { code: 'KeyZ', key: 'z', ctrlKey: true })
+    await act(async () => {})
+    expect(calls).toEqual(['undo-1'])
     field.remove()
   })
 })

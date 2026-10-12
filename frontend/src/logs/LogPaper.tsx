@@ -13,6 +13,8 @@ export interface PaperEditor {
   onAchievements: (next: LogAchievement[]) => void
   onPlans: (next: LogPlan[]) => void
   onIssues: (next: string) => void
+  /** 오프라인: 칸은 읽기 전용, 줄 버튼은 끈다(배너 "다시 연결되면 입력할 수 있어요"와 같게, UX-LOG-40) */
+  readOnly?: boolean
 }
 
 interface Props {
@@ -101,6 +103,7 @@ export function LogPaper(props: Props) {
             aria-label="이슈 및 특이사항"
             value={c.issues ?? ''}
             maxLength={2000}
+            readOnly={editor.readOnly}
             onChange={(e) => editor.onIssues(e.target.value)}
           />
         ) : (
@@ -364,6 +367,7 @@ function Achievements(props: { type: LogType; rows: LogAchievement[]; withProjec
                         aria-label={`${i + 1}번 업무 내용`}
                         value={a.text}
                         maxLength={500}
+                        readOnly={editor.readOnly}
                         onValue={(text) => set(i, { text })}
                       />
                     ) : (
@@ -376,6 +380,7 @@ function Achievements(props: { type: LogType; rows: LogAchievement[]; withProjec
                         aria-label={`${i + 1}번 결과`}
                         value={a.result ?? ''}
                         maxLength={200}
+                        readOnly={editor.readOnly}
                         onValue={(result) => set(i, { result: result || null })}
                       />
                     ) : (
@@ -393,6 +398,7 @@ function Achievements(props: { type: LogType; rows: LogAchievement[]; withProjec
                         <button
                           type="button"
                           className={styles.tool}
+                          disabled={editor.readOnly}
                           data-move="-1"
                           aria-label={`${i + 1}번 위로`}
                           onClick={() => move(i, -1)}
@@ -404,6 +410,7 @@ function Achievements(props: { type: LogType; rows: LogAchievement[]; withProjec
                         <button
                           type="button"
                           className={styles.tool}
+                          disabled={editor.readOnly}
                           data-move="1"
                           aria-label={`${i + 1}번 아래로`}
                           onClick={() => move(i, 1)}
@@ -414,6 +421,7 @@ function Achievements(props: { type: LogType; rows: LogAchievement[]; withProjec
                       <button
                         type="button"
                         className={styles.tool}
+                        disabled={editor.readOnly}
                         aria-label={`${i + 1}번 줄 삭제`}
                         onClick={() => remove(i)}
                       >
@@ -429,7 +437,7 @@ function Achievements(props: { type: LogType; rows: LogAchievement[]; withProjec
       )}
       {/* 계약 최대 200줄(WorkLogPatch) */}
       {editor && rows.length < 200 && (
-        <button type="button" className={styles.addRow} data-add onClick={add}>
+        <button type="button" className={styles.addRow} disabled={editor.readOnly} data-add onClick={add}>
           ＋ 실적 줄 추가
         </button>
       )}
@@ -495,6 +503,7 @@ function Plans({ plans, editor, timeZone }: { plans: LogPlan[]; editor?: PaperEd
                       aria-label={`계획 ${i + 1}`}
                       value={p.text}
                       maxLength={200}
+                      readOnly={editor.readOnly}
                       onValue={(text) => editor.onPlans(plans.map((x, j) => (j === i ? { ...x, text } : x)))}
                     />
                   ) : (
@@ -507,6 +516,7 @@ function Plans({ plans, editor, timeZone }: { plans: LogPlan[]; editor?: PaperEd
                     <button
                       type="button"
                       className={styles.tool}
+                      disabled={editor.readOnly}
                       aria-label={`계획 ${i + 1} 삭제`}
                       onClick={() => {
                         editor.onPlans(plans.filter((_, j) => j !== i))
@@ -529,7 +539,13 @@ function Plans({ plans, editor, timeZone }: { plans: LogPlan[]; editor?: PaperEd
             <ul className={styles.chips} aria-label="계획 후보">
               {chips.map((c, i) => (
                 <li key={c.taskId}>
-                  <button type="button" className={styles.chip} data-chip onClick={() => addCandidate(c, i)}>
+                  <button
+                    type="button"
+                    className={styles.chip}
+                    disabled={editor.readOnly}
+                    data-chip
+                    onClick={() => addCandidate(c, i)}
+                  >
                     <span aria-hidden="true">＋</span> {c.title}
                     <span className={styles.chipReason}>{REASON[c.reason](c)}</span>
                   </button>
@@ -538,7 +554,7 @@ function Plans({ plans, editor, timeZone }: { plans: LogPlan[]; editor?: PaperEd
             </ul>
           )}
           {plans.length < 50 && (
-            <button type="button" className={styles.addRow} data-add onClick={addEmpty}>
+            <button type="button" className={styles.addRow} disabled={editor.readOnly} data-add onClick={addEmpty}>
               ＋ 계획 직접 쓰기
             </button>
           )}

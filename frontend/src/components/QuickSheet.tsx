@@ -83,7 +83,7 @@ export function QuickSheet({ text, onTextChange, onClose, onOpenPending, onStart
         aria-labelledby={titleId}
         className={styles.sheet}
         style={{ bottom: keyboard, transform: dragY ? `translateY(${dragY}px)` : undefined }}
-        // 입력칸의 Esc는 홈에서는 글을 지우지만, 시트에서는 글을 남기고 닫는다(칩 고치기·도움말의 Esc는 그대로)
+        // 입력칸의 Esc는 홈에서는 포커스만 빼고(글은 남김), 시트에서는 글을 남기고 시트를 닫는다(칩 고치기·도움말의 Esc는 그대로)
         onKeyDownCapture={(e) => {
           if (e.key === 'Escape' && (e.target as HTMLElement).matches('[data-quick-input]')) {
             e.stopPropagation()

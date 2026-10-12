@@ -1,5 +1,5 @@
 // 업무일지 화면 (SCR-LOG-01·02, P3-06·08): 자동/고정 알약, 첫 실적 수정 → 고정 알림, 다시 채우기·확정·해제 대화상자, 목록 미작성 → 초안
-import { screen, waitFor, within } from '@testing-library/react'
+import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { LogPeriod, WorkLog } from '../logs/api'
@@ -713,5 +713,94 @@ describe('일지 자동 저장 — 빈 줄', () => {
     await user.type(input, '거래처 미팅')
     await waitFor(() => expect(bodies).toHaveLength(1), { timeout: 3000 })
     expect(bodies[0]).toMatchObject({ achievements: [{ id: 'a-1' }, { text: '거래처 미팅' }] })
+  })
+})
+
+describe('일지 오프라인 (UX-LOG-40)', () => {
+  it('오프라인이면 칸은 읽기 전용·버튼은 꺼지고, 보내지 못한 수정은 표시했다가 다시 연결되면 보낸다', async () => {
+    const user = userEvent.setup()
+    const online = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true)
+    const bodies: { issues?: string }[] = []
+    let down = false
+    stubFetch({
+      'GET /api/users/me': me,
+      [LOG_URL]: () => json(200, workLog()),
+      'PATCH /api/worklog/logs/log-1': (init) => {
+        if (down) throw new TypeError('Failed to fetch')
+        const body = JSON.parse(String(init?.body))
+        bodies.push(body)
+        return json(200, workLog({ version: 1 }, { issues: body.issues }))
+      },
+    })
+    renderApp('/logs/daily/2026-10-07')
+
+    const issues = await screen.findByRole('textbox', { name: '이슈 및 특이사항' })
+    // 입력 직후(자동 저장 0.8초 전)에 연결이 끊긴다
+    down = true
+    await user.type(issues, '지하철에서 씀')
+    online.mockReturnValue(false)
+    window.dispatchEvent(new Event('offline'))
+
+    await waitFor(() => expect(screen.getByText('저장 안 된 변경 · 연결되면 저장해요')).toBeInTheDocument(), {
+      timeout: 3000,
+    })
+    expect(issues).toHaveAttribute('readonly')
+    expect(issues).toHaveValue('지하철에서 씀')
+    expect(screen.getByRole('textbox', { name: '1번 결과' })).toHaveAttribute('readonly')
+    expect(screen.getByRole('button', { name: '＋ 실적 줄 추가' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: '1번 줄 삭제' })).toBeDisabled()
+    await user.type(issues, '더')
+    expect(issues).toHaveValue('지하철에서 씀')
+
+    down = false
+    online.mockReturnValue(true)
+    window.dispatchEvent(new Event('online'))
+    await waitFor(() => expect(bodies).toHaveLength(1))
+    expect(bodies[0]).toMatchObject({ issues: '지하철에서 씀' })
+    expect(await screen.findByText('저장됨')).toBeInTheDocument()
+    expect(issues).not.toHaveAttribute('readonly')
+  })
+
+  it('보내지 못한 수정이 남은 채 다른 화면으로 가면 먼저 묻고, 꺼지는 줄 버튼의 포커스는 그 줄 칸으로 옮긴다', async () => {
+    const user = userEvent.setup()
+    const online = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true)
+    stubFetch({
+      'GET /api/users/me': me,
+      [LOG_URL]: () => json(200, workLog()),
+      'PATCH /api/worklog/logs/log-1': () => {
+        throw new TypeError('Failed to fetch')
+      },
+    })
+    renderApp('/logs/daily/2026-10-07')
+
+    const result = await screen.findByRole('textbox', { name: '1번 결과' })
+    await user.type(result, ' 추가')
+    const remove = screen.getByRole('button', { name: '1번 줄 삭제' })
+    remove.focus()
+    online.mockReturnValue(false)
+    act(() => {
+      window.dispatchEvent(new Event('offline'))
+    })
+    expect(remove).toBeDisabled()
+    expect(screen.getByRole('textbox', { name: '1번 업무 내용' })).toHaveFocus()
+
+    await user.click(
+      within(screen.getByRole('navigation', { name: '일지 이동' })).getByRole('link', { name: '업무일지' }),
+    )
+    const dialog = await screen.findByRole('alertdialog', { name: '저장 안 된 변경이 있어요' })
+    expect(dialog).toHaveTextContent('지금 나가면 이 수정은 사라져요')
+    await user.click(within(dialog).getByRole('button', { name: '취소' }))
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+    expect(result).toHaveValue('초안 완료 추가')
+
+    await user.click(
+      within(screen.getByRole('navigation', { name: '일지 이동' })).getByRole('link', { name: '업무일지' }),
+    )
+    await user.click(
+      within(await screen.findByRole('alertdialog', { name: '저장 안 된 변경이 있어요' })).getByRole('button', {
+        name: '나가기',
+      }),
+    )
+    await waitFor(() => expect(screen.queryByRole('textbox', { name: '1번 결과' })).not.toBeInTheDocument())
   })
 })

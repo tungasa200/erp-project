@@ -3,11 +3,12 @@
 // ② 문서(LogPaper) ④ 데스크톱 오른쪽: 이 기간 원본 기록 — "실적에 넣기"(끌기 대신 버튼, 키보드로도 같은 일)
 // 내보내기(SCR-LOG-05, P3-10)는 고친 내용을 먼저 저장하고 연다. 고칠 수 있는 일지에 처음 들어오면 프로필 빈 칸을 묻는다(SCR-ONB-01).
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useRef, useState } from 'react'
-import { Link, useParams } from 'react-router'
+import { useLayoutEffect, useRef, useState } from 'react'
+import { Link, useBlocker, useParams } from 'react-router'
 import { useAuth } from '../auth/useAuth'
 import { addMonths } from '../calendar/time'
 import { Skeleton } from '../components/Skeleton'
+import { useOnline } from '../components/useOnline'
 import { useToast } from '../components/useToast'
 import { ApiError } from '../api/client'
 import { useProjects } from '../projects/api'
@@ -61,6 +62,9 @@ function LogView({ type, start }: { type: LogType; start: string }) {
   const [dialog, setDialog] = useState<'refill' | 'unconfirm' | 'revisions' | 'export' | null>(null)
   const [busy, setBusy] = useState(false)
   const headingRef = useRef<HTMLHeadingElement>(null)
+  const online = useOnline()
+  // 줄 버튼에 포커스가 있을 때 오프라인이 되면 버튼이 꺼져 포커스가 빠진다. 마지막 포커스를 기억해 칸으로 옮긴다
+  const lastFocus = useRef<HTMLElement | null>(null)
 
   const editor = useLogEditor(log, {
     onPinned: () => setAnnounce('실적을 고정했어요. 원본이 바뀌어도 그대로예요'),
@@ -119,8 +123,22 @@ function LogView({ type, start }: { type: LogType; start: string }) {
           onAchievements: (achievements) => editor.change({ achievements }),
           onPlans: (plans) => editor.change({ plans }),
           onIssues: (issues) => editor.change({ issues }),
+          readOnly: !online,
         }
       : undefined
+
+  // 보내지 못한 수정(오프라인·저장 실패)이 남은 채 다른 화면으로 가면 사라지므로 먼저 묻는다(UX-LOG-40).
+  // 탭 닫기는 useLogEditor의 beforeunload 경고가 맡는다
+  const unsent = !!editor.edits && (!online || editor.state === 'error')
+  const blocker = useBlocker(unsent)
+
+  useLayoutEffect(() => {
+    const el = lastFocus.current
+    if (online || !(el instanceof HTMLButtonElement) || !el.disabled) return
+    if (document.activeElement !== el && document.activeElement !== document.body) return
+    const field = el.closest('tr, section')?.querySelector<HTMLElement>('textarea')
+    ;(field ?? headingRef.current)?.focus()
+  }, [online])
 
   const prev = shift(type, start, -1)
   const next = shift(type, start, 1)
@@ -159,7 +177,7 @@ function LogView({ type, start }: { type: LogType; start: string }) {
                 </span>
               </span>
             )}
-            <SaveText state={editor.state} />
+            <SaveText state={editor.state} offlinePending={!online && !!editor.edits} />
             <span className={styles.spacer} />
             {log.status === 'DRAFT' && pinned && (
               <button type="button" className={styles.secondary} onClick={() => setDialog('refill')}>
@@ -236,7 +254,7 @@ function LogView({ type, start }: { type: LogType; start: string }) {
           </button>
         </div>
       ) : (
-        <div className={styles.layout}>
+        <div className={styles.layout} onFocus={(e) => (lastFocus.current = e.target)}>
           <LogPaper
             type={type}
             periodStart={log.periodStart}
@@ -253,6 +271,7 @@ function LogView({ type, start }: { type: LogType; start: string }) {
               from={log.periodStart}
               to={log.periodEnd}
               achievements={view.achievements}
+              disabled={!online}
               onAdd={(record, name) =>
                 editor.change({ achievements: [...view.achievements, fromRecord(record, name)] })
               }
@@ -294,6 +313,20 @@ function LogView({ type, start }: { type: LogType; start: string }) {
       {dialog === 'export' && log && view && (
         <ExportDialog log={{ ...log, content: view }} timeZone={timeZone} onClose={() => setDialog(null)} />
       )}
+      {blocker.state === 'blocked' && (
+        <ConfirmDialog
+          title="저장 안 된 변경이 있어요"
+          body={
+            online
+              ? '보내지 못한 수정이 있어요. 지금 나가면 이 수정은 사라져요.'
+              : '연결이 끊겨 보내지 못한 수정이 있어요. 지금 나가면 이 수정은 사라져요. 머무르면 다시 연결될 때 저장해요.'
+          }
+          action="나가기"
+          busy={false}
+          onCancel={() => blocker.reset()}
+          onConfirm={() => blocker.proceed()}
+        />
+      )}
       {askProfile && user && (
         <ProfilePrompt
           user={user}
@@ -308,7 +341,16 @@ function LogView({ type, start }: { type: LogType; start: string }) {
   )
 }
 
-function SaveText({ state }: { state: ReturnType<typeof useLogEditor>['state'] }) {
+function SaveText({
+  state,
+  offlinePending,
+}: {
+  state: ReturnType<typeof useLogEditor>['state']
+  /** 오프라인인데 보내지 못한 수정이 남음: 다시 연결되면 편집기가 보낸다(UX-LOG-40) */
+  offlinePending: boolean
+}) {
+  if (offlinePending && state !== 'conflict')
+    return <span className={styles.saveError}>저장 안 된 변경 · 연결되면 저장해요</span>
   const text = { idle: '', saving: '저장 중…', saved: '저장됨', error: '저장하지 못했어요', conflict: '' }[state]
   return <span className={state === 'error' ? styles.saveError : styles.saveText}>{text}</span>
 }
@@ -355,6 +397,8 @@ function SourceRecords(props: {
   from: string
   to: string
   achievements: LogAchievement[]
+  /** 오프라인이면 [실적에 넣기]를 끈다 */
+  disabled: boolean
   onAdd: (r: WorkRecord, projectName: string | null) => void
   projectName: (id: string | null) => string | null
 }) {
@@ -400,6 +444,7 @@ function SourceRecords(props: {
                   type="button"
                   className={styles.sourceAdd}
                   data-record={r.id}
+                  disabled={props.disabled}
                   aria-label={`${r.content} 실적에 넣기`}
                   onClick={() => add(r, i)}
                 >

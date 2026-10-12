@@ -275,7 +275,8 @@ export function QuickInput({
     // 한글 조합 중 Enter는 조합 확정이라 저장하지 않는다.
     if (e.nativeEvent.isComposing) return
     if (e.key === 'Escape') {
-      onChange('')
+      // 글은 남기고 포커스만 뺀다(모바일 시트와 같게, UX-COM-01). 습관처럼 누른 Esc 한 번에 쓰던 글이 사라지지 않게
+      e.currentTarget.blur()
     } else if (e.key === 'ArrowDown' && suggestions.length > 0) {
       e.preventDefault()
       suggestButtons.current[0]?.focus()

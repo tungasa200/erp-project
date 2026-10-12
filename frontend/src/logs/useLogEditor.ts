@@ -25,9 +25,11 @@ export function useLogEditor(log: WorkLog | undefined, callbacks: { onPinned: ()
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const inFlight = useRef<Promise<WorkLog | null> | null>(null)
   const cb = useRef(callbacks)
+  const stateRef = useRef(state)
   useLayoutEffect(() => {
     logRef.current = log
     cb.current = callbacks
+    stateRef.current = state
   })
 
   const apply = useCallback((next: LogEdits | null) => {
@@ -119,6 +121,16 @@ export function useLogEditor(log: WorkLog | undefined, callbacks: { onPinned: ()
     window.addEventListener('beforeunload', warn)
     return () => window.removeEventListener('beforeunload', warn)
   }, [edits, state])
+
+  // 오프라인이 되기 직전의 수정은 보내지 못하고 남는다. 다시 연결되면 바로 보낸다(UX-LOG-40, 조용히 사라지지 않게).
+  // 충돌 상태는 사용자가 고를 때까지 보내지 않는다
+  useEffect(() => {
+    const retry = () => {
+      if (editsRef.current && !timer.current && stateRef.current !== 'conflict') void flush()
+    }
+    window.addEventListener('online', retry)
+    return () => window.removeEventListener('online', retry)
+  }, [flush])
 
   useEffect(
     () => () => {

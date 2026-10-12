@@ -25,6 +25,9 @@ interface UndoItem {
 
 const DURATION_MS = 5000
 
+const isEmptyField = (target: EventTarget | null) =>
+  (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) && target.value === ''
+
 function CloseIcon() {
   return (
     <svg
@@ -186,8 +189,9 @@ export function ToastProvider({ children, navigate }: { children: ReactNode; nav
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (!(e.ctrlKey || e.metaKey) || e.shiftKey || e.altKey || e.code !== 'KeyZ') return
-      // 입력창 안의 Ctrl+Z는 글자 되돌리기로 남겨 둔다.
-      if (!undoRef.current || isEditable(e.target)) return
+      // 입력창 안의 Ctrl+Z는 글자 되돌리기로 남겨 둔다. 다만 빈 칸이면 되돌릴 글자가 없으니 토스트 되돌리기로 넘긴다
+      // (빠른 입력은 저장하면 칸을 비우고 포커스를 남긴다, UX-COM-02)
+      if (!undoRef.current || (isEditable(e.target) && !isEmptyField(e.target))) return
       e.preventDefault()
       void runUndo()
     }

@@ -259,6 +259,29 @@
   outline-offset: 1px;
 }
 
+/* 오프라인(UX-LOG-40): 읽기 전용 칸은 바탕을 빼고, 끈 버튼은 흐리게 */
+.cellInput:read-only,
+.issueInput:read-only {
+  background: transparent;
+  cursor: default;
+}
+
+.cellInput:read-only:hover {
+  border-color: transparent;
+}
+
+.tool:disabled,
+.addRow:disabled,
+.chip:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.tool:disabled:hover,
+.chip:disabled:hover {
+  background: transparent;
+}
+
 .rowTools {
   width: 1%;
   white-space: nowrap;
