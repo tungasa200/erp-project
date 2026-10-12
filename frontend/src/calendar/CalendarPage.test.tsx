@@ -159,7 +159,8 @@ describe('캘린더', () => {
     const mini = screen.getByRole('region', { name: '미니 달력' })
     expect(within(mini).queryByRole('button', { name: /\d{4}-\d{2}-\d{2}/ })).toBeNull()
     expect(within(mini).getByRole('button', { name: '10월 9일 금요일 한글날' })).toBeInTheDocument()
-    await user.click(within(mini).getByRole('button', { name: '10월 13일 화요일' }))
+    // 실행하는 날이 10월 13일이면 ', 오늘'이 붙는다(실제 시계를 쓰는 테스트)
+    await user.click(within(mini).getByRole('button', { name: /^10월 13일 화요일(, 오늘)?$/ }))
     expect(await screen.findByRole('heading', { name: '2026년 10월 12일 – 18일' })).toBeInTheDocument()
   })
 
