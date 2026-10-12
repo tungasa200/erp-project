@@ -29,7 +29,7 @@
 
 .linkedDate {
   flex: none;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .linkedTime {
@@ -58,5 +58,5 @@
   min-height: 44px;
   color: var(--color-accent-ink);
   font-size: var(--text-sm);
-  font-weight: 700;
+  font-weight: 600;
 }

@@ -41,7 +41,7 @@
 .date {
   flex: none;
   min-width: 3.5em;
-  font-weight: 700;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 
@@ -75,6 +75,6 @@
   color: var(--color-accent-ink);
   font: inherit;
   font-size: var(--text-sm);
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
 }

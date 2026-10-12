@@ -8,6 +8,7 @@ import {
   darkenForWhite,
   DEFAULT_THEME,
   isAccentReadable,
+  isAccentTextFaint,
   isWhiteTextFaint,
   normalizeAccent,
   onColor,
@@ -83,8 +84,9 @@ function ThemeForm({ user, save }: { user: Me; save: ReturnType<typeof useProfil
   const flipped = on !== '#FFFFFF'
   // 배경·흰 표면과 3:1 미만이면 선택 표시·버튼이 안 보여 저장을 막는다. 미리보기는 그 색 그대로(키 컬러를 자동으로 바꾸지 않음)
   const tooLight = !isAccentReadable(accent, ground)
-  // 3:1은 넘지만 흰 글자가 4.5:1에 못 미치면 저장은 막지 않고 조정 색을 제안한다(X-10)
-  const faint = !tooLight && isWhiteTextFaint(accent)
+  // 3:1은 넘지만 흰 글자나 현재 메뉴 글자가 4.5:1에 못 미치면 저장은 막지 않고 조정 색을 제안한다(X-10, UX-COM-152)
+  const whiteFaint = !tooLight && isWhiteTextFaint(accent)
+  const faint = !tooLight && isAccentTextFaint(accent)
   const suggestion = faint ? darkenForWhite(accent) : null
 
   const pickAccent = (hex: string) => {
@@ -165,25 +167,20 @@ function ThemeForm({ user, save }: { user: Me; save: ReturnType<typeof useProfil
           <p id={`${id}-contrast`} aria-live="polite" className={tooLight ? styles.error : theme.contrastEmpty}>
             {tooLight ? '이 색은 배경과 너무 비슷해서 선택 표시와 버튼이 잘 안 보여요. 더 진한 색을 골라 주세요.' : ''}
           </p>
-          {suggestion && (
-            <p className={theme.suggest}>
-              흰 글자가 조금 흐려요. 이 색은 어때요?{' '}
-              <button
-                type="button"
-                className={theme.suggestButton}
-                aria-label={`${suggestion}로 바꾸기`}
-                onClick={() => pickAccent(suggestion)}
-              >
-                <span className={theme.suggestDot} style={{ background: suggestion }} aria-hidden="true" />
-                {suggestion}
-              </button>
-            </p>
-          )}
-          {flipped && !tooLight && (
-            <p role="note" className={theme.flipNote}>
-              밝은 색이라 버튼 글자를 진한 색으로 바꿨어요
-            </p>
-          )}
+          {/* 색을 고를 때마다 생기고 사라지는 안내라 늘 있는 live 영역 안에 둔다(재평가 §4 #23) */}
+          <div aria-live="polite">
+            {suggestion && (
+              <p className={theme.suggest}>
+                {whiteFaint ? '흰 글자가 조금 흐려요.' : '메뉴의 현재 위치 글자가 조금 흐려요.'} 이 색은 어때요?{' '}
+                <button type="button" className={theme.suggestButton} onClick={() => pickAccent(suggestion)}>
+                  <span className={theme.suggestDot} style={{ background: suggestion }} aria-hidden="true" />이 색으로
+                  바꾸기
+                  <span aria-hidden="true">{suggestion}</span>
+                </button>
+              </p>
+            )}
+            {flipped && !tooLight && <p className={theme.flipNote}>밝은 색이라 버튼 글자를 진한 색으로 바꿨어요</p>}
+          </div>
         </section>
 
         <section aria-labelledby={`${id}-ground`} className={theme.group}>

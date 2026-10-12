@@ -49,7 +49,7 @@
   background: var(--color-brand); /* 앱 아이콘 색 그대로(테마 키 컬러를 따르지 않음) */
   color: var(--color-on-accent);
   font-size: var(--text-xl);
-  font-weight: 900;
+  font-weight: 800;
 }
 
 .text {

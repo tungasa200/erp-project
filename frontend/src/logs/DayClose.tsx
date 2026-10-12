@@ -55,10 +55,12 @@ function pendingDate(record: PendingRecord, timeZone: string) {
   return plan.startAt ? toZoned(plan.startAt, timeZone).date : null
 }
 
+const CONFIRM_ALL_GROUP = 'day-close-confirm-all'
+
 export function DayClose({ date, today, timeZone, quick = false, onClose }: Props) {
   const id = useId()
   const queryClient = useQueryClient()
-  const { showToast, showUndo } = useToast()
+  const { showToast, showUndo, dismissUndo } = useToast()
   const plan = useQuery({ queryKey: ['logs', 'close', date], queryFn: () => logApi.closePlan(date) })
   const log = useLog('DAILY', date)
   const [step, setStep] = useState<Step | null>(null)
@@ -147,6 +149,8 @@ export function DayClose({ date, today, timeZone, quick = false, onClose }: Prop
       })
       storeLog(queryClient, done.log)
       void refreshLogs(queryClient)
+      // 확정한 뒤 [모두 했어요]를 되돌리면 확정 일지 실적과 확인 대기가 어긋난다. 해제는 완료 창 [확정 해제]로(UX-LOG-152)
+      dismissUndo(CONFIRM_ALL_GROUP)
       moved.current = true
       setResult(done)
     } catch (error) {
@@ -221,7 +225,7 @@ export function DayClose({ date, today, timeZone, quick = false, onClose }: Prop
       }
       setOtherDays(records.filter((r) => pendingDate(r, timeZone) !== date).length)
       showUndo({
-        group: 'day-close-confirm-all',
+        group: CONFIRM_ALL_GROUP,
         message: () => `확인 대기 ${done.length}건을 ‘했어요’로 기록했어요`,
         undo: async () => {
           try {

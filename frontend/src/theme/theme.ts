@@ -50,7 +50,33 @@ export function normalizeAccent(accent: string): string {
 /** 흰 글자 기준(WCAG 1.4.3 본문) */
 export const MIN_TEXT_CONTRAST = 4.5
 
-/** 색상은 두고 검정을 1%씩 섞어 흰 글자가 4.5:1을 넘는 첫 색. 직접 고른 색의 제안 값(X-10) */
+/** tokens.css의 color-mix(in srgb)와 같은 계산: a를 t만큼, b를 나머지만큼 */
+function mix(a: string, b: string, t: number): string {
+  const ch = (hex: string, i: number) => parseInt(hex.slice(i, i + 2), 16)
+  return (
+    '#' +
+    [1, 3, 5]
+      .map((i) =>
+        Math.round(ch(a, i) * t + ch(b, i) * (1 - t))
+          .toString(16)
+          .padStart(2, '0'),
+      )
+      .join('')
+      .toUpperCase()
+  )
+}
+
+/** 현재 메뉴 글자(--color-accent-ink, 키 80%+검정) 대 그 바탕(--color-accent-soft, 키 12%+흰색). 14px 600이라 4.5 필요(UX-COM-152) */
+export function menuTextContrast(accent: string): number {
+  return contrastRatio(mix(accent, '#000000', 0.8), mix(accent, WHITE, 0.12))
+}
+
+/** 키 컬러로 그린 글자가 4.5:1에 못 미친다: 키 컬러 위 흰 글자, 또는 현재 메뉴 글자 */
+export function isAccentTextFaint(accent: string): boolean {
+  return isWhiteTextFaint(accent) || menuTextContrast(accent) < MIN_TEXT_CONTRAST
+}
+
+/** 색상은 두고 검정을 1%씩 섞어 흰 글자와 현재 메뉴 글자가 모두 4.5:1을 넘는 첫 색. 직접 고른 색의 제안 값(X-10, UX-COM-152) */
 export function darkenForWhite(hex: string): string {
   const rgb = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16))
   for (let k = 1; k <= 100; k++) {
@@ -64,7 +90,7 @@ export function darkenForWhite(hex: string): string {
         )
         .join('')
         .toUpperCase()
-    if (contrastRatio(WHITE, next) >= MIN_TEXT_CONTRAST) return next
+    if (contrastRatio(WHITE, next) >= MIN_TEXT_CONTRAST && menuTextContrast(next) >= MIN_TEXT_CONTRAST) return next
   }
   return '#000000'
 }

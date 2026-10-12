@@ -1,8 +1,9 @@
 // SCR-SET-02 설정 — 일반. ①시간대 ②주 시작 요일 ③업무 요일 ⑥키보드 단축키는 identity 프로필이고 바꾸는 즉시 항목별로 저장한다.
 // ④업무 시간대(P2)는 worklog 설정이라 따로 저장한다(WorkHoursSetting). ⑤하루 마감 시각도 같은 방식(DailyCloseSetting, UX-SET-140).
-import { useId, useState, type ReactNode } from 'react'
+import { useEffect, useId, useState, type ReactNode } from 'react'
 import type { Me } from '../api/types'
 import { useAuth } from '../auth/useAuth'
+import { announce } from '../components/announce'
 import { useToast } from '../components/useToast'
 import { isStandalone, promptInstall, useCanInstall } from '../pwa/install'
 import { INSTALLED_TOAST } from '../pwa/InstallGuide'
@@ -40,6 +41,20 @@ export function GeneralSettings() {
   // ④는 worklog 설정이라 저장·충돌을 따로 다룬다
   const worklog = useWorklogSettingsSaver()
   const [worklogReloads, setWorklogReloads] = useState(0)
+  // 바꾸는 즉시 저장되므로 저장됐다는 표시를 제목 옆에 잠깐 보이고 낭독한다(UX-SET-171). 실패는 항목 아래 SaveError
+  const [savedAt, setSavedAt] = useState(0)
+  useEffect(() => {
+    if (!savedAt) return
+    const timer = setTimeout(() => setSavedAt(0), 3000)
+    return () => clearTimeout(timer)
+  }, [savedAt])
+  const noteSaved = <R extends { ok: boolean }>(result: R) => {
+    if (result.ok) {
+      setSavedAt(Date.now())
+      announce('저장했어요')
+    }
+    return result
+  }
   if (!user) return null
 
   return (
@@ -59,17 +74,27 @@ export function GeneralSettings() {
           }}
         />
       )}
-      <h2 id="settings-general" className={styles.panelTitle}>
-        일반
-      </h2>
+      <div className={styles.panelHead}>
+        <h2 id="settings-general" className={styles.panelTitle}>
+          일반
+        </h2>
+        {savedAt > 0 && (
+          <span className={styles.savedNote} aria-hidden="true">
+            ✓ 저장됨
+          </span>
+        )}
+      </div>
       <GeneralForm
         key={reloaded?.count ?? 0}
         user={reloaded?.me ?? user}
-        save={save}
+        save={async (patch) => noteSaved(await save(patch))}
         workHours={
           <>
-            <WorkHoursSetting save={worklog.save} reloadKey={worklogReloads} />
-            <DailyCloseSetting save={worklog.save} reloadKey={worklogReloads} />
+            <WorkHoursSetting save={async (patch) => noteSaved(await worklog.save(patch))} reloadKey={worklogReloads} />
+            <DailyCloseSetting
+              save={async (patch) => noteSaved(await worklog.save(patch))}
+              reloadKey={worklogReloads}
+            />
           </>
         }
       />

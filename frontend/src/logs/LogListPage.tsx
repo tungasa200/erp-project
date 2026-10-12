@@ -109,7 +109,9 @@ function UnconfirmedBand({ count, days, today }: { count: number | undefined; da
   const first = days.find((p) => p.periodStart <= today && (p.status === 'DRAFT' || p.status === 'NOT_WRITTEN'))
   return (
     <p className={styles.band}>
-      <strong>확정 안 된 날 {count}일</strong> — 기록은 있는데 일지를 확정하지 않은 날이에요
+      <span className={styles.bandDot} aria-hidden="true" />
+      <strong className={styles.bandTitle}>확정 안 된 날 {count}일</strong>
+      <span>기록은 있는데 일지를 확정하지 않은 날이에요</span>
       {first && (
         <button
           type="button"

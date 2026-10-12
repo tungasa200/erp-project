@@ -6,6 +6,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { toastForError } from '../api/errorToast'
+import { cycleTab } from '../calendar/focus'
 import { ApiError } from '../api/problem'
 import { useAuth } from '../auth/useAuth'
 import { announce } from '../components/announce'
@@ -43,6 +44,8 @@ type Chip =
 const sameName = (a: string, b: string) => a.toLowerCase() === b.toLowerCase()
 const monthDay = (date: string) => `${Number(date.slice(5, 7))}/${Number(date.slice(8, 10))}`
 const TAG_OPTIONS_MAX = 6
+/** 입력칸 안 칩 줄(COM-07)을 쓰는 최소 폭(px). 이보다 좁으면 글자 칸·버튼만으로 차서 칩이 보이지 않는다 */
+const FIELD_CHIPS_MIN_WIDTH = 400
 
 /** 마감 선택지: 오늘·내일·모레·가까운 금요일·다음 월요일 (같은 날이면 하나만) */
 function dueOptions(today: string, current: string) {
@@ -187,9 +190,31 @@ export function QuickInput({
     if (by === 'escape') helpButtonRef.current?.focus()
   }, [])
   const id = useId()
+  // 시트 밖에서는 두 층으로 보인다: 해석 칩은 입력칸 안 한 줄, 나머지는 입력칸 아래에 겹쳐 뜨는 팝오버(COM-07, 밑 내용을 밀지 않음)
+  const layered = !saveButton
+  const wrapRef = useRef<HTMLDivElement>(null)
+  // 좁은 곳(캘린더 할 일 상자, 휴대폰 폭)에서는 입력칸 안에 칩 자리가 없어 칩도 팝오버에 둔다
+  const [narrow, setNarrow] = useState(false)
+  useEffect(() => {
+    const el = wrapRef.current
+    if (!layered || !el || typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(([entry]) => setNarrow(entry.contentRect.width < FIELD_CHIPS_MIN_WIDTH))
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [layered])
+  const chipsInField = layered && !narrow
   // 드롭다운이 열린 칩(key). 키보드로 닫으면 그 칩 버튼으로 포커스를 돌린다
   const [editing, setEditing] = useState<string | null>(null)
+  // 두 층에서는 칩 줄이 가로로 스크롤돼 메뉴가 잘리므로 메뉴를 입력칸 아래 칩 자리(왼쪽 px)에 띄운다
+  const [menuLeft, setMenuLeft] = useState(0)
   const chipButtons = useRef(new Map<string, HTMLButtonElement>())
+  const openEditor = (key: string | null) => {
+    const chip = key ? chipButtons.current.get(key) : undefined
+    const wrap = wrapRef.current
+    if (chip && wrap) setMenuLeft(Math.max(0, chip.getBoundingClientRect().left - wrap.getBoundingClientRect().left))
+    setEditing(key)
+  }
+  const openChipButton = useCallback(() => (editing ? chipButtons.current.get(editing) : undefined), [editing])
   const closeEditor = useCallback(
     (by: 'keyboard' | 'outside') => {
       if (by === 'keyboard' && editing) chipButtons.current.get(editing)?.focus()
@@ -345,8 +370,117 @@ export function QuickInput({
   }
   const canSave = draft.title !== ''
 
+  const renderChip = (c: Chip) => {
+    if (c.kind === 'newProject') {
+      return (
+        <li key={c.key}>
+          <button
+            type="button"
+            ref={newProjectButton}
+            className={`${styles.chip} ${styles.newProject}`}
+            aria-describedby={askProject ? `${id}-ask` : undefined}
+            onClick={() => void createProject(c.name)}
+            onKeyDown={(e) => {
+              // 묻는 중 Esc는 질문만 거두고 입력칸으로 돌아간다. 쓴 글은 남긴다(UX-COM-142)
+              if (e.key !== 'Escape' || !askProject) return
+              e.preventDefault()
+              e.stopPropagation()
+              setAskProject(false)
+              inputRef.current?.focus()
+            }}
+          >
+            + 새 프로젝트 ‘{c.name}’
+          </button>
+        </li>
+      )
+    }
+    const color = c.kind === 'project' && c.project ? projectColor(c.project.color) : undefined
+    const className = [
+      styles.chip,
+      styles[c.kind],
+      c.kind === 'tag' && c.isNew && styles.tagNew,
+      'strong' in c && c.strong && styles.strong,
+    ]
+      .filter(Boolean)
+      .join(' ')
+    const open = editing === c.key
+    return (
+      <li key={c.key} className={styles.chipItem}>
+        <button
+          type="button"
+          ref={(el) => {
+            if (el) chipButtons.current.set(c.key, el)
+            else chipButtons.current.delete(c.key)
+          }}
+          className={className}
+          style={color && { background: color.tint, color: color.ink }}
+          aria-label={c.kind === 'tag' && c.isNew ? `새 태그 ${c.name}` : undefined}
+          aria-haspopup={c.edit.kind === 'time' ? 'dialog' : 'menu'}
+          aria-expanded={open}
+          onClick={() => openEditor(open ? null : c.key)}
+          onKeyDown={(e) => {
+            if (e.key === 'ArrowDown' && !open) {
+              e.preventDefault()
+              openEditor(c.key)
+            }
+          }}
+        >
+          <span className={styles.chipText}>
+            {c.kind === 'tag'
+              ? // 없는 태그는 저장할 때 확인 없이 만든다. 점선 칩으로 알아채게 한다(UX-COM-29)
+                c.isNew
+                ? `+ 새 태그 ‘${c.name}’`
+                : `#${c.name}`
+              : c.text}
+          </span>
+        </button>
+        {open && !chipsInField && (
+          <ChipEditor edit={c.edit} onPick={(replacement) => pickChip(c.span, replacement)} onClose={closeEditor} />
+        )}
+      </li>
+    )
+  }
+  const warnItem = badPriority && (
+    <li>
+      <span className={`${styles.chip} ${styles.warn}`}>{priorityWarning(badPriority)}</span>
+    </li>
+  )
+  const openChip = chips.find((c) => c.key === editing)
+  // 입력칸 안 칩 줄: 고칠 수 있는 해석 칩만. 새 프로젝트 확인·오타 경고는 팝오버에(COM-07)
+  const fieldChips = chipsInField && typing ? chips.filter((c) => c.kind !== 'newProject') : []
+
+  const hints = (
+    <>
+      {unreadTime && (
+        <p className={styles.hint}>
+          시간으로 읽지 못했어요: <span className={styles.unread}>{unreadTime}</span> (예: 14:00-15:00 · 오후 2시~3시)
+        </p>
+      )}
+      {askProject && newProject && newProject.kind === 'newProject' && (
+        <p id={`${id}-ask`} className={styles.hintStrong} role="alert">
+          ‘{newProject.name}’ 프로젝트를 새로 만들까요? 칩을 누르거나 Enter를 누르면 만들어요
+        </p>
+      )}
+      {/* 오류로 바뀔 때(또 Enter를 눌렀을 때도) 새로 붙여 화면 낭독기가 다시 읽게 한다 */}
+      <p
+        key={titleError ? `error-${emptyTries}` : 'hint'}
+        className={titleError ? styles.hintError : styles.hint}
+        role={titleError ? 'alert' : undefined}
+      >
+        {draft.title === ''
+          ? '할 일 이름을 적어 주세요'
+          : newProject
+            ? 'Enter를 누르면 새 프로젝트를 만들지 물어요'
+            : draft.schedule
+              ? '일정과 업무가 함께 만들어져요'
+              : '업무가 만들어져요'}
+      </p>
+    </>
+  )
+
   return (
     <div
+      ref={wrapRef}
       className={styles.wrap}
       onFocus={() => {
         setFocused(true)
@@ -391,6 +525,11 @@ export function QuickInput({
           aria-invalid={titleError || undefined}
           data-quick-input
         />
+        {fieldChips.length > 0 && (
+          <ul className={styles.fieldChips} aria-label="해석 결과">
+            {fieldChips.map(renderChip)}
+          </ul>
+        )}
         {saveButton && onSubmit ? (
           <button
             type="button"
@@ -448,7 +587,7 @@ export function QuickInput({
       )}
 
       {suggestions.length > 0 && (
-        <div className={styles.preview}>
+        <div className={layered ? styles.overlay : styles.preview}>
           <p id={`${id}-frequent`} className={styles.suggestTitle}>
             자주 하는 업무
           </p>
@@ -487,114 +626,58 @@ export function QuickInput({
         </div>
       )}
 
-      {typing && (
-        <div id={`${id}-preview`} className={styles.preview}>
-          {(chips.length > 0 || badPriority) && (
-            <ul className={styles.chips} aria-label="해석 결과">
-              {chips.map((c) => {
-                if (c.kind === 'newProject') {
-                  return (
-                    <li key={c.key}>
-                      <button
-                        type="button"
-                        ref={newProjectButton}
-                        className={`${styles.chip} ${styles.newProject}`}
-                        aria-describedby={askProject ? `${id}-ask` : undefined}
-                        onClick={() => void createProject(c.name)}
-                        onKeyDown={(e) => {
-                          // 묻는 중 Esc는 질문만 거두고 입력칸으로 돌아간다. 쓴 글은 남긴다(UX-COM-142)
-                          if (e.key !== 'Escape' || !askProject) return
-                          e.preventDefault()
-                          e.stopPropagation()
-                          setAskProject(false)
-                          inputRef.current?.focus()
-                        }}
-                      >
-                        + 새 프로젝트 ‘{c.name}’
-                      </button>
-                    </li>
+      {typing &&
+        (layered ? (
+          // 포커스가 입력 묶음을 떠나면 닫는다. 쓴 글이 남아 있어도 밑 내용을 계속 덮지 않게
+          focused && (
+            // 팝오버 안 Tab은 안에서 돌고 Esc는 입력칸으로 돌아간다(CAL-141 규칙). 쓴 글은 남긴다
+            <div
+              id={`${id}-preview`}
+              className={styles.overlay}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  setAskProject(false)
+                  inputRef.current?.focus()
+                } else cycleTab(e, e.currentTarget)
+              }}
+            >
+              {chipsInField
+                ? (newProject || badPriority) && (
+                    <ul className={styles.chips} aria-label="확인할 것">
+                      {newProject && renderChip(newProject)}
+                      {warnItem}
+                    </ul>
                   )
-                }
-                const color = c.kind === 'project' && c.project ? projectColor(c.project.color) : undefined
-                const className = [
-                  styles.chip,
-                  styles[c.kind],
-                  c.kind === 'tag' && c.isNew && styles.tagNew,
-                  'strong' in c && c.strong && styles.strong,
-                ]
-                  .filter(Boolean)
-                  .join(' ')
-                const open = editing === c.key
-                return (
-                  <li key={c.key} className={styles.chipItem}>
-                    <button
-                      type="button"
-                      ref={(el) => {
-                        if (el) chipButtons.current.set(c.key, el)
-                        else chipButtons.current.delete(c.key)
-                      }}
-                      className={className}
-                      style={color && { background: color.tint, color: color.ink }}
-                      aria-label={c.kind === 'tag' && c.isNew ? `새 태그 ${c.name}` : undefined}
-                      aria-haspopup={c.edit.kind === 'time' ? 'dialog' : 'menu'}
-                      aria-expanded={open}
-                      onClick={() => setEditing(open ? null : c.key)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'ArrowDown' && !open) {
-                          e.preventDefault()
-                          setEditing(c.key)
-                        }
-                      }}
-                    >
-                      {c.kind === 'tag'
-                        ? // 없는 태그는 저장할 때 확인 없이 만든다. 점선 칩으로 알아채게 한다(UX-COM-29)
-                          c.isNew
-                          ? `+ 새 태그 ‘${c.name}’`
-                          : `#${c.name}`
-                        : c.text}
-                    </button>
-                    {open && (
-                      <ChipEditor
-                        edit={c.edit}
-                        onPick={(replacement) => pickChip(c.span, replacement)}
-                        onClose={closeEditor}
-                      />
-                    )}
-                  </li>
-                )
-              })}
-              {badPriority && (
-                <li>
-                  <span className={`${styles.chip} ${styles.warn}`}>{priorityWarning(badPriority)}</span>
-                </li>
-              )}
-            </ul>
-          )}
-          {unreadTime && (
-            <p className={styles.hint}>
-              시간으로 읽지 못했어요: <span className={styles.unread}>{unreadTime}</span> (예: 14:00-15:00 · 오후
-              2시~3시)
-            </p>
-          )}
-          {askProject && newProject && newProject.kind === 'newProject' && (
-            <p id={`${id}-ask`} className={styles.hintStrong} role="alert">
-              ‘{newProject.name}’ 프로젝트를 새로 만들까요? 칩을 누르거나 Enter를 누르면 만들어요
-            </p>
-          )}
-          {/* 오류로 바뀔 때(또 Enter를 눌렀을 때도) 새로 붙여 화면 낭독기가 다시 읽게 한다 */}
-          <p
-            key={titleError ? `error-${emptyTries}` : 'hint'}
-            className={titleError ? styles.hintError : styles.hint}
-            role={titleError ? 'alert' : undefined}
-          >
-            {draft.title === ''
-              ? '할 일 이름을 적어 주세요'
-              : newProject
-                ? 'Enter를 누르면 새 프로젝트를 만들지 물어요'
-                : draft.schedule
-                  ? '일정과 업무가 함께 만들어져요'
-                  : '업무가 만들어져요'}
-          </p>
+                : (chips.length > 0 || badPriority) && (
+                    <ul className={styles.chips} aria-label="해석 결과">
+                      {chips.map(renderChip)}
+                      {warnItem}
+                    </ul>
+                  )}
+              {hints}
+            </div>
+          )
+        ) : (
+          <div id={`${id}-preview`} className={styles.preview}>
+            {(chips.length > 0 || badPriority) && (
+              <ul className={styles.chips} aria-label="해석 결과">
+                {chips.map(renderChip)}
+                {warnItem}
+              </ul>
+            )}
+            {hints}
+          </div>
+        ))}
+      {chipsInField && openChip && 'edit' in openChip && (
+        <div className={styles.chipMenuAnchor} style={{ left: menuLeft }}>
+          <ChipEditor
+            edit={openChip.edit}
+            onPick={(replacement) => pickChip(openChip.span, replacement)}
+            onClose={closeEditor}
+            chip={openChipButton}
+          />
         </div>
       )}
 

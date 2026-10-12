@@ -30,14 +30,14 @@
 
 .email {
   font-size: var(--text-md);
-  font-weight: 700;
+  font-weight: 600;
   overflow-wrap: anywhere;
 }
 
 .unverified {
   margin-top: var(--space-1);
   font-size: var(--text-sm);
-  font-weight: 700;
+  font-weight: 800;
   color: var(--color-danger);
 }
 
@@ -182,7 +182,7 @@
   background: var(--color-danger-soft);
   color: var(--color-danger-text);
   font-size: var(--text-md);
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1.55;
 }
 
@@ -206,7 +206,7 @@
   color: var(--color-text);
   font: inherit;
   font-size: var(--text-md);
-  font-weight: 700;
+  font-weight: 600;
   text-align: left;
   cursor: pointer;
 }

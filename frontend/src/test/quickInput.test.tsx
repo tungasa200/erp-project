@@ -110,9 +110,12 @@ describe('SCR-COM-02 빠른 입력창', () => {
     const { input } = await openHome()
     await userEvent.type(input, '보고 @영업 #결제 #정산')
     // 사이드바 프로젝트 목록에도 같은 이름이 있어 해석 결과 안에서 찾는다
-    const project = await within(await screen.findByRole('list', { name: '해석 결과' })).findByText('영업')
+    // 글자는 24em에서 줄이는 span 안에 있다. 색은 칩 버튼에
+    const project = (await within(await screen.findByRole('list', { name: '해석 결과' })).findByText('영업')).closest(
+      'button',
+    )
     expect(project).toHaveStyle({ background: 'var(--project-p2-tint)', color: 'var(--project-p2-ink)' })
-    expect(screen.getByText('#결제')).toHaveClass('chip', 'tag')
+    expect(screen.getByText('#결제').closest('button')).toHaveClass('chip', 'tag')
     expect(await screen.findByRole('button', { name: '새 태그 정산' })).toHaveClass('tag', 'tagNew')
   })
 
@@ -140,7 +143,9 @@ describe('SCR-COM-02 빠른 입력창', () => {
     await userEvent.click(await screen.findByRole('button', { name: '+ 새 프로젝트 ‘마케팅’' }))
     // 영업(P2)만 쓰는 중이라 첫 빈 색 P1
     await waitFor(() => expect(created).toEqual([{ name: '마케팅', color: 'P1' }]))
-    expect(await within(screen.getByRole('list', { name: '해석 결과' })).findByText('마케팅')).toHaveStyle({
+    expect(
+      (await within(screen.getByRole('list', { name: '해석 결과' })).findByText('마케팅')).closest('button'),
+    ).toHaveStyle({
       background: 'var(--project-p1-tint)',
     })
   })
@@ -493,7 +498,12 @@ describe('디자인 개선 묶음 3a (X-04 [×], X-11 COM-29·COM-06)', () => {
     await userEvent.type(input, '보고 #정산 !1')
     const chips = await screen.findByRole('list', { name: '해석 결과' })
     expect(await within(chips).findByRole('button', { name: '새 태그 정산' })).toHaveTextContent('+ 새 태그 ‘정산’')
-    expect(within(chips).getByText('우선순위는 !1 대신 !높음·!보통·!낮음으로 적어요')).toBeInTheDocument()
+    // 오타 경고는 입력칸 아래 팝오버에(COM-07)
+    expect(
+      within(screen.getByRole('list', { name: '확인할 것' })).getByText(
+        '우선순위는 !1 대신 !높음·!보통·!낮음으로 적어요',
+      ),
+    ).toBeInTheDocument()
   })
 
   it('UX-COM-06 없는 @프로젝트면 미리보기가 Enter의 동작을 말하고, Enter는 저장 대신 새 프로젝트 칩으로 가서 묻는다', async () => {
@@ -512,5 +522,45 @@ describe('디자인 개선 묶음 3a (X-04 [×], X-11 COM-29·COM-06)', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     expect(input).toHaveFocus()
     expect(input).toHaveValue('보도자료 @마케팅')
+  })
+
+  it('COM-07 해석 칩은 입력칸 안 한 줄에, 확인·미리보기는 아래 팝오버에 두고 팝오버 안 Tab은 안에서 돈다', async () => {
+    renderQuick()
+    const input = await screen.findByRole('textbox', { name: '빠른 입력' })
+    await userEvent.type(input, '보도자료 14-15 @마케팅 #결제')
+    // 시간·태그 칩은 입력칸(알약) 안
+    const fieldChips = await screen.findByRole('list', { name: '해석 결과' })
+    expect(fieldChips.parentElement).toContainElement(input)
+    expect(await within(fieldChips).findByText('#결제')).toBeInTheDocument()
+    // 새 프로젝트 확인 칩과 안내는 입력칸 밖 팝오버
+    const chip = await screen.findByRole('button', { name: '+ 새 프로젝트 ‘마케팅’' })
+    expect(fieldChips).not.toContainElement(chip)
+    expect(chip.closest('[id$="-preview"]')).toHaveTextContent('Enter를 누르면 새 프로젝트를 만들지 물어요')
+
+    await userEvent.keyboard('{Enter}')
+    expect(chip).toHaveFocus()
+    await userEvent.tab()
+    expect(chip).toHaveFocus()
+    await userEvent.tab({ shift: true })
+    expect(chip).toHaveFocus()
+    await userEvent.keyboard('{Escape}')
+    expect(input).toHaveFocus()
+  })
+
+  it('COM-07 칩 줄 밖에 띄운 칩 메뉴도 칩을 다시 누르면 닫히고, 고르면 그 낱말만 바꾼다', async () => {
+    renderQuick()
+    const input = await screen.findByRole('textbox', { name: '빠른 입력' })
+    await userEvent.type(input, '보고 !낮음')
+    const priority = await screen.findByRole('button', { name: '우선순위 낮음' })
+    await userEvent.click(priority)
+    expect(priority).toHaveAttribute('aria-expanded', 'true')
+    await userEvent.click(priority)
+    expect(priority).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+
+    await userEvent.click(priority)
+    await userEvent.click(await screen.findByRole('menuitemradio', { name: '높음' }))
+    expect(input).toHaveValue('보고 !높음')
+    expect(input).toHaveFocus()
   })
 })

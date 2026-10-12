@@ -1,7 +1,7 @@
 /* 설정 화면 (목업 SET-01, SET-02, SettingsNav) */
 .title {
   margin: 0 0 var(--space-4);
-  font-size: var(--text-3xl);
+  font-size: var(--text-2xl);
   font-weight: 800;
   letter-spacing: -0.5px;
 }
@@ -76,6 +76,19 @@
   font-weight: 800;
 }
 
+.panelHead {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+
+/* 바꾸는 즉시 저장하는 화면의 "저장됨" 표시(UX-SET-171) */
+.savedNote {
+  color: var(--color-success-text);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
 .lead {
   margin: 0;
   font-size: var(--text-md);
@@ -99,7 +112,7 @@
   flex-direction: column;
   gap: var(--space-1);
   font-size: var(--text-md);
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .input {
@@ -112,7 +125,7 @@
   color: var(--color-text);
   font: inherit;
   font-size: var(--text-md);
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .input[aria-invalid='true'] {
@@ -128,7 +141,7 @@
 .caption {
   margin: 0;
   font-size: var(--text-sm);
-  font-weight: 700;
+  font-weight: 600;
   color: var(--color-text-muted);
 }
 
@@ -152,7 +165,7 @@
 
 .header dt {
   background: var(--doc-head);
-  font-weight: 700;
+  font-weight: 600;
   border-right: 1px solid var(--doc-rule);
 }
 
@@ -190,7 +203,7 @@
 
 .rowTitle {
   font-size: var(--text-md);
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .rowDescription {
@@ -213,7 +226,7 @@
   color: var(--color-text);
   font: inherit;
   font-size: var(--text-md);
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .hours {
@@ -354,7 +367,7 @@
   background: var(--color-warning-soft);
   color: var(--color-warning-text);
   font-size: var(--text-md);
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .reload {
@@ -380,7 +393,7 @@
   color: var(--color-text);
   font: inherit;
   font-size: var(--text-md);
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .comboList {
@@ -403,7 +416,7 @@
 .comboGroup {
   padding: var(--space-2) var(--space-2) var(--space-1);
   font-size: var(--text-xs);
-  font-weight: 700;
+  font-weight: 600;
   color: var(--color-text-muted);
 }
 
@@ -497,7 +510,7 @@
     min-height: var(--size-touch);
     margin-bottom: var(--space-2);
     color: var(--color-text-muted);
-    font-weight: 700;
+    font-weight: 600;
     text-decoration: none;
   }
 
@@ -528,7 +541,7 @@
 .featureTitle {
   margin: 0 0 var(--space-1);
   font-size: var(--text-sm);
-  font-weight: 700;
+  font-weight: 600;
   color: var(--color-text-body);
 }
 

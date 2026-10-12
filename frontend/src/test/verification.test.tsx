@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../api/problem'
@@ -46,6 +46,13 @@ describe('SCR-AUTH-04·05 비밀번호 찾기·재설정', () => {
     await screen.findByRole('heading', { name: '비밀번호 재설정' })
     return { router, calls }
   }
+
+  it('UX-AUTH-171 재설정 단계의 [이메일 바꾸기]는 쓴 주소를 채운 찾기 화면으로 돌아간다', async () => {
+    await toResetStep()
+    await userEvent.click(screen.getByRole('link', { name: '이메일 바꾸기' }))
+    await screen.findByRole('heading', { name: '비밀번호 찾기' })
+    expect(screen.getByRole('textbox', { name: '이메일' })).toHaveValue('me@example.com')
+  })
 
   it('이메일 형식이 아니면 보내지 않는다', async () => {
     const fetchMock = stubFetch({})
@@ -181,6 +188,20 @@ describe('SCR-COM-07 미인증 배너 · SCR-AUTH-08 이메일 인증', () => {
     renderApp('/')
     return { fetchMock }
   }
+
+  it('COM-20 배너는 홈·업무일지에서만 보이고 설정 등 다른 화면에서는 숨긴다', async () => {
+    stubFetch({
+      'GET /api/users/me': () => json(200, { ...ME, emailVerified: false }),
+      'GET /api/worklog/logs/periods': () => json(200, { items: [] }),
+    })
+    const { router } = renderApp('/settings/general')
+    await screen.findByRole('heading', { name: '일반' })
+    expect(screen.queryByRole('region', { name: '이메일 인증 안내' })).not.toBeInTheDocument()
+    await act(() => router.navigate('/logs'))
+    const banner = await screen.findByRole('region', { name: '이메일 인증 안내' })
+    // 좁은 폭(360~767)용 짧은 문구도 함께 있고 CSS가 하나만 보인다
+    expect(banner).toHaveTextContent('인증하면 일지를 내보낼 수 있어요')
+  })
 
   it('인증한 사용자에게는 배너가 없다', async () => {
     setup({ verified: true })

@@ -32,6 +32,17 @@ function shift(type: LogType, start: string, by: number) {
   return addMonths(start, by)
 }
 
+/** [다시 확정]이 확정 해제 뒤 단계에서 실패했을 때: 일지는 초안으로 남아 있다(UX-LOG-153) */
+class ReconfirmError extends Error {
+  readonly draft: WorkLog
+  readonly refilled: boolean
+  constructor(draft: WorkLog, refilled: boolean, cause: unknown) {
+    super('reconfirm failed after unconfirm', { cause })
+    this.draft = draft
+    this.refilled = refilled
+  }
+}
+
 export function LogPage() {
   const params = useParams()
   const parsed = parseLogPath(params.type, params.date)
@@ -97,7 +108,19 @@ function LogView({ type, start }: { type: LogType; start: string }) {
   const pinned = !!log && (!log.content.achievementsAuto || localPin)
 
   const fail = (error: unknown) => {
-    if (error instanceof ApiError && error.code === 'LOG_CONFIRMED') showToast('이미 확정된 일지예요')
+    if (error instanceof ReconfirmError) {
+      // 확정은 이미 풀렸다. 일반 실패 문구로는 확정이 그대로라고 읽히므로 지금 상태를 말한다(UX-LOG-153)
+      editor.reset()
+      storeLog(queryClient, error.draft)
+      setDialog(null)
+      headingRef.current?.focus()
+      showToast(
+        error.refilled
+          ? '다시 확정하지 못했어요. 일지는 실적을 지금 기록으로 채운 초안으로 남았어요. [확정]을 눌러 마무리해 주세요'
+          : '다시 확정하지 못했어요. 일지는 초안으로 남았어요. [확정]을 눌러 다시 확정해 주세요',
+        { traceId: (error.cause as ApiError)?.traceId },
+      )
+    } else if (error instanceof ApiError && error.code === 'LOG_CONFIRMED') showToast('이미 확정된 일지예요')
     else if (error instanceof ApiError && error.code === 'LOG_NOT_CONFIRMED') showToast('이미 초안이에요')
     else if (error instanceof ApiError && error.code === 'VERSION_CONFLICT')
       showToast('다른 곳에서 먼저 수정돼서 새로 불러왔어요. 다시 해 주세요')
@@ -319,6 +342,7 @@ function LogView({ type, start }: { type: LogType; start: string }) {
               periodEnd={log.periodEnd}
               content={view}
               draft={log.status !== 'CONFIRMED'}
+              draftMark={log.status === 'DRAFT'}
               confirmedAt={log.confirmedAt}
               timeZone={timeZone}
               editor={paperEditor}
@@ -388,8 +412,13 @@ function LogView({ type, start }: { type: LogType; start: string }) {
           onConfirm={() =>
             void run(async (l) => {
               const draft = await logApi.unconfirm(l.id!, l.version)
-              const refilled = await logApi.refill(draft.id!, draft.version)
-              return logApi.confirm(refilled.id!, refilled.version)
+              let current = draft
+              try {
+                current = await logApi.refill(draft.id!, draft.version)
+                return await logApi.confirm(current.id!, current.version)
+              } catch (error) {
+                throw new ReconfirmError(current, current !== draft, error)
+              }
             }, '바뀐 기록으로 다시 확정했어요')
           }
         />

@@ -9,7 +9,7 @@
 .minutes {
   margin-left: var(--space-1);
   font-size: var(--text-sm);
-  font-weight: 700;
+  font-weight: 800;
   color: var(--color-text-muted);
 }
 
@@ -70,7 +70,7 @@
   min-width: 0;
   overflow: hidden;
   font-size: var(--text-md);
-  font-weight: 700;
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }

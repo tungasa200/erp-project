@@ -75,11 +75,12 @@ describe('SCR-SET-04 테마', () => {
   it('직접 고른 색은 대문자로 저장하고, 버튼 글자를 진한 색으로 바꿨으면 알린다', async () => {
     const { patches, user } = setup()
     const input = await screen.findByLabelText('직접 고르기')
-    expect(screen.queryByRole('note')).not.toBeInTheDocument()
+    expect(screen.queryByText('밝은 색이라 버튼 글자를 진한 색으로 바꿨어요')).not.toBeInTheDocument()
     // input[type=color]는 user-event로 고를 수 없어 change 이벤트를 직접 낸다
     fireEvent.change(input, { target: { value: '#da5a0c' } })
     expect(screen.getByText('#DA5A0C')).toBeInTheDocument()
-    expect(screen.getByRole('note')).toHaveTextContent('밝은 색이라 버튼 글자를 진한 색으로 바꿨어요')
+    // 고를 때 생기는 안내는 live 영역 안에서 읽힌다(재평가 §4 #23)
+    expect(screen.getByText('밝은 색이라 버튼 글자를 진한 색으로 바꿨어요').closest('[aria-live]')).not.toBeNull()
     expect(screen.getAllByRole('button', { pressed: true })).toHaveLength(1) // 프리셋은 하나도 안 눌림, 배경만
 
     await user.click(screen.getByRole('button', { name: '저장' }))
@@ -93,10 +94,21 @@ describe('SCR-SET-04 테마', () => {
     fireEvent.change(input, { target: { value: '#0f8a7f' } })
     expect(screen.getByText(/흰 글자가 조금 흐려요\. 이 색은 어때요\?/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '저장' })).not.toHaveAttribute('aria-disabled')
-    const suggest = screen.getByRole('button', { name: /로 바꾸기$/ })
+    // 버튼 이름은 hex를 읽지 않는다. 제안 줄은 live 영역 안(재평가 §4 #23)
+    const suggest = screen.getByRole('button', { name: '이 색으로 바꾸기' })
+    expect(suggest.closest('[aria-live]')).not.toBeNull()
     await user.click(suggest)
     expect(screen.queryByText(/흰 글자가 조금 흐려요/)).not.toBeInTheDocument()
     expect(screen.getByText(/^#[0-9A-F]{6}$/)).not.toHaveTextContent('#0F8A7F')
+  })
+
+  it('UX-COM-152 현재 메뉴 글자(accent-ink 대 accent-soft)가 4.5:1에 못 미치는 색도 조정 색을 제안한다', async () => {
+    const { user } = setup()
+    const input = await screen.findByLabelText('직접 고르기')
+    fireEvent.change(input, { target: { value: '#ff14d8' } })
+    expect(screen.getByText(/메뉴의 현재 위치 글자가 조금 흐려요\. 이 색은 어때요\?/)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '이 색으로 바꾸기' }))
+    expect(screen.queryByText(/글자가 조금 흐려요/)).not.toBeInTheDocument()
   })
 
   it('배경·흰 표면과 대비 3:1 미만인 색은 미리보기만 하고 저장을 막는다(키보드로 눌러도)', async () => {

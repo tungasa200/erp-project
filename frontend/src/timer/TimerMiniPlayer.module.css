@@ -17,7 +17,7 @@
 .name {
   margin: 0;
   font-size: var(--text-sm);
-  font-weight: 700;
+  font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -45,7 +45,7 @@
   margin: 0;
   overflow-wrap: anywhere;
   font-size: var(--text-sm);
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .actions {
@@ -62,7 +62,7 @@
   border-radius: var(--radius-input);
   font: inherit;
   font-size: var(--text-sm);
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
 }
 

@@ -82,7 +82,13 @@ const OCCURRENCES = [
 ]
 
 function server(
-  options: { remaining?: Task[]; occurrences?: Occurrence[]; holdTasks?: boolean; log?: Record<string, unknown> } = {},
+  options: {
+    remaining?: Task[]
+    occurrences?: Occurrence[]
+    holdTasks?: boolean
+    log?: Record<string, unknown>
+    failDone?: () => boolean
+  } = {},
 ) {
   // 완료(PATCH)하면 남은 업무 응답에서 빠진다
   const remaining = (options.remaining ?? REMAINING).map((t) => ({ ...t }))
@@ -104,6 +110,7 @@ function server(
         // 응답을 끝내 주지 않아 불러오는 중 상태를 본다
         if (options.holdTasks) return new Promise<Response>(() => {})
         const done = new URLSearchParams(url.split('?')[1]).getAll('status').includes('DONE')
+        if (done && options.failDone?.()) return json(500, { title: 'boom' })
         return json(200, { items: done ? DONE : remaining.filter((t) => t.status !== 'DONE'), nextCursor: null })
       }
       const target = remaining.find((t) => t.id === url.split('/').pop())!
@@ -116,6 +123,22 @@ function server(
 }
 
 describe('SCR-HOME-01 홈 대시보드 1차', () => {
+  it('UX-HOME-150 이번 주 완료만 실패하면 "—" 대신 불러오지 못했다고 말하고 [다시]로 다시 부른다', async () => {
+    const user = userEvent.setup()
+    let fail = true
+    server({ failDone: () => fail })
+    renderApp('/')
+    const cards = await screen.findByRole('list', { name: '요약' })
+    const link = await within(cards).findByRole('link', { name: /이번 주 완료\s*불러오지 못했어요/ })
+    expect(link).not.toHaveTextContent('—')
+    fail = false
+    await user.click(within(cards).getByRole('button', { name: '이번 주 완료 다시 불러오기' }))
+    await waitFor(() =>
+      expect(within(cards).getByRole('link', { name: /이번 주 완료/ })).toHaveTextContent('이번 주 완료1'),
+    )
+    expect(within(cards).queryByRole('button', { name: '이번 주 완료 다시 불러오기' })).not.toBeInTheDocument()
+  })
+
   it('UX-HOME-02 요약 한 줄: 남은 업무(초과 n)·오늘 일정(남은 n)·확인 대기·이번 주 완료, 누르면 해당 목록으로 간다', async () => {
     server()
     renderApp('/')

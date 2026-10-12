@@ -252,6 +252,41 @@ describe('일지 상세 (SCR-LOG-02)', () => {
     expect(screen.queryByRole('region', { name: '원본이 바뀜' })).not.toBeInTheDocument()
   })
 
+  it('UX-LOG-153 [다시 확정]이 확정 해제 뒤에 실패하면 초안으로 남았다고 말하고 [확정]을 보인다', async () => {
+    const user = userEvent.setup()
+    let state = workLog({
+      status: 'CONFIRMED',
+      version: 3,
+      confirmedAt: '2026-10-07T09:00:00Z',
+      sourceChangedAfterConfirm: true,
+    })
+    stubFetch({
+      'GET /api/users/me': me,
+      [LOG_URL]: () => json(200, state),
+      'POST /api/worklog/logs/log-1/unconfirm': () => {
+        state = workLog({ version: 4 })
+        return json(200, state)
+      },
+      'POST /api/worklog/logs/log-1/refill': () => {
+        state = workLog({ version: 5 })
+        return json(200, state)
+      },
+      'POST /api/worklog/logs/log-1/confirm': () => json(500, { title: 'boom' }),
+    })
+    renderApp('/logs/daily/2026-10-07')
+    const band = await screen.findByRole('region', { name: '원본이 바뀜' })
+    await user.click(within(band).getByRole('button', { name: '다시 확정하기' }))
+    await user.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: '다시 확정' }))
+    expect(
+      await screen.findByText(
+        '다시 확정하지 못했어요. 일지는 실적을 지금 기록으로 채운 초안으로 남았어요. [확정]을 눌러 마무리해 주세요',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: '확정' })).toBeInTheDocument()
+    expect(screen.queryByText('저장하지 못했어요. 잠시 후 다시 시도해 주세요')).not.toBeInTheDocument()
+  })
+
   it('변경 이력: Tab은 창 안을 돌고 배경은 inert, 확정본↔목록 전환 때 포커스가 창 안 짝으로 간다(P3-QA-LOG-04-K1)', async () => {
     const user = userEvent.setup()
     const confirmed = workLog({ status: 'CONFIRMED', version: 1, confirmedAt: '2026-10-07T09:00:00Z' })
@@ -311,6 +346,35 @@ describe('일지 상세 (SCR-LOG-02)', () => {
 
     await user.type(await screen.findByRole('textbox', { name: '이슈 및 특이사항' }), '회의 연기')
     await waitFor(() => expect(calls).toEqual(['create', 'patch']), { timeout: 3000 })
+  })
+
+  it('LOG-50 미작성이면 문서 "초안" 표시를 숨기고(머리 배지 "미작성"만), 진행 현황 완료가 실적 줄보다 많을 때만 한 줄 안내', async () => {
+    const metrics = {
+      recordCount: 1,
+      done: 3,
+      reviewRequested: 0,
+      inProgress: 0,
+      completedTaskCount: 2,
+      pendingCount: 0,
+      totalMin: null,
+    }
+    stubFetch({
+      'GET /api/users/me': me,
+      [LOG_URL]: () => json(200, workLog({ id: null, status: 'NOT_WRITTEN' }, { metrics })),
+    })
+    renderApp('/logs/daily/2026-10-07')
+    const doc = await screen.findByRole('article', { name: '일지 문서' })
+    expect(within(doc).getByRole('heading', { level: 2 })).toHaveTextContent(/^업무일지$/)
+    expect(screen.getByText('미작성')).toBeInTheDocument()
+    expect(within(doc).getByText('실적 줄에 아직 없는 완료 2건')).toBeInTheDocument()
+  })
+
+  it('LOG-50 진행 현황 완료와 실적 줄이 맞으면 안내 줄이 없고, 초안은 "초안" 표시를 보인다', async () => {
+    stubFetch({ 'GET /api/users/me': me, [LOG_URL]: () => json(200, workLog()) })
+    renderApp('/logs/daily/2026-10-07')
+    const doc = await screen.findByRole('article', { name: '일지 문서' })
+    expect(within(doc).getByRole('heading', { level: 2 })).toHaveTextContent('업무일지초안')
+    expect(within(doc).queryByText(/실적 줄에 아직 없는 완료/)).not.toBeInTheDocument()
   })
 
   it('[실적에 넣기]를 누르면 다음 기록의 버튼으로, 마지막이면 추가된 실적 줄로 포커스가 간다', async () => {
@@ -800,6 +864,27 @@ describe('일지 자동 저장 — 빈 줄', () => {
     await user.type(input, '거래처 미팅')
     await waitFor(() => expect(bodies).toHaveLength(1), { timeout: 3000 })
     expect(bodies[0]).toMatchObject({ achievements: [{ id: 'a-1' }, { text: '거래처 미팅' }] })
+  })
+
+  it('UX-LOG-151 글 없는 빈 줄만 있으면 새로고침 경고를 하지 않고, 서버와 다른 글이 있을 때만 한다', async () => {
+    const user = userEvent.setup()
+    stubFetch({
+      'GET /api/users/me': me,
+      [LOG_URL]: () => json(200, workLog()),
+    })
+    renderApp('/logs/daily/2026-10-07')
+    const unloadBlocked = () => {
+      const e = new Event('beforeunload', { cancelable: true })
+      window.dispatchEvent(e)
+      return e.defaultPrevented
+    }
+    await user.click(await screen.findByRole('button', { name: '＋ 실적 줄 추가' }))
+    const input = await screen.findByRole('textbox', { name: '2번 업무 내용' })
+    expect(unloadBlocked()).toBe(false)
+    await user.type(input, 'x')
+    expect(unloadBlocked()).toBe(true)
+    await user.clear(input)
+    expect(unloadBlocked()).toBe(false)
   })
 
   it('UX-LOG-140 빈 줄이 남아 있어도 다른 줄의 삭제는 저장하고(빈 줄만 빼고 보냄), 확정할 때 빈 줄은 뺐다고 알린다', async () => {

@@ -21,7 +21,7 @@
   background: var(--color-surface);
   color: var(--color-text-body);
   font-size: var(--text-md);
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
 }
 
@@ -55,7 +55,7 @@
   gap: var(--space-3);
   min-height: var(--size-touch);
   font-size: var(--text-sm);
-  font-weight: 700;
+  font-weight: 800;
   color: var(--color-text-muted);
 }
 

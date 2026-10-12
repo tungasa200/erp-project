@@ -186,6 +186,27 @@ describe('하루 마감 v1.1 (SCR-LOG-03, X-05)', () => {
     await waitFor(() => expect(screen.queryByText(/다른 날 기록/)).not.toBeInTheDocument())
   })
 
+  it('UX-LOG-152 확정하면 [모두 했어요] 되돌리기 토스트를 닫는다 — 확정 일지 실적과 확인 대기가 어긋나지 않게', async () => {
+    const user = userEvent.setup()
+    const rec = ['p-1', '문서 정리', '2026-10-07T01:00:00Z', '2026-10-07T02:00:00Z'] as const
+    stubFetch({
+      'GET /api/users/me': me,
+      [`GET ${CLOSE_URL}`]: () => json(200, plan({ pendingCount: 1, carryOverCandidates: [] })),
+      [LOG_URL]: () => json(200, workLog()),
+      'GET /api/worklog/records/pending': () => json(200, { items: [pendingRec(...rec)] }),
+      'POST /api/worklog/records/pending/confirm': () =>
+        json(200, { items: [{ ...pendingRec(...rec, 1), status: 'CONFIRMED' }] }),
+      [`POST ${CLOSE_URL}`]: () => json(200, { log: workLog({ status: 'CONFIRMED', version: 2 }), suggestions: [] }),
+    })
+    renderApp('/', closeRoutes())
+    await user.click(await screen.findByRole('button', { name: '모두 했어요' }))
+    expect(await screen.findByRole('button', { name: '되돌리기' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '다음' }))
+    await user.click(await screen.findByRole('button', { name: '마감하고 확정' }))
+    expect(await screen.findByRole('heading', { name: '오늘 일지를 확정했어요' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '되돌리기' })).not.toBeInTheDocument()
+  })
+
   it('UX-LOG-44 확정은 Ctrl+Enter다: 이슈 칸의 Enter로는 확정하지 않는다', async () => {
     const user = userEvent.setup()
     const close = vi.fn(() => json(200, { log: workLog({ status: 'CONFIRMED', version: 2 }), suggestions: [] }))

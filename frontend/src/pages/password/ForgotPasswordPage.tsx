@@ -1,6 +1,6 @@
 // SCR-AUTH-04 비밀번호 찾기. 가입 여부와 관계없이 코드 입력 단계(SCR-AUTH-05)로 넘어간다(계정 존재 비노출).
 import { useState, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router'
+import { Link, useLocation, useNavigate } from 'react-router'
 import { toastForError } from '../../api/errorToast'
 import { EMAIL_PATTERN } from '../../auth/passwordRules'
 import { useFocusFirstError } from '../auth/useFocusFirstError'
@@ -16,7 +16,9 @@ export interface ResetState {
 
 export function ForgotPasswordPage() {
   const navigate = useNavigate()
-  const [email, setEmail] = useState('')
+  // 재설정 화면의 [이메일 바꾸기]로 돌아오면 쓴 주소를 채워 둔다(UX-AUTH-171)
+  const back = useLocation().state as { email?: string } | null
+  const [email, setEmail] = useState(back?.email ?? '')
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)

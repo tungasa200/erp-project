@@ -33,6 +33,12 @@
     bottom: calc(var(--toast-bottom-mobile, 88px) + env(safe-area-inset-bottom));
     max-width: none;
   }
+
+  /* 바텀시트가 열려 있으면 화면 위로: 시트의 주 버튼 줄(아래 고정)을 덮지 않게(UX-LOG-154) */
+  :global(:root:has([aria-modal='true'])) .region {
+    top: calc(var(--space-4) + env(safe-area-inset-top));
+    bottom: auto;
+  }
 }
 
 .toast {

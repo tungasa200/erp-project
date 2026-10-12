@@ -136,9 +136,14 @@
   font-weight: 800;
 }
 
+.bannerTextShort {
+  display: none;
+}
+
 .bannerAction {
   flex: none;
-  min-height: 40px;
+  /* 누르는 높이는 모든 폭에서 44px(UX-COM-153, 768 태블릿 터치 포함) */
+  min-height: var(--size-touch);
   padding: 0 var(--space-4);
   border: 1px solid var(--color-accent);
   border-radius: var(--radius-pill);
@@ -190,10 +195,28 @@
   .bannerIcon {
     display: none;
   }
+}
 
-  /* [인증하기] 누르는 영역 44px (P1-X-10) */
+/* 360~767px: 메일 주소를 빼고 "인증하면 일지를 내보낼 수 있어요" + 글자 버튼 [인증하기] + × 한 줄(COM-20) */
+@media (min-width: 360px) and (max-width: 767px) {
+  .banner {
+    flex-wrap: nowrap;
+  }
+
+  .bannerTextLong {
+    display: none;
+  }
+
+  .bannerTextShort {
+    display: block;
+    word-break: keep-all;
+  }
+
   .bannerAction {
-    min-height: var(--size-touch);
+    padding: 0 var(--space-2);
+    border: 0;
+    background: transparent;
+    font-weight: 600;
   }
 }
 

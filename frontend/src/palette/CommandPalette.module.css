@@ -53,7 +53,7 @@
   flex: none;
   font-family: inherit;
   font-size: var(--text-xs);
-  font-weight: 700;
+  font-weight: 600;
   color: var(--color-text-muted);
   background: var(--color-ground);
   border-radius: var(--radius-sm);
@@ -71,7 +71,7 @@
 
 .group [cmdk-group-heading] {
   font-size: var(--text-xs);
-  font-weight: 700;
+  font-weight: 600;
   color: var(--color-text-muted);
   padding: var(--space-3) var(--space-3) var(--space-1);
 }

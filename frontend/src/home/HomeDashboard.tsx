@@ -123,10 +123,29 @@ export function HomeDashboard({ empty }: { empty: ReactNode }) {
             </span>
           </button>
         </li>
+        {/* 이 숫자만 따로 실패하면 다른 곳에 알림이 없다. "—" 대신 말하고 다시 부를 길을 둔다(UX-HOME-150) */}
         <SummaryItem
           to="/tasks?status=DONE&completed=week"
           label="이번 주 완료"
-          value={cardValue(doneThisWeek, `${doneThisWeek.items.length}${more(doneThisWeek)}`)}
+          value={
+            doneThisWeek.isError ? (
+              <span className={styles.summaryFailed}>불러오지 못했어요</span>
+            ) : (
+              cardValue(doneThisWeek, `${doneThisWeek.items.length}${more(doneThisWeek)}`)
+            )
+          }
+          after={
+            doneThisWeek.isError && (
+              <button
+                type="button"
+                className={styles.summaryRetry}
+                aria-label="이번 주 완료 다시 불러오기"
+                onClick={() => void doneThisWeek.refetch()}
+              >
+                다시
+              </button>
+            )
+          }
         />
       </ul>
 
@@ -183,7 +202,7 @@ function cardValue(query: { isPending: boolean; isError: boolean }, value: strin
   return query.isPending ? <Skeleton shape="line" /> : value
 }
 
-function SummaryItem(props: { to: string; label: string; value: ReactNode; children?: ReactNode }) {
+function SummaryItem(props: { to: string; label: string; value: ReactNode; children?: ReactNode; after?: ReactNode }) {
   return (
     <li>
       <Link to={props.to} className={styles.summaryItem}>
@@ -191,6 +210,7 @@ function SummaryItem(props: { to: string; label: string; value: ReactNode; child
         <span className={styles.summaryValue}>{props.value}</span>
         {props.children}
       </Link>
+      {props.after}
     </li>
   )
 }

@@ -43,7 +43,7 @@
   outline: none;
   font: inherit;
   font-size: var(--text-lg);
-  font-weight: 500;
+  font-weight: 600;
   color: var(--color-text);
   background: transparent;
 }
@@ -63,7 +63,7 @@
   flex: none;
   font-family: inherit;
   font-size: var(--text-xs);
-  font-weight: 700;
+  font-weight: 600;
   border-radius: var(--radius-sm);
   padding: var(--space-1) var(--space-2);
 }
@@ -175,6 +175,56 @@
   padding: 0 var(--space-1);
 }
 
+/* COM-07 두 층(시트 밖). 해석 칩은 입력칸 안 한 줄: 높이 고정, 넘치면 가로 스크롤.
+   위아래 7px·옆 3px 여백은 칩 누르는 영역(::after 44px)이 스크롤 상자에 잘리지 않게 둔다 */
+.fieldChips {
+  display: flex;
+  flex: 0 1 auto;
+  gap: var(--space-1);
+  min-width: 0;
+  max-width: 60%;
+  margin: 0;
+  padding: 7px 3px;
+  list-style: none;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+}
+
+/* 좁은 폭에서도 글자 칸이 칩 줄에 밀려 사라지지 않게 최소 폭을 둔다. 남는 칩은 가로 스크롤 */
+.field:has(.fieldChips) .input {
+  min-width: min(8em, 40%);
+}
+
+.fieldChips > li {
+  flex: none;
+}
+
+/* 미리보기 문구·자주 하는 업무·새 프로젝트 확인·오타 경고: 입력칸 아래에 겹쳐 띄워 밑 내용을 밀지 않는다(레이아웃 이동 0).
+   문법 도움말(z 50)보다 아래 */
+.overlay {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  left: 0;
+  right: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  box-sizing: border-box;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-3);
+}
+
+/* 칩 줄 밖에 띄우는 칩 메뉴의 자리. 메뉴(.chipMenu)는 이 아래 8px에 붙는다 */
+.chipMenuAnchor {
+  position: absolute;
+  top: 100%;
+  z-index: 50;
+}
+
 /* 칩은 누르는 버튼이라 줄 간격을 14px 이상 둔다: 보이는 30px + 위아래 7px = 44px 누르는 영역이 윗줄·아랫줄과 겹치지 않는다.
    간격 단계(X-01)에서 14의 아래 단계 12는 2px 겹쳐 위 단계 16으로 */
 .chips {
@@ -201,13 +251,22 @@
   border-radius: var(--radius-pill);
   font: inherit;
   font-size: var(--text-xs);
-  font-weight: 700;
+  font-weight: 600;
   background: var(--color-surface-muted);
   color: var(--color-text-body);
   cursor: pointer;
 }
 
 /* 누르는 영역 44px(--size-touch): 위아래 7px, 옆은 칩 간격 6px의 절반만 넓힌다 */
+/* 긴 프로젝트·태그 이름은 24em에서 줄인다. 버튼에 overflow를 주면 누르는 영역(::after)이 잘려 글자에만 준다 */
+.chipText {
+  min-width: 0;
+  max-width: 24em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .chip::after {
   content: '';
   position: absolute;
@@ -281,7 +340,7 @@
 
 .chipOptionDetail {
   font-size: var(--text-xs);
-  font-weight: 500;
+  font-weight: 600;
   color: var(--color-text-muted);
 }
 
@@ -307,7 +366,7 @@
   flex-direction: column;
   gap: var(--space-1);
   font-size: var(--text-xs);
-  font-weight: 700;
+  font-weight: 600;
   color: var(--color-text-muted);
 }
 
@@ -351,7 +410,7 @@
   color: var(--color-on-accent);
   font: inherit;
   font-size: var(--text-md);
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
 }
 
@@ -378,7 +437,7 @@
   color: var(--color-accent-ink);
   font: inherit;
   font-size: var(--text-xs);
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
 }
 
@@ -435,7 +494,7 @@
   margin: 0;
   padding: 0 2px;
   font-size: var(--text-xs);
-  font-weight: 700;
+  font-weight: 600;
   color: var(--color-accent-ink);
 }
 
@@ -515,7 +574,7 @@
 .examplesLabel {
   margin: var(--space-4) 0 0;
   font-size: var(--text-sm);
-  font-weight: 700;
+  font-weight: 600;
   color: var(--color-text-muted);
 }
 
@@ -554,7 +613,7 @@
   margin: 0;
   padding: 0 2px;
   font-size: var(--text-xs);
-  font-weight: 700;
+  font-weight: 600;
   color: var(--color-text-muted);
 }
 

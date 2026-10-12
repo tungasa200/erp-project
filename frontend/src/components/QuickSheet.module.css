@@ -114,7 +114,7 @@
   background: transparent;
   font: inherit;
   font-size: var(--text-sm);
-  font-weight: 700;
+  font-weight: 600;
   color: var(--color-warning-text);
   text-decoration: underline;
   cursor: pointer;

@@ -41,7 +41,7 @@ export function LinkedSchedules({ task, archived }: { task: Task; archived: bool
           연결된 일정
         </span>
         {!archived && (
-          <button type="button" className={styles.smallButton} onClick={placeOnCalendar}>
+          <button type="button" className={`${styles.smallButton} ${styles.placeButton}`} onClick={placeOnCalendar}>
             캘린더에 배치
           </button>
         )}

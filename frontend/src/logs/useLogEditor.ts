@@ -138,9 +138,15 @@ export function useLogEditor(log: WorkLog | undefined, callbacks: { onPinned: ()
   )
 
   // 화면을 떠날 때 남은 수정을 보낸다
-  // 아직 보내지 않은 수정이 있으면 탭을 닫기 전에 묻는다(자동 저장 0.8초 사이). 저장을 마친 뒤 남은 것이 아무것도 안 쓴
-  // 빈 줄뿐이면 잃을 것이 없으니 묻지 않는다(UX-LOG-145). 결과만 쓴 줄은 보내지 못했으니 묻는다(UX-LOG-143)
-  const unsaved = state === 'saving' || (!!edits && (state !== 'saved' || hasStrandedRows(edits)))
+  // 아직 보내지 않은 수정이 있으면 탭을 닫기 전에 묻는다(자동 저장 0.8초 사이). 서버 값과 다른 글이 있을 때만이다:
+  // 아무것도 안 쓴 빈 줄은 저장 전후 모두 잃을 것이 없으니 묻지 않는다(UX-LOG-145·151). 결과만 쓴 줄은 보내지 못했으니 묻는다(UX-LOG-143)
+  const differs =
+    !!edits &&
+    !!log &&
+    (!!changedList(edits.achievements, log.content.achievements) ||
+      !!changedList(edits.plans, log.content.plans) ||
+      (edits.issues !== undefined && (edits.issues || null) !== (log.content.issues || null)))
+  const unsaved = state === 'saving' || differs || hasStrandedRows(edits)
   useEffect(() => {
     if (!unsaved) return
     const warn = (e: BeforeUnloadEvent) => e.preventDefault()

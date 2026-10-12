@@ -252,8 +252,10 @@
   overflow-wrap: anywhere;
 }
 
-.cellInput:hover {
-  border-color: #d9d9d9 #d9d9d9 #8c8c8c;
+@media (hover: hover) and (pointer: fine) {
+  .cellInput:hover {
+    border-color: #d9d9d9 #d9d9d9 #8c8c8c;
+  }
 }
 
 .cellInput:focus-visible,
@@ -269,9 +271,14 @@
   cursor: default;
 }
 
-.cellInput:read-only,
-.cellInput:read-only:hover {
+.cellInput:read-only {
   border-color: transparent;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .cellInput:read-only:hover {
+    border-color: transparent;
+  }
 }
 
 .tool:disabled,
@@ -281,9 +288,11 @@
   cursor: not-allowed;
 }
 
-.tool:disabled:hover,
-.chip:disabled:hover {
-  background: transparent;
+@media (hover: hover) and (pointer: fine) {
+  .tool:disabled:hover,
+  .chip:disabled:hover {
+    background: transparent;
+  }
 }
 
 .rowTools {
@@ -312,8 +321,11 @@
   inset: -8px;
 }
 
-.tool:hover {
-  background: #f2f2f2;
+/* 터치에서 누른 뒤 hover 바탕이 남아 선택된 것처럼 보이지 않게(UX-COM-150, X-12) */
+@media (hover: hover) and (pointer: fine) {
+  .tool:hover {
+    background: #f2f2f2;
+  }
 }
 
 .tool:focus-visible,
@@ -368,8 +380,10 @@
   gap: 6px;
 }
 
-.chip:hover {
-  background: #f2f2f2;
+@media (hover: hover) and (pointer: fine) {
+  .chip:hover {
+    background: #f2f2f2;
+  }
 }
 
 .chipReason {

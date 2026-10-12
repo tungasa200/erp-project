@@ -8,7 +8,7 @@
   background: var(--color-banner);
   color: var(--color-on-banner);
   font-size: var(--text-md);
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .dot {

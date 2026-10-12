@@ -71,12 +71,14 @@ describe('라우팅', () => {
     expect(fetchMock.mock.calls.map(([url]) => String(url))).toContain('/api/users/me')
   })
 
-  it('없는 주소는 404 화면', async () => {
-    stubFetch({})
-    renderApp('/no-such-page')
+  it('없는 주소는 404 화면. 직접 주소로 와도 [보관함]이 있고, 로그인 안 됐으면 로그인 뒤 보관함으로 (UX-SYS-171)', async () => {
+    const fetchMock = stubFetch({ 'GET /api/users/me': () => problem(401, 'UNAUTHENTICATED') })
+    const { router } = renderApp('/no-such-page')
     expect(await screen.findByRole('heading', { name: '페이지를 찾을 수 없어요' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: '홈으로' })).toHaveAttribute('href', '/')
-    expect(screen.queryByRole('link', { name: '보관함' })).not.toBeInTheDocument()
+    expect(fetchMock).not.toHaveBeenCalled()
+    await userEvent.click(screen.getByRole('link', { name: '보관함' }))
+    await waitFor(() => expect(router.state.location.pathname).toBe('/login'))
   })
 
   it('앱 안에서 없는 주소로 오면 404에 보관함으로 가는 길도 보인다 (SYS-01)', async () => {

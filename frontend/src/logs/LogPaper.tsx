@@ -26,6 +26,8 @@ interface Props {
   content: LogContent
   /** 초안·미리보기는 "초안" 표시와 바닥글 "초안 — 확정 전 일지" */
   draft: boolean
+  /** 제목 옆 "초안" 표시. 미작성(아직 초안 없음)이면 머리 배지 "미작성"과 겹치므로 숨긴다(LOG-50). 기본은 draft */
+  draftMark?: boolean
   confirmedAt: string | null
   timeZone: string
   editor?: PaperEditor
@@ -41,12 +43,14 @@ export function LogPaper(props: Props) {
   const withProject = c.achievements.some((a) => a.projectName)
   const pending = c.metrics.pendingCount
   const titles = useProgressTitles(type, c)
+  // 진행 현황 '완료'는 완료한 업무도 센다(D-113). 실적 줄의 '완료'보다 많으면 왜 다른지 한 줄(LOG-50, 맞으면 아무것도 없음)
+  const doneGap = type === 'MONTHLY' ? 0 : c.metrics.done - c.achievements.filter((a) => a.outcome === 'DONE').length
   return (
     <article className={styles.paper} aria-label="일지 문서">
       <header className={styles.head}>
         <h2 className={styles.docTitle}>
           {c.title}
-          {draft && <span className={styles.draftMark}>초안</span>}
+          {(props.draftMark ?? draft) && <span className={styles.draftMark}>초안</span>}
         </h2>
         <table className={styles.sign} aria-label="결재란">
           <tbody>
@@ -91,6 +95,7 @@ export function LogPaper(props: Props) {
 
       <Section title="진행 현황">
         <p className={styles.body}>{metricsLine(type, c, titles)}</p>
+        {doneGap > 0 && <p className={styles.aux}>실적 줄에 아직 없는 완료 {doneGap}건</p>}
         {type === 'MONTHLY' && c.projects.length > 0 && <ProjectStats content={c} />}
       </Section>
 

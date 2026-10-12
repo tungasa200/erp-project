@@ -15,7 +15,7 @@
   min-width: var(--size-touch);
   color: var(--color-accent-ink);
   font-size: var(--text-md);
-  font-weight: 700;
+  font-weight: 600;
   text-decoration: none;
 }
 
@@ -78,7 +78,7 @@
 .exportText {
   flex: 1 1 240px;
   font-size: var(--text-md);
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1.5;
 }
 

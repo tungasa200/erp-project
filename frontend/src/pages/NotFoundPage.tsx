@@ -1,10 +1,8 @@
 // SCR-SYS-01 찾을 수 없음(404)
 import { Link } from 'react-router'
-import { useAuth } from '../auth/useAuth'
 import styles from './system.module.css'
 
 export function NotFoundPage() {
-  const { user } = useAuth()
   return (
     <main className={styles.page}>
       <div className={styles.box}>
@@ -19,12 +17,11 @@ export function NotFoundPage() {
           <Link to="/" className={styles.primary}>
             홈으로
           </Link>
-          {/* 문구가 말하는 보관함으로 가는 길(SYS-01). 404는 내 정보를 조회하지 않으므로(D-189) 앱 안에서 넘어와 이미 아는 사용자일 때만 보인다 */}
-          {user && (
-            <Link to="/tasks/archive" className={styles.secondary}>
-              보관함
-            </Link>
-          )}
+          {/* 문구가 말하는 보관함으로 가는 길(SYS-01). 로그인 여부와 무관하게 늘 둔다: 404는 내 정보를 조회하지 않고(D-189),
+              로그인 안 된 사용자는 RequireAuth가 로그인 뒤 보관함으로 돌려보낸다(UX-SYS-171) */}
+          <Link to="/tasks/archive" className={styles.secondary}>
+            보관함
+          </Link>
         </div>
       </div>
     </main>
