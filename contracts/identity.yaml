@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: identity-service API
-  version: 0.3.0-draft
+  version: 0.4.0-draft
   description: |
     구현 전 합의용 초안 (P0 범위: P0-05 인증, P0-11 내부 API. P1 범위: P1-01 프로필 수정, P1-12 이메일 인증, P1-13 비밀번호 재설정. P4 범위: P4-08 비밀번호 변경, P4-05 회원 탈퇴). 구현 후에는 springdoc 출력이 기준이다 (P0-10).
     규약은 요구사항정의서 5.5를 따른다: 버전 없는 모듈 접두사(/api/auth, /api/users/me), 시각은 UTC ISO-8601,
@@ -41,11 +41,16 @@ paths:
     post:
       tags: [auth]
       operationId: signup
-      summary: 회원 가입 후 바로 로그인
+      summary: 가입 신청 — 인증 코드 메일 발송 (1단계)
       description: |
-        가입에 성공하면 자동으로 로그인 상태가 된다(쿠키 2종 발급). 이메일 인증은 막지 않는다 (D-20).
-        이메일은 앞뒤 공백을 지우고 소문자로 바꿔 저장·비교한다.
-        비밀번호 확인 입력 일치는 프론트에서만 검사한다.
+        이메일 인증을 마쳐야 계정이 만들어진다 (D-219·D-220, D-20 변경). 이 요청은 계정·쿠키를 만들지 않는다.
+        가입 대기(pending)에 이메일·비밀번호 해시를 저장하고 6자리 인증 코드를 SCR-MAIL-01 메일로 보낸다.
+        같은 이메일로 다시 보내면 가입 대기를 덮어쓰고(비밀번호 포함) 새 코드를 보낸다. 이전 코드는 무효가 된다.
+        "코드 다시 받기"는 같은 본문으로 이 요청을 다시 보낸다(별도 재발송 API 없음).
+        발송 제한(D-64): 이메일 단위 60초 간격·보낸 시각부터 24시간에 10통, IP 단위 1시간 10회(인증·재설정 요청 합산).
+        메일은 커밋 뒤 보내며(D-53), 발송 실패는 응답에 영향을 주지 않는다.
+        가입 대기는 마지막 코드 만료 24시간 뒤 서버가 지운다.
+        이메일은 앞뒤 공백을 지우고 소문자로 바꿔 저장·비교한다. 비밀번호 확인 입력 일치는 프론트에서만 검사한다.
       requestBody:
         required: true
         content:
@@ -53,8 +58,41 @@ paths:
             schema:
               $ref: '#/components/schemas/SignupRequest'
       responses:
+        '202':
+          description: 가입 대기 저장, 코드 메일 발송 예약. 계정·쿠키 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CodeIssued'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          description: 이미 가입된 이메일 (code=EMAIL_ALREADY_EXISTS). 화면은 로그인 링크를 안내한다 (SCR-AUTH-03).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '429':
+          $ref: '#/components/responses/SendLimited'
+        '403':
+          $ref: '#/components/responses/OriginRejected'
+  /api/auth/signup/confirm:
+    post:
+      tags: [auth]
+      operationId: confirmSignup
+      summary: 가입 인증 코드 확인 — 계정 생성 후 바로 로그인 (2단계)
+      description: |
+        코드가 맞으면 그 순간 계정을 만들고(이메일 인증 완료 상태) 가입 대기를 지운 뒤 로그인 상태가 된다(쿠키 2종 발급, 로그인 응답과 같음).
+        코드 규칙은 이메일 인증과 같다: 6자리, 10분, 5회 (CodeRejected). 가입 대기가 없으면(만료로 지워짐 등) CODE_EXPIRED.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CodeCheckRequest'
+      responses:
         '201':
-          description: 가입·로그인 성공
+          description: 계정 생성·로그인 성공
           headers:
             Set-Cookie:
               $ref: '#/components/headers/SetAuthCookies'
@@ -63,9 +101,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/Me'
         '400':
-          $ref: '#/components/responses/ValidationFailed'
+          $ref: '#/components/responses/CodeRejected'
         '409':
-          description: 이미 가입된 이메일 (code=EMAIL_ALREADY_EXISTS). 화면은 로그인 링크를 안내한다 (SCR-AUTH-03).
+          description: 그사이 같은 이메일 계정이 생김 (code=EMAIL_ALREADY_EXISTS)
           content:
             application/problem+json:
               schema:
@@ -401,7 +439,7 @@ paths:
       summary: 인증번호 메일 발송·재발송 (AUTH-08, P1-12)
       description: |
         6자리 코드를 새로 만들어 SCR-MAIL-01 메일로 보낸다(제목에 코드 없음, D-41). 이전 코드는 무효가 된다.
-        가입 직후에는 서버가 첫 코드를 자동으로 보낸다(이 API를 부르지 않아도 됨). 자동 발송도 발송 제한에 포함된다.
+        D-220 뒤 새 가입은 인증을 마친 계정으로 만들어진다. 이 API는 그 전에 가입했으나 인증하지 않은 계정용이다(처음 열 때 이 API로 코드를 받는다).
         발송 제한: 60초 간격, 24시간에 10통. 메일은 커밋 뒤 보내며(D-53), 발송 실패는 응답에 영향을 주지 않는다.
       security:
         - bearerAuth: []

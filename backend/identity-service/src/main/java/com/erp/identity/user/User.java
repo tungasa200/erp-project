@@ -85,10 +85,11 @@ public class User {
 	protected User() {
 	}
 
-	/** 가입 직후 기본값. email은 정규화된 값이어야 한다. */
+	/** 가입 직후 기본값. email은 정규화된 값이어야 한다. 가입 확인 코드가 맞았을 때 만들므로 처음부터 이메일 인증 완료다 (D-220). */
 	public static User signUp(String email, Instant now) {
 		User user = new User();
 		user.email = email;
+		user.emailVerifiedAt = now;
 		user.timezone = DEFAULT_TIMEZONE;
 		user.weekStart = DayOfWeek.MONDAY;
 		user.workDays = DEFAULT_WORK_DAYS;

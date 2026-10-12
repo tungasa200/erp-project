@@ -15,10 +15,13 @@ import com.erp.identity.user.User;
 import com.erp.identity.user.UserCredential;
 import com.erp.identity.user.UserCredentialRepository;
 import com.erp.identity.user.UserRepository;
-import com.erp.identity.verification.EmailVerificationService;
+import com.erp.identity.verification.IpSendLimiter;
+import com.erp.identity.verification.PendingSignups;
+import com.erp.identity.verification.VerificationCodes.Issued;
 
 /**
- * 가입·로그인 (AUTH-01, AUTH-02). 성공하면 새 로그인 세션의 Refresh Token 원문을 함께 돌려준다.
+ * 가입·로그인 (AUTH-01, AUTH-02). 가입은 인증 코드를 확인해야 계정을 만든다(D-220).
+ * 계정을 만들거나 로그인하면 새 로그인 세션의 Refresh Token 원문을 함께 돌려준다.
  */
 @Service
 public class AuthService {
@@ -41,7 +44,9 @@ public class AuthService {
 
 	private final IpLoginLimiter ipLimiter;
 
-	private final EmailVerificationService emailVerification;
+	private final PendingSignups pendingSignups;
+
+	private final IpSendLimiter sendLimiter;
 
 	private final Clock clock;
 
@@ -50,7 +55,7 @@ public class AuthService {
 
 	public AuthService(UserRepository users, UserCredentialRepository credentials, RefreshTokenService refreshTokens,
 			UserFeed feed, PasswordEncoder passwordEncoder, LoginProtection loginProtection, IpLoginLimiter ipLimiter,
-			EmailVerificationService emailVerification, Clock clock) {
+			PendingSignups pendingSignups, IpSendLimiter sendLimiter, Clock clock) {
 		this.users = users;
 		this.credentials = credentials;
 		this.refreshTokens = refreshTokens;
@@ -58,7 +63,8 @@ public class AuthService {
 		this.passwordEncoder = passwordEncoder;
 		this.loginProtection = loginProtection;
 		this.ipLimiter = ipLimiter;
-		this.emailVerification = emailVerification;
+		this.pendingSignups = pendingSignups;
+		this.sendLimiter = sendLimiter;
 		this.clock = clock;
 		this.dummyHash = passwordEncoder.encode("timing-equalizer-0");
 	}
@@ -66,23 +72,35 @@ public class AuthService {
 	public record Session(User user, String refreshToken) {
 	}
 
+	/** 가입 신청 (1단계): 가입 대기를 저장하고 인증 코드를 커밋 뒤 메일로 보낸다. 계정은 만들지 않는다. */
 	@Transactional
-	public Session signUp(SignupRequest request) {
+	public Issued signUp(SignupRequest request, String clientIp) {
 		if (users.existsByEmail(request.email())) {
 			throw emailAlreadyExists();
+		}
+		sendLimiter.consume(clientIp);
+		return pendingSignups.submit(request.email(), passwordEncoder.encode(request.password()));
+	}
+
+	/** 가입 확인 (2단계): 코드가 맞으면 인증 완료 상태로 계정을 만들고 로그인 세션을 시작한다. */
+	@Transactional
+	public Session confirmSignUp(String rawEmail, String code) {
+		String email = SignupRequest.normalizeEmail(rawEmail);
+		PendingSignups.Confirmed confirmed = pendingSignups.check(email, code);
+		if (users.existsByEmail(email)) {
+			throw emailAlreadyExists(); // 그사이 같은 이메일 계정이 생김. 가입 대기는 정리 작업이 지운다.
 		}
 		Instant now = clock.instant();
 		User user;
 		try {
-			user = users.saveAndFlush(User.signUp(request.email(), now));
+			user = users.saveAndFlush(User.signUp(email, now));
 		}
 		catch (DataIntegrityViolationException ex) {
 			throw emailAlreadyExists(); // 같은 이메일 동시 가입
 		}
-		credentials.save(UserCredential.password(user.getId(), passwordEncoder.encode(request.password()), now));
+		credentials.save(UserCredential.password(user.getId(), confirmed.passwordHash(), now));
+		pendingSignups.consume(email, confirmed);
 		feed.created(user.getId(), user.profile(), now);
-		// 먼저 사용, 나중에 인증 (D-20): 가입을 막지 않고 첫 인증번호를 커밋 뒤 보낸다. 발송 실패는 가입에 영향이 없다.
-		emailVerification.sendFirst(user.getId(), user.getEmail());
 		return new Session(user, refreshTokens.startSession(user.getId()));
 	}
 

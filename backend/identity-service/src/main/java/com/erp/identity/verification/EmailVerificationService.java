@@ -20,7 +20,8 @@ import com.erp.identity.verification.VerificationCodes.Purpose;
 import com.erp.identity.verification.VerificationCodes.Status;
 
 /**
- * 이메일 인증 (AUTH-08, P1-12). 가입 직후 첫 코드를 자동으로 보내고, 사용자가 다시 받거나 코드를 입력한다.
+ * 이메일 인증 (AUTH-08, P1-12). D-220부터 새 가입은 가입 확인(PendingSignups)으로 인증을 마치므로,
+ * 이 흐름은 그 전에 가입하고 인증하지 않은 계정용이다. 사용자가 코드를 받고 입력한다.
  * 인증 완료는 Profile 칸이 아니라 피드에 남기지 않는다. users는 SQL로 바꾸고 version을 함께 올린다.
  */
 @Service
@@ -50,7 +51,7 @@ public class EmailVerificationService {
 	public record EmailState(String email, boolean verified) {
 	}
 
-	/** 가입한 트랜잭션 안에서 첫 코드를 보낸다. 새 계정이라 발송 한도에 걸리지 않고, IP 제한도 두지 않는다. */
+	/** 호출한 트랜잭션 안에서 코드를 발급하고 커밋 뒤 메일로 보낸다. */
 	@Transactional(propagation = Propagation.MANDATORY)
 	public Issued sendFirst(UUID userId, String email) {
 		Issued issued = codes.issue(userId, Purpose.VERIFY_EMAIL);

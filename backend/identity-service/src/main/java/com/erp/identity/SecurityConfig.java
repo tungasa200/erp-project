@@ -68,8 +68,8 @@ public class SecurityConfig {
 			.csrf(csrf -> csrf.disable())
 			.sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 			.authorizeHttpRequests(auth -> auth
-				.requestMatchers(HttpMethod.POST, "/api/auth/signup", "/api/auth/login", "/api/auth/refresh",
-						"/api/auth/logout", "/api/auth/password-reset", "/api/auth/password-reset/verify",
+				.requestMatchers(HttpMethod.POST, "/api/auth/signup", "/api/auth/signup/confirm", "/api/auth/login",
+						"/api/auth/refresh", "/api/auth/logout", "/api/auth/password-reset", "/api/auth/password-reset/verify",
 						"/api/auth/password-reset/confirm")
 				.permitAll()
 				.requestMatchers(HttpMethod.POST, PasswordChangeController.PATH)

@@ -157,7 +157,11 @@ public class VerificationCodes {
 
 	/** 지금 보낼 수 없으면 보낼 수 있게 되는 시각, 보낼 수 있으면 null. */
 	private Instant nextSendAt(UUID userId, Purpose purpose, Instant now) {
-		List<Instant> sends = recentSends(userId, purpose, now);
+		return nextSendAt(recentSends(userId, purpose, now), now);
+	}
+
+	/** 최근 24시간 발송 시각(오래된 순)으로 계산한다. 가입 대기(PendingSignups)도 같은 규칙을 쓴다. */
+	static Instant nextSendAt(List<Instant> sends, Instant now) {
 		if (sends.isEmpty()) {
 			return null;
 		}
@@ -180,7 +184,7 @@ public class VerificationCodes {
 			.toList();
 	}
 
-	private static ApiException sendLimited(Instant now, Instant availableAt, boolean daily) {
+	static ApiException sendLimited(Instant now, Instant availableAt, boolean daily) {
 		long seconds = Math.max(1, (Duration.between(now, availableAt).toMillis() + 999) / 1000);
 		return new ApiException(HttpStatus.TOO_MANY_REQUESTS, daily ? DAILY_SEND_LIMIT : RESEND_TOO_SOON,
 				daily ? "오늘은 더 보낼 수 없어요. 내일 다시 시도해 주세요." : "잠시 후 다시 받을 수 있어요.", List.of(),

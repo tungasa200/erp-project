@@ -867,6 +867,7 @@
     },
     "/api/auth/signup" : {
       "post" : {
+        "description" : "계정·쿠키를 만들지 않는다(D-220). 가입 대기를 저장(같은 이메일이면 덮어씀)하고 코드를 커밋 뒤 메일로 보낸다. 코드 다시 받기는 같은 본문으로 다시 보낸다.",
         "operationId" : "signup",
         "requestBody" : {
           "content" : {
@@ -879,15 +880,15 @@
           "required" : true
         },
         "responses" : {
-          "201" : {
+          "202" : {
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/Me"
+                  "$ref" : "#/components/schemas/CodeIssued"
                 }
               }
             },
-            "description" : "가입·로그인 성공. 쿠키 2종 발급"
+            "description" : "가입 대기 저장, 코드 메일 발송 예약"
           },
           "400" : {
             "content" : {
@@ -908,9 +909,77 @@
               }
             },
             "description" : "EMAIL_ALREADY_EXISTS"
+          },
+          "429" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RateLimitedProblem"
+                }
+              }
+            },
+            "description" : "RESEND_TOO_SOON(60초) · DAILY_SEND_LIMIT(24시간 10통) · TOO_MANY_REQUESTS(IP 1시간 10회)",
+            "headers" : {
+              "Retry-After" : {
+                "schema" : {
+                  "type" : "integer"
+                },
+                "style" : "simple"
+              }
+            }
           }
         },
-        "summary" : "회원 가입 후 바로 로그인",
+        "summary" : "가입 신청 — 인증 코드 메일 발송 (1단계)",
+        "tags" : [ "auth" ]
+      }
+    },
+    "/api/auth/signup/confirm" : {
+      "post" : {
+        "description" : "코드가 맞으면 이메일 인증 완료 상태로 계정을 만들고 쿠키 2종을 발급한다. 가입 대기가 없으면 CODE_EXPIRED.",
+        "operationId" : "confirmSignup",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CodeCheckRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Me"
+                }
+              }
+            },
+            "description" : "계정 생성·로그인 성공. 쿠키 2종 발급"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CodeRejectedProblem"
+                }
+              }
+            },
+            "description" : "CODE_MISMATCH(attemptsRemaining) · CODE_EXPIRED · VALIDATION_FAILED(CODE_FORMAT)"
+          },
+          "409" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "EMAIL_ALREADY_EXISTS"
+          }
+        },
+        "summary" : "가입 인증 코드 확인 — 계정 생성 후 바로 로그인 (2단계)",
         "tags" : [ "auth" ]
       }
     },

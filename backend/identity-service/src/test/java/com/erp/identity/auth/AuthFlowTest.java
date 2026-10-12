@@ -1,9 +1,12 @@
 package com.erp.identity.auth;
 
 import static com.erp.identity.AuthTestSupport.PASSWORD;
+import static com.erp.identity.AuthTestSupport.SENT_CODES;
+import static com.erp.identity.AuthTestSupport.confirmSignup;
 import static com.erp.identity.AuthTestSupport.cookieValue;
 import static com.erp.identity.AuthTestSupport.newEmail;
 import static com.erp.identity.AuthTestSupport.refresh;
+import static com.erp.identity.AuthTestSupport.requestSignup;
 import static com.erp.identity.AuthTestSupport.setCookie;
 import static com.erp.identity.AuthTestSupport.signup;
 import static com.erp.identity.AuthTestSupport.signupJson;
@@ -32,6 +35,7 @@ import tools.jackson.databind.json.JsonMapper;
 
 import com.erp.common.test.TestJwt;
 import com.erp.identity.PostgresTestConfig;
+import com.erp.identity.feed.CleanupJobs;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -47,15 +51,32 @@ class AuthFlowTest {
 	@Autowired
 	JsonMapper json;
 
-	@Test
-	void 가입하면_바로_로그인되고_정규화된_이메일과_기본_프로필을_돌려준다() throws Exception {
-		String email = newEmail();
-		MockHttpServletResponse response = signup(mvc, "  " + email.toUpperCase() + " ");
+	@Autowired
+	CleanupJobs cleanupJobs;
 
+	@Test
+	void 가입_신청은_계정을_만들지_않고_코드를_확인하면_계정을_만들어_로그인한다() throws Exception {
+		String email = newEmail();
+		MockHttpServletResponse requested = requestSignup(mvc, "  " + email.toUpperCase() + " ", PASSWORD);
+		assertThat(requested.getStatus()).isEqualTo(202);
+		assertThat(requested.getHeaders("Set-Cookie")).isEmpty();
+		var issued = json.readTree(requested.getContentAsString());
+		assertThat(issued.get("expiresAt").asString()).isNotBlank();
+		assertThat(issued.get("resendAvailableAt").asString()).isNotBlank();
+		assertThat(userCount(email)).isZero();
+		String code = SENT_CODES.get(email);
+
+		MockHttpServletResponse wrong = confirmSignup(mvc, email, code.equals("000000") ? "000001" : "000000");
+		assertThat(wrong.getStatus()).isEqualTo(400);
+		assertThat(json.readTree(wrong.getContentAsString()).get("code").asString()).isEqualTo("CODE_MISMATCH");
+		assertThat(json.readTree(wrong.getContentAsString()).get("attemptsRemaining").asInt()).isEqualTo(4);
+		assertThat(userCount(email)).isZero();
+
+		MockHttpServletResponse response = confirmSignup(mvc, " " + email.toUpperCase(), code);
 		assertThat(response.getStatus()).isEqualTo(201);
 		var me = json.readTree(response.getContentAsString());
 		assertThat(me.get("email").asString()).isEqualTo(email);
-		assertThat(me.get("emailVerified").asBoolean()).isFalse();
+		assertThat(me.get("emailVerified").asBoolean()).isTrue();
 		assertThat(me.get("timezone").asString()).isEqualTo("Asia/Seoul");
 		assertThat(me.get("weekStart").asString()).isEqualTo("MONDAY");
 		assertThat(me.get("workDays").asInt()).isEqualTo(31);
@@ -75,6 +96,85 @@ class AuthFlowTest {
 		String created = jdbc.queryForObject("SELECT type FROM user_events WHERE user_id = ?", String.class,
 				UUID.fromString(me.get("id").asString()));
 		assertThat(created).isEqualTo("CREATED");
+		assertThat(pendingCount(email)).isZero();
+		// 같은 코드로 다시 확인할 수 없다
+		assertThat(confirmSignup(mvc, email, code).getStatus()).isEqualTo(400);
+	}
+
+	@Test
+	void 같은_이메일로_다시_신청하면_60초_뒤_새_코드와_새_비밀번호로_덮어쓴다() throws Exception {
+		String email = newEmail();
+		assertThat(requestSignup(mvc, email, PASSWORD).getStatus()).isEqualTo(202);
+		String first = SENT_CODES.get(email);
+
+		MockHttpServletResponse tooSoon = requestSignup(mvc, email, "other1234");
+		assertThat(tooSoon.getStatus()).isEqualTo(429);
+		assertThat(json.readTree(tooSoon.getContentAsString()).get("code").asString()).isEqualTo("RESEND_TOO_SOON");
+		assertThat(tooSoon.getHeader("Retry-After")).isNotBlank();
+
+		jdbc.update("UPDATE pending_signups SET sent_at = ARRAY(SELECT t - interval '61 seconds' FROM unnest(sent_at) t) "
+				+ "WHERE email = ?", email);
+		assertThat(requestSignup(mvc, email, "other1234").getStatus()).isEqualTo(202);
+		String second = SENT_CODES.get(email);
+		if (!first.equals(second)) {
+			assertThat(json.readTree(confirmSignup(mvc, email, first).getContentAsString()).get("code").asString())
+				.isEqualTo("CODE_MISMATCH");
+		}
+		assertThat(confirmSignup(mvc, email, second).getStatus()).isEqualTo(201);
+		mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
+			.content("{\"email\":\"%s\",\"password\":\"other1234\"}".formatted(email)))
+			.andExpect(status().isOk());
+	}
+
+	@Test
+	void 가입_신청은_24시간에_10통까지() throws Exception {
+		String email = newEmail();
+		assertThat(requestSignup(mvc, email, PASSWORD).getStatus()).isEqualTo(202);
+		jdbc.update("UPDATE pending_signups SET sent_at = ARRAY(SELECT now() - interval '2 hours' FROM generate_series(1, 10)) "
+				+ "WHERE email = ?", email);
+		MockHttpServletResponse limited = requestSignup(mvc, email, PASSWORD);
+		assertThat(limited.getStatus()).isEqualTo(429);
+		assertThat(json.readTree(limited.getContentAsString()).get("code").asString()).isEqualTo("DAILY_SEND_LIMIT");
+	}
+
+	@Test
+	void 가입_대기가_없거나_코드가_만료되면_CODE_EXPIRED이고_만료_24시간_뒤_지운다() throws Exception {
+		MockHttpServletResponse none = confirmSignup(mvc, newEmail(), "123456");
+		assertThat(none.getStatus()).isEqualTo(400);
+		assertThat(json.readTree(none.getContentAsString()).get("code").asString()).isEqualTo("CODE_EXPIRED");
+
+		String email = newEmail();
+		requestSignup(mvc, email, PASSWORD);
+		jdbc.update("UPDATE pending_signups SET expires_at = now() - interval '1 minute' WHERE email = ?", email);
+		MockHttpServletResponse expired = confirmSignup(mvc, email, SENT_CODES.get(email));
+		assertThat(json.readTree(expired.getContentAsString()).get("code").asString()).isEqualTo("CODE_EXPIRED");
+		cleanupJobs.purgePendingSignups();
+		assertThat(pendingCount(email)).isOne();
+		jdbc.update("UPDATE pending_signups SET expires_at = now() - interval '25 hours' WHERE email = ?", email);
+		cleanupJobs.purgePendingSignups();
+		assertThat(pendingCount(email)).isZero();
+	}
+
+	@Test
+	void 신청과_확인_사이에_같은_이메일_계정이_생기면_409() throws Exception {
+		String email = newEmail();
+		requestSignup(mvc, email, PASSWORD);
+		String code = SENT_CODES.get(email);
+		jdbc.update("UPDATE pending_signups SET email = ? WHERE email = ?", email + ".tmp", email);
+		signup(mvc, email);
+		jdbc.update("UPDATE pending_signups SET email = ? WHERE email = ?", email, email + ".tmp");
+		MockHttpServletResponse conflict = confirmSignup(mvc, email, code);
+		assertThat(conflict.getStatus()).isEqualTo(409);
+		assertThat(json.readTree(conflict.getContentAsString()).get("code").asString())
+			.isEqualTo("EMAIL_ALREADY_EXISTS");
+	}
+
+	private int userCount(String email) {
+		return jdbc.queryForObject("SELECT count(*) FROM users WHERE email = ?", Integer.class, email);
+	}
+
+	private int pendingCount(String email) {
+		return jdbc.queryForObject("SELECT count(*) FROM pending_signups WHERE email = ?", Integer.class, email);
 	}
 
 	@Test

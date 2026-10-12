@@ -23,6 +23,8 @@ public class CleanupJobs {
 
 	static final Duration VERIFICATION_CODE_RETENTION = Duration.ofHours(24);
 
+	static final Duration PENDING_SIGNUP_RETENTION = Duration.ofHours(24);
+
 	private final JdbcTemplate jdbc;
 
 	private final Clock clock;
@@ -48,6 +50,14 @@ public class CleanupJobs {
 	@Transactional
 	public void purgeVerificationCodes() {
 		jdbc.update("DELETE FROM verification_codes WHERE created_at < ?", now().minus(VERIFICATION_CODE_RETENTION));
+	}
+
+	/** 확인하지 않은 가입 대기 (D-220). 코드 만료 24시간 뒤에 지운다. 그때는 발송 한도를 셀 발송 기록도 모두 24시간이 지났다. */
+	@Scheduled(cron = "${identity.cleanup.cron:0 17 * * * *}", zone = "UTC")
+	@SchedulerLock(name = "identity.purgePendingSignups")
+	@Transactional
+	public void purgePendingSignups() {
+		jdbc.update("DELETE FROM pending_signups WHERE expires_at < ?", now().minus(PENDING_SIGNUP_RETENTION));
 	}
 
 	/**

@@ -18,11 +18,15 @@ import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.erp.common.error.Problems;
 import com.erp.identity.token.AccessTokenIssuer;
 import com.erp.identity.user.Me;
+import com.erp.identity.verification.VerificationCodes.Issued;
+import com.erp.identity.verification.VerificationDtos.CodeCheckRequest;
+import com.erp.identity.verification.VerificationDtos.CodeIssued;
 
 /**
  * /api/auth/** — Gateway가 토큰을 검증하지 않고 쿠키를 그대로 넘긴다 (D-46).
@@ -47,13 +51,27 @@ public class AuthController {
 		this.accessTokens = accessTokens;
 	}
 
-	@Operation(operationId = "signup", summary = "회원 가입 후 바로 로그인")
-	@ApiResponse(responseCode = "201", description = "가입·로그인 성공. 쿠키 2종 발급")
+	@Operation(operationId = "signup", summary = "가입 신청 — 인증 코드 메일 발송 (1단계)",
+			description = "계정·쿠키를 만들지 않는다(D-220). 가입 대기를 저장(같은 이메일이면 덮어씀)하고 코드를 커밋 뒤 메일로 보낸다. 코드 다시 받기는 같은 본문으로 다시 보낸다.")
+	@ApiResponse(responseCode = "202", description = "가입 대기 저장, 코드 메일 발송 예약")
 	@ApiResponse(responseCode = "400", description = "VALIDATION_FAILED (errors[].code는 contracts/identity.yaml)", content = @Content(mediaType = "application/problem+json", schema = @Schema(ref = "#/components/schemas/Problem")))
 	@ApiResponse(responseCode = "409", description = "EMAIL_ALREADY_EXISTS", content = @Content(mediaType = "application/problem+json", schema = @Schema(ref = "#/components/schemas/Problem")))
+	@ApiResponse(responseCode = "429", description = "RESEND_TOO_SOON(60초) · DAILY_SEND_LIMIT(24시간 10통) · TOO_MANY_REQUESTS(IP 1시간 10회)", headers = @Header(name = HttpHeaders.RETRY_AFTER, schema = @Schema(type = "integer")), content = @Content(mediaType = "application/problem+json", schema = @Schema(ref = AuthOpenApi.RATE_LIMITED_PROBLEM_REF)))
 	@PostMapping("/signup")
-	public ResponseEntity<Me> signup(@Valid @RequestBody SignupRequest request) {
-		AuthService.Session session = auth.signUp(request);
+	@ResponseStatus(HttpStatus.ACCEPTED)
+	public CodeIssued signup(@Valid @RequestBody SignupRequest request, HttpServletRequest httpRequest) {
+		Issued issued = auth.signUp(request, IpLoginLimiter.clientIp(httpRequest));
+		return new CodeIssued(issued.expiresAt(), issued.resendAvailableAt());
+	}
+
+	@Operation(operationId = "confirmSignup", summary = "가입 인증 코드 확인 — 계정 생성 후 바로 로그인 (2단계)",
+			description = "코드가 맞으면 이메일 인증 완료 상태로 계정을 만들고 쿠키 2종을 발급한다. 가입 대기가 없으면 CODE_EXPIRED.")
+	@ApiResponse(responseCode = "201", description = "계정 생성·로그인 성공. 쿠키 2종 발급")
+	@ApiResponse(responseCode = "400", description = "CODE_MISMATCH(attemptsRemaining) · CODE_EXPIRED · VALIDATION_FAILED(CODE_FORMAT)", content = @Content(mediaType = "application/problem+json", schema = @Schema(ref = "#/components/schemas/CodeRejectedProblem")))
+	@ApiResponse(responseCode = "409", description = "EMAIL_ALREADY_EXISTS", content = @Content(mediaType = "application/problem+json", schema = @Schema(ref = "#/components/schemas/Problem")))
+	@PostMapping("/signup/confirm")
+	public ResponseEntity<Me> confirmSignup(@Valid @RequestBody CodeCheckRequest request) {
+		AuthService.Session session = auth.confirmSignUp(request.email(), request.code());
 		return ResponseEntity.status(HttpStatus.CREATED)
 			.headers(sessionCookies(session))
 			.body(Me.of(session.user()));

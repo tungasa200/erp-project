@@ -59,10 +59,10 @@ class VerificationFlowTest {
 	Mailer mailer;
 
 	@Test
-	void 가입하면_인증번호_메일을_보내고_코드로_인증한다() throws Exception {
+	void 미인증_계정은_인증번호_메일을_받아_코드로_인증한다() throws Exception {
 		String email = newEmail();
-		String token = cookieValue(signup(mvc, email), "access_token");
-		Mail mail = lastMail();
+		String token = unverifiedUser(email);
+		Mail mail = lastMail(2);
 		assertThat(mail.to()).isEqualTo(email);
 		assertThat(mail.subject()).isEqualTo("[WY Worklog] 이메일 인증번호 안내");
 		String code = code(mail);
@@ -101,8 +101,8 @@ class VerificationFlowTest {
 	@Test
 	void 다섯번_틀리면_맞는_코드도_만료로_거부하고_새_코드를_받을_수_있다() throws Exception {
 		String email = newEmail();
-		String token = cookieValue(signup(mvc, email), "access_token");
-		String code = code(lastMail());
+		String token = unverifiedUser(email);
+		String code = code(lastMail(2));
 		for (int i = 4; i >= 0; i--) {
 			confirmEmail(token, wrong(code)).andExpect(jsonPath("$.attemptsRemaining").value(i));
 		}
@@ -113,15 +113,15 @@ class VerificationFlowTest {
 		sendCode(token).andExpect(status().isAccepted())
 			.andExpect(jsonPath("$.expiresAt").isNotEmpty())
 			.andExpect(jsonPath("$.resendAvailableAt").isNotEmpty());
-		String second = code(lastMail(2));
+		String second = code(lastMail(3));
 		confirmEmail(token, second).andExpect(status().isOk());
 	}
 
 	@Test
 	void 인증_코드는_10분이_지나면_만료된다() throws Exception {
 		String email = newEmail();
-		String token = cookieValue(signup(mvc, email), "access_token");
-		String code = code(lastMail());
+		String token = unverifiedUser(email);
+		String code = code(lastMail(2));
 
 		// 9분 59초: 아직 유효하다 (틀리면 시도만 준다)
 		age(email, 599);
@@ -143,7 +143,7 @@ class VerificationFlowTest {
 		lastMail();
 		UUID userId = jdbc.queryForObject("SELECT id FROM users WHERE email = ?", UUID.class, email);
 
-		// 가입 때 보낸 인증 메일과는 따로 센다
+		// 가입 때 보낸 가입 확인 메일과는 따로 센다
 		requestReset(email, newIp()).andExpect(status().isAccepted());
 		requestReset(email, newIp()).andExpect(status().isTooManyRequests())
 			.andExpect(jsonPath("$.code").value("RESEND_TOO_SOON"))
@@ -188,7 +188,7 @@ class VerificationFlowTest {
 	@Test
 	void 하루_10통을_넘으면_DAILY_SEND_LIMIT() throws Exception {
 		String email = newEmail();
-		String token = cookieValue(signup(mvc, email), "access_token");
+		String token = unverifiedUser(email);
 		UUID userId = jdbc.queryForObject("SELECT id FROM users WHERE email = ?", UUID.class, email);
 		for (int i = 0; i < 9; i++) {
 			jdbc.update("""
@@ -210,6 +210,7 @@ class VerificationFlowTest {
 		MockHttpServletResponse signup = signup(mvc, email);
 		String oldRefresh = cookieValue(signup, "refresh_token");
 		lastMail();
+		jdbc.update("UPDATE users SET email_verified_at = NULL WHERE email = ?", email); // D-220 전에 가입한 미인증 계정
 		jdbc.update("UPDATE users SET failed_login_count = 3, locked_until = now() + interval '5 minutes' WHERE email = ?",
 				email);
 
@@ -263,6 +264,17 @@ class VerificationFlowTest {
 		requestReset(newEmail(), ip).andExpect(status().isTooManyRequests())
 			.andExpect(jsonPath("$.code").value("TOO_MANY_REQUESTS"));
 		requestReset(newEmail(), newIp()).andExpect(status().isAccepted());
+	}
+
+	/**
+	 * D-220 전에 가입하고 인증하지 않은 계정을 만들고 인증 코드를 한 번 받는다(가입 확인 메일 1통 + 인증 메일 1통).
+	 * 지금은 가입 확인으로 계정이 인증된 채 만들어지므로 인증 시각을 지워 그 상태를 흉내 낸다.
+	 */
+	private String unverifiedUser(String email) throws Exception {
+		String token = cookieValue(signup(mvc, email), "access_token");
+		jdbc.update("UPDATE users SET email_verified_at = NULL WHERE email = ?", email);
+		sendCode(token).andExpect(status().isAccepted());
+		return token;
 	}
 
 	private Mail lastMail() {
