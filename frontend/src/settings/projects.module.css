@@ -147,7 +147,7 @@
   color: var(--color-text);
   font: inherit;
   font-size: var(--text-md);
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .input[aria-invalid='true'] {
