@@ -70,6 +70,8 @@ export function Modal({ labelledBy, onClose, narrow, sheet, role = 'dialog', dir
   const keepRef = useRef<HTMLButtonElement>(null)
   // 바깥 누르기는 누름과 뗌이 모두 바깥일 때만(창 안에서 끌어 바깥에서 떼면 닫지 않는다)
   const downOutside = useRef(false)
+  // 처음 포커스는 열 때 한 번만 정한다
+  const sheetTitleId = useRef(sheet ? labelledBy : null)
 
   const requestClose = () => {
     if (!dirty) return onClose()
@@ -89,13 +91,21 @@ export function Modal({ labelledBy, onClose, narrow, sheet, role = 'dialog', dir
     const previous = markFocus()
     // 머리의 닫기(×)가 DOM 첫 버튼이라 입력 칸을 먼저 찾고, 칸이 없으면(확인만 하는 창) 제출 버튼, 그다음 아무 버튼
     const dialog = ref.current
-    const first = [
-      'input:not([type=hidden]):not(:disabled), textarea:not(:disabled), select:not(:disabled)',
-      'button[type=submit]:not(:disabled)',
-      'button:not(:disabled)',
-    ]
-      .map((selector) => dialog?.querySelector<HTMLElement>(selector))
-      .find(Boolean)
+    // 모바일 바텀시트는 제목에 둔다: 날짜 칸에 두면 선택기·키보드가 바로 올라와 빠른 선택을 가린다(UX-M-STAT-53)
+    const title =
+      sheetTitleId.current && window.matchMedia?.('(max-width: 767px)').matches
+        ? document.getElementById(sheetTitleId.current)
+        : null
+    title?.setAttribute('tabindex', '-1')
+    const first =
+      title ??
+      [
+        'input:not([type=hidden]):not(:disabled), textarea:not(:disabled), select:not(:disabled)',
+        'button[type=submit]:not(:disabled)',
+        'button:not(:disabled)',
+      ]
+        .map((selector) => dialog?.querySelector<HTMLElement>(selector))
+        .find(Boolean)
     first?.focus()
     const release = dialog ? inertOutside(dialog) : () => {}
     return () => {

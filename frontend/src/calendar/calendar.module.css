@@ -1041,12 +1041,54 @@ button.monthCell {
   min-width: 0;
   font-size: var(--text-md);
   font-weight: var(--weight-title);
+  /* 띄어쓰기 없는 긴 제목(주소 등)도 카드 안에서 줄을 바꾼다 */
+  overflow-wrap: anywhere;
 }
 
 .listMeta {
   font-size: var(--text-xs);
   font-weight: var(--weight-title);
   color: var(--color-text-muted);
+}
+
+/* 모바일: 한 줄에 시각·점·제목을 두면 제목이 36px 열로 쪼개진다(UX-M-CAL-70).
+   날짜 열을 줄이고, 카드는 위 줄 점·시각·프로젝트·반복, 아래 줄 제목으로 쌓는다 */
+@media (max-width: 767px) {
+  .list {
+    padding-inline: var(--space-3);
+  }
+
+  .listDay {
+    gap: var(--space-3);
+  }
+
+  .listDate {
+    width: 56px;
+  }
+
+  .listItem {
+    flex-wrap: wrap;
+    column-gap: var(--space-2);
+    row-gap: 2px;
+  }
+
+  .listColor {
+    order: -1;
+  }
+
+  .listTime {
+    width: auto;
+  }
+
+  .listTitle {
+    order: 1;
+    flex-basis: 100%;
+  }
+
+  .listMeta {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
 }
 
 /* 첫 로딩 스켈레톤(2장): 보기 자리 */

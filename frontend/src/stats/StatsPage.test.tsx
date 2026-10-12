@@ -262,6 +262,26 @@ describe('SCR-STAT-01 통계', () => {
     expect(custom).toHaveFocus()
   })
 
+  it('모바일 바텀시트는 제목에 포커스를 두고 날짜 칸은 열지 않는다(UX-M-STAT-53)', async () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query.includes('max-width'),
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }))
+    try {
+      setup(() => json(200, REPORT))
+      await screen.findByRole('list', { name: '요약' })
+      await userEvent.click(screen.getByRole('button', { name: '직접 선택' }))
+      const dialog = screen.getByRole('dialog', { name: '기간 고르기' })
+      expect(within(dialog).getByRole('heading', { name: '기간 고르기' })).toHaveFocus()
+      // 제목에서 Tab이면 첫 빠른 선택으로
+      await userEvent.tab()
+      expect(within(dialog).getByRole('button', { name: '지난주' })).toHaveFocus()
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
   it('큰 수는 천 단위로 끊고, 다시 받다 실패해도 받아 둔 내용은 둔다', async () => {
     let fail = false
     const { queryClient } = setup(() =>
