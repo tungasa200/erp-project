@@ -46,3 +46,4 @@
 - PR(feature/P<n> → main)은 merge commit으로 병합(WY-commit, 사용자 승인).
 - 병합 직전 WY-browser로 운영 변수 이름 확인, 병합 직후 WY-qa로 운영 확인(진행현황 "다음 작업"의 병합 직후 항목).
 - 일괄 개정은 WY-planner(요구사항정의서·작업계획서)와 WY-design(화면정의서).
+- 승인 카드(choice·todo 포함, pm·WY-commit 모두)는 쓴 직후 agentTeamPackage `vscode`의 `approvalStore.readRequest(파일, id)`로 `broken`이 없는지 확인한 뒤 알린다. kind는 commit·push·force-push·branch·delete-branch·merge·reset·rebase·tag-delete·choice·todo만, PR 생성·병합은 `merge`. 형식 오류 카드가 잦다는 사용자 지적(2026-10-12).
