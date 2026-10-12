@@ -101,7 +101,8 @@ export function AppShell() {
     )
   }, [quickParam, setSearchParams])
   // 하루 마감 알림·푸시(/?close=YYYY-MM-DD)로 오면 그날 마감 창을 열고 주소에서 뺀다. 창 자리(DayCloseHost)는 자식이라 먼저 등록돼 있다
-  const closeParam = searchParams.get('close')
+  // 홈에서만 본다: 옛 주소 /logs/daily/{날짜}?close=1에서 먼저 지우면 LogsRedirect가 날짜를 넘기지 못한다
+  const closeParam = pathname === '/' ? searchParams.get('close') : null
   useEffect(() => {
     if (closeParam === null) return
     if (/^\d{4}-\d{2}-\d{2}$/.test(closeParam)) openDayClose({ date: closeParam })

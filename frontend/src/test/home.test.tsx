@@ -261,6 +261,16 @@ describe('SCR-HOME-01 홈 대시보드 1차', () => {
 })
 
 describe('하루 마감 띠 (X-02 C, UX-HOME-04·12)', () => {
+  it('업무일지 숨김: 하루 마감 알림·푸시의 옛 주소(/logs/daily/{날짜}?close=1)는 홈으로 바꾸고 그날 마감 창을 연다', async () => {
+    server()
+    const { router } = renderApp('/logs/daily/2026-10-06?close=1')
+    // 그날(10/6) 마감 창이 열린다
+    expect(await screen.findByRole('dialog', { name: '하루 마감' })).toBeInTheDocument()
+    expect(vi.mocked(fetch).mock.calls.some(([url]) => String(url).includes('/logs/daily/2026-10-06'))).toBe(true)
+    expect(router.state.location.pathname).toBe('/')
+    expect(router.state.location.search).toBe('')
+  })
+
   it('마감 시각 전에는 띠가 없고 빠른 입력 안내는 할 일, 오늘 마감 카드에 [하루 마감]이 있다', async () => {
     server()
     renderApp('/')
