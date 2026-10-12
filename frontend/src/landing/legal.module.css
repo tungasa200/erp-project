@@ -164,6 +164,10 @@
   color: var(--color-text-body);
 }
 
+.cellLabel {
+  display: none;
+}
+
 .link {
   color: var(--color-accent-ink);
   text-decoration: underline;
@@ -200,6 +204,62 @@
 
   .title {
     font-size: var(--text-2xl);
+  }
+
+  /* 표는 행마다 카드로(D-212 X-06, UX-AUTH-85): 가로로 밀지 않고 위에서 아래로 읽는다 */
+  .tableBox {
+    overflow-x: visible;
+  }
+
+  .table,
+  .table tbody,
+  .table tr,
+  .table td {
+    display: block;
+    min-width: 0;
+  }
+
+  .table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .table tr {
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--color-divider);
+    border-radius: var(--radius-input);
+  }
+
+  .table tr + tr {
+    margin-top: var(--space-2);
+  }
+
+  .table td {
+    padding: 0;
+    border: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .table td + td {
+    margin-top: var(--space-2);
+  }
+
+  /* 첫 칸(구분·이전받는 자)이 카드 제목 */
+  .table td:first-child {
+    color: var(--color-text);
+    font-size: var(--text-md);
+    font-weight: var(--weight-title);
+  }
+
+  .cellLabel {
+    display: block;
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-title);
   }
 
   /* 터치 화면은 누르는 높이 44px(pm 결정 2026-10-11) */

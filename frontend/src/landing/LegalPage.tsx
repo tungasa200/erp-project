@@ -77,23 +77,30 @@ function Block({ block, label }: { block: LegalBlock; label: string }) {
     )
   }
   return (
-    // 좁은 화면에서는 표만 상자 안에서 가로로 민다. 키보드로도 밀 수 있게 포커스를 받는다
+    // 넓은 화면은 표. 767px 이하는 행마다 카드(첫 칸이 제목, 나머지는 칸 이름 + 내용)로 쌓는다(D-212 X-06, UX-AUTH-85).
+    // 카드로 바꿔도 낭독기가 표로 읽게 역할을 적어 둔다(CSS display가 바뀌면 표 의미를 버리는 브라우저가 있다)
     <div className={styles.tableBox} role="region" aria-label={`${label} 표`} tabIndex={0}>
-      <table className={styles.table}>
-        <thead>
-          <tr>
+      <table className={styles.table} role="table">
+        <thead role="rowgroup">
+          <tr role="row">
             {block.table.head.map((h) => (
-              <th key={h} scope="col">
+              <th key={h} scope="col" role="columnheader">
                 {h}
               </th>
             ))}
           </tr>
         </thead>
-        <tbody>
+        <tbody role="rowgroup">
           {block.table.rows.map((row, r) => (
-            <tr key={r}>
+            <tr key={r} role="row">
               {row.map((cell, i) => (
-                <td key={i}>
+                <td key={i} role="cell">
+                  {/* 카드에서만 보이는 칸 이름. 낭독기는 열 머리로 이미 읽으므로 숨긴다 */}
+                  {i > 0 && (
+                    <span className={styles.cellLabel} aria-hidden="true">
+                      {block.table.head[i]}
+                    </span>
+                  )}
                   <Text>{cell}</Text>
                 </td>
               ))}

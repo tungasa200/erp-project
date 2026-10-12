@@ -2,6 +2,7 @@
 // 날짜는 'yyyy-mm-dd' 문자열(시간대 없는 달력 날짜), 하루 안의 시각은 0시부터 분(0~1440)으로 다룬다.
 // 시각(instant)과 날짜를 오갈 때는 항상 시간대를 지정한다: 표시는 사용자의 현재 시간대(D-40).
 // 표기(시각→날짜·분, 오늘, "14:00", 요일, 긴 날짜)는 공용 format/datetime 한 곳에서 만든다(X-13). 여기서는 다시 내보내기만 한다.
+import type { Occurrence } from './api'
 import { WEEKDAY_SHORT, formatMinutes, todayIn, toZoned } from '../format/datetime'
 
 export { formatMinutes, todayIn, toZoned }
@@ -132,4 +133,14 @@ export function dateName(date: string): string {
 export function isValidDate(value: string | undefined): value is string {
   if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
   return fromUtc(toUtc(value)) === value
+}
+
+/** 그날 안의 시각 범위. 종일이거나 날을 넘으면 그날 몫만(월 보기 아래 목록도 쓴다) */
+export function timeText(o: Occurrence, date: string, timeZone: string) {
+  if (o.allDay) return '종일'
+  const s = toZoned(o.startAt!, timeZone)
+  const e = toZoned(o.endAt!, timeZone)
+  const start = s.date === date ? formatMinutes(s.minutes) : '00:00'
+  const end = e.date === date ? formatMinutes(e.minutes) : '24:00'
+  return `${start} – ${end}`
 }

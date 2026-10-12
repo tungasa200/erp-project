@@ -8,8 +8,9 @@ import { holidayName } from './holidays'
 import { occurrencesByDate } from './layout'
 import { RepeatIcon } from './TimeGrid'
 import { useTouchHold } from './touchHold'
-import { WEEKDAY_LABELS, dateName, diffDays, formatMinutes, toZoned, weekdayIndex } from './time'
+import { WEEKDAY_LABELS, dateName, diffDays, formatMinutes, timeText, toZoned, weekdayIndex } from './time'
 import styles from './calendar.module.css'
+import agendaStyles from './monthAgenda.module.css'
 
 const MAX_CHIPS = 3
 const MAX_DOTS = 3
@@ -26,7 +27,8 @@ interface Props {
   onOpenDay: (date: string) => void
   onCreateAllDay: (date: string) => void
   onMoveDays: (o: Occurrence, days: number) => void
-  /** 모바일: 훑어보기 전용(D-77과 같은 방식). 날짜 칸 전체가 일 보기로 가는 버튼이고 칩 대신 색 점을 그린다 */
+  /** 모바일: 훑어보기 전용(D-77과 같은 방식). 칩 대신 색 점을 그리고, 날짜를 누르면 그 날을 골라 격자 아래에 일정 목록을 보인다.
+   *  고른 날을 한 번 더 누르거나 [일 보기 ›]를 누르면 일 보기로 간다(UX-M-CAL-72, 모바일 규칙 ③) */
   overview?: boolean
   /** false면(오프라인, P1-X-04) 칩 끌기·빈 칸 만들기를 끈다 */
   editable?: boolean
@@ -56,6 +58,10 @@ export function MonthView({
   // 손가락은 길게 누른 뒤에만 칩을 옮긴다(바로 밀면 스크롤)
   const hold = useTouchHold(cellsRef)
   const [popover, setPopover] = useState<{ date: string; x: number; y: number; opener: HTMLElement } | null>(null)
+  // 모바일 아래 목록의 날. 처음은 오늘, 오늘이 이 달이 아니면 1일. 달을 옮기면 다시 정한다
+  const firstPick = today.startsWith(month) ? today : `${month}-01`
+  const [picked, setPicked] = useState({ month, date: firstPick })
+  const selected = picked.month === month ? picked.date : firstPick
 
   useEffect(() => {
     if (!popover) return
@@ -151,14 +157,15 @@ export function MonthView({
                 <button
                   key={date}
                   type="button"
-                  className={styles.monthCell}
+                  className={`${styles.monthCell} ${date === selected ? agendaStyles.picked : ''}`}
                   data-overview
                   data-out={!date.startsWith(month) || undefined}
                   data-today={date === today || undefined}
                   data-holiday={!!holiday || undefined}
                   data-rest={wd === 0 || wd === 6 || !!holiday || undefined}
+                  aria-pressed={date === selected}
                   aria-label={`${dateName(date)}${holiday ? ` ${holiday}` : ''}, 일정 ${list.length}개`}
-                  onClick={() => props.onOpenDay(date)}
+                  onClick={() => (date === selected ? props.onOpenDay(date) : setPicked({ month, date }))}
                 >
                   <span className={styles.dateNumber}>{Number(date.slice(8))}</span>
                   <span className={styles.monthDots} aria-hidden="true">
@@ -233,6 +240,18 @@ export function MonthView({
           })}
         </div>
       </div>
+      {overview && (
+        <DayAgenda
+          date={selected}
+          list={byDate.get(selected) ?? []}
+          timeZone={timeZone}
+          colorOf={colorOf}
+          editable={editable}
+          onOpen={props.onOpen}
+          onOpenDay={props.onOpenDay}
+          onCreate={props.onCreateAllDay}
+        />
+      )}
       {popover && (
         <div className={styles.popoverLayer} onPointerDown={(e) => e.target === e.currentTarget && setPopover(null)}>
           <div
@@ -269,5 +288,83 @@ export function MonthView({
         </div>
       )}
     </div>
+  )
+}
+
+/** 모바일 월 보기 아래: 고른 날의 일정(시각 · 제목 한 줄, 44px 행) */
+function DayAgenda({
+  date,
+  list,
+  timeZone,
+  colorOf,
+  editable,
+  onOpen,
+  onOpenDay,
+  onCreate,
+}: {
+  date: string
+  list: Occurrence[]
+  timeZone: string
+  colorOf: (o: Occurrence) => BlockColor | null
+  editable: boolean
+  onOpen: (o: Occurrence) => void
+  onOpenDay: (date: string) => void
+  onCreate: (date: string) => void
+}) {
+  const heading = `${Number(date.slice(5, 7))}/${Number(date.slice(8))}(${WEEKDAY_LABELS[weekdayIndex(date)]})`
+  return (
+    <section className={agendaStyles.agenda} aria-label={`${dateName(date)} 일정`}>
+      <div className={agendaStyles.agendaHead}>
+        <h2 className={agendaStyles.agendaTitle} aria-live="polite">
+          {heading} · 일정 {list.length}
+        </h2>
+        <button
+          type="button"
+          className={agendaStyles.agendaDay}
+          aria-label={`${dateName(date)} 일 보기`}
+          onClick={() => onOpenDay(date)}
+        >
+          일 보기 ›
+        </button>
+      </div>
+      {list.length === 0 ? (
+        <div className={agendaStyles.agendaEmpty}>
+          <span>일정이 없어요</span>
+          <button
+            type="button"
+            className={agendaStyles.agendaCreate}
+            disabled={!editable}
+            onClick={() => onCreate(date)}
+          >
+            + 일정
+          </button>
+        </div>
+      ) : (
+        <ul className={agendaStyles.agendaList}>
+          {list.map((o) => (
+            <li key={occurrenceKey(o)}>
+              <button
+                type="button"
+                className={agendaStyles.agendaItem}
+                style={colorVars(colorOf(o))}
+                data-focus-id={occurrenceFocusId(o)}
+                data-focus-group={focusGroup(o, date)}
+                onClick={() => onOpen(o)}
+              >
+                <span className={styles.listColor} />
+                <span className={agendaStyles.agendaTime}>{timeText(o, date, timeZone)}</span>{' '}
+                <span className={agendaStyles.agendaText}>{o.title}</span>
+                {o.recurring && (
+                  <>
+                    <RepeatIcon />
+                    <span className="visually-hidden">, 반복</span>
+                  </>
+                )}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   )
 }

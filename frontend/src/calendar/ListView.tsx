@@ -6,7 +6,7 @@ import { focusGroup, occurrenceFocusId } from './focus'
 import { holidayName } from './holidays'
 import { occurrencesByDate } from './layout'
 import { RepeatIcon } from './TimeGrid'
-import { WEEKDAY_LABELS, dateName, formatMinutes, toZoned, weekdayIndex } from './time'
+import { WEEKDAY_LABELS, dateName, timeText, weekdayIndex } from './time'
 import styles from './calendar.module.css'
 
 interface Props {
@@ -24,15 +24,6 @@ interface Props {
   onCreate: () => void
   /** false면(오프라인) [일정 만들기]를 끈다 */
   editable: boolean
-}
-
-function timeText(o: Occurrence, date: string, timeZone: string) {
-  if (o.allDay) return '종일'
-  const s = toZoned(o.startAt!, timeZone)
-  const e = toZoned(o.endAt!, timeZone)
-  const start = s.date === date ? formatMinutes(s.minutes) : '00:00'
-  const end = e.date === date ? formatMinutes(e.minutes) : '24:00'
-  return `${start} – ${end}`
 }
 
 export function ListView({

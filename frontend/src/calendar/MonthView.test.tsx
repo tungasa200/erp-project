@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type { Occurrence } from './api'
 import { MonthView } from './MonthView'
@@ -112,18 +112,39 @@ describe('월 보기 (P1-07-11)', () => {
     expect(chip).toHaveTextContent('09:30 팀 스탠드업')
   })
 
-  it('모바일 훑어보기: 날짜 칸 전체가 일 보기 버튼이고, 칩·더보기·빈 칸 만들기는 없다', () => {
-    const { onOpenDay, onCreateAllDay } = renderMonth(true)
-    expect(screen.queryByRole('button', { name: '기획 회의' })).not.toBeInTheDocument()
+  it('모바일 훑어보기: 날짜를 누르면 고르고 아래에 그날 일정, 한 번 더 누르면 일 보기(UX-M-CAL-72)', () => {
+    const { onOpenDay, onCreateAllDay, onOpen } = renderMonth(true)
     expect(screen.queryByRole('button', { name: /더보기/ })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: '10월 9일 금요일 한글날, 일정 0개' })).toBeInTheDocument()
+
+    // 처음 고른 날은 오늘(10-07, 일정 없음)
+    expect(screen.getByRole('button', { name: '10월 7일 수요일, 일정 0개' })).toHaveAttribute('aria-pressed', 'true')
+    const agenda = () => screen.getByRole('region', { name: /일정$/ })
+    expect(agenda()).toHaveTextContent('10/7(수) · 일정 0')
+    fireEvent.click(within(agenda()).getByRole('button', { name: '+ 일정' }))
+    expect(onCreateAllDay).toHaveBeenCalledWith('2026-10-07')
 
     const cell = screen.getByRole('button', { name: '10월 6일 화요일, 일정 4개' })
     // 점은 3개까지, 나머지는 +n
     expect(cell).toHaveTextContent('+1')
     fireEvent.click(cell)
+    expect(onOpenDay).not.toHaveBeenCalled()
+    expect(cell).toHaveAttribute('aria-pressed', 'true')
+    expect(agenda()).toHaveAccessibleName('10월 6일 화요일 일정')
+    expect(within(agenda()).getAllByRole('listitem')).toHaveLength(4)
+    fireEvent.click(within(agenda()).getByRole('button', { name: '종일 기획 회의' }))
+    expect(onOpen).toHaveBeenCalledWith(occurrences[0])
+
+    fireEvent.click(within(agenda()).getByRole('button', { name: '10월 6일 화요일 일 보기' }))
     expect(onOpenDay).toHaveBeenCalledWith('2026-10-06')
-    expect(onCreateAllDay).not.toHaveBeenCalled()
+    onOpenDay.mockClear()
+    fireEvent.click(cell)
+    expect(onOpenDay).toHaveBeenCalledWith('2026-10-06')
+  })
+
+  it('오프라인이면 아래 목록의 [+ 일정]을 끈다', () => {
+    renderMonth(true, false)
+    expect(screen.getByRole('button', { name: '+ 일정' })).toBeDisabled()
   })
 })
 

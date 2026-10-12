@@ -26,7 +26,9 @@ describe('SCR-AUTH-06 처리방침 · SCR-AUTH-07 이용약관', () => {
         .getAllByRole('columnheader')
         .map((h) => h.textContent)[1],
     ).toBe('연락처')
-    expect(within(box).getByRole('cell', { name: 'privacy@railway.com' })).toBeInTheDocument()
+    // 모바일 카드의 칸 이름은 보이기만 하고 낭독기 이름에는 섞지 않는다(UX-AUTH-85)
+    const contact = within(box).getByRole('cell', { name: 'privacy@railway.com' })
+    expect(contact.querySelector('[aria-hidden="true"]')).toHaveTextContent('연락처')
     const links = within(box).getAllByRole('link')
     expect(links.map((a) => a.getAttribute('href'))).toEqual([
       'https://support.google.com/policies/contact/data_privacy_office',
