@@ -8,6 +8,7 @@ import { durationLabel, progressLabel } from './api'
 import { periodText, stamp } from './format'
 import { SECTION, md, mdw, metricsLine, planWhen, useProgressTitles } from './logText'
 import styles from './paper.module.css'
+import { isStranded } from './useLogEditor'
 
 export interface PaperEditor {
   candidates: PlanCandidate[]
@@ -311,18 +312,21 @@ function MonthDays({ days }: { days: LogContent['days'] }) {
  * 토스트가 떠 있는 동안 여러 줄을 지우면 하나로 합치고, 되돌릴 때는 나중 것부터 넣는다(latest를 바로 고쳐 연달아 써도 맞게)
  */
 function useUndoableRemove<T>(rows: T[], apply: (next: T[]) => void, what: string, focusRow: (index: number) => void) {
-  const { showUndo } = useToast()
+  const { showUndo, dismissUndo } = useToast()
   const latest = useRef(rows)
   useLayoutEffect(() => {
     latest.current = rows
   }, [rows])
+  // 다른 일지로 옮기면 이 편집기는 내려가 되돌려도 반영할 곳이 없다. 토스트를 닫아 [되돌리기]가 조용히 실패하지 않게 한다(UX-LOG-142)
+  const group = `log-${what}-remove`
+  useEffect(() => () => dismissUndo(group), [dismissUndo, group])
   return (index: number) => {
     const removed = latest.current[index]
     const next = latest.current.filter((_, j) => j !== index)
     latest.current = next
     apply(next)
     showUndo({
-      group: `log-${what}-remove`,
+      group,
       message: (count) => (count > 1 ? `${what} ${count}줄을 지웠어요` : `${what} 줄을 지웠어요`),
       undo: () => {
         const current = latest.current
@@ -446,6 +450,9 @@ function Achievements(props: { type: LogType; rows: LogAchievement[]; withProjec
                         data-field="text"
                         aria-label={`${i + 1}번 업무 내용`}
                         value={a.text}
+                        // 결과만 쓴 줄은 저장되지 않는다. 칸 안에 무엇이 빠졌는지 보인다(UX-LOG-143)
+                        placeholder={isStranded(a) ? '업무 내용을 적어 주세요' : undefined}
+                        aria-invalid={isStranded(a) || undefined}
                         maxLength={500}
                         readOnly={editor.readOnly}
                         onValue={(text) => set(i, { text })}

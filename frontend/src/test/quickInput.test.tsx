@@ -493,7 +493,7 @@ describe('디자인 개선 묶음 3a (X-04 [×], X-11 COM-29·COM-06)', () => {
     await userEvent.type(input, '보고 #정산 !1')
     const chips = await screen.findByRole('list', { name: '해석 결과' })
     expect(await within(chips).findByRole('button', { name: '새 태그 정산' })).toHaveTextContent('+ 새 태그 ‘정산’')
-    expect(within(chips).getByText('우선순위는 !1이 아니라 !높음·!보통·!낮음으로 적어요')).toBeInTheDocument()
+    expect(within(chips).getByText('우선순위는 !1 대신 !높음·!보통·!낮음으로 적어요')).toBeInTheDocument()
   })
 
   it('UX-COM-06 없는 @프로젝트면 미리보기가 Enter의 동작을 말하고, Enter는 저장 대신 새 프로젝트 칩으로 가서 묻는다', async () => {
@@ -506,5 +506,11 @@ describe('디자인 개선 묶음 3a (X-04 [×], X-11 COM-29·COM-06)', () => {
     expect(onSubmit).not.toHaveBeenCalled()
     expect(chip).toHaveFocus()
     expect(screen.getByRole('alert')).toHaveTextContent('‘마케팅’ 프로젝트를 새로 만들까요?')
+
+    // Esc는 질문만 거두고 입력칸으로 돌아간다. 쓴 글은 남는다(UX-COM-142)
+    await userEvent.keyboard('{Escape}')
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(input).toHaveFocus()
+    expect(input).toHaveValue('보도자료 @마케팅')
   })
 })

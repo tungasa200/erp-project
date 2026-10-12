@@ -105,6 +105,13 @@ export function ToastProvider({ children, navigate }: { children: ReactNode; nav
     item?.commits.forEach((commit) => commit({ keepalive: false }))
   }, [clearUndo])
 
+  const dismissUndo = useCallback(
+    (group: string) => {
+      if (undoRef.current?.group === group) closeUndo()
+    },
+    [closeUndo],
+  )
+
   const startTimer = useCallback(
     (ms: number) => {
       clearTimeout(timer.current)
@@ -208,7 +215,7 @@ export function ToastProvider({ children, navigate }: { children: ReactNode; nav
     }
   }, [])
 
-  const value = useMemo(() => ({ showToast, showUndo }), [showToast, showUndo])
+  const value = useMemo(() => ({ showToast, showUndo, dismissUndo }), [showToast, showUndo, dismissUndo])
 
   // 토스트 버튼을 누르면 토스트가 사라지므로, 그 버튼에 포커스가 있었으면 토스트를 띄울 때 포커스가 있던 곳으로
   // 먼저 옮긴다. 그 요소가 사라졌으면(완료·보관한 행) 화면 제목으로

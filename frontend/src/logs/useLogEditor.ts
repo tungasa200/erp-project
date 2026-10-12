@@ -24,6 +24,14 @@ export function hasBlankRows(edits: LogEdits | null) {
   return !!edits && (blank(edits.achievements) || blank(edits.plans))
 }
 
+/** 업무 내용은 비었는데 결과·진척을 적은 실적 줄. 서버로 보낼 수 없어(text 필수) 남겨 두고, 떠나기 전에 묻는다(UX-LOG-143) */
+export const isStranded = (a: LogAchievement) =>
+  !a.text.trim() && (!!a.result?.trim() || a.outcome != null || a.progress != null)
+
+export function hasStrandedRows(edits: LogEdits | null) {
+  return !!edits?.achievements?.some(isStranded)
+}
+
 /** 빈 줄을 뺀 목록이 서버 목록과 다르면 보낼 목록을, 같으면 undefined */
 function changedList<T extends { text: string }>(edited: T[] | undefined, server: T[]): T[] | undefined {
   if (!edited) return undefined
@@ -130,13 +138,15 @@ export function useLogEditor(log: WorkLog | undefined, callbacks: { onPinned: ()
   )
 
   // 화면을 떠날 때 남은 수정을 보낸다
-  // 아직 보내지 않은 수정이 있으면 탭을 닫기 전에 묻는다(자동 저장 0.8초 사이)
+  // 아직 보내지 않은 수정이 있으면 탭을 닫기 전에 묻는다(자동 저장 0.8초 사이). 저장을 마친 뒤 남은 것이 아무것도 안 쓴
+  // 빈 줄뿐이면 잃을 것이 없으니 묻지 않는다(UX-LOG-145). 결과만 쓴 줄은 보내지 못했으니 묻는다(UX-LOG-143)
+  const unsaved = state === 'saving' || (!!edits && (state !== 'saved' || hasStrandedRows(edits)))
   useEffect(() => {
-    if (!edits && state !== 'saving') return
+    if (!unsaved) return
     const warn = (e: BeforeUnloadEvent) => e.preventDefault()
     window.addEventListener('beforeunload', warn)
     return () => window.removeEventListener('beforeunload', warn)
-  }, [edits, state])
+  }, [unsaved])
 
   // 오프라인이 되기 직전의 수정은 보내지 못하고 남는다. 다시 연결되면 바로 보낸다(UX-LOG-40, 조용히 사라지지 않게).
   // 충돌 상태는 사용자가 고를 때까지 보내지 않는다
@@ -176,5 +186,5 @@ export function useLogEditor(log: WorkLog | undefined, callbacks: { onPinned: ()
     setState('idle')
   }, [apply])
 
-  return { edits, state, change, flush, discard, reset, ensureSaved }
+  return { edits, state, unsaved, change, flush, discard, reset, ensureSaved }
 }

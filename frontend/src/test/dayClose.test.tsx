@@ -206,6 +206,26 @@ describe('하루 마감 v1.1 (SCR-LOG-03, X-05)', () => {
     expect(close).toHaveBeenCalledTimes(1)
   })
 
+  it('UX-LOG-144 넘길 일 단계는 체크박스 위 Enter로 넘어가고, 이슈 단계는 칸으로 포커스, 쓴 글은 Esc로 말없이 버리지 않는다', async () => {
+    const user = userEvent.setup()
+    const onClose = vi.fn()
+    stubFetch({
+      'GET /api/users/me': me,
+      [`GET ${CLOSE_URL}`]: () => json(200, plan()),
+      [LOG_URL]: () => json(200, workLog()),
+    })
+    renderApp('/', closeRoutes(onClose))
+    const first = await screen.findByRole('checkbox', { name: /견적서 보내기/ })
+    first.focus()
+    await user.keyboard('{Enter}')
+    const issue = await screen.findByRole('textbox', { name: /이슈 및 특이사항/ })
+    await waitFor(() => expect(issue).toHaveFocus())
+    await user.type(issue, '회신 지연')
+    await user.keyboard('{Escape}')
+    expect(onClose).not.toHaveBeenCalled()
+    expect(issue).toHaveValue('회신 지연')
+  })
+
   it('UX-LOG-46 완료 창: 요약 한 줄, 상시 [확정 해제]는 창 안에서 묻고(포커스 [계속 두기], Esc는 계속 두기), 해제하면 초안으로', async () => {
     const user = userEvent.setup()
     const onClose = vi.fn()

@@ -11,8 +11,11 @@ import type { QuickDraft } from '../quickInput/parse'
 import { refreshTasks } from './api'
 import { NeedsProjectError, saveQuickDraft, undoQuickSave, type QuickSaveResult } from './quickSave'
 
-/** 저장한 업무(·일정)를 돌려준다. 업무 목록은 새 줄을 찾아 보여 주는 데 쓴다(UX-TASK-60) */
-export function useQuickSave(): (draft: QuickDraft) => Promise<QuickSaveResult> {
+/** 저장한 업무(·일정)를 돌려준다. 업무 목록은 새 줄을 찾아 보여 주는 데 쓴다(UX-TASK-60).
+ *  hiddenBy: 만든 업무가 지금 보기(필터)에서 빠지면 필터를 푼 주소를 준다. 토스트가 그 사실과 [필터 해제]를 보인다(UX-TASK-140) */
+export function useQuickSave(
+  hiddenBy?: (result: QuickSaveResult) => string | null,
+): (draft: QuickDraft) => Promise<QuickSaveResult> {
   const queryClient = useQueryClient()
   const { user } = useAuth()
   const timeZone = user?.timezone ?? 'Asia/Seoul'
@@ -36,9 +39,16 @@ export function useQuickSave(): (draft: QuickDraft) => Promise<QuickSaveResult> 
           : ([] as Project[])
         const result = await saveQuickDraft(draft, { projects, timeZone })
         refresh()
+        const clearTo = hiddenBy?.(result) ?? null
         showUndo({
           group: 'quick-add',
-          message: (n) => (result.schedule ? `업무와 일정 ${n}개를 추가했어요` : `업무 ${n}개를 추가했어요`),
+          message: (n) =>
+            n === 1 && clearTo
+              ? '업무를 추가했어요. 지금 필터에서는 안 보여요'
+              : result.schedule
+                ? `업무와 일정 ${n}개를 추가했어요`
+                : `업무 ${n}개를 추가했어요`,
+          view: clearTo ? { label: '필터 해제', to: clearTo } : undefined,
           undo: async () => {
             await undoQuickSave(result)
             refresh()
@@ -55,6 +65,6 @@ export function useQuickSave(): (draft: QuickDraft) => Promise<QuickSaveResult> 
         throw error
       }
     },
-    [queryClient, timeZone, showToast, showUndo],
+    [queryClient, timeZone, showToast, showUndo, hiddenBy],
   )
 }

@@ -9,7 +9,7 @@ import { Link } from 'react-router'
 import { ApiError } from '../api/client'
 import { toastForError } from '../api/errorToast'
 import { useAuth } from '../auth/useAuth'
-import { Modal } from '../calendar/Modal'
+import { Modal, ModalCloseButton } from '../calendar/Modal'
 import cal from '../calendar/calendar.module.css'
 import { toZoned } from '../format/datetime'
 import { Skeleton } from '../components/Skeleton'
@@ -104,10 +104,13 @@ export function DayClose({ date, today, timeZone, quick = false, onClose }: Prop
   // 대기 이름을 다 받아야 [모두 했어요]가 켜진다
   const ready = selected != null && !log.isPending && !(hadPending && !quick && pending.isPending)
   const moved = useRef(false)
+  const issueRef = useRef<HTMLInputElement>(null)
   useEffect(() => {
     if (!ready || quick) return
     const heading = headingRef.current
-    if (moved.current) return heading?.focus()
+    // 이슈 단계는 쓰는 칸으로 바로(UX-LOG-144: 제목 다음 Tab이 [×]라 이슈를 쓰려다 창을 닫던 것)
+    const issueInput = current === 'issue' ? issueRef.current : null
+    if (moved.current) return (issueInput && !issueInput.disabled ? issueInput : heading)?.focus()
     const input = heading?.closest('[role=dialog]')?.querySelector<HTMLElement>('input:not(:disabled)')
     ;(primaryRef.current ?? input ?? heading)?.focus()
   }, [ready, current, result, reopened, quick])
@@ -201,16 +204,7 @@ export function DayClose({ date, today, timeZone, quick = false, onClose }: Prop
 
   // 완료 창의 [입력]: 이 창 대신 프로필 창을 보이고, 저장·나중에 뒤 완료 창으로 돌아온다
   if (profileOpen && user) {
-    return (
-      <ProfilePrompt
-        user={user}
-        logKey={`DAILY-${date}`}
-        type="DAILY"
-        start={date}
-        end={date}
-        onDone={() => setProfileOpen(false)}
-      />
-    )
+    return <ProfilePrompt user={user} type="DAILY" start={date} end={date} onDone={() => setProfileOpen(false)} />
   }
 
   // [모두 했어요]: 대기를 계획 시각대로 확정하고 2단계로. 5초 되돌리기(X-04 규칙 2)
@@ -297,9 +291,7 @@ export function DayClose({ date, today, timeZone, quick = false, onClose }: Prop
         )}
         {title}
       </h2>
-      <button type="button" className={cal.close} aria-label="닫기" onClick={onClose}>
-        ×
-      </button>
+      <ModalCloseButton onClose={onClose} />
     </div>
   )
 
@@ -484,7 +476,9 @@ export function DayClose({ date, today, timeZone, quick = false, onClose }: Prop
         if (!busy) void submit()
         return
       }
-      if (target.closest('button, a, input, textarea, select')) return
+      // 체크박스 위 Enter는 고르기가 아니라 단계 주 버튼으로(UX-LOG-144). 고르기는 Space
+      const checkbox = target instanceof HTMLInputElement && target.type === 'checkbox'
+      if (!checkbox && target.closest('button, a, input, textarea, select')) return
       e.preventDefault()
       if (current === 'pending') {
         if (waiting && records.length > 0) void confirmAll(records)
@@ -615,6 +609,7 @@ export function DayClose({ date, today, timeZone, quick = false, onClose }: Prop
             <label className={cal.field}>
               이슈 및 특이사항 (선택)
               <input
+                ref={issueRef}
                 className={cal.input}
                 value={issue}
                 maxLength={Math.min(500, issueRoom)}
@@ -677,7 +672,12 @@ export function DayClose({ date, today, timeZone, quick = false, onClose }: Prop
 
   return (
     // 확정 해제 확인 줄이 열려 있으면 Esc는 [계속 두기]와 같다(겹친 모달을 쓰지 않음)
-    <Modal labelledBy={titleId} onClose={askUnconfirm ? () => setAskUnconfirm(false) : onClose}>
+    // 이슈 칸에 쓴 글은 Esc·바깥 누르기·[×]로 말없이 사라지지 않게 한 번 묻는다(X-04 규칙 1, 재평가 보조 점검 #6)
+    <Modal
+      labelledBy={titleId}
+      onClose={askUnconfirm ? () => setAskUnconfirm(false) : onClose}
+      dirty={issue.trim() !== '' && !askUnconfirm && !result}
+    >
       {/* 단계 키보드(Enter·Ctrl+Enter)를 창 안 어디서든 받는다. display: contents라 창 배치는 그대로 */}
       <div className={styles.dayClose} onKeyDown={onKeyDown}>
         {body}

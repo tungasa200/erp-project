@@ -1,6 +1,6 @@
-// SCR-ONB-01 프로필 입력 요청 (P3, AUTH-04·UX-04). 이름·소속·직책 중 빈 칸이 있을 때 일지를 처음 만들 때만 묻는다.
-// 진입: 고칠 수 있는 일지 화면 첫 진입, 하루 마감 확정 직전. [나중에]는 다음 일지에서 한 번 더 묻고, 그 뒤로는 설정에서만.
-// 물을지는 profileAsk.ts가 정한다.
+// SCR-ONB-01 프로필 입력 요청 (P3, AUTH-04·UX-04). 이름·소속·직책 중 빈 칸이 있을 때.
+// 저절로 뜨지 않는다. 진입: 고칠 수 있는 일지 문서 위 한 줄의 [입력], 하루 마감 완료 창의 [입력](재평가 §4 #26, D-212 Q5).
+// [나중에]는 창만 닫는다(한 줄은 프로필을 채울 때까지 남는다).
 import { useQueryClient } from '@tanstack/react-query'
 import { useId, useState } from 'react'
 import { worklogApi } from '../api'
@@ -9,7 +9,6 @@ import { Modal } from '../calendar/Modal'
 import cal from '../calendar/calendar.module.css'
 import { useProfileSaver } from '../settings/useProfileSaver'
 import { refreshLogs, type LogType } from './api'
-import { readPostponed, writePostponed } from './profileAsk'
 import { periodText } from './format'
 import styles from './logs.module.css'
 
@@ -21,7 +20,6 @@ const FIELDS: { key: Key; label: string; placeholder: string }[] = [
 ]
 interface Props {
   user: Me
-  logKey: string
   /** 미리보기 일자·기간: 열린 일지의 기간 */
   type: LogType
   start: string
@@ -30,7 +28,7 @@ interface Props {
   onDone: (saved: boolean) => void
 }
 
-export function ProfilePrompt({ user, logKey, type, start, end, onDone }: Props) {
+export function ProfilePrompt({ user, type, start, end, onDone }: Props) {
   const id = useId()
   const queryClient = useQueryClient()
   const { save } = useProfileSaver()
@@ -42,11 +40,7 @@ export function ProfilePrompt({ user, logKey, type, start, end, onDone }: Props)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const later = () => {
-    const p = readPostponed(user.id)
-    writePostponed(user.id, { count: p.count + 1, last: logKey })
-    onDone(false)
-  }
+  const later = () => onDone(false)
 
   const submit = async () => {
     if (busy) return

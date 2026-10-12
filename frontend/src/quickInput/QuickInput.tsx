@@ -154,7 +154,8 @@ function chipsOf(draft: QuickDraft, spans: QuickSpans, today: string, projects?:
 }
 
 function priorityWarning(word: string) {
-  return `우선순위는 ${word}이 아니라 !높음·!보통·!낮음으로 적어요`
+  // 기호 값이 숫자든 글자든 맞도록 조사를 피한다(UX-COM-143)
+  return `우선순위는 ${word} 대신 !높음·!보통·!낮음으로 적어요`
 }
 
 interface Props {
@@ -500,6 +501,14 @@ export function QuickInput({
                         className={`${styles.chip} ${styles.newProject}`}
                         aria-describedby={askProject ? `${id}-ask` : undefined}
                         onClick={() => void createProject(c.name)}
+                        onKeyDown={(e) => {
+                          // 묻는 중 Esc는 질문만 거두고 입력칸으로 돌아간다. 쓴 글은 남긴다(UX-COM-142)
+                          if (e.key !== 'Escape' || !askProject) return
+                          e.preventDefault()
+                          e.stopPropagation()
+                          setAskProject(false)
+                          inputRef.current?.focus()
+                        }}
                       >
                         + 새 프로젝트 ‘{c.name}’
                       </button>

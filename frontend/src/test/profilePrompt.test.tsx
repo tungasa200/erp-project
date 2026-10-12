@@ -1,5 +1,5 @@
-// SCR-ONB-01 프로필 입력 요청 (P3): 고칠 수 있는 일지 첫 진입, [나중에]는 다음 일지에서 한 번 더. 하루 마감은 완료 창의 한 줄(UX-LOG-56, D-212 Q5)
-import { act, screen, waitFor, within } from '@testing-library/react'
+// SCR-ONB-01 프로필 입력 요청 (P3): 저절로 뜨지 않고 일지 문서 위 한 줄의 [입력]으로 연다(재평가 §4 #26). 하루 마감은 완료 창의 한 줄(UX-LOG-56, D-212 Q5)
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { DayClose } from '../logs/DayClose'
@@ -55,21 +55,28 @@ const draft = (date: string, version = 1) => ({
 
 const PROMPT = '작성자 정보를 넣을까요?'
 
-describe('일지 화면 첫 진입 (SCR-ONB-01)', () => {
-  it('빈 칸이 있으면 묻고 이름 칸에 포커스, 미리보기가 따라 바뀌고, 저장하면 프로필·사본을 맞추고 제목으로 돌아온다', async () => {
+describe('일지 화면의 프로필 한 줄 (SCR-ONB-01, 재평가 §4 #26)', () => {
+  it('창은 저절로 뜨지 않고, [입력]으로 열면 이름 칸에 포커스, 저장하면 한 줄이 사라지고 제목으로 돌아온다', async () => {
     const user = userEvent.setup()
     let patched: Record<string, unknown> | null = null
+    let me: Record<string, unknown> = PARTIAL
     const refresh = vi.fn(() => json(200, {}))
     stubFetch({
-      'GET /api/users/me': () => json(200, PARTIAL),
+      'GET /api/users/me': () => json(200, me),
       'GET /api/worklog/logs/daily/2026-10-07': () => json(200, draft('2026-10-07')),
       'PATCH /api/users/me': (init) => {
         patched = JSON.parse(String(init?.body))
-        return json(200, { ...PARTIAL, ...patched, version: 1 })
+        me = { ...PARTIAL, ...patched, version: 1 }
+        return json(200, me)
       },
       'POST /api/worklog/me/profile/refresh': refresh,
     })
     renderApp('/logs/daily/2026-10-07')
+
+    await screen.findByRole('heading', { name: '금일 실적' })
+    expect(screen.queryByRole('dialog', { name: PROMPT })).not.toBeInTheDocument()
+    expect(screen.getByText('이름·소속을 넣으면 문서에 들어가요')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '입력' }))
 
     const dialog = await screen.findByRole('dialog', { name: PROMPT })
     const name = within(dialog).getByRole('textbox', { name: '이름' })
@@ -88,32 +95,26 @@ describe('일지 화면 첫 진입 (SCR-ONB-01)', () => {
     expect(patched).toEqual({ name: '김하늘', organization: '개발팀', position: '매니저', version: 0 })
     expect(refresh).toHaveBeenCalled()
     await waitFor(() => expect(screen.getByRole('heading', { level: 1 })).toHaveFocus())
+    expect(screen.queryByText('이름·소속을 넣으면 문서에 들어가요')).not.toBeInTheDocument()
   })
 
-  it('[나중에]는 같은 일지에서 다시 묻지 않고, 다음 일지에서 한 번 더 묻고, 그 뒤로는 묻지 않는다', async () => {
+  it('[나중에]는 창만 닫고 [입력]으로 돌아온다. 한 줄은 남는다', async () => {
     const user = userEvent.setup()
     stubFetch({
       'GET /api/users/me': () => json(200, PARTIAL),
       'GET /api/worklog/logs/daily/2026-10-06': () => json(200, draft('2026-10-06')),
-      'GET /api/worklog/logs/daily/2026-10-07': () => json(200, draft('2026-10-07')),
     })
-    const { router } = renderApp('/logs/daily/2026-10-06')
+    renderApp('/logs/daily/2026-10-06')
 
-    const first = await screen.findByRole('dialog', { name: PROMPT })
+    const open = await screen.findByRole('button', { name: '입력' })
+    await user.click(open)
+    const dialog = await screen.findByRole('dialog', { name: PROMPT })
     // 미리보기 일자는 오늘(10/7)이 아니라 열린 일지의 날짜
-    expect(first).toHaveTextContent('2026년 10월 6일 (화)')
-    await user.click(within(first).getByRole('button', { name: '나중에' }))
+    expect(dialog).toHaveTextContent('2026년 10월 6일 (화)')
+    await user.click(within(dialog).getByRole('button', { name: '나중에' }))
     expect(screen.queryByRole('dialog', { name: PROMPT })).not.toBeInTheDocument()
-
-    await act(() => router.navigate('/logs/daily/2026-10-07'))
-    const again = await screen.findByRole('dialog', { name: PROMPT })
-    await user.keyboard('{Escape}')
-    expect(again).not.toBeInTheDocument()
-
-    await act(() => router.navigate('/logs/daily/2026-10-06'))
-    await screen.findByRole('heading', { level: 1, name: /10월 6일/ })
-    await screen.findByRole('heading', { name: '금일 실적' })
-    expect(screen.queryByRole('dialog', { name: PROMPT })).not.toBeInTheDocument()
+    await waitFor(() => expect(open).toHaveFocus())
+    expect(screen.getByText('이름·소속을 넣으면 문서에 들어가요')).toBeInTheDocument()
   })
 
   it('저장에 실패하면 창을 닫지 않고 이유를 알린다', async () => {
@@ -125,6 +126,7 @@ describe('일지 화면 첫 진입 (SCR-ONB-01)', () => {
     })
     renderApp('/logs/daily/2026-10-07')
 
+    await user.click(await screen.findByRole('button', { name: '입력' }))
     const dialog = await screen.findByRole('dialog', { name: PROMPT })
     await user.click(within(dialog).getByRole('button', { name: '저장' }))
     expect(await within(dialog).findByRole('alert')).toHaveTextContent('저장하지 못했어요')

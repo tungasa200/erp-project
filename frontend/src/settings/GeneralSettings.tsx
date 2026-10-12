@@ -1,5 +1,5 @@
 // SCR-SET-02 설정 — 일반. ①시간대 ②주 시작 요일 ③업무 요일 ⑥키보드 단축키는 identity 프로필이고 바꾸는 즉시 항목별로 저장한다.
-// ④업무 시간대(P2)는 worklog 설정이라 따로 저장한다(WorkHoursSetting). ⑤하루 마감 시각(P3)도 그 단계에서 같은 방식으로 더한다.
+// ④업무 시간대(P2)는 worklog 설정이라 따로 저장한다(WorkHoursSetting). ⑤하루 마감 시각도 같은 방식(DailyCloseSetting, UX-SET-140).
 import { useId, useState, type ReactNode } from 'react'
 import type { Me } from '../api/types'
 import { useAuth } from '../auth/useAuth'
@@ -13,6 +13,7 @@ import styles from './settings.module.css'
 import { useProfileSaver, type ProfilePatch, type SaveResult } from './useProfileSaver'
 import { useWorklogSettingsSaver } from './useWorklogSettings'
 import { WorkHoursSetting } from './WorkHoursSetting'
+import { DailyCloseSetting } from './DailyCloseSetting'
 
 type Save = (patch: ProfilePatch) => Promise<SaveResult>
 type Failure = Extract<SaveResult, { ok: false }>
@@ -65,7 +66,12 @@ export function GeneralSettings() {
         key={reloaded?.count ?? 0}
         user={reloaded?.me ?? user}
         save={save}
-        workHours={<WorkHoursSetting save={worklog.save} reloadKey={worklogReloads} />}
+        workHours={
+          <>
+            <WorkHoursSetting save={worklog.save} reloadKey={worklogReloads} />
+            <DailyCloseSetting save={worklog.save} reloadKey={worklogReloads} />
+          </>
+        }
       />
       <InstallAppRow />
     </section>

@@ -52,7 +52,16 @@ export function TaskListPage() {
   const today = todayIn(timeZone)
   const weekStart = weekStartNumber(user?.weekStart)
   const [quickText, setQuickText] = useState('')
-  const quickSave = useQuickSave()
+  // 만든 업무가 프로젝트·태그·검색 필터에 걸려 목록에 없으면 토스트로 알리고 필터를 풀 길을 준다(UX-TASK-140).
+  // 마감 필터는 날짜 계산이 서버 몫이라 보지 않는다
+  const quickSave = useQuickSave(({ task }) => {
+    const q = params.q.trim().toLowerCase()
+    const hidden =
+      (params.project.length > 0 && !params.project.includes(task.projectId ?? '')) ||
+      (params.tag.length > 0 && !task.tagIds.some((id) => params.tag.includes(id))) ||
+      (q !== '' && !task.title.toLowerCase().includes(q))
+    return hidden ? '/tasks' : null
+  })
   const online = useOnline()
   // 방금 만든 업무. 목록 어디(그룹 맨 아래 등)에 들어가든 그 줄을 화면 가운데로 가져와 잠깐 강조한다(UX-TASK-60).
   // 가운데로 두면 화면 아래 되돌리기 토스트에도 가리지 않는다
@@ -206,6 +215,7 @@ export function TaskListPage() {
               setTimeout(() => setQuickText((text) => (text === '' ? seed : text)))
             }}
             label="업무 추가"
+            placeholder="할 일을 한 줄로 적어 보세요"
           />
         </fieldset>
         {addBlocked && (

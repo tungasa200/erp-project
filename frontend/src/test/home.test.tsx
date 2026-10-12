@@ -245,7 +245,7 @@ describe('하루 마감 띠 (X-02 C, UX-HOME-04·12)', () => {
     expect(screen.getByPlaceholderText('무엇을 했는지 한 줄로 적어 보세요')).toBeInTheDocument()
   })
 
-  it('오늘 일지를 확정했으면 띠는 확정 한 줄과 [일지 보기]로 바뀐다', async () => {
+  it('오늘 일지를 확정했으면 띠는 확정 한 줄과 [일지 보기]로 바뀌고, 카드의 [일지 보기]는 빠진다', async () => {
     vi.setSystemTime(new Date('2026-10-07T10:00:00Z'))
     server({
       log: {
@@ -287,6 +287,8 @@ describe('하루 마감 띠 (X-02 C, UX-HOME-04·12)', () => {
     expect(band).toHaveTextContent('✓ 오늘 일지를 확정했어요18:40 확정 · 내일 계획 1건')
     expect(within(band).getByRole('link', { name: '일지 보기' })).toHaveAttribute('href', '/logs/daily/2026-10-07')
     expect(within(band).queryByRole('button')).not.toBeInTheDocument()
+    // 카드의 [일지 보기]는 띠와 중복이라 뺀다(UX-HOME-140)
+    await waitFor(() => expect(screen.getAllByRole('link', { name: '일지 보기' })).toHaveLength(1))
   })
 })
 

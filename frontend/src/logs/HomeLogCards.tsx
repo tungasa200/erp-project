@@ -17,10 +17,13 @@ export function TodayLogCard({
   today,
   timeZone,
   hideClose = false,
+  hideView = false,
 }: {
   today: string
   timeZone: string
   hideClose?: boolean
+  /** 확정 띠가 [일지 보기]를 보이면 카드의 것은 뺀다(중복, UX-HOME-140) */
+  hideView?: boolean
 }) {
   const log = useLog('DAILY', today)
   const [exporting, setExporting] = useState(false)
@@ -68,13 +71,16 @@ export function TodayLogCard({
                 : `${filled}/3칸 채웠어요`}
           </p>
           <div className={styles.cardActions}>
-            <Link to={logHref('DAILY', today)} className={styles.secondaryLink}>
-              일지 보기
-            </Link>
+            {!hideView && (
+              <Link to={logHref('DAILY', today)} className={styles.secondaryLink}>
+                일지 보기
+              </Link>
+            )}
             {confirmed ? (
+              // 홈 한 시야의 채움은 마감 띠 하나다. 카드의 [내보내기]는 윤곽(X-02, UX-HOME-140)
               <button
                 type="button"
-                className={styles.primary}
+                className={styles.secondary}
                 aria-haspopup="dialog"
                 onClick={() => setExporting(true)}
               >

@@ -485,7 +485,7 @@ describe('하루 마감 (SCR-LOG-03)', () => {
     { path: '/', element: <DayClose date="2026-10-07" today="2026-10-07" timeZone="Asia/Seoul" onClose={onClose} /> },
   ]
 
-  it('2단계: 기본 모두 선택·안내 문구, 다음은 제목으로 포커스, 마감하면 넘길 일·이슈·version을 보내고 주간 제안을 보인다', async () => {
+  it('2단계: 기본 모두 선택·안내 문구, 다음은 이슈 칸으로 포커스, 마감하면 넘길 일·이슈·version을 보내고 주간 제안을 보인다', async () => {
     const user = userEvent.setup()
     let sent: unknown = null
     stubFetch({
@@ -521,8 +521,11 @@ describe('하루 마감 (SCR-LOG-03)', () => {
     expect(first).not.toBeChecked()
 
     await user.click(screen.getByRole('button', { name: '다음' }))
-    await waitFor(() => expect(screen.getByRole('heading', { name: '하루 마감 2/2' })).toHaveFocus())
-    await user.type(screen.getByRole('textbox', { name: /이슈 및 특이사항/ }), '거래처 회신 지연')
+    // 마지막 단계는 이슈 칸으로 바로 간다(UX-LOG-144)
+    expect(await screen.findByRole('heading', { name: '하루 마감 2/2' })).toBeInTheDocument()
+    const issue = screen.getByRole('textbox', { name: /이슈 및 특이사항/ })
+    await waitFor(() => expect(issue).toHaveFocus())
+    await user.type(issue, '거래처 회신 지연')
     expect(screen.getByText(/다음 근무일 계획 1건/)).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: '마감하고 확정' }))
 
@@ -950,5 +953,46 @@ describe('일지 줄 삭제 되돌리기 (UX-LOG-101)', () => {
     const back = await screen.findByRole('textbox', { name: '1번 업무 내용' })
     expect(back).toHaveValue(text)
     await waitFor(() => expect(back).toHaveFocus())
+  })
+
+  it('줄을 지우고 바로 다른 일지로 옮기면 되돌리기 토스트를 닫는다 — 내려간 편집기로 조용히 실패하지 않게(UX-LOG-142)', async () => {
+    const user = userEvent.setup()
+    stubFetch({
+      'GET /api/users/me': me,
+      [LOG_URL]: () => json(200, workLog()),
+      'GET /api/worklog/logs/daily/2026-10-06': () =>
+        json(200, workLog({ id: 'log-0', periodStart: '2026-10-06', periodEnd: '2026-10-06' })),
+      'PATCH /api/worklog/logs/log-1': () => json(200, workLog()),
+    })
+    const { router } = renderApp('/logs/daily/2026-10-07')
+    await screen.findByRole('textbox', { name: '1번 업무 내용' })
+    await user.click(screen.getByRole('button', { name: '1번 줄 삭제' }))
+    expect(await screen.findByText('실적 줄을 지웠어요')).toBeInTheDocument()
+    await act(() => router.navigate('/logs/daily/2026-10-06'))
+    await waitFor(() => expect(screen.queryByText('실적 줄을 지웠어요')).not.toBeInTheDocument())
+    expect(screen.queryByRole('button', { name: '되돌리기' })).not.toBeInTheDocument()
+  })
+
+  it('결과만 쓰고 업무 내용을 비운 줄은 칸에 무엇이 빠졌는지 보이고, 앱 안에서 떠날 때 묻는다(UX-LOG-143)', async () => {
+    const user = userEvent.setup()
+    stubFetch({
+      'GET /api/users/me': me,
+      [LOG_URL]: () => json(200, workLog()),
+      'PATCH /api/worklog/logs/log-1': () => json(200, workLog()),
+    })
+    renderApp('/logs/daily/2026-10-07')
+    await user.click(await screen.findByRole('button', { name: '＋ 실적 줄 추가' }))
+    await user.type(await screen.findByRole('textbox', { name: '2번 결과' }), '고객 확인 끝남')
+    const text = screen.getByRole('textbox', { name: '2번 업무 내용' })
+    expect(text).toHaveAttribute('placeholder', '업무 내용을 적어 주세요')
+    expect(text).toHaveAttribute('aria-invalid', 'true')
+
+    await user.click(
+      within(screen.getByRole('navigation', { name: '일지 이동' })).getByRole('link', { name: '업무일지' }),
+    )
+    const dialog = await screen.findByRole('alertdialog', { name: '저장 안 된 변경이 있어요' })
+    expect(dialog).toHaveTextContent('결과만 쓴 줄은 저장되지 않아요')
+    await user.click(within(dialog).getByRole('button', { name: '취소' }))
+    expect(screen.getByRole('textbox', { name: '2번 결과' })).toHaveValue('고객 확인 끝남')
   })
 })

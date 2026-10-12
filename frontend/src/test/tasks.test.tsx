@@ -341,6 +341,20 @@ describe('SCR-TASK-01 업무 목록', () => {
     await waitFor(() => expect(input).toHaveValue('@영업 '))
   })
 
+  it('UX-TASK-140 미리 채운 값을 지워 필터 밖 업무를 만들면 안 보인다고 알리고 [필터 해제]로 푼다', async () => {
+    server([])
+    const { router } = renderApp('/tasks?project=p-sales')
+    const input = await screen.findByRole('textbox', { name: '업무 추가' })
+    await waitFor(() => expect(input).toHaveValue('@영업 '))
+    expect(input).toHaveAttribute('placeholder', '할 일을 한 줄로 적어 보세요')
+    await userEvent.clear(input)
+    await userEvent.type(input, '필터밖 업무{Enter}')
+    expect(await screen.findByText('업무를 추가했어요. 지금 필터에서는 안 보여요')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('link', { name: '필터 해제' }))
+    await waitFor(() => expect(router.state.location.search).toBe(''))
+    expect(router.state.location.pathname).toBe('/tasks')
+  })
+
   it('X-11 새 업무가 안 보이는 보기(완료만)에서는 추가를 끄고 이유를 보인다', async () => {
     server([])
     renderApp('/tasks?status=DONE')

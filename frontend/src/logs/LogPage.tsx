@@ -19,9 +19,9 @@ import { ExportDialog } from './ExportDialog'
 import { LogPaper, type PaperEditor } from './LogPaper'
 import { logApi, logHref, refreshLogs, storeLog, useLog, type LogAchievement, type LogType, type WorkLog } from './api'
 import { parseLogPath, periodText, STATUS_LABEL } from './format'
-import { shouldAskProfile } from './profileAsk'
+import { profileIncomplete } from './profileAsk'
 import { ProfilePrompt } from './ProfilePrompt'
-import { hasBlankRows, useLogEditor } from './useLogEditor'
+import { hasBlankRows, hasStrandedRows, useLogEditor } from './useLogEditor'
 import styles from './logs.module.css'
 
 const TYPE_NAME: Record<LogType, string> = { DAILY: '일간', WEEKLY: '주간', MONTHLY: '월간' }
@@ -81,9 +81,11 @@ function LogView({ type, start }: { type: LogType; start: string }) {
   })
 
   const editable = !!log && log.status !== 'CONFIRMED' && start <= today
-  // 일지를 처음 받았을 때 한 번만 정한다(이 화면 안에서 다시 묻지 않음). 렌더 중 한 번 맞춤
-  const [askProfile, setAskProfile] = useState<boolean | null>(null)
-  if (log && askProfile == null) setAskProfile(editable && shouldAskProfile(user, `${type}-${start}`))
+  // 프로필 창은 저절로 띄우지 않는다. 고칠 수 있는 일지이고 프로필이 비었으면 문서 위 한 줄에서 연다(재평가 §4 #26, D-212 Q5).
+  // 채우면 한 줄은 사라진다
+  const [profileOpen, setProfileOpen] = useState(false)
+  const profileButton = useRef<HTMLButtonElement>(null)
+  const askProfile = editable && !!user && profileIncomplete(user)
   const view = log && {
     ...log.content,
     achievements: editor.edits?.achievements ?? log.content.achievements,
@@ -141,7 +143,9 @@ function LogView({ type, start }: { type: LogType; start: string }) {
   // 보내지 못한 수정(오프라인·저장 실패)이 남은 채 다른 화면으로 가면 사라지므로 먼저 묻는다(UX-LOG-40).
   // 탭 닫기는 useLogEditor의 beforeunload 경고가 맡는다
   const unsent = !!editor.edits && (!online || editor.state === 'error')
-  const blocker = useBlocker(unsent)
+  // 업무 내용 없이 결과만 쓴 줄은 보낼 수 없어 남아 있다. 앱 안에서 떠날 때도 묻는다(UX-LOG-143)
+  const stranded = hasStrandedRows(editor.edits)
+  const blocker = useBlocker(unsent || stranded)
 
   useLayoutEffect(() => {
     const el = lastFocus.current
@@ -292,6 +296,20 @@ function LogView({ type, start }: { type: LogType; start: string }) {
       ) : (
         <div className={styles.layout} onFocus={(e) => (lastFocus.current = e.target)}>
           <div className={styles.docColumn}>
+            {askProfile && (
+              <p className={styles.profileLine}>
+                <span>이름·소속을 넣으면 문서에 들어가요</span>
+                <button
+                  ref={profileButton}
+                  type="button"
+                  className={styles.inlineButton}
+                  aria-haspopup="dialog"
+                  onClick={() => setProfileOpen(true)}
+                >
+                  입력
+                </button>
+              </p>
+            )}
             <LogPaper
               type={type}
               periodStart={log.periodStart}
@@ -383,9 +401,11 @@ function LogView({ type, start }: { type: LogType; start: string }) {
         <ConfirmDialog
           title="저장 안 된 변경이 있어요"
           body={
-            online
-              ? '보내지 못한 수정이 있어요. 지금 나가면 이 수정은 사라져요.'
-              : '연결이 끊겨 보내지 못한 수정이 있어요. 지금 나가면 이 수정은 사라져요. 머무르면 다시 연결될 때 저장해요.'
+            !unsent
+              ? '업무 내용 없이 결과만 쓴 줄은 저장되지 않아요. 지금 나가면 그 줄은 사라져요.'
+              : online
+                ? '보내지 못한 수정이 있어요. 지금 나가면 이 수정은 사라져요.'
+                : '연결이 끊겨 보내지 못한 수정이 있어요. 지금 나가면 이 수정은 사라져요. 머무르면 다시 연결될 때 저장해요.'
           }
           action="나가기"
           busy={false}
@@ -393,14 +413,17 @@ function LogView({ type, start }: { type: LogType; start: string }) {
           onConfirm={() => blocker.proceed()}
         />
       )}
-      {askProfile && user && (
+      {profileOpen && user && (
         <ProfilePrompt
           user={user}
-          logKey={`${type}-${start}`}
           type={type}
           start={start}
           end={log?.periodEnd ?? start}
-          onDone={() => setAskProfile(false)}
+          onDone={(saved) => {
+            setProfileOpen(false)
+            // 저장하면 한 줄과 [입력]이 사라지므로 화면 제목으로, 아니면 [입력]으로
+            ;(saved ? headingRef.current : profileButton.current)?.focus()
+          }}
         />
       )}
     </div>

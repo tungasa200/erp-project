@@ -66,7 +66,7 @@ export function HomeDashboard({ empty }: { empty: ReactNode }) {
   const pending = usePendingRecords()
   const pendingCount = pending.data?.length ?? 0
   const [pendingOpen, setPendingOpen] = useState(false)
-  // 닫으면 연 버튼으로 포커스를 돌려준다. 띠는 처리하다 사라질 수 있어 그때는 요약 카드로
+  // 닫으면 연 버튼으로 포커스를 돌려준다. 타임라인 블록은 처리하다 사라질 수 있어 그때는 요약 줄의 확인 대기로
   const opener = useRef<HTMLElement | null>(null)
   const pendingCard = useRef<HTMLButtonElement>(null)
   // 0건이어도 같은 길로 열어 빈 목록을 보인다(UX-HOME-02: 같아 보이는 항목 하나만 안 눌리면 고장처럼 보인다)
@@ -77,7 +77,7 @@ export function HomeDashboard({ empty }: { empty: ReactNode }) {
   const closePending = useCallback((emptied: boolean) => {
     setPendingOpen(false)
     // 패널이 사라지기 전에 옮긴다(늦으면 BODY로 빠져 포커스 안전망이 화면 제목으로 보낸다).
-    // 다 처리해 닫히면 띠도 곧 사라지므로 요약 카드로
+    // 다 처리해 닫히면 연 블록도 곧 사라지므로 요약 줄의 확인 대기로
     const back = !emptied && opener.current?.isConnected ? opener.current : pendingCard.current
     back?.focus()
   }, [])
@@ -130,12 +130,7 @@ export function HomeDashboard({ empty }: { empty: ReactNode }) {
         />
       </ul>
 
-      {pendingCount >= 2 && (
-        <button type="button" className={styles.pendingBand} aria-haspopup="dialog" onClick={openPending}>
-          <span className={styles.pendingTag}>확인해 주세요</span>
-          확인 대기 {pendingCount}건 한 번에 처리
-        </button>
-      )}
+      {/* 노란 "확인해 주세요" 띠는 두지 않는다. 확인 대기로 가는 길은 요약 줄과 타임라인 블록(UX-HOME-140, 목업 F1·F2) */}
       {pendingOpen && <PendingPanel today={today} timeZone={timeZone} onClose={closePending} />}
 
       <TodayTimeline
@@ -165,7 +160,7 @@ export function HomeDashboard({ empty }: { empty: ReactNode }) {
         )}
         <div className={styles.stack}>
           {/* 마감 띠가 떠 있으면 카드의 [하루 마감]은 숨긴다(띠와 중복) */}
-          <TodayLogCard today={today} timeZone={timeZone} hideClose={band === 'open'} />
+          <TodayLogCard today={today} timeZone={timeZone} hideClose={band === 'open'} hideView={band === 'done'} />
           <Upcoming
             days={days}
             byDate={byDate}

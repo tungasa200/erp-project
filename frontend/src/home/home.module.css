@@ -83,39 +83,6 @@ button.card[aria-disabled='true'] {
   }
 }
 
-.pendingBand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  min-height: var(--size-touch);
-  margin: 0;
-  padding: 10px 16px;
-  border: 2px solid var(--status-pending-border);
-  border-radius: var(--radius-input);
-  background: var(--status-pending-bg);
-  color: var(--status-pending-text);
-  font: inherit;
-  font-weight: 700;
-  text-align: left;
-  cursor: pointer;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .pendingBand:hover {
-    background: var(--status-pending-card-bg);
-  }
-}
-
-.pendingTag {
-  flex: none;
-  padding: 2px 8px;
-  border-radius: var(--radius-pill);
-  background: var(--status-pending-tag-bg);
-  color: var(--status-pending-tag-text);
-  font-size: var(--text-xs);
-}
-
 .cardLabel {
   font-size: var(--text-sm);
   font-weight: 700;

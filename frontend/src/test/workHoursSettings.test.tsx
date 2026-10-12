@@ -114,3 +114,19 @@ describe('SCR-SET-02 ④ 업무 시간대', () => {
     expect(screen.getByRole('heading', { name: '일반' })).toHaveFocus()
   })
 })
+
+describe('SCR-SET-02 ⑤ 하루 마감 시각 (UX-SET-140)', () => {
+  it('업무 시간대 아래에 있고, 칸을 떠날 때 저장한다. 그대로면 다시 보내지 않는다', async () => {
+    const server = fakeServer()
+    renderApp('/settings/general')
+    const close = await screen.findByLabelText('하루 마감 시각')
+    expect(close).toHaveValue('18:00')
+    close.focus()
+    fireEvent.change(close, { target: { value: '17:30' } })
+    await userEvent.tab()
+    await waitFor(() => expect(server.patches).toEqual([{ dailyCloseTime: '17:30', version: 0 }]))
+    close.focus()
+    await userEvent.tab()
+    expect(server.patches).toHaveLength(1)
+  })
+})
