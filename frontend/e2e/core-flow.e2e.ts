@@ -50,6 +50,25 @@ async function quickAdd(page: Page, line: string, mobile: boolean) {
   }
 }
 
+/**
+ * 하루 마감 시각을 0시로 바꾼다. 홈은 마감 시각(기본 18:00) 뒤에 띠를 올리고 카드의 [하루 마감]을 숨기므로(SCR-HOME-01),
+ * 그대로면 실행 시각에 따라 경로가 갈린다. 0시면 시험이 도는 내내(0시 32분 전은 건너뜀) 띠 경로 하나다.
+ * 앱 화면과 같은 출처에서 부르므로 인증 쿠키·Origin 검사를 그대로 통과한다.
+ */
+async function closeAtMidnight(page: Page) {
+  const status = await page.evaluate(async () => {
+    const me = await fetch('/api/worklog/me', { credentials: 'same-origin' }).then((r) => r.json())
+    const res = await fetch('/api/worklog/me/settings', {
+      method: 'PATCH',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ dailyCloseTime: '00:00', version: me.settings.version }),
+    })
+    return res.status
+  })
+  expect(status).toBe(200)
+}
+
 test('가입부터 내보내기까지', async ({ page, request, isMobile, browserName }) => {
   const slot = pastSlotToday()
   test.skip(slot === null, '서울 0시 32분 전에는 오늘 안에 끝난 계획을 만들 수 없음')
@@ -68,6 +87,7 @@ test('가입부터 내보내기까지', async ({ page, request, isMobile, browse
   await page.getByRole('button', { name: '회원가입', exact: true }).click()
   await expect(page).toHaveURL(/\/$/)
   await expect(page.getByRole('region', { name: '이메일 인증 안내' })).toBeVisible()
+  await closeAtMidnight(page)
 
   // 2. 빠른 입력: 시간을 적으면 업무와 일정이 함께 만들어진다. 이미 끝난 시간이라 바로 확인 대기가 된다
   await quickAdd(page, `오늘 ${slot} ${title}`, isMobile)
@@ -78,10 +98,10 @@ test('가입부터 내보내기까지', async ({ page, request, isMobile, browse
   await page.getByRole('button', { name: `${title} 했어요`, exact: true }).click()
   await expect(toast(page, '1건을 했어요로 기록했어요')).toBeVisible()
 
-  // 4. 하루 마감: 오늘 일지 카드 → 넘길 업무 → 이슈 → 마감하고 확정 → 바로 완료 창
+  // 4. 하루 마감: 홈 위 하루 마감 띠 → 넘길 업무 → 이슈 → 마감하고 확정 → 바로 완료 창
+  //    (마감 시각을 0시로 둬서 띠는 늘 떠 있고, 카드의 [하루 마감]은 숨는다. SCR-HOME-01, D-212 Q4)
   //    (작성자 정보는 창을 띄우지 않고 완료 창 안 한 줄 [입력]으로 묻는다, 재평가 §4 #26)
-  const logCard = page.locator('section', { has: page.getByRole('heading', { level: 2, name: '오늘 일지' }) })
-  await logCard.getByRole('button', { name: '하루 마감' }).click()
+  await page.getByRole('region', { name: '하루 마감' }).getByRole('button', { name: '하루 마감' }).click()
   const close = page.getByRole('dialog').filter({ has: page.getByRole('button', { name: '다음', exact: true }) })
   await close.getByRole('button', { name: '다음', exact: true }).click()
   await page.getByLabel('이슈 및 특이사항 (선택)').fill('E2E 시험')
