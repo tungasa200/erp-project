@@ -14,12 +14,12 @@ function setup() {
 describe('LandingPage (SCR-AUTH-01)', () => {
   it('핵심 문구와 세 단계', () => {
     setup()
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('따로 기록하지 않아도일지가 써집니다')
-    const steps = within(screen.getByRole('region', { name: '하루가 일지가 되는 세 단계' })).getAllByRole('listitem')
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('따로 기록하지 않아도하루가 기록됩니다')
+    const steps = within(screen.getByRole('region', { name: '하루가 기록이 되는 세 단계' })).getAllByRole('listitem')
     expect(steps.map((li) => within(li).getByRole('heading').textContent)).toEqual([
       '한 줄로 계획',
       '끝나면 확인 한 번',
-      '일지는 이미 완성',
+      '하루 마감은 1분',
     ])
   })
 

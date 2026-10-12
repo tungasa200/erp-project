@@ -15,16 +15,16 @@ const STEPS = [
     tone: styles.stepConfirm,
   },
   {
-    title: '일지는 이미 완성',
-    text: '확인한 기록이 일간·주간·월간 일지로 채워져요. 하루 마감은 1분이면 끝나요.',
+    title: '하루 마감은 1분',
+    text: '확인한 기록을 훑고 내일 계획을 넘기면 끝나요. 통계로 한 주·한 달을 돌아봐요.',
     tone: styles.stepLog,
   },
 ]
 
 const FEATURES = [
-  { title: '회사 제출용 PDF·Word·Excel', text: '표준 업무일지 서식 그대로 내려받아 바로 제출하세요.', dark: true },
+  { title: '한눈에 보는 통계', text: '프로젝트·업무별로 쓴 시간과 끝낸 일을 기간별로 봐요.', dark: true },
   { title: '손에 익은 캘린더 보기', text: '일·주·월·연 보기와 끌어 놓기로 하루를 배치해요.' },
-  { title: '확인 없이는 기록하지 않아요', text: '자동으로 만든 기록은 당신이 확인해야 일지에 들어가요.' },
+  { title: '확인 없이는 기록하지 않아요', text: '자동으로 만든 기록은 당신이 확인해야 기록으로 남아요.' },
 ]
 
 export function LandingPage() {
@@ -48,15 +48,15 @@ export function LandingPage() {
       <main>
         <section className={styles.hero} aria-labelledby="landing-title">
           <div className={styles.heroText}>
-            <p className={styles.eyebrow}>개인 업무기록 · 업무일지 · 일정</p>
+            <p className={styles.eyebrow}>개인 업무기록 · 일정 · 하루 마감</p>
             <h1 id="landing-title" className={styles.title}>
               따로 기록하지 않아도
               <br />
-              일지가 써집니다
+              하루가 기록됩니다
             </h1>
             <p className={styles.lead}>
-              계획한 일정이 끝나면 확인 한 번. 그 사이 오늘 업무일지는 이미 채워져 있어요. 퇴근 전 1분이면 회사에 낼
-              일지가 완성됩니다.
+              계획한 일정이 끝나면 확인 한 번. 그것만으로 오늘 한 일이 쌓여요. 퇴근 전 1분이면 하루 마감과 내일 계획까지
+              끝나요.
             </p>
             <div className={styles.actions}>
               <Link to="/signup" className={styles.primary}>
@@ -68,7 +68,7 @@ export function LandingPage() {
             </div>
           </div>
 
-          {/* ③ 실제 화면 그림: 캘린더 블록 상태(확정·확인 대기·계획)와 그날 일지. 장식이라 읽지 않는다 */}
+          {/* ③ 실제 화면 그림: 캘린더 블록 상태(확정·확인 대기·계획)와 그날 기록. 장식이라 읽지 않는다 */}
           <div className={styles.preview} aria-hidden="true">
             <div className={styles.previewSchedule}>
               <div className={styles.previewHeading}>오늘 일정</div>
@@ -77,7 +77,7 @@ export function LandingPage() {
               <div className={`${styles.block} ${styles.blockPlanned}`}>견적서 작성 · 예정</div>
             </div>
             <div className={styles.previewLog}>
-              <div className={styles.previewHeading}>오늘 업무일지</div>
+              <div className={styles.previewHeading}>오늘 기록</div>
               <div className={styles.previewLines}>
                 1. 데일리 스탠드업 참석
                 <br />
@@ -92,7 +92,7 @@ export function LandingPage() {
 
         <section className={styles.section} aria-labelledby="landing-steps">
           <h2 id="landing-steps" className={styles.sectionTitle}>
-            하루가 일지가 되는 세 단계
+            하루가 기록이 되는 세 단계
           </h2>
           <ol className={styles.grid}>
             {STEPS.map((s, i) => (

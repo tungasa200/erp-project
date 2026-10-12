@@ -1,5 +1,5 @@
 // SCR-CAL-02 ③ 이날의 기록 접기(X-07 D): 접어도 요약 한 줄과 펼치기를 남기고, 접힘은 이 기기에 기억한다.
-import { cleanup, screen } from '@testing-library/react'
+import { cleanup, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { registerDayCloseOpener } from '../logs/openDayClose'
@@ -34,7 +34,7 @@ const record = (id: string, status: string) => ({
   version: 0,
 })
 
-function setup(now = Date.now()) {
+function setup(now = Date.now(), logStatus = 'CONFIRMED') {
   const fetchMock = stubFetch({
     'GET /api/users/me': () => json(200, ME),
     'GET /api/worklog/me': () =>
@@ -47,7 +47,7 @@ function setup(now = Date.now()) {
       json(200, { items: [record('a', 'CONFIRMED'), record('b', 'CONFIRMED'), record('c', 'DISMISSED')] }),
     'GET /api/worklog/logs': () =>
       json(200, {
-        items: [{ type: 'DAILY', periodStart: DATE, periodEnd: DATE, logId: 'l-1', status: 'DRAFT' }],
+        items: [{ type: 'DAILY', periodStart: DATE, periodEnd: DATE, logId: 'l-1', status: logStatus }],
         unconfirmedDays: 1,
       }),
   })
@@ -81,7 +81,8 @@ describe('이날의 기록 접기 (X-07 D)', () => {
 
     await userEvent.click(screen.getByRole('button', { name: '이날의 기록 접기' }))
     expect(screen.queryByText('기록 a')).toBeNull()
-    expect(await screen.findByText('3건 · 일지 초안')).toBeInTheDocument()
+    // 업무일지 숨김(D-214): 확정이면 '마감함'
+    expect(await screen.findByText('3건 · 마감함')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '이날의 기록 펼치기' })).toHaveAttribute('aria-expanded', 'false')
     // 포커스는 그 자리의 새 버튼으로(UX-CAL-174)
     expect(screen.getByRole('button', { name: '이날의 기록 펼치기' })).toHaveFocus()
@@ -93,6 +94,14 @@ describe('이날의 기록 접기 (X-07 D)', () => {
     await userEvent.click(screen.getByRole('button', { name: '이날의 기록 펼치기' }))
     expect(await screen.findByText('기록 a')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '이날의 기록 접기' })).toHaveFocus()
+  })
+
+  it('일지가 초안이면 접힌 요약에 상태를 붙이지 않는다(D-214)', async () => {
+    const fetchMock = setup(Date.now(), 'DRAFT')
+    await userEvent.click(await screen.findByRole('button', { name: '이날의 기록 접기' }))
+    await waitFor(() => expect(logCalls(fetchMock)).toHaveLength(1))
+    expect(await screen.findByText('3건')).toBeInTheDocument()
+    expect(screen.queryByText(/초안|마감함/)).toBeNull()
   })
 })
 

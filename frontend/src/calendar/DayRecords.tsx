@@ -171,7 +171,8 @@ export function DayRecords({ date, timeZone, occurrences, now, editable, onOpen,
   )
 }
 
-const LOG_TEXT: Partial<Record<LogStatus, string>> = { DRAFT: '일지 초안', CONFIRMED: '일지 확정' }
+// 업무일지 숨김(D-214): 확정이면 '마감함'만, 초안은 보이지 않는다
+const LOG_TEXT: Partial<Record<LogStatus, string>> = { CONFIRMED: '마감함' }
 
 /** 접힌 패널의 요약. 일지 상태는 접혔을 때만 묻는다(펼친 패널은 목록이 대신 보여 준다) */
 function RecordsSummary({ date, count, pending }: { date: string; count: number | null; pending: number }) {

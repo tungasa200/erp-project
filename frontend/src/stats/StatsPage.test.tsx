@@ -115,7 +115,8 @@ describe('SCR-STAT-01 통계', () => {
     const { fetchMock } = setup(() => json(200, REPORT))
     const summary = await screen.findByRole('list', { name: '요약' })
     expect(within(summary).getByText('12')).toBeInTheDocument()
-    expect(within(summary).getByText('5')).toBeInTheDocument()
+    // 업무일지 숨김(D-214): 확정 일지 수는 '마감한 날'로 보인다
+    expect(within(summary).getByText('마감한 날').nextSibling).toHaveTextContent('5')
     expect(statsCalls(fetchMock)).toEqual(['/api/worklog/stats?from=2026-10-01&to=2026-10-31'])
     expect(screen.getByRole('button', { name: '이번 달' })).toHaveAttribute('aria-pressed', 'true')
 
