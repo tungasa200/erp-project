@@ -123,6 +123,8 @@ describe('SCR-TASK-04 보관함', () => {
   it('아무것도 없어도 탭은 두고 탭마다 빈 상태', async () => {
     setup({ tasks: [], projects: [project('p-dev', '개발')] })
     expect(await screen.findByText('보관한 업무가 없어요')).toBeInTheDocument()
+    // 업무에는 ⋯ 메뉴가 없다: 상세 패널의 [보관]으로 안내한다
+    expect(screen.getByText(/업무를 열어 \[보관\]을 누르세요/)).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: '업무 0' })).toHaveAttribute('aria-selected', 'true')
     expect(screen.getByRole('link', { name: '업무로 가기' })).toHaveAttribute('href', '/tasks')
     await userEvent.click(screen.getByRole('tab', { name: '프로젝트 0' }))
