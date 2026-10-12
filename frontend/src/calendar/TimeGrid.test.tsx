@@ -465,14 +465,17 @@ describe('처음 스크롤 위치 (UX-CAL-73·74)', () => {
 
 describe('끌기 중 가장자리 자동 스크롤 (UX-CAL-94)', () => {
   let frames: FrameRequestCallback[] = []
+  let scrollerBottom = 400
   beforeEach(() => {
     frames = []
+    scrollerBottom = 400
     vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => frames.push(cb))
     vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => {})
     // 스크롤 영역은 화면 위 0~400px, 날짜 칸은 스크롤만큼 위로 밀린다
     vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
       const scroller = document.querySelector<HTMLElement>('[class*="gridScroll"]')!
-      if (this === scroller) return { left: 0, top: 0, width: 100, height: 400, bottom: 400 } as DOMRect
+      if (this === scroller)
+        return { left: 0, top: 0, width: 100, height: scrollerBottom, bottom: scrollerBottom } as DOMRect
       return { left: 0, top: -scroller.scrollTop, width: 100, height: 1152, bottom: 1152 } as DOMRect
     })
   })
@@ -519,6 +522,34 @@ describe('끌기 중 가장자리 자동 스크롤 (UX-CAL-94)', () => {
     // 손가락 자리(390px)는 그대로지만 스크롤만큼 늦은 시각이 된다
     const minutes = (390 + scroller.scrollTop) / PX_PER_MINUTE - (start + before) / PX_PER_MINUTE + 9 * 60
     expect(Date.parse(moved)).toBe(Date.parse(`${DAY}T00:00:00Z`) + Math.round(minutes / 15) * 15 * 60_000)
+  })
+
+  it('그리드 아래 끝이 창 밖이면 창 아래 가장자리에서 스크롤한다(배너가 있는 1280×800)', () => {
+    scrollerBottom = window.innerHeight + 52
+    render(
+      <TimeGrid
+        days={[DAY]}
+        occurrences={[]}
+        timeZone="UTC"
+        today={DAY}
+        now={Date.parse(`${DAY}T10:00:00Z`)}
+        colorOf={() => null}
+        pending={null}
+        onCreate={vi.fn()}
+        onCreateAllDay={vi.fn()}
+        onOpen={vi.fn()}
+        onMove={vi.fn()}
+      />,
+    )
+    const scroller = document.querySelector<HTMLElement>('[class*="gridScroll"]')!
+    scroller.scrollTop = 0
+    const column = document.querySelector<HTMLElement>('[class*="columns"]')!
+    fireEvent.pointerDown(column, { button: 0, clientX: 50, clientY: 100 })
+    fireEvent.pointerMove(column, { button: 0, clientX: 50, clientY: window.innerHeight - 4 })
+    act(() => {
+      for (let i = 0; i < 5; i++) frames.shift()?.(0)
+    })
+    expect(scroller.scrollTop).toBeGreaterThan(0)
   })
 
   it('가운데에서는 스크롤하지 않는다', () => {

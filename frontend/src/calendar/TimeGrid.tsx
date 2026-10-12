@@ -320,13 +320,12 @@ export function TimeGrid(props: Props) {
       const el = scrollRef.current
       const p = pointer.current
       if (el && p) {
+        // 가장자리는 창에 보이는 부분으로 자른다: 배너 등으로 그리드 끝이 창 밖이면 창 끝이 가장자리다(CAL-94)
         const rect = el.getBoundingClientRect()
+        const top = Math.max(rect.top, 0)
+        const bottom = Math.min(rect.bottom, window.innerHeight)
         const into =
-          p.y < rect.top + EDGE_ZONE
-            ? p.y - (rect.top + EDGE_ZONE)
-            : p.y > rect.bottom - EDGE_ZONE
-              ? p.y - (rect.bottom - EDGE_ZONE)
-              : 0
+          p.y < top + EDGE_ZONE ? p.y - (top + EDGE_ZONE) : p.y > bottom - EDGE_ZONE ? p.y - (bottom - EDGE_ZONE) : 0
         const speed = Math.max(-1, Math.min(1, into / EDGE_ZONE)) * EDGE_MAX_SPEED
         const before = el.scrollTop
         if (speed) el.scrollTop = before + speed
