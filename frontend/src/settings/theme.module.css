@@ -57,7 +57,7 @@
 
 .swatch[aria-pressed='true'] {
   color: var(--color-text);
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .dot {
@@ -250,7 +250,7 @@
   padding: 0 var(--space-5);
   background: var(--color-accent);
   color: var(--color-on-accent);
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .save[aria-busy='true'] {

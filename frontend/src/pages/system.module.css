@@ -73,7 +73,7 @@
   background: var(--color-accent);
   color: var(--color-on-accent);
   font-size: var(--text-md);
-  font-weight: 800;
+  font-weight: 600;
   line-height: 50px;
   text-decoration: none;
   cursor: pointer;

@@ -189,7 +189,7 @@
 .segmentButton[aria-pressed='true'] {
   background: var(--color-banner);
   color: var(--color-on-banner);
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .listCard {
@@ -567,7 +567,7 @@
   color: var(--color-on-banner);
   font: inherit;
   font-size: var(--text-sm);
-  font-weight: 800;
+  font-weight: 600;
   cursor: pointer;
 }
 

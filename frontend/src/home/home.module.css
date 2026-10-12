@@ -177,7 +177,7 @@ button.card[aria-disabled='true'] {
 .segmentButton[aria-pressed='true'] {
   background: var(--color-surface);
   color: var(--color-text);
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .muted {
@@ -644,7 +644,7 @@ button.card[aria-disabled='true'] {
   border-radius: var(--radius-pill);
   font: inherit;
   font-size: var(--text-md);
-  font-weight: 800;
+  font-weight: 600;
   text-decoration: none;
   cursor: pointer;
 }
