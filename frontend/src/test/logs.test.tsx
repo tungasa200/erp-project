@@ -416,6 +416,24 @@ describe('일지 목록 (SCR-LOG-01)', () => {
     expect(create).toHaveBeenCalledTimes(1)
   })
 
+  it('UX-LOG-51 확정 안 된 날 띠의 버튼으로 첫 미확정 날을 연다(미작성이면 초안을 만든 뒤)', async () => {
+    const user = userEvent.setup()
+    const create = vi.fn(() => json(201, workLog()))
+    stubFetch({
+      'GET /api/users/me': me,
+      'GET /api/worklog/logs': () => json(200, { items: october(), unconfirmedDays: 1 }),
+      'POST /api/worklog/logs/daily/2026-10-07': create,
+      [LOG_URL]: () => json(200, workLog()),
+    })
+    const { router } = renderApp('/logs')
+
+    const go = await screen.findByRole('button', { name: /부터 보기$/ })
+    go.focus()
+    await user.keyboard('{Enter}')
+    await waitFor(() => expect(router.state.location.pathname).toBe('/logs/daily/2026-10-07'))
+    expect(create).toHaveBeenCalledTimes(1)
+  })
+
   it('주간 탭: 행에 확정 n/m일, 이전 달로 넘기면 주소가 바뀐다', async () => {
     const user = userEvent.setup()
     stubFetch({

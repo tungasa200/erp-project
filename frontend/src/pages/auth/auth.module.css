@@ -11,7 +11,7 @@
   padding: 48px;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: var(--space-5);
   background: var(--color-accent);
   color: var(--color-on-accent);
 }
@@ -19,7 +19,7 @@
 .brand {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-2);
 }
 
 .logo {
@@ -58,11 +58,11 @@
 @media (max-width: 767px) {
   .intro {
     flex-basis: 100%;
-    padding: 20px 16px;
-    gap: 8px;
+    padding: var(--space-4) var(--space-4);
+    gap: var(--space-2);
   }
   .introHeading {
-    margin: 12px 0 0;
+    margin: var(--space-3) 0 0;
     font-size: var(--text-2xl);
   }
   .introText {
@@ -75,12 +75,12 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 40px 24px;
+  padding: 40px var(--space-5);
 }
 
 @media (max-width: 767px) {
   .main {
-    padding: 24px 16px 40px;
+    padding: var(--space-5) var(--space-4) 40px;
   }
 }
 
@@ -103,11 +103,11 @@
   max-width: 400px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--space-4);
 }
 
 .title {
-  margin: 0 0 8px;
+  margin: 0 0 var(--space-2);
   font-size: var(--text-3xl);
   font-weight: 800;
   letter-spacing: -0.5px;
@@ -116,7 +116,7 @@
 .field {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--space-1);
 }
 
 .label {
@@ -136,7 +136,7 @@
 
 .input {
   width: 100%;
-  padding: 0 16px;
+  padding: 0 var(--space-4);
 }
 
 /* 포커스는 전역 :focus-visible 윤곽선 하나(COM-34). 묶음 칸은 안의 입력이 포커스를 받으면 칸에 같은 윤곽선 */
@@ -148,7 +148,7 @@
 .inputGroup {
   display: flex;
   align-items: center;
-  padding: 0 4px 0 16px;
+  padding: 0 var(--space-1) 0 var(--space-4);
 }
 
 .inputGroup input {
@@ -190,7 +190,7 @@
 
 .submit {
   height: 52px;
-  margin-top: 6px;
+  margin-top: var(--space-1);
   border: 0;
   border-radius: var(--radius-pill);
   background: var(--color-accent);
@@ -262,8 +262,8 @@
 /* 폼 상단 안내 */
 .alert {
   display: flex;
-  gap: 12px;
-  padding: 14px 16px;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
   border-radius: var(--radius-input);
   font-size: var(--text-md);
   line-height: 1.55;
@@ -287,7 +287,7 @@
 
 .alertDone {
   align-items: center;
-  padding-right: 6px;
+  padding-right: var(--space-1);
   background: var(--color-text);
   color: var(--color-on-banner);
   font-weight: 700;
@@ -336,7 +336,7 @@
   list-style: none;
   display: flex;
   flex-wrap: wrap;
-  gap: 6px 14px;
+  gap: var(--space-1) var(--space-3);
   font-size: var(--text-sm);
   font-weight: 600;
 }
@@ -354,20 +354,20 @@
 /* 동의 */
 .agreements {
   margin: 0;
-  padding: 14px 16px;
+  padding: var(--space-3) var(--space-4);
   border: 0;
   border-radius: var(--radius-input);
   background: var(--color-surface);
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--space-2);
   font-size: var(--text-md);
 }
 
 .check {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-2);
   /* 줄 전체가 체크박스 라벨이라 줄 높이가 곧 누르는 영역이다 */
   min-height: var(--size-touch);
 }
@@ -393,7 +393,7 @@
 
 .overseas {
   margin: 2px 0 0;
-  padding-top: 10px;
+  padding-top: var(--space-2);
   border-top: 1px solid var(--color-divider-soft);
   font-size: var(--text-xs);
   line-height: 1.6;

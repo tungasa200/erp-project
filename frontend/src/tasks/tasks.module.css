@@ -1,7 +1,7 @@
 /* SCR-TASK-01 업무 목록 · SCR-TASK-02 업무 상세 (목업 TASK-01, TASK-02) */
 .layout {
   display: flex;
-  gap: 18px;
+  gap: var(--space-4);
   align-items: flex-start;
 }
 
@@ -10,13 +10,13 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--space-4);
 }
 
 .head {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .title {
@@ -43,7 +43,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   margin: 0;
   font-size: var(--text-sm);
   font-weight: 600;
@@ -52,7 +52,7 @@
 
 .note {
   margin: 0;
-  padding: 10px 12px;
+  padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-input);
   background: var(--color-ground);
   font-size: var(--text-sm);
@@ -63,7 +63,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .spacer {
@@ -73,10 +73,10 @@
 .search {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   flex: 0 1 260px;
   min-height: 44px;
-  padding: 0 14px;
+  padding: 0 var(--space-3);
   border-radius: var(--radius-pill);
   background: var(--color-surface);
   color: var(--color-text-muted);
@@ -106,7 +106,7 @@
 .filterButton {
   min-height: 44px;
   max-width: 240px;
-  padding: 0 14px;
+  padding: 0 var(--space-3);
   border: 0;
   border-radius: var(--radius-pill);
   background: var(--color-surface);
@@ -134,7 +134,7 @@
   max-height: 320px;
   overflow-y: auto;
   margin: 0;
-  padding: 8px;
+  padding: var(--space-2);
   border: 0;
   border-radius: var(--radius-input);
   background: var(--color-surface);
@@ -146,9 +146,9 @@
 .check {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-2);
   min-height: 40px;
-  padding: 0 8px;
+  padding: 0 var(--space-2);
   border-radius: var(--radius-sm);
   font-size: var(--text-md);
   cursor: pointer;
@@ -168,14 +168,14 @@
 
 .segment {
   display: flex;
-  padding: 4px;
+  padding: var(--space-1);
   border-radius: var(--radius-card);
   background: var(--color-surface);
 }
 
 .segmentButton {
   min-height: 36px;
-  padding: 0 14px;
+  padding: 0 var(--space-3);
   border: 0;
   border-radius: var(--radius-pill);
   background: transparent;
@@ -194,18 +194,18 @@
 
 .listCard {
   container: tasklist / inline-size;
-  padding: 10px 20px 16px;
+  padding: var(--space-2) var(--space-4) var(--space-4);
   border-radius: var(--radius-card);
   background: var(--color-surface);
 }
 
 .group {
-  margin-top: 6px;
+  margin-top: var(--space-1);
 }
 
 .groupTitle {
   margin: 0;
-  padding: 14px 0 6px;
+  padding: var(--space-3) 0 var(--space-1);
   font-size: var(--text-xs);
   font-weight: 800;
   color: var(--color-text);
@@ -235,8 +235,8 @@
   display: grid;
   grid-template-columns: 44px minmax(0, 1fr) 48px 96px 110px 76px 70px 24px;
   align-items: center;
-  gap: 10px;
-  padding: 4px 6px;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-1);
   border-top: 1px solid var(--color-divider-soft);
   font-size: var(--text-md);
 }
@@ -321,7 +321,7 @@
 
 .rowTitle {
   min-width: 0;
-  padding: 10px 0;
+  padding: var(--space-3) 0; /* 10px의 아래 단계(8)면 링크 높이가 36px로 줄어 위 단계로(--size-touch 44) */
   color: var(--color-text);
   font-weight: 600;
   text-decoration: none;
@@ -345,7 +345,7 @@
   display: inline-block;
   max-width: 100%;
   box-sizing: border-box;
-  padding: 3px 9px;
+  padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-sm);
   font-size: var(--text-xs);
   font-weight: 800;
@@ -396,10 +396,21 @@
   color: var(--color-accent);
 }
 
+/* 우선순위 칸이 보이는 폭에서는 숨기고, 칸이 숨는 폭(아래 @container)에서만 제목 앞 점으로 남긴다(UX-TASK-61) */
+.highDot {
+  display: none;
+  width: 8px;
+  height: 8px;
+  margin-right: var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--color-danger);
+  vertical-align: 1px;
+}
+
 .more,
 .smallButton {
   min-height: 40px;
-  padding: 0 14px;
+  padding: 0 var(--space-3);
   border: 0;
   border-radius: var(--radius-pill);
   background: var(--color-ground);
@@ -414,10 +425,10 @@
   align-self: flex-start;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-1);
   min-height: var(--size-touch);
-  margin-top: 12px;
-  padding: 0 4px;
+  margin-top: var(--space-3);
+  padding: 0 var(--space-1);
   color: var(--color-text-muted);
   font-size: var(--text-sm);
   font-weight: 700;
@@ -438,19 +449,19 @@
 }
 
 .more {
-  margin-top: 10px;
+  margin-top: var(--space-2);
 }
 
 .doneBlock {
-  margin-top: 14px;
+  margin-top: var(--space-3);
 }
 
 .emptyState {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 8px;
-  padding: 24px 6px;
+  gap: var(--space-2);
+  padding: var(--space-5) var(--space-1);
 }
 
 .emptyState p {
@@ -470,7 +481,7 @@
   max-height: calc(100dvh - 60px);
   overflow-y: auto;
   box-sizing: border-box;
-  padding: 24px;
+  padding: var(--space-5);
   border-radius: var(--radius-card);
   background: var(--color-surface);
   box-shadow: -10px 0 40px rgba(40, 44, 90, 0.08);
@@ -480,19 +491,19 @@
 .panelBody {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: var(--space-4);
 }
 
 .panelHead {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
+  gap: var(--space-2);
 }
 
 .titleInput {
   flex: 1;
   min-width: 0;
-  padding: 6px 8px;
+  padding: var(--space-1) var(--space-2);
   border: 1.5px solid transparent;
   border-radius: var(--radius-sm);
   background: transparent;
@@ -526,9 +537,9 @@
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 12px;
-  padding: 10px 12px 10px 16px;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+  padding: var(--space-2) var(--space-3) var(--space-2) var(--space-4);
   border-radius: var(--radius-input);
   background: var(--color-warning-soft);
   color: var(--color-warning-text);
@@ -544,7 +555,7 @@
 
 .reload {
   min-height: 40px;
-  padding: 0 12px;
+  padding: 0 var(--space-3);
   border: 0;
   border-radius: var(--radius-pill);
   background: var(--color-banner);
@@ -559,7 +570,7 @@
   display: grid;
   grid-template-columns: 90px minmax(0, 1fr);
   align-items: center;
-  gap: 10px;
+  gap: var(--space-2);
   margin: 0;
   padding: 0;
   border: 0;
@@ -576,7 +587,7 @@
   min-height: 40px;
   max-width: 100%;
   box-sizing: border-box;
-  padding: 0 10px;
+  padding: 0 var(--space-2);
   border: 1.5px solid var(--color-border);
   border-radius: var(--radius-input);
   background: var(--color-surface);
@@ -590,14 +601,14 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-1);
 }
 
 .tagChip {
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  padding: 0 0 0 10px;
+  padding: 0 0 0 var(--space-2);
   border-radius: var(--radius-sm);
   background: var(--color-ground);
   font-size: var(--text-xs);
@@ -641,7 +652,7 @@
 .block {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
   margin: 0;
   padding: 0;
   border: 0;
@@ -669,7 +680,7 @@
 }
 
 .memo {
-  padding: 12px;
+  padding: var(--space-3);
   border: 1.5px solid var(--color-divider);
   border-radius: var(--radius-input);
   color: var(--color-text);
@@ -687,7 +698,7 @@
 /* 보관은 되돌릴 수 있어 위험색 대신 중립 보조 버튼(X-03, TASK-63) */
 .archiveButton {
   min-height: 44px;
-  padding: 0 16px;
+  padding: 0 var(--space-4);
   border: 0;
   border-radius: var(--radius-pill);
   background: var(--color-surface);
@@ -726,6 +737,10 @@
     display: none;
   }
 
+  .highDot {
+    display: inline-block;
+  }
+
   .panel {
     position: fixed;
     inset: 0 0 0 auto;
@@ -742,7 +757,7 @@
   }
 
   .listCard {
-    padding: 6px 12px 12px;
+    padding: var(--space-1) var(--space-3) var(--space-3);
   }
 
   /* 모바일 누르는 영역 44px (P1-X-10). 보이는 모양은 그대로 두고 높이만 맞춘다 */
@@ -754,9 +769,15 @@
     min-height: var(--size-touch);
   }
 
+  /* 긴 제목은 두 줄까지 보인다. 끝 단어("회신 확인" 등)로 비슷한 제목을 가려야 해서(UX-TASK-66) */
   .rowTitle {
-    padding: 12px 0;
+    display: -webkit-box;
+    padding: var(--space-3) 0;
     line-height: 20px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
   }
 }
 
@@ -776,6 +797,10 @@
   .progress,
   .schedule {
     display: none;
+  }
+
+  .highDot {
+    display: inline-block;
   }
 }
 
@@ -817,7 +842,7 @@
 /* 지금 보기에서는 새 업무가 안 보여 추가를 끈 이유(X-11) */
 .addBlocked {
   margin: -6px 0 0;
-  padding: 0 6px;
+  padding: 0 var(--space-1);
   font-size: var(--text-sm);
   color: var(--color-text-muted);
 }

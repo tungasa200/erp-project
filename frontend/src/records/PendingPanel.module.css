@@ -15,7 +15,7 @@
   width: min(440px, 100%);
   height: 100dvh;
   box-sizing: border-box;
-  padding: 24px 24px 0;
+  padding: var(--space-5) var(--space-5) 0;
   background: var(--color-surface);
   box-shadow: -12px 0 40px rgba(26, 28, 43, 0.2);
 }
@@ -24,7 +24,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .title {
@@ -53,7 +53,7 @@
 }
 
 .lead {
-  margin: 8px 0 16px;
+  margin: var(--space-2) 0 var(--space-4);
   font-size: var(--text-md);
   color: var(--color-text-muted);
 }
@@ -62,17 +62,18 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
   /* 포커스 테두리가 스크롤 영역에 잘리지 않게 */
   margin: 0 -4px;
-  padding: 0 4px 16px;
+  padding: 0 var(--space-1) var(--space-4);
 }
 
 .group + .group {
-  margin-top: 18px;
+  margin-top: var(--space-4);
 }
 
 .day {
-  margin: 0 0 8px;
+  margin: 0 0 var(--space-2);
   font-size: var(--text-sm);
   font-weight: 700;
   color: var(--color-text-muted);
@@ -81,7 +82,7 @@
 .rows {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -91,8 +92,8 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px 12px;
-  padding: 12px 14px;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-3) var(--space-3);
   border: 1px solid var(--status-pending-card-border);
   border-radius: var(--radius-input);
   background: var(--status-pending-card-bg);
@@ -131,7 +132,7 @@
 .actions {
   display: flex;
   flex: none;
-  gap: 6px;
+  gap: var(--space-1);
 }
 
 .yes,
@@ -139,7 +140,7 @@
 .primary,
 .retry {
   min-height: var(--size-touch);
-  padding: 0 14px;
+  padding: 0 var(--space-3);
   border-radius: var(--radius-input);
   font: inherit;
   font-size: var(--text-md);
@@ -147,10 +148,11 @@
   cursor: pointer;
 }
 
+/* 목록 안 반복 동작은 채우지 않는다: accent-soft 바탕 + accent-ink 글자 + 1px 윤곽. 채움은 아래 [n건 모두 했어요] 하나(X-02, UX-REC-59) */
 .yes {
-  border: 0;
-  background: var(--color-accent);
-  color: var(--color-on-accent);
+  border: 1px solid var(--color-accent);
+  background: var(--color-accent-soft);
+  color: var(--color-accent-ink);
 }
 
 .no {
@@ -171,7 +173,7 @@
 .foot {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
   padding: 14px 0 max(18px, env(safe-area-inset-bottom));
   border-top: 1px solid var(--color-divider);
 }
@@ -184,9 +186,12 @@
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .primary:not(:disabled):hover,
-  .yes:not(:disabled):hover {
+  .primary:not(:disabled):hover {
     background: var(--color-accent-ink);
+  }
+
+  .yes:not(:disabled):hover {
+    background: var(--color-accent-softer);
   }
 }
 
@@ -194,7 +199,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   color: var(--color-danger-text);
 }
 
@@ -222,7 +227,7 @@
 @media (max-width: 640px) {
   .sheet {
     width: 100%;
-    padding: 18px 16px 0;
+    padding: var(--space-4) var(--space-4) 0;
   }
 }
 

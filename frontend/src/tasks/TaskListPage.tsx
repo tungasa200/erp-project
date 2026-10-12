@@ -728,10 +728,13 @@ function TaskRow({ task, today, weekStart, projects, tagNames, selected, onLeave
         className={done ? `${styles.rowTitle} ${styles.doneTitle}` : styles.rowTitle}
         title={task.title}
       >
+        {/* 좁아져 우선순위 칸이 숨으면 '높음'만 점으로 남긴다(UX-TASK-61) */}
+        {task.priority === 'HIGH' && <span className={styles.highDot} role="img" aria-label="높음" />}
         {task.title}
       </Link>
+      {/* 기본값(보통)·마감 없음·진행 0은 비워 예외만 눈에 띄게 한다(UX-TASK-61) */}
       <span className={task.priority === 'HIGH' ? `${styles.priority} ${styles.danger}` : styles.priority}>
-        {PRIORITY_LABEL[task.priority]}
+        {task.priority === 'NORMAL' ? '' : PRIORITY_LABEL[task.priority]}
       </span>
       <span className={styles.projectCell}>
         {project && color && (
@@ -742,20 +745,23 @@ function TaskRow({ task, today, weekStart, projects, tagNames, selected, onLeave
       </span>
       <span className={styles.tags}>{tagText}</span>
       <span className={state === 'overdue' && !done ? `${styles.due} ${styles.danger}` : styles.due}>
-        {dueLabel(task.dueDate, today)}
+        {task.dueDate ? dueLabel(task.dueDate, today) : ''}
       </span>
       <span className={styles.progress} aria-label={`진행률 ${task.progress}%`}>
-        <span className={styles.progressBar}>
-          <span style={{ width: `${task.progress}%`, background: color?.base ?? 'var(--color-accent)' }} />
+        {task.progress > 0 && (
+          <span className={styles.progressBar}>
+            <span style={{ width: `${task.progress}%`, background: color?.base ?? 'var(--color-accent)' }} />
+          </span>
+        )}
+      </span>
+      {/* 꺼진 ◷는 대비 1.6:1로 흐릿하기만 해서 빼고, 일정에 놓인 업무만 표시한다(UX-TASK-62) */}
+      {task.hasSchedule ? (
+        <span className={`${styles.schedule} ${styles.scheduleOn}`} title="일정에 배치됨" aria-label="일정에 배치됨">
+          ◷
         </span>
-      </span>
-      <span
-        className={task.hasSchedule ? `${styles.schedule} ${styles.scheduleOn}` : styles.schedule}
-        title={task.hasSchedule ? '일정에 배치됨' : '일정 없음'}
-        aria-label={task.hasSchedule ? '일정에 배치됨' : '일정 없음'}
-      >
-        ◷
-      </span>
+      ) : (
+        <span className={styles.schedule} />
+      )}
       {timed && <TimerStartCell task={task} />}
     </li>
   )

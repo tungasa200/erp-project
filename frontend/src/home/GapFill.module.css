@@ -7,7 +7,7 @@
 }
 
 .minutes {
-  margin-left: 6px;
+  margin-left: var(--space-1);
   font-size: var(--text-sm);
   font-weight: 700;
   color: var(--color-text-muted);
@@ -16,7 +16,7 @@
 .candidates {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -29,7 +29,7 @@
   width: 100%;
   min-height: var(--size-touch);
   box-sizing: border-box;
-  padding: 8px 14px;
+  padding: var(--space-2) var(--space-3);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-input);
   background: var(--color-surface);
@@ -78,7 +78,7 @@
 .direct {
   display: flex;
   align-items: flex-end;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .direct label {

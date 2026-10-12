@@ -163,6 +163,20 @@ describe('SCR-HOME-01 홈 대시보드 1차', () => {
     expect(within(section).getByRole('heading', { name: '프로젝트 없음 3' })).toBeInTheDocument()
   })
 
+  it('UX-HOME-11 남은 업무는 앞 10개만 그리고, 묶음 제목은 전체 수, 링크는 "n개 더 보기"', async () => {
+    const many = Array.from({ length: 13 }, (_, i) => task(`t${i}`, `오늘 업무 ${i + 1}`, { dueDate: '2026-10-07' }))
+    server({ remaining: [...many, task('n1', '날짜 없는 일')] })
+    renderApp('/')
+    const section = await screen.findByRole('region', { name: '남은 업무' })
+    expect(await within(section).findByRole('heading', { name: '오늘 13' })).toBeInTheDocument()
+    expect(within(section).getAllByRole('checkbox')).toHaveLength(10)
+    expect(within(section).getByRole('link', { name: '업무 3개 더 보기' })).toHaveAttribute('href', '/tasks')
+    // 날짜 없는 업무는 상한 밖: 펼치면 상한에 걸려 있어도 보인다
+    within(section).getByRole('button', { name: '날짜 없는 업무 1개' }).focus()
+    await userEvent.keyboard('{Enter}')
+    expect(within(section).getByText('날짜 없는 일')).toBeInTheDocument()
+  })
+
   it('완료 체크는 바로 완료하고 되돌리기 토스트를 띄운다', async () => {
     const { calls } = server()
     renderApp('/')

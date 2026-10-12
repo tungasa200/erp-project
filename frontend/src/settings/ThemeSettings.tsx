@@ -76,6 +76,9 @@ function ThemeForm({ user, save }: { user: Me; save: ReturnType<typeof useProfil
   const [saving, setSaving] = useState(false)
   const [failure, setFailure] = useState<Failure | null>(null)
   const [saved, setSaved] = useState(false)
+  // 마지막으로 저장된 값. 고른 값과 다르면 '저장 안 한 변경'을 보인다(UX-SET-99)
+  const [stored, setStored] = useState({ accent, ground })
+  const dirty = accent !== stored.accent || ground !== stored.ground
   const on = onColor(accent)
   const flipped = on !== '#FFFFFF'
   // 배경·흰 표면과 3:1 미만이면 선택 표시·버튼이 안 보여 저장을 막는다. 미리보기는 그 색 그대로(키 컬러를 자동으로 바꾸지 않음)
@@ -101,6 +104,7 @@ function ThemeForm({ user, save }: { user: Me; save: ReturnType<typeof useProfil
     setSaving(false)
     setFailure(result.ok ? null : result)
     setSaved(result.ok)
+    if (result.ok) setStored({ accent, ground })
   }
 
   const previewStyle = { '--pv-accent': accent, '--pv-on': on, '--pv-ground': ground } as CSSProperties
@@ -211,6 +215,11 @@ function ThemeForm({ user, save }: { user: Me; save: ReturnType<typeof useProfil
         </section>
 
         <div className={theme.actions}>
+          {dirty && !saving && (
+            <span id={`${id}-unsaved`} className={theme.unsaved}>
+              저장 안 한 변경이 있어요
+            </span>
+          )}
           <button
             type="button"
             className={theme.reset}
@@ -224,7 +233,9 @@ function ThemeForm({ user, save }: { user: Me; save: ReturnType<typeof useProfil
           <button
             type="button"
             className={theme.save}
-            aria-describedby={tooLight ? `${id}-contrast` : failure ? `${id}-error` : undefined}
+            aria-describedby={
+              tooLight ? `${id}-contrast` : failure ? `${id}-error` : dirty && !saving ? `${id}-unsaved` : undefined
+            }
             aria-disabled={tooLight || undefined}
             aria-busy={saving}
             onClick={() => void submit()}

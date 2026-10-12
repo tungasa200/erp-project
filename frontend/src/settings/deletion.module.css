@@ -2,7 +2,7 @@
 .page {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--space-4);
   max-width: 620px;
 }
 
@@ -26,7 +26,7 @@
 }
 
 .card {
-  padding: 30px;
+  padding: var(--space-6);
   border-radius: var(--radius-card);
 }
 
@@ -38,7 +38,7 @@
 }
 
 .warning {
-  padding: 18px;
+  padding: var(--space-4);
   border-radius: var(--radius-card);
   background: var(--color-danger-soft);
   color: var(--color-danger-text);
@@ -52,14 +52,14 @@
 }
 
 .warningList {
-  margin: 10px 0 0;
-  padding-left: 20px;
+  margin: var(--space-2) 0 0;
+  padding-left: var(--space-4);
   font-size: var(--text-md);
   line-height: 1.8;
 }
 
 .warningNote {
-  margin: 10px 0 0;
+  margin: var(--space-2) 0 0;
   font-size: var(--text-sm);
   line-height: 1.6;
 }
@@ -68,8 +68,8 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
-  padding: 14px 16px;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
   border-radius: var(--radius-input);
   background: var(--color-accent-soft);
   color: var(--color-accent-ink-strong);
@@ -86,7 +86,7 @@
   display: inline-flex;
   align-items: center;
   min-height: var(--size-touch);
-  padding: 0 16px;
+  padding: 0 var(--space-4);
   border-radius: var(--radius-pill);
   background: var(--color-surface);
   color: var(--color-accent-ink);
@@ -110,7 +110,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: var(--space-2);
   min-height: 52px;
   border: 0;
   border-radius: var(--radius-pill);
@@ -142,7 +142,7 @@
 
 @media (max-width: 767px) {
   .card {
-    padding: 20px 18px;
+    padding: var(--space-4) var(--space-4);
   }
 
   .title {

@@ -15,6 +15,9 @@ afterEach(() => {
 
 describe('라우팅', () => {
   it('비로그인 상태로 앱 화면에 들어오면 로그인 화면으로 보낸다', async () => {
+    // /calendar는 AppShell·캘린더 조각을 받은 뒤에야 가드가 돈다. 전체 실행 부하에서 첫 import가
+    // 기다림 시간(5초)을 넘겨 흔들렸으므로 미리 받아 둔다. 앱 동작은 같다
+    await Promise.all([import('../components/AppShell'), import('../calendar/CalendarPage')])
     stubFetch({})
     const { router } = renderApp('/calendar')
     expect(await screen.findByRole('heading', { name: '로그인' })).toBeInTheDocument()

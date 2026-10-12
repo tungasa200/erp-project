@@ -133,6 +133,15 @@ export function CommandPalette({ onClose, onQuickAdd, timer }: Props) {
         shortcut: shortcutsEnabled ? 'N' : undefined,
         run: () => onQuickAdd(),
       },
+      // 일정도 같은 빠른 입력으로 만든다: 시간을 적으면 일정이 함께 생긴다(UX-COM-04, 화면정의서 SCR-COM-03 ②)
+      {
+        id: 'add-schedule',
+        label: '일정 추가',
+        group: '동작',
+        detail: '시간을 함께 적어요',
+        keywords: '새 일정 캘린더 회의 약속 빠른 입력',
+        run: () => onQuickAdd(),
+      },
       ...timerCommands(timer),
       {
         id: 'day-close',
@@ -275,7 +284,7 @@ export function CommandPalette({ onClose, onQuickAdd, timer }: Props) {
               ×
             </button>
           </div>
-          <Command.List className={styles.list}>
+          <Command.List label="결과" className={styles.list}>
             {exactTask && (
               <Command.Group heading="업무" className={styles.group}>
                 <TaskItem task={exactTask} onOpen={openTask} />

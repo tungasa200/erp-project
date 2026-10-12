@@ -166,7 +166,7 @@ export function QuickSheet({ text, onTextChange, onClose, onOpenPending, onStart
         </fieldset>
         {!typing && (
           <>
-            <p className={styles.hint}>시간을 적으면 일정도 함께 만들어져요.</p>
+            <p className={styles.hint}>시간을 적으면 일정과 업무가 함께 만들어져요.</p>
             <PendingCard
               disabled={!online}
               onLastDone={focusStart}

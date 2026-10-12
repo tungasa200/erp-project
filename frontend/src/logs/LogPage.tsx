@@ -183,7 +183,10 @@ function LogView({ type, start }: { type: LogType; start: string }) {
         </div>
         {log && (
           <div className={styles.barTools}>
-            <span className={`${styles.badge} ${styles[`badge${log.status}`]}`}>{STATUS_LABEL[log.status]}</span>
+            {/* 초안은 종이 제목의 '초안' 표시와 같은 말이 두 번 나와 배지를 뺀다(UX-LOG-50). 미작성·확정만 배지 */}
+            {log.status !== 'DRAFT' && (
+              <span className={`${styles.badge} ${styles[`badge${log.status}`]}`}>{STATUS_LABEL[log.status]}</span>
+            )}
             {log.status === 'DRAFT' && (
               // 말풍선은 Esc로 닫고, 포커스·포인터가 떠나면 다시 뜰 수 있다(LOG-102, WCAG 1.4.13)
               <span

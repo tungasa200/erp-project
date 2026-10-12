@@ -163,7 +163,7 @@ describe('SCR-MOB-01 빠른 기록 바텀시트 (P4-03)', () => {
   it('확인 대기가 없으면 카드 자리를 두지 않는다', async () => {
     stubFetch({ 'GET /api/users/me': () => json(200, ME) })
     const { sheet } = await openSheet()
-    expect(within(sheet).getByText('시간을 적으면 일정도 함께 만들어져요.')).toBeInTheDocument()
+    expect(within(sheet).getByText('시간을 적으면 일정과 업무가 함께 만들어져요.')).toBeInTheDocument()
     expect(within(sheet).queryByText(/확인 대기/)).not.toBeInTheDocument()
     expect(within(sheet).queryByRole('button', { name: /타이머/ })).not.toBeInTheDocument()
   })

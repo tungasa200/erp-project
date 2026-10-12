@@ -205,6 +205,8 @@ interface RemainingProps {
   projects: Project[]
 }
 
+const HOME_TASK_LIMIT = 10
+
 function RemainingTasks({ tasks, loading, failed, onRetry, today, weekStart, projects }: RemainingProps) {
   const [by, setBy] = useState<'due' | 'project'>('due')
   const [showUndated, setShowUndated] = useState(false)
@@ -212,7 +214,15 @@ function RemainingTasks({ tasks, loading, failed, onRetry, today, weekStart, pro
   const groups = groupTasks(tasks, by, { today, weekStart, projects })
   // 마감순에서는 날짜 없는 업무를 접어 둔다(목업 "날짜 없는 업무 n개")
   const undated = by === 'due' ? groups.find((g) => g.key === 'none') : undefined
-  const shown = groups.filter((g) => g !== undated || showUndated)
+  // 100개까지 받아도 홈에는 마감순 앞 10개만 그린다. 나머지는 'n개 더'로 업무 화면에 넘긴다(UX-HOME-11)
+  // 날짜 없는 업무는 직접 펼친 것이라 상한 밖에 두고 다 보인다. 상한에 걸려 펼쳐도 아무것도 안 나오면 안 된다
+  const dated = groups.filter((g) => g !== undated)
+  const before = dated.map((_, i) => dated.slice(0, i).reduce((n, g) => n + g.items.length, 0))
+  const capped = dated
+    .map((g, i) => ({ ...g, items: g.items.slice(0, Math.max(0, HOME_TASK_LIMIT - before[i])), total: g.items.length }))
+    .filter((g) => g.items.length > 0)
+  const shown = undated && showUndated ? [...capped, { ...undated, total: undated.items.length }] : capped
+  const hiddenCount = dated.reduce((n, g) => n + g.items.length, 0) - HOME_TASK_LIMIT
   const projectOf = new Map(projects.map((p) => [p.id, p]))
 
   // 완료한 행이 목록에서 빠지면 포커스를 이웃 행의 완료 체크(없으면 제목)로 옮긴다. 그대로 두면 BODY로 빠진다
@@ -291,7 +301,7 @@ function RemainingTasks({ tasks, loading, failed, onRetry, today, weekStart, pro
             id={`home-group-${g.key}`}
             className={g.tone === 'danger' ? `${styles.groupTitle} ${styles.danger}` : styles.groupTitle}
           >
-            {g.label} {g.items.length}
+            {g.label} {g.total}
           </h3>
           <ul aria-labelledby={`home-group-${g.key}`} className={styles.rows}>
             {g.items.map((t) => (
@@ -318,7 +328,7 @@ function RemainingTasks({ tasks, loading, failed, onRetry, today, weekStart, pro
         </button>
       )}
       <Link to="/tasks" className={styles.allLink}>
-        업무 전체 보기
+        {hiddenCount > 0 ? `업무 ${hiddenCount}개 더 보기` : '업무 전체 보기'}
       </Link>
     </section>
   )

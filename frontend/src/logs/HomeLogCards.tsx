@@ -10,6 +10,7 @@ import { logHref, useLog, useLogPeriods, type LogPeriod } from './api'
 import { ExportDialog } from './ExportDialog'
 import { openDayClose } from './openDayClose'
 import { stamp } from './format'
+import { LogStatusLegend } from './LogStatusLegend'
 import styles from './logs.module.css'
 
 /** hideClose: 홈 마감 띠가 떠 있을 때 [하루 마감]을 숨긴다(띠와 중복, X-02). 띠 전에는 채움이 아니라 accent-soft */
@@ -165,6 +166,8 @@ export function WeekLogStatus({ today, weekFirst }: { today: string; weekFirst: 
               )
             })}
           </ul>
+          {/* 390에서는 칸이 기호만 보여 범례를 둔다(UX-HOME-06, 일지 목록 LOG-52와 같은 범례) */}
+          <LogStatusLegend />
         </div>
       )}
     </section>

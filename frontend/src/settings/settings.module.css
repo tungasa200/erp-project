@@ -1,22 +1,23 @@
 /* 설정 화면 (목업 SET-01, SET-02, SettingsNav) */
 .title {
-  margin: 0 0 18px;
+  margin: 0 0 var(--space-4);
   font-size: var(--text-3xl);
   font-weight: 800;
   letter-spacing: -0.5px;
 }
 
+/* 메뉴와 본문을 항상 나란히 둔다. 줄바꿈하면 768에서 메뉴 7개가 본문 위로 쌓여 본문이 y≈535에서 시작했다(UX-SET-79).
+   767 이하는 메뉴·본문 중 하나만 보여 나란히 둘 일이 없다 */
 .body {
   display: flex;
-  flex-wrap: wrap;
-  gap: 18px;
+  gap: var(--space-4);
   align-items: flex-start;
 }
 
 .nav {
   width: 220px;
   box-sizing: border-box;
-  padding: 10px;
+  padding: var(--space-2);
   border-radius: var(--radius-card);
   background: var(--color-surface);
   display: flex;
@@ -29,7 +30,7 @@
   align-items: center;
   justify-content: space-between;
   min-height: 44px;
-  padding: 0 14px;
+  padding: 0 var(--space-3);
   border-radius: var(--radius-input);
   color: var(--color-text-strong);
   font-size: var(--text-md);
@@ -50,7 +51,7 @@
 }
 
 .detail {
-  flex: 1 1 480px;
+  flex: 1 1 0;
   min-width: 0;
   max-width: 760px;
 }
@@ -61,12 +62,12 @@
 
 .panel {
   box-sizing: border-box;
-  padding: 26px;
+  padding: var(--space-5);
   border-radius: var(--radius-card);
   background: var(--color-surface);
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--space-4);
 }
 
 .panelTitle {
@@ -84,19 +85,19 @@
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .field {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--space-1);
 }
 
 .label {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--space-1);
   font-size: var(--text-md);
   font-weight: 700;
 }
@@ -104,7 +105,7 @@
 .input {
   height: 48px;
   box-sizing: border-box;
-  padding: 0 14px;
+  padding: 0 var(--space-3);
   border: 1.5px solid var(--color-border);
   border-radius: var(--radius-input);
   background: var(--color-surface);
@@ -144,7 +145,7 @@
 .header dt,
 .header dd {
   margin: 0;
-  padding: 7px 8px;
+  padding: var(--space-2) var(--space-2);
   border-bottom: 1px solid var(--doc-rule);
   overflow-wrap: anywhere;
 }
@@ -178,8 +179,8 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
-  padding: 16px 0;
+  gap: var(--space-3);
+  padding: var(--space-4) 0;
   border-top: 1px solid var(--color-divider-soft);
 }
 
@@ -193,7 +194,7 @@
 }
 
 .rowDescription {
-  margin-top: 3px;
+  margin-top: var(--space-1);
   font-size: var(--text-sm);
   color: var(--color-text-muted);
 }
@@ -205,7 +206,7 @@
 .select {
   height: 44px;
   max-width: 100%;
-  padding: 0 12px;
+  padding: 0 var(--space-3);
   border: 1.5px solid var(--color-border);
   border-radius: var(--radius-input);
   background: var(--color-surface);
@@ -218,7 +219,7 @@
 .hours {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   color: var(--color-text-muted);
 }
 
@@ -234,7 +235,7 @@
 .days {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: var(--space-1);
 }
 
 .day {
@@ -305,8 +306,8 @@
 }
 
 .tzNote {
-  margin: 0 0 8px;
-  padding: 10px 12px;
+  margin: 0 0 var(--space-2);
+  padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-input);
   background: var(--color-warning-soft);
   color: var(--color-warning-text);
@@ -318,7 +319,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   margin: 0;
   font-size: var(--text-sm);
   font-weight: 600;
@@ -328,7 +329,7 @@
 .retry,
 .reload {
   min-height: 32px;
-  padding: 0 12px;
+  padding: 0 var(--space-3);
   border: 0;
   border-radius: var(--radius-pill);
   font: inherit;
@@ -347,8 +348,8 @@
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  padding: 10px 12px 10px 16px;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3) var(--space-2) var(--space-4);
   border-radius: var(--radius-input);
   background: var(--color-warning-soft);
   color: var(--color-warning-text);
@@ -372,7 +373,7 @@
   width: 100%;
   height: 44px;
   box-sizing: border-box;
-  padding: 0 12px;
+  padding: 0 var(--space-3);
   border: 1.5px solid var(--color-border);
   border-radius: var(--radius-input);
   background: var(--color-surface);
@@ -392,7 +393,7 @@
   max-height: 320px;
   overflow-y: auto;
   margin: 0;
-  padding: 6px;
+  padding: var(--space-1);
   list-style: none;
   border-radius: var(--radius-input);
   background: var(--color-surface);
@@ -400,7 +401,7 @@
 }
 
 .comboGroup {
-  padding: 8px 10px 4px;
+  padding: var(--space-2) var(--space-2) var(--space-1);
   font-size: var(--text-xs);
   font-weight: 700;
   color: var(--color-text-muted);
@@ -416,8 +417,8 @@
   min-height: 40px;
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 0 10px;
+  gap: var(--space-1);
+  padding: 0 var(--space-2);
   white-space: nowrap;
   border-radius: var(--radius-sm);
   font-size: var(--text-md);
@@ -446,7 +447,7 @@
 }
 
 .comboEmpty {
-  padding: 10px;
+  padding: var(--space-2);
   font-size: var(--text-sm);
   color: var(--color-text-muted);
 }
@@ -458,6 +459,13 @@
 }
 
 /* 모바일: 목록 → 상세 */
+/* 태블릿 폭은 메뉴를 좁혀 본문 폭을 남긴다 */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .nav {
+    width: 176px;
+  }
+}
+
 @media (max-width: 767px) {
   .nav {
     width: 100%;
@@ -487,14 +495,14 @@
     align-items: center;
     min-width: var(--size-touch);
     min-height: var(--size-touch);
-    margin-bottom: 8px;
+    margin-bottom: var(--space-2);
     color: var(--color-text-muted);
     font-weight: 700;
     text-decoration: none;
   }
 
   .panel {
-    padding: 20px;
+    padding: var(--space-4);
   }
 }
 
@@ -511,14 +519,14 @@
 
 /* SCR-SET-03 ② 켜면 생기는 기능 */
 .featureBox {
-  margin: 4px 0 12px;
-  padding: 12px 14px;
+  margin: var(--space-1) 0 var(--space-3);
+  padding: var(--space-3) var(--space-3);
   border-radius: var(--radius-input);
   background: var(--color-accent-faint);
 }
 
 .featureTitle {
-  margin: 0 0 6px;
+  margin: 0 0 var(--space-1);
   font-size: var(--text-sm);
   font-weight: 700;
   color: var(--color-text-body);
@@ -527,14 +535,14 @@
 .features {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: var(--space-1);
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
 .features li {
-  padding: 4px 10px;
+  padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-pill);
   background: var(--color-surface);
   color: var(--color-text-body);
@@ -544,7 +552,7 @@
 /* SCR-MOB-02 데스크톱 설치 버튼 */
 .installApp {
   min-height: var(--size-touch);
-  padding: 0 18px;
+  padding: 0 var(--space-4);
   border: 1.5px solid var(--color-border);
   border-radius: var(--radius-pill);
   background: var(--color-surface);

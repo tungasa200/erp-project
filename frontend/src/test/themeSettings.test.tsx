@@ -59,10 +59,13 @@ describe('SCR-SET-04 테마', () => {
     // 저장 전에는 앱 색이 그대로
     expect(rootVar('--color-accent')).toBe('#4B3FD6')
     expect(patches).toHaveLength(0)
+    // 저장 전 선택은 떠나면 사라지므로 알린다(UX-SET-99)
+    expect(screen.getByText('저장 안 한 변경이 있어요')).toBeInTheDocument()
 
     screen.getByRole('button', { name: '저장' }).focus()
     await user.keyboard('{Enter}')
     expect(await screen.findByText('저장했어요. 앱 전체에 적용됐어요')).toBeInTheDocument()
+    expect(screen.queryByText('저장 안 한 변경이 있어요')).not.toBeInTheDocument()
     expect(patches).toEqual([{ themeAccent: '#0E857A', themeGround: '#EEF4EF', version: ME.version }])
     await waitFor(() => expect(rootVar('--color-accent')).toBe('#0E857A'))
     expect(rootVar('--color-ground')).toBe('#EEF4EF')

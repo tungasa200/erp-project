@@ -13,11 +13,13 @@
   bottom: 0;
   max-height: calc(100dvh - 24px);
   overflow-y: auto;
+  /* 끝까지 밀어도 뒤 화면이 따라 스크롤되지 않게(UX-COM-16) */
+  overscroll-behavior: contain;
   box-sizing: border-box;
   padding: 0 18px calc(28px + env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-3);
   border-radius: var(--radius-card) var(--radius-card) 0 0;
   background: var(--color-surface);
   color: var(--color-text);
@@ -73,8 +75,8 @@
 .pending {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 14px;
+  gap: var(--space-3);
+  padding: var(--space-3);
   border-radius: var(--radius-card);
   background: var(--status-pending-card-bg);
   border: 2px solid var(--status-pending-tag-bg);
@@ -121,7 +123,7 @@
 .done {
   flex: none;
   height: var(--size-touch);
-  padding: 0 16px;
+  padding: 0 var(--space-4);
   border: 0;
   border-radius: var(--radius-pill);
   background: var(--color-text);
@@ -150,7 +152,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: var(--space-2);
   cursor: pointer;
 }
 

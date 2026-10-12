@@ -6,7 +6,7 @@
   z-index: 110;
   width: min(400px, calc(100vw - 48px));
   box-sizing: border-box;
-  padding: 16px;
+  padding: var(--space-4);
   border: 1px solid var(--color-divider);
   border-radius: var(--radius-card);
   background: var(--color-surface);
@@ -32,13 +32,13 @@
 .form {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--space-2);
 }
 
 .title {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   margin: 0;
   min-width: 0;
   font-size: var(--text-md);
@@ -68,7 +68,7 @@
 .input {
   height: 46px;
   box-sizing: border-box;
-  padding: 0 14px;
+  padding: 0 var(--space-3);
   border: 1.5px solid var(--color-border);
   border-radius: var(--radius-input);
   background: var(--color-surface);
@@ -85,7 +85,7 @@
 .chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--space-2);
   margin: 0;
   padding: 0;
   border: 0;
@@ -98,7 +98,7 @@
   display: inline-flex;
   align-items: center;
   min-height: var(--size-touch);
-  padding: 0 16px;
+  padding: 0 var(--space-4);
   border: 1.5px solid var(--color-border);
   border-radius: var(--radius-pill);
   background: var(--color-surface);
@@ -135,7 +135,7 @@
 .progress {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
   min-height: var(--size-touch);
   font-size: var(--text-sm);
   font-weight: 700;
@@ -159,7 +159,7 @@
   flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .hint {
@@ -178,7 +178,7 @@
 .skip,
 .save {
   min-height: var(--size-touch);
-  padding: 0 18px;
+  padding: 0 var(--space-4);
   border: 0;
   border-radius: var(--radius-pill);
   font: inherit;

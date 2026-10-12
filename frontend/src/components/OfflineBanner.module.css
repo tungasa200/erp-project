@@ -3,7 +3,7 @@
   min-height: 44px;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-2);
   padding: calc(12px + env(safe-area-inset-top)) 18px 12px;
   background: var(--color-banner);
   color: var(--color-on-banner);
