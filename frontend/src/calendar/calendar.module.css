@@ -317,7 +317,7 @@
 .allDayBar {
   font: inherit;
   font-size: var(--text-xs);
-  font-weight: var(--weight-strong);
+  font-weight: var(--weight-title);
   text-align: left;
   min-width: 0;
   border: 0;
