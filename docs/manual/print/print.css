@@ -226,8 +226,6 @@ main {
 }
 .chapter h2 {
   margin: 9mm 0 3mm;
-  padding-left: 3mm;
-  border-left: 4px solid var(--accent);
   font: 700 14pt/1.35 var(--font);
   color: var(--text);
   break-after: avoid;
@@ -338,8 +336,8 @@ blockquote.note,
 blockquote {
   margin: 2mm 0 5mm;
   padding: 3mm 4mm;
-  border-left: 3px solid var(--accent);
-  border-radius: 0 2mm 2mm 0;
+  border: 1px solid var(--accent-soft);
+  border-radius: 2mm;
   background: var(--accent-faint);
   color: var(--text);
   break-inside: avoid;
