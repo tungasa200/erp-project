@@ -1536,28 +1536,35 @@ fieldset.fieldset:disabled {
     padding: 12px;
   }
 
-  .dialog {
-    width: 100%;
-    height: 100%;
-    max-height: none;
-    border-radius: 0;
-  }
-
-  .overlay:has(.dialog:not(.dialogNarrow)) {
-    padding: 0;
-  }
-
-  /* 바텀시트: 화면 아래에 붙어 내용만큼 높이를 갖는다 */
+  /* 넓은 창은 바텀시트: 화면 아래에 붙어 내용만큼 높이를 갖고, 주 버튼 줄은 엄지가 닿는 아래에 고정한다 (UX-COM-19).
+     좁은 확인 창(narrow)은 가운데 그대로 둔다 */
+  .overlay:has(.dialog:not(.dialogNarrow)),
   .overlay:has(.dialogSheet) {
     align-items: flex-end;
     padding: 0;
   }
 
+  .dialog:not(.dialogNarrow),
   .dialog.dialogSheet {
     width: 100%;
     height: auto;
-    max-height: calc(100vh - 24px);
+    max-height: calc(100dvh - 24px);
     border-radius: 24px 24px 0 0;
     padding-bottom: calc(24px + env(safe-area-inset-bottom));
+    overscroll-behavior: contain;
+    /* Tab으로 아래 칸에 가도 고정된 버튼 줄이 그 칸을 덮지 않게 (WCAG 2.4.11) */
+    scroll-padding-bottom: calc(96px + env(safe-area-inset-bottom));
+  }
+
+  /* 내용이 길어 창 안이 스크롤돼도 버튼 줄은 창 아래 가장자리에 붙어 있다. 아래 여백(안전 영역 포함)까지 덮는다 */
+  .dialog:not(.dialogNarrow) .actions,
+  .dialog.dialogSheet .actions {
+    position: sticky;
+    bottom: calc(-24px - env(safe-area-inset-bottom));
+    z-index: 1;
+    margin-bottom: calc(-24px - env(safe-area-inset-bottom));
+    padding: 12px 0 calc(24px + env(safe-area-inset-bottom));
+    background: var(--color-surface);
+    box-shadow: 0 -1px 0 var(--color-divider);
   }
 }
