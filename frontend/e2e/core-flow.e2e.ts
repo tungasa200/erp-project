@@ -107,7 +107,8 @@ test('가입부터 하루 마감까지', async ({ page, isMobile, browserName })
   const done = page.getByRole('dialog').filter({ has: page.getByRole('heading', { name: '오늘 하루를 마감했어요' }) })
   await expect(done).toBeVisible()
   await expect(done.getByRole('button', { name: '내보내기' })).toHaveCount(0)
-  await done.getByRole('button', { name: '닫기', exact: true }).click()
+  // 머리의 ×(aria-label '닫기')와 아래 [닫기]가 같은 이름이라 아래 [닫기](DOM 순서상 마지막)를 집는다
+  await done.getByRole('button', { name: '닫기', exact: true }).last().click()
   await expect(done).toBeHidden()
 
   // 5. 숨긴 일지 화면: 예전 주소로 들어와도 홈으로 돌아온다(D-214)
