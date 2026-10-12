@@ -44,7 +44,7 @@ describe('시간 블록 배치', () => {
   })
 })
 
-describe('겹침 상한 + "+n" (CAL-70, X-07 A)', () => {
+describe('겹침 상한 + "+n" (CAL-70, UX-CAL-171·172)', () => {
   const six = [
     timed('a', '14:00', '15:00'),
     timed('b', '14:00', '15:30'),
@@ -55,20 +55,39 @@ describe('겹침 상한 + "+n" (CAL-70, X-07 A)', () => {
   ]
   const segments = () => timedSegments(six, [DAY], 'UTC').get(DAY)!
 
-  it('상한 4면 앞 3열만 4열 폭으로 그리고 나머지 3개는 마지막 칸 "+n" 하나로 묶는다', () => {
-    const { visible, more } = capColumns(segments(), 4)
-    expect(visible.map((s) => [s.occurrence.scheduleId, s.column, s.columns])).toEqual([
-      ['b', 0, 4],
-      ['a', 1, 4],
-      ['c', 2, 4],
+  it('열이 56px보다 좁아지면 앞 열만 "+n" 자리를 뺀 폭에 그리고 나머지는 오른쪽 "+n" 하나로 묶는다(UX-CAL-171)', () => {
+    // 252px: 6열이면 42px. "+n" 28px을 빼면 224px에 56px 4열
+    const { visible, more } = capColumns(segments(), 252)
+    expect(visible.map((s) => [s.occurrence.scheduleId, s.column, s.columns, s.reserve])).toEqual([
+      ['b', 0, 4, 28],
+      ['a', 1, 4, 28],
+      ['c', 2, 4, 28],
+      ['e', 3, 4, 28],
     ])
     expect(more).toHaveLength(1)
-    expect(more[0]).toMatchObject({ start: 14 * 60 + 30, column: 3, columns: 4 })
-    expect(more[0].hidden.map((s) => s.occurrence.scheduleId).sort()).toEqual(['d', 'e', 'f'])
+    expect(more[0]).toMatchObject({ start: 14 * 60 + 30, full: false })
+    expect(more[0].hidden.map((s) => s.occurrence.scheduleId).sort()).toEqual(['d', 'f'])
   })
 
-  it('상한 안이거나 폭을 아직 모르면(상한 0) 그대로', () => {
-    expect(capColumns(segments(), 6).more).toEqual([])
+  it('상한이 1이면(주 보기 84px) 블록 1개 + "+n"', () => {
+    const { visible, more } = capColumns(segments(), 84)
+    expect(visible.map((s) => [s.occurrence.scheduleId, s.columns])).toEqual([['b', 1]])
+    expect(more[0].hidden).toHaveLength(5)
+    expect(more[0].full).toBe(false)
+  })
+
+  it('블록 자리도 없는 칸(390 주 보기 40px)은 겹친 묶음 전체가 칸 폭 "+n" 하나, 겹치지 않은 일정은 그대로(UX-CAL-172)', () => {
+    const alone = timed('z', '09:00', '10:00')
+    const list = timedSegments([...six, alone], [DAY], 'UTC').get(DAY)!
+    const { visible, more } = capColumns(list, 40)
+    expect(visible.map((s) => s.occurrence.scheduleId)).toEqual(['z'])
+    expect(more).toHaveLength(1)
+    expect(more[0]).toMatchObject({ full: true })
+    expect(more[0].hidden).toHaveLength(6)
+  })
+
+  it('다 들어가거나 폭을 아직 모르면(0) 그대로', () => {
+    expect(capColumns(segments(), 6 * 56).more).toEqual([])
     expect(capColumns(segments(), 0).visible).toHaveLength(6)
   })
 })

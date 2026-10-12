@@ -225,7 +225,7 @@ export function MonthView({
                       setPopover({ date, x: rect.left, y: rect.bottom + 4, opener: e.currentTarget })
                     }}
                   >
-                    +{list.length - shown.length}개 더보기
+                    <span className={styles.moreText}>+{list.length - shown.length}개 더보기</span>
                   </button>
                 )}
               </div>

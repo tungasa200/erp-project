@@ -142,7 +142,7 @@ function StatsLoading() {
 /** 기간을 끈 이유. 기준 날짜(첫 기록 + 7일)를 문구에 쓴다 */
 function lockReason(firstRecordDate: string | null, today: string) {
   if (!firstRecordDate) return `첫 기록을 남기면 ${READY_DAYS}일 뒤부터 추이와 기간을 볼 수 있어요`
-  return `추이는 ${shortDay(addDays(firstRecordDate, READY_DAYS), today)}부터 볼 수 있어요(기록 ${READY_DAYS}일째)`
+  return `추이는 ${shortDay(addDays(firstRecordDate, READY_DAYS), today)}부터 볼 수 있어요(기록이 ${READY_DAYS}일치 쌓이면)`
 }
 
 /** 홈 "이번 주 완료" 칸과 같은 이름을 쓴다(X-08) */

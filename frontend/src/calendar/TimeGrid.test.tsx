@@ -580,10 +580,10 @@ describe('끌기 중 가장자리 자동 스크롤 (UX-CAL-94)', () => {
   })
 })
 
-describe('겹침 상한 "+n" (CAL-70, X-07 A)', () => {
+describe('겹침 상한 "+n" (CAL-70, UX-CAL-171)', () => {
   beforeEach(() => {
-    // 날짜 칸 폭 112px → 상한 floor(112/28) = 4열
-    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(112)
+    // 날짜 칸 폭 196px → "+n" 28px을 뺀 168px에 56px 블록 3열
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(196)
     vi.stubGlobal(
       'ResizeObserver',
       class {

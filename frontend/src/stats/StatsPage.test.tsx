@@ -165,7 +165,7 @@ describe('SCR-STAT-01 통계', () => {
 
     const week = screen.getByRole('button', { name: '이번 주' })
     expect(week).toHaveAttribute('aria-disabled', 'true')
-    expect(week).toHaveAccessibleDescription('추이는 10/12부터 볼 수 있어요(기록 7일째)')
+    expect(week).toHaveAccessibleDescription('추이는 10/12부터 볼 수 있어요(기록이 7일치 쌓이면)')
     fireEvent.click(week)
     fireEvent.click(screen.getByRole('button', { name: '직접 선택' }))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()

@@ -127,30 +127,37 @@ export function occurrencesByDate(occurrences: Occurrence[], days: string[], tim
   return result
 }
 
-/** 한 칸에 나란히 놓을 수 있는 열 수의 기준 폭(X-07 A: floor(열 폭 / 28px)) */
-export const MIN_COLUMN_PX = 28
+/** 겹친 일정 블록 한 열의 최소 폭: 제목 한 줄이 읽히는 폭(UX-CAL-171, 이전 28px은 글자 1~2자) */
+export const MIN_BLOCK_PX = 56
+/** 상한을 넘었을 때 오른쪽에 떼어 두는 "+n" 자리 폭 */
+export const MORE_PX = 28
 
 export interface MoreGroup {
   /** 그려지는 범위(분)의 시작 */
   start: number
   /** 상한을 넘어 "+n"으로 묶인 조각 */
   hidden: TimedSegment[]
-  /** 놓을 열(마지막 칸)과 열 수 */
-  column: number
-  columns: number
+  /** 보이는 블록이 없어 "+n"이 칸 폭 전체를 쓴다(좁은 칸, UX-CAL-172) */
+  full: boolean
 }
 
+/** 상한을 넘은 묶음의 보이는 블록. 오른쪽 MORE_PX를 "+n" 자리로 뺀 폭을 열 수로 나눈다 */
+export type CappedSegment = TimedSegment & { reserve?: number }
+
 /**
- * 겹친 열이 cap보다 많으면 앞 cap-1열만 그리고 나머지는 마지막 칸의 "+n"으로 묶는다(CAL-70, X-07 A).
- * cap이 2보다 작거나(폭을 아직 모름) 넘치는 묶음이 없으면 그대로 둔다
+ * 날짜 칸 폭(px)에 겹친 열이 다 들어가지 않으면(열 폭 < MIN_BLOCK_PX) 앞 열만 그리고 나머지는 "+n"으로 묶는다(CAL-70, X-07 A).
+ * 보이는 블록은 칸 폭에서 "+n" 자리(MORE_PX)를 뺀 곳에 MIN_BLOCK_PX 이상으로 놓는다. 그 자리도 없으면(390 주 보기 40px)
+ * 겹친 묶음은 통째로 칸 폭 "+n" 하나가 된다(UX-CAL-172). 폭을 아직 모르면(0, jsdom) 그대로 둔다
  */
-export function capColumns(segments: TimedSegment[], cap: number): { visible: TimedSegment[]; more: MoreGroup[] } {
-  if (cap < 2 || segments.every((s) => s.columns <= cap)) return { visible: segments, more: [] }
-  const visible: TimedSegment[] = []
+export function capColumns(segments: TimedSegment[], width: number): { visible: CappedSegment[]; more: MoreGroup[] } {
+  const fit = Math.max(1, Math.floor(width / MIN_BLOCK_PX))
+  if (!width || segments.every((s) => s.columns <= fit)) return { visible: segments, more: [] }
+  const keep = Math.max(0, Math.floor((width - MORE_PX) / MIN_BLOCK_PX))
+  const visible: CappedSegment[] = []
   const hidden: TimedSegment[] = []
   for (const s of segments) {
-    if (s.columns <= cap) visible.push(s)
-    else if (s.column < cap - 1) visible.push({ ...s, columns: cap })
+    if (s.columns <= fit) visible.push(s)
+    else if (s.column < keep) visible.push({ ...s, columns: keep, reserve: MORE_PX })
     else hidden.push(s)
   }
   hidden.sort((a, b) => drawnRange(a.start, a.end)[0] - drawnRange(b.start, b.end)[0])
@@ -163,7 +170,7 @@ export function capColumns(segments: TimedSegment[], cap: number): { visible: Ti
       last.hidden.push(s)
       end = Math.max(end, to)
     } else {
-      more.push({ start: from, hidden: [s], column: cap - 1, columns: cap })
+      more.push({ start: from, hidden: [s], full: keep === 0 })
       end = to
     }
   }

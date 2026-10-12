@@ -83,13 +83,15 @@
   color: var(--color-text);
 }
 
+/* 첫 시야의 채움 CTA는 히어로 [무료로 시작하기] 하나만. 머리 버튼은 같은 목적지의 윤곽(UX-ONB-171) */
 .headerSignup {
   padding: 0 var(--space-4);
+  border: 1.5px solid var(--color-accent);
   border-radius: var(--radius-pill);
-  background: var(--color-accent);
-  color: var(--color-on-accent);
+  background: transparent;
+  color: var(--color-accent-ink);
   font-size: var(--text-md);
-  font-weight: var(--weight-strong);
+  font-weight: var(--weight-title);
 }
 
 .hero {
@@ -380,10 +382,13 @@
 }
 
 /* 누름 피드백: 배경 한 단계 어둡게, 0ms(X-12 2) */
-.headerSignup:active,
 .primary:active,
 .closingCta:active {
   background: var(--color-accent-ink);
+}
+
+.headerSignup:active {
+  background: var(--color-accent-soft);
 }
 
 .secondary:active {
@@ -391,10 +396,13 @@
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .headerSignup:hover,
   .primary:hover,
   .closingCta:hover {
     background: var(--color-accent-ink);
+  }
+
+  .headerSignup:hover {
+    background: var(--color-accent-faint);
   }
 
   .headerLogin:hover,

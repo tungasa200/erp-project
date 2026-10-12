@@ -18,7 +18,8 @@
 .title {
   flex: 1;
   margin: 0;
-  font-size: var(--text-3xl);
+  /* 화면 제목은 다른 화면과 같은 --text-2xl(UX-STAT-151). 28은 카드 숫자 몫 */
+  font-size: var(--text-2xl);
   font-weight: var(--weight-strong);
   letter-spacing: -0.5px;
 }
@@ -538,10 +539,6 @@
 
 /* 모바일(~767px): 한 열, 요약은 세 칸 작게 */
 @media (max-width: 767px) {
-  .title {
-    font-size: var(--text-2xl);
-  }
-
   .head {
     flex-direction: column;
     align-items: stretch;

@@ -5,7 +5,7 @@
 // 확인 대기 기록은 시간이 비어 있어(D-100) 옵션과 관계없이 계획 시간을 적는다(홈 확인 대기 목록과 같게). 확인 대기 목록의 plan, 없으면(7일 넘음) 그날 회차.
 // 머리 아래 [하루 마감](SCR-LOG-03)은 오늘·지난 날에만 둔다. 창은 openDayClose로 앱 셸이 띄운다(그날로 연다).
 // 접으면 머리글 요약 한 줄("5건 · 대기 2 · 일지 초안")과 펼치기 버튼만 남긴다(X-07 D, ux2 조건). 접힘은 이 기기에 기억한다.
-import { useId } from 'react'
+import { useId, useLayoutEffect, useRef } from 'react'
 import { Skeleton } from '../components/Skeleton'
 import { useLogPeriods, type LogStatus } from '../logs/api'
 import { openDayClose } from '../logs/openDayClose'
@@ -34,6 +34,18 @@ interface Props {
 export function DayRecords({ date, timeZone, occurrences, now, editable, onOpen, onAdd }: Props) {
   const id = useId()
   const [open, setOpen] = useDayPanel('records')
+  // 접기·펼치기는 버튼이 바뀌어 그리므로 누른 뒤 새 버튼으로 포커스를 옮긴다(UX-CAL-174, 그러지 않으면 body로 떨어짐)
+  const toggleRef = useRef<HTMLButtonElement>(null)
+  const toggled = useRef(false)
+  const toggle = (next: boolean) => {
+    toggled.current = true
+    setOpen(next)
+  }
+  useLayoutEffect(() => {
+    if (!toggled.current) return
+    toggled.current = false
+    toggleRef.current?.focus()
+  }, [open])
   const timed = useTimeTracking()
   const records = useRecordsOnDate(date)
   const all = records.data ?? []
@@ -65,8 +77,9 @@ export function DayRecords({ date, timeZone, occurrences, now, editable, onOpen,
           type="button"
           className={styles.panelToggle}
           aria-expanded="false"
+          ref={toggleRef}
           aria-label="이날의 기록 펼치기"
-          onClick={() => setOpen(true)}
+          onClick={() => toggle(true)}
         >
           <span aria-hidden="true">‹</span>
         </button>
@@ -93,8 +106,9 @@ export function DayRecords({ date, timeZone, occurrences, now, editable, onOpen,
           type="button"
           className={styles.panelToggle}
           aria-expanded="true"
+          ref={toggleRef}
           aria-label="이날의 기록 접기"
-          onClick={() => setOpen(false)}
+          onClick={() => toggle(false)}
         >
           <span aria-hidden="true">›</span>
         </button>

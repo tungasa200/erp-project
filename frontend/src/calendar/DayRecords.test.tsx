@@ -83,6 +83,8 @@ describe('이날의 기록 접기 (X-07 D)', () => {
     expect(screen.queryByText('기록 a')).toBeNull()
     expect(await screen.findByText('3건 · 일지 초안')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '이날의 기록 펼치기' })).toHaveAttribute('aria-expanded', 'false')
+    // 포커스는 그 자리의 새 버튼으로(UX-CAL-174)
+    expect(screen.getByRole('button', { name: '이날의 기록 펼치기' })).toHaveFocus()
     expect(JSON.parse(localStorage.getItem('wy.calendar.dayPanels')!)).toMatchObject({ records: false })
 
     cleanup()
@@ -90,6 +92,7 @@ describe('이날의 기록 접기 (X-07 D)', () => {
     expect(await screen.findByRole('button', { name: '이날의 기록 펼치기' })).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: '이날의 기록 펼치기' }))
     expect(await screen.findByText('기록 a')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '이날의 기록 접기' })).toHaveFocus()
   })
 })
 

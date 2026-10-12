@@ -16,11 +16,12 @@ import { colorVars, type BlockColor } from './colors'
 import { cycleTab, focusGroup, markFocus, occurrenceFocusId, restoreFocus } from './focus'
 import { holidayName } from './holidays'
 import {
-  MIN_COLUMN_PX,
   allDayBars,
+  MORE_PX,
   capColumns,
   drawnRange,
   timedSegments,
+  type CappedSegment,
   type MoreGroup,
   type TimedSegment,
 } from './layout'
@@ -105,12 +106,20 @@ const floorSlot = (m: number) =>
   Math.max(0, Math.min(MINUTES_PER_DAY - SLOT_MINUTES, Math.floor(m / SLOT_MINUTES) * SLOT_MINUTES))
 const roundSlot = (m: number) => Math.round(m / SLOT_MINUTES) * SLOT_MINUTES
 
-function blockStyle(color: BlockColor | null, top: number, height: number, column = 0, columns = 1): CSSProperties {
+/** reserve: 오른쪽에 떼어 둔 "+n" 자리(px). 블록은 그 왼쪽 폭을 열 수로 나눈다(UX-CAL-171) */
+function blockStyle(
+  color: BlockColor | null,
+  top: number,
+  height: number,
+  column = 0,
+  columns = 1,
+  reserve = 0,
+): CSSProperties {
   return {
     top,
     height,
-    left: `calc(${(column / columns) * 100}% + 2px)`,
-    width: `calc(${100 / columns}% - 4px)`,
+    left: `calc((100% - ${reserve}px) * ${column / columns} + 2px)`,
+    width: `calc((100% - ${reserve}px) / ${columns} - 4px)`,
     ...colorVars(color),
   }
 }
@@ -135,7 +144,7 @@ export function TimeGrid(props: Props) {
   const allDayHold = useTouchHold(allDayRef)
 
   const segments = useMemo(() => timedSegments(occurrences, days, timeZone), [occurrences, days, timeZone])
-  // 겹침 상한: 날짜 칸 폭 / 28px. 넘치면 마지막 칸을 "+n"으로(CAL-70, X-07 A). 폭을 모르면(jsdom) 상한 없음
+  // 겹침 상한: 열 폭이 MIN_BLOCK_PX보다 좁아지면 앞 열만 그리고 오른쪽 "+n"으로(CAL-70, UX-CAL-171·172). 폭을 모르면(jsdom) 상한 없음
   const [dayWidth, setDayWidth] = useState(0)
   useLayoutEffect(() => {
     const el = columnsRef.current
@@ -144,10 +153,9 @@ export function TimeGrid(props: Props) {
     observer.observe(el)
     return () => observer.disconnect()
   }, [days.length])
-  const cap = dayWidth ? Math.floor(dayWidth / MIN_COLUMN_PX) : 0
   const capped = useMemo(
-    () => new Map([...segments].map(([date, list]) => [date, capColumns(list, cap)])),
-    [segments, cap],
+    () => new Map([...segments].map(([date, list]) => [date, capColumns(list, dayWidth)])),
+    [segments, dayWidth],
   )
   const [morePopover, setMorePopover] = useState<{ group: MoreGroup; opener: HTMLElement } | null>(null)
   const bars = useMemo(() => allDayBars(occurrences, days), [occurrences, days])
@@ -197,8 +205,13 @@ export function TimeGrid(props: Props) {
   const inBlockGap = (dayIndex: number, minutes: number, xInDay: number) =>
     capped.get(days[dayIndex])!.visible.some((s) => {
       const [start, end] = drawnRange(s.start, s.end)
+      // "+n" 자리를 뗀 블록은 칸 폭에서 그만큼 뺀 비율로 잰다
+      const span = s.reserve && dayWidth ? 1 - s.reserve / dayWidth : 1
       return (
-        minutes >= start && minutes <= end && xInDay >= s.column / s.columns && xInDay <= (s.column + 1) / s.columns
+        minutes >= start &&
+        minutes <= end &&
+        xInDay >= (s.column / s.columns) * span &&
+        xInDay <= ((s.column + 1) / s.columns) * span
       )
     })
 
@@ -693,11 +706,10 @@ function MoreButton({
   overview: boolean
   onOpen: (opener: HTMLElement) => void
 }) {
-  const style: CSSProperties = {
-    top: group.start * PX_PER_MINUTE + 1,
-    left: `calc(${(group.column / group.columns) * 100}% + 2px)`,
-    width: `calc(${100 / group.columns}% - 4px)`,
-  }
+  // 오른쪽 "+n" 자리(MORE_PX - 4). 보이는 블록이 없으면 칸 폭 전체(UX-CAL-172)
+  const style: CSSProperties = group.full
+    ? { top: group.start * PX_PER_MINUTE + 1, left: 2, right: 2 }
+    : { top: group.start * PX_PER_MINUTE + 1, right: 2, width: MORE_PX - 4 }
   // 훑어보기(D-77): 하루 칸 버튼 안이라 보여 주기만 한다
   if (overview)
     return (
@@ -796,7 +808,7 @@ function Block({
   readOnly,
   onOpen,
 }: {
-  segment: TimedSegment
+  segment: CappedSegment
   color: BlockColor | null
   timeZone: string
   now: number
@@ -830,7 +842,7 @@ function Block({
         className={styles.block}
         data-overview
         data-now={active || undefined}
-        style={blockStyle(color, top, height, segment.column, segment.columns)}
+        style={blockStyle(color, top, height, segment.column, segment.columns, segment.reserve)}
         aria-hidden="true"
       >
         {content}
@@ -846,7 +858,7 @@ function Block({
       data-now={active || undefined}
       data-dragging={dragging || undefined}
       data-held={held || undefined}
-      style={blockStyle(color, top, height, segment.column, segment.columns)}
+      style={blockStyle(color, top, height, segment.column, segment.columns, segment.reserve)}
       onClick={(e) => (e.detail === 0 || readOnly) && onOpen(o)}
       // 낭독 접두는 테두리와 같다: 점선은 계획, 실선(지금 진행 중)은 진행 중(X-11, CAL-93, UX-CAL-144)
       aria-label={`${active ? '진행 중' : '계획'} · ${o.title}, ${timeLabel(o, timeZone)}${o.recurring ? ', 반복' : ''}`}

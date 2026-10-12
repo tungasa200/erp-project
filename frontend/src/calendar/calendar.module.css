@@ -612,7 +612,9 @@ button.column {
 }
 
 .monthCell[data-out] .dateNumber {
-  color: var(--color-text-disabled);
+  /* 눌러 옮기는 날짜라 정보 글자 대비 4.5:1(UX-CAL-173). 달 안 날짜와는 굵기로 구분 */
+  color: var(--color-text-muted);
+  font-weight: var(--weight-body);
 }
 
 .monthCell[data-holiday] .dateNumber {
@@ -713,22 +715,36 @@ button.monthCell {
   font-size: var(--text-xs);
   font-weight: var(--weight-strong);
   text-align: left;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   border: 0;
   background: transparent;
   color: var(--color-accent);
   min-height: 24px;
   padding: 0 var(--space-1);
+  position: relative;
   cursor: pointer;
 }
 
-/* 겹침 상한을 넘은 일정 묶음 "+n"(CAL-70). 28px 높이, 누르는 영역은 ::after로 44px */
+/* 말줄임은 안쪽 글자에. 버튼에 overflow:hidden을 두면 아래 ::after가 잘린다 */
+.moreText {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 누르는 높이를 아래로 44px까지(UX-CAL-176). 칸의 마지막 줄이고 칸이 overflow:hidden이라 칸 밖(아래 날짜)으로는 넘지 않는다 */
+.moreButton::after {
+  content: '';
+  position: absolute;
+  inset: 0 0 -20px;
+}
+
+/* 겹침 상한을 넘은 일정 묶음 "+n"(CAL-70). 24×28로 24px 기준을 넘는다(D-76). 위·아래로 넓히면 이웃 블록의 손잡이를 가로채 넓히지 않는다(UX-CAL-175) */
 .moreBlock {
   position: absolute;
   box-sizing: border-box;
   height: 28px;
+  padding: 0;
   border: 0;
   border-radius: var(--radius-sm);
   background: var(--color-ground);
@@ -738,12 +754,6 @@ button.monthCell {
   font-weight: var(--weight-strong);
   z-index: 1;
   cursor: pointer;
-}
-
-button.moreBlock::after {
-  content: '';
-  position: absolute;
-  inset: -8px 0;
 }
 
 .morePopoverItem {
@@ -1113,7 +1123,8 @@ button.moreBlock::after {
 }
 
 .miniDay[data-out] {
-  color: var(--color-text-disabled);
+  color: var(--color-text-muted);
+  font-weight: var(--weight-body);
 }
 
 .miniDay[data-holiday] {
