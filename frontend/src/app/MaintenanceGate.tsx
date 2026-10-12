@@ -4,11 +4,9 @@ import { useAuth } from '../auth/useAuth'
 import { MaintenancePage } from '../pages/MaintenancePage'
 
 // 점검 중에도 그대로 보이는 공개 화면(D-177 ②): 개인정보 처리방침 SCR-AUTH-06, 이용약관 SCR-AUTH-07.
-// 랜딩(SCR-AUTH-01, '/')은 로그인하지 않았을 때만 공개 화면이다(로그인했으면 /는 홈이라 점검 화면을 띄운다).
 const PUBLIC_PATHS = ['/privacy', '/terms']
 
-const isPublicPath = (pathname: string, signedIn: boolean) =>
-  (pathname === '/' && !signedIn) || PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`))
+const isPublicPath = (pathname: string) => PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`))
 
 /** 지금 경로를 알기 위한 라우터의 일부(createBrowserRouter·createMemoryRouter 둘 다 맞는다) */
 export interface LocationSource {
@@ -28,7 +26,7 @@ export function MaintenanceGate({ router, children }: { router: LocationSource; 
     return () => setMaintenanceHandler(() => {})
   }, [])
 
-  return maintenance && !isPublicPath(pathname, Boolean(user)) ? (
+  return maintenance && !isPublicPath(pathname) ? (
     <MaintenancePage
       retryAt={maintenance.retryAt}
       timeZone={user?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone}

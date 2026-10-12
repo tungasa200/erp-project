@@ -26,11 +26,16 @@ describe('라우팅', () => {
     expect(screen.queryByText(/다시 로그인해 주세요/)).not.toBeInTheDocument()
   })
 
-  it('비로그인 상태로 /에 오면 로그인으로 보내지 않고 랜딩을 보인다 (SCR-AUTH-01)', async () => {
+  it('비로그인 상태로 /에 오면 로그인 화면으로 보내고, 아래에 이용약관·개인정보 처리방침 링크가 있다 (랜딩 폐기 2026-10-12)', async () => {
     stubFetch({})
     const { router } = renderApp('/')
-    expect(await screen.findByRole('heading', { level: 1, name: /하루가 기록됩니다/ })).toBeInTheDocument()
-    expect(router.state.location.pathname).toBe('/')
+    expect(await screen.findByRole('heading', { name: '로그인' })).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe('/login')
+    expect(router.state.location.search).toBe('')
+    expect(screen.queryByText(/다시 로그인해 주세요/)).not.toBeInTheDocument()
+    const legal = screen.getByRole('navigation', { name: '약관' })
+    expect(within(legal).getByRole('link', { name: '이용약관' })).toHaveAttribute('href', '/terms')
+    expect(within(legal).getByRole('link', { name: '개인정보 처리방침' })).toHaveAttribute('href', '/privacy')
   })
 
   it('/privacy·/terms는 로그인하지 않아도 보이고, 로그인한 채로도 홈으로 보내지 않는다 (SCR-AUTH-06·07)', async () => {
@@ -67,7 +72,7 @@ describe('라우팅', () => {
 
     // 다른 화면으로 가면 그때 조회해 로그인 여부를 판단한다
     await userEvent.click(screen.getByRole('link', { name: '홈으로' }))
-    expect(await screen.findByRole('heading', { level: 1, name: /하루가 기록됩니다/ })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: '로그인' })).toBeInTheDocument()
     expect(fetchMock.mock.calls.map(([url]) => String(url))).toContain('/api/users/me')
   })
 
@@ -230,12 +235,10 @@ describe('SCR-SYS-02 점검', () => {
     expect(await screen.findByRole('heading', { name: '서비스 점검 중이에요' })).toBeInTheDocument()
   })
 
-  it('점검 중에 /로 오면 랜딩을 보인다 (D-177 ②)', async () => {
+  it('점검 중에 /로 오면 점검 화면을 보인다 (랜딩 폐기 2026-10-12)', async () => {
     stubFetch({ 'GET /api/users/me': () => problem(503, 'MAINTENANCE') })
-    const { queryClient } = renderApp('/')
-    await waitFor(() => expect(queryClient.getQueryState(['me'])?.status).toBe('error'))
-    expect(await screen.findByRole('heading', { level: 1, name: /하루가 기록됩니다/ })).toBeInTheDocument()
-    expect(screen.queryByRole('heading', { name: '서비스 점검 중이에요' })).not.toBeInTheDocument()
+    renderApp('/')
+    expect(await screen.findByRole('heading', { name: '서비스 점검 중이에요' })).toBeInTheDocument()
   })
 
   it('로그인한 채 홈(/)에서 점검 응답을 받으면 점검 화면을 띄운다', async () => {

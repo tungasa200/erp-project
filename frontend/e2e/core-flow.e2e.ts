@@ -75,9 +75,10 @@ test('가입부터 하루 마감까지', async ({ page, isMobile, browserName })
   const email = `e2e-${Date.now()}-${letters(4)}@worklog.test`
   const title = `시험 회의 ${letters(6)}`
 
-  // 1. 가입: 랜딩 → 가입 화면, 약관 동의 후 가입하면 홈으로 간다
+  // 1. 가입: / → 로그인 화면(랜딩 폐기, 2026-10-12) → 가입 화면, 약관 동의 후 가입하면 홈으로 간다
   await page.goto('/')
-  await page.getByRole('link', { name: '무료로 시작하기' }).filter({ visible: true }).first().click()
+  await expect(page).toHaveURL(/\/login$/)
+  await page.getByRole('link', { name: '회원가입', exact: true }).click()
   await expect(page.getByRole('heading', { level: 1, name: '회원가입' })).toBeVisible()
   await page.getByLabel('이메일').fill(email)
   await page.getByLabel('비밀번호', { exact: true }).fill(PASSWORD)

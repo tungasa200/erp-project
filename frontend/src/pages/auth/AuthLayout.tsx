@@ -1,6 +1,7 @@
 // 로그인·가입·비밀번호 찾기·재설정 공통 틀: 왼쪽 키 컬러 소개 영역 + 오른쪽 폼 (목업 AUTH-02, AUTH-03)
 // 문구가 없어도 키 컬러 면은 늘 그린다: 세 진입 화면의 모양을 같게(사용자 지시 2026-10-12)
 import type { ReactNode } from 'react'
+import { Link } from 'react-router'
 import { useOnline } from '../../components/useOnline'
 import styles from './auth.module.css'
 
@@ -32,6 +33,13 @@ export function AuthLayout({
         <fieldset className={styles.formArea} disabled={!online}>
           {children}
         </fieldset>
+        {/* 첫 화면이 로그인이라 처리방침은 여기서 바로 보여야 한다(개인정보 보호법, 랜딩 폐기 2026-10-12). 처리방침은 굵게 */}
+        <nav className={styles.legal} aria-label="약관">
+          <Link to="/terms">이용약관</Link>
+          <Link to="/privacy" className={styles.legalStrong}>
+            개인정보 처리방침
+          </Link>
+        </nav>
       </main>
     </div>
   )

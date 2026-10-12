@@ -12,7 +12,7 @@ import { SignupPage } from '../pages/SignupPage'
 
 /**
  * 화면 코드는 그 화면에 처음 갈 때 받는다(UX-COM-15: 앱 전체가 JS 한 덩어리라 랜딩·로그인도 캘린더·통계를 함께 받았다).
- * 첫 묶음에는 라우터·가드·랜딩·인증 화면만 남는다. 이동은 조각을 받은 뒤에 바뀌어서 그동안 지금 화면이 그대로 있다
+ * 첫 묶음에는 라우터·가드·인증 화면만 남는다. 이동은 조각을 받은 뒤에 바뀌어서 그동안 지금 화면이 그대로 있다
  */
 function page<K extends string>(load: () => Promise<Record<K, ComponentType>>, name: K) {
   return { lazy: async () => ({ Component: (await load())[name] }) }
