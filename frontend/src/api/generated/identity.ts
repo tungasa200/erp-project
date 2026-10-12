@@ -161,8 +161,31 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** 회원 가입 후 바로 로그인 */
+        /**
+         * 가입 신청 — 인증 코드 메일 발송 (1단계)
+         * @description 계정·쿠키를 만들지 않는다(D-220). 가입 대기를 저장(같은 이메일이면 덮어씀)하고 코드를 커밋 뒤 메일로 보낸다. 코드 다시 받기는 같은 본문으로 다시 보낸다.
+         */
         post: operations["signup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/signup/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 가입 인증 코드 확인 — 계정 생성 후 바로 로그인 (2단계)
+         * @description 코드가 맞으면 이메일 인증 완료 상태로 계정을 만들고 쿠키 2종을 발급한다. 가입 대기가 없으면 CODE_EXPIRED.
+         */
+        post: operations["confirmSignup"];
         delete?: never;
         options?: never;
         head?: never;
@@ -854,13 +877,13 @@ export interface operations {
             };
         };
         responses: {
-            /** @description 가입·로그인 성공. 쿠키 2종 발급 */
-            201: {
+            /** @description 가입 대기 저장, 코드 메일 발송 예약 */
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["Me"];
+                    "*/*": components["schemas"]["CodeIssued"];
                 };
             };
             /** @description VALIDATION_FAILED (errors[].code는 contracts/identity.yaml) */
@@ -870,6 +893,58 @@ export interface operations {
                 };
                 content: {
                     "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description EMAIL_ALREADY_EXISTS */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description RESEND_TOO_SOON(60초) · DAILY_SEND_LIMIT(24시간 10통) · TOO_MANY_REQUESTS(IP 1시간 10회) */
+            429: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["RateLimitedProblem"];
+                };
+            };
+        };
+    };
+    confirmSignup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CodeCheckRequest"];
+            };
+        };
+        responses: {
+            /** @description 계정 생성·로그인 성공. 쿠키 2종 발급 */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Me"];
+                };
+            };
+            /** @description CODE_MISMATCH(attemptsRemaining) · CODE_EXPIRED · VALIDATION_FAILED(CODE_FORMAT) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["CodeRejectedProblem"];
                 };
             };
             /** @description EMAIL_ALREADY_EXISTS */

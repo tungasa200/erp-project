@@ -8,6 +8,9 @@ type IdentitySchemas = components['schemas']
 export type Me = IdentitySchemas['Me']
 export type ProfileUpdateRequest = IdentitySchemas['ProfileUpdateRequest']
 export type SignupRequest = IdentitySchemas['SignupRequest']
+// 가입 확인(D-220) 본문은 비밀번호 재설정과 같은 코드 확인 형태
+export type SignupConfirmRequest = IdentitySchemas['CodeCheckRequest']
+export type CodeIssued = IdentitySchemas['CodeIssued']
 export type LoginRequest = IdentitySchemas['LoginRequest']
 
 export type PasswordChangeRequest = IdentitySchemas['PasswordChangeRequest']

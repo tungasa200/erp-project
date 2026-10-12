@@ -60,8 +60,9 @@ export function AuthProvider({
         setUser(queryClient, me)
         return me
       },
-      signup: async (body) => {
-        const me = await authApi.signup(body)
+      signup: (body) => authApi.signup(body),
+      confirmSignup: async (body) => {
+        const me = await authApi.confirmSignup(body)
         setUser(queryClient, me)
         return me
       },

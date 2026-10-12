@@ -1,6 +1,6 @@
 import { createContext } from 'react'
 import type { QueryClient } from '@tanstack/react-query'
-import type { LoginRequest, Me, SignupRequest } from '../api/types'
+import type { CodeIssued, LoginRequest, Me, SignupConfirmRequest, SignupRequest } from '../api/types'
 
 export const ME_QUERY_KEY = ['me'] as const
 
@@ -10,7 +10,10 @@ export interface AuthValue {
   // 로그인 상태 조회가 401이 아닌 이유(5xx·네트워크)로 실패한 경우. 가드가 오류 페이지로 올린다.
   error: unknown
   login: (body: LoginRequest) => Promise<Me>
-  signup: (body: SignupRequest) => Promise<Me>
+  /** 가입 코드 발송(다시 받기도 같음). 계정은 아직 없다(D-220) */
+  signup: (body: SignupRequest) => Promise<CodeIssued>
+  /** 코드가 맞으면 계정을 만들고 로그인 상태가 된다 */
+  confirmSignup: (body: SignupConfirmRequest) => Promise<Me>
   logout: () => Promise<void>
   /** 서버가 이미 쿠키를 지운 뒤(비밀번호 변경 currentSessionKept=false) 이 기기의 로그인 상태만 비운다.
    *  reason은 로그인 화면 안내에 쓴다 */

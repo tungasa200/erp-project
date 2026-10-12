@@ -347,23 +347,116 @@ describe('SCR-AUTH-03 회원가입', () => {
     expect(fetchMock).not.toHaveBeenCalledWith('/api/auth/signup', expect.anything())
   })
 
-  it('가입 요청 본문은 계약(SignupRequest) 형태이고, 성공하면 홈으로 간다', async () => {
-    let body: unknown
+  // 가입은 인증 뒤 계정 생성(D-220): 폼 → 같은 화면의 코드 단계 → 맞히면 로그인 상태로 홈
+  const later = (seconds: number) => new Date(Date.now() + seconds * 1000).toISOString()
+  function stubSignup(confirm: (b: { email: string; code: string }) => Response = () => json(201, ME)) {
+    const signupBodies: unknown[] = []
+    const confirmBodies: unknown[] = []
     let loggedIn = false
-    stubFetch({
+    const fetchMock = stubFetch({
       'GET /api/users/me': () => (loggedIn ? json(200, ME) : problem(401, 'UNAUTHENTICATED')),
       'POST /api/auth/signup': (init) => {
-        body = JSON.parse(String(init?.body))
-        loggedIn = true
-        return json(201, ME)
+        signupBodies.push(JSON.parse(String(init?.body)))
+        return json(202, { expiresAt: later(600), resendAvailableAt: later(0) })
+      },
+      'POST /api/auth/signup/confirm': (init) => {
+        const b = JSON.parse(String(init?.body))
+        confirmBodies.push(b)
+        const res = confirm(b)
+        if (res.ok) loggedIn = true
+        return res
       },
     })
+    return { signupBodies, confirmBodies, fetchMock }
+  }
+
+  it('폼을 내면 계정 없이 코드 단계로, 코드를 맞히면 로그인 상태로 홈에 간다', async () => {
+    const { signupBodies, confirmBodies } = stubSignup()
     const { router } = renderApp('/signup')
-    await fillSignup(' New@Example.com ', 'worklog20')
+    const user = await fillSignup(' New@Example.com ', 'worklog20')
+
+    expect(await screen.findByRole('heading', { level: 1, name: '이메일 인증' })).toBeInTheDocument()
+    expect(screen.getByText('New@Example.com')).toBeInTheDocument()
+    expect(signupBodies).toEqual([
+      { email: 'New@Example.com', password: 'worklog20', agreeTerms: true, agreePrivacy: true },
+    ])
+    // 코드 칸에 바로 포커스(키보드만으로 이어 입력)
+    expect(screen.getByRole('textbox', { name: '인증번호' })).toHaveFocus()
+    await user.keyboard('123456')
 
     expect(await screen.findByRole('textbox', { name: '빠른 기록' })).toBeInTheDocument()
     expect(router.state.location.pathname).toBe('/')
-    expect(body).toEqual({ email: 'New@Example.com', password: 'worklog20', agreeTerms: true, agreePrivacy: true })
+    expect(confirmBodies).toEqual([{ email: 'New@Example.com', code: '123456' }])
+  })
+
+  it('코드가 틀리면 남은 시도를 알리고 코드 단계에 머문다', async () => {
+    stubSignup(() => problem(400, 'CODE_MISMATCH', { attemptsRemaining: 4 }))
+    const { router } = renderApp('/signup')
+    const user = await fillSignup('new@example.com', 'worklog20')
+    await screen.findByRole('heading', { level: 1, name: '이메일 인증' })
+    await user.keyboard('000000')
+
+    expect(await screen.findByText('코드가 맞지 않아요(남은 시도 4회)')).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe('/signup')
+    await waitFor(() => expect(screen.getByRole('textbox', { name: '인증번호' })).toHaveFocus())
+  })
+
+  it('다시 받기는 같은 가입 요청을 다시 보낸다', async () => {
+    const { signupBodies } = stubSignup()
+    renderApp('/signup')
+    const user = await fillSignup('new@example.com', 'worklog20')
+    await user.click(await screen.findByRole('button', { name: '다시 받기' }))
+
+    expect(await screen.findByText('새 코드를 보냈어요')).toBeInTheDocument()
+    expect(signupBodies).toHaveLength(2)
+    expect(signupBodies[1]).toEqual(signupBodies[0])
+  })
+
+  it('이메일 고치기는 입력한 내용을 그대로 둔 폼으로 돌아가 이메일 칸에 포커스한다', async () => {
+    stubSignup()
+    renderApp('/signup')
+    const user = await fillSignup('typo@example.con', 'worklog20')
+    await user.click(await screen.findByRole('button', { name: '이메일 고치기' }))
+
+    const email = await screen.findByLabelText('이메일')
+    expect(email).toHaveValue('typo@example.con')
+    expect(email).toHaveFocus()
+    expect(screen.getByLabelText('비밀번호')).toHaveValue('worklog20')
+    expect(screen.getByRole('checkbox', { name: '전체 동의' })).toBeChecked()
+  })
+
+  it('코드를 기다리는 사이 같은 이메일로 가입이 끝났으면 폼으로 돌아가 로그인을 안내한다', async () => {
+    stubSignup(() => problem(409, 'EMAIL_ALREADY_EXISTS'))
+    renderApp('/signup')
+    const user = await fillSignup('new@example.com', 'worklog20')
+    await screen.findByRole('heading', { level: 1, name: '이메일 인증' })
+    await user.keyboard('123456')
+
+    const email = await screen.findByLabelText('이메일')
+    expect(email).toHaveAccessibleDescription(/이미 가입된 이메일입니다/)
+    await waitFor(() => expect(email).toHaveFocus())
+  })
+
+  it('60초 안에 다시 내면(RESEND_TOO_SOON) 앞서 보낸 코드로 코드 단계에 간다', async () => {
+    stubFetch({
+      'POST /api/auth/signup': () => problem(429, 'RESEND_TOO_SOON', { retryAfterSeconds: 40 }),
+    })
+    renderApp('/signup')
+    await fillSignup('new@example.com', 'worklog20')
+
+    expect(await screen.findByRole('heading', { level: 1, name: '이메일 인증' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /다시 받기 · \d+초/ })).toBeDisabled()
+  })
+
+  it('발송 한도(DAILY_SEND_LIMIT)면 폼에 머물러 안내한다', async () => {
+    stubFetch({
+      'POST /api/auth/signup': () => problem(429, 'DAILY_SEND_LIMIT', { retryAfterSeconds: 3600 }),
+    })
+    renderApp('/signup')
+    await fillSignup('new@example.com', 'worklog20')
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/코드는 24시간에 10통까지 받을 수 있어요/)
+    expect(screen.getByRole('heading', { level: 1, name: '회원가입' })).toBeInTheDocument()
   })
 
   it('만 14세 확인이 빠지면 동의 오류를 보이고 요청하지 않는다, 전체 동의에 포함된다 (D-172 ①)', async () => {

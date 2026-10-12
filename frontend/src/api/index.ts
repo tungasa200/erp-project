@@ -3,11 +3,13 @@ import { noteFailedTraceId } from './clientErrors'
 import { mockFetch } from './mockServer'
 import type {
   AccountDeletionRequest,
+  CodeIssued,
   LoginRequest,
   Me,
   PasswordChangeRequest,
   PasswordChanged,
   ProfileUpdateRequest,
+  SignupConfirmRequest,
   SignupRequest,
   WorklogMe,
   WorklogSettings,
@@ -43,7 +45,9 @@ export const api = createApiClient({
 })
 
 export const authApi = {
-  signup: (body: SignupRequest) => api.request<Me>('/api/auth/signup', { method: 'POST', body }),
+  // 가입은 인증 뒤 계정 생성(D-220): signup은 코드만 보내고(다시 받기도 같은 요청), confirm이 계정을 만들고 로그인시킨다
+  signup: (body: SignupRequest) => api.request<CodeIssued>('/api/auth/signup', { method: 'POST', body }),
+  confirmSignup: (body: SignupConfirmRequest) => api.request<Me>('/api/auth/signup/confirm', { method: 'POST', body }),
   login: (body: LoginRequest) => api.request<Me>('/api/auth/login', { method: 'POST', body }),
   logout: () => api.request<void>('/api/auth/logout', { method: 'POST' }),
   me: () => api.request<Me>('/api/users/me'),

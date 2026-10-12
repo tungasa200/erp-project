@@ -142,6 +142,9 @@ function mockDelay(): number {
   }
 }
 
+// 코드를 기다리는 가입(이메일 → 비밀번호). 코드처럼 메모리에만 둔다
+const pendingSignups = new Map<string, string>()
+
 export const mockFetch: typeof fetch = async (input, init) => {
   await new Promise((r) => setTimeout(r, mockDelay()))
   const path = typeof input === 'string' ? input : input instanceof URL ? input.pathname : input.url
@@ -161,11 +164,28 @@ export const mockFetch: typeof fetch = async (input, init) => {
     if (errors.length) return problem(400, 'VALIDATION_FAILED', { errors })
     if (email === 'error@example.com') return problem(500, 'INTERNAL_ERROR')
     if (state.accounts[email]) return problem(409, 'EMAIL_ALREADY_EXISTS')
+    // 가입은 인증 뒤 계정 생성(D-220): 여기서는 코드만 보낸다. 다시 받기도 같은 요청(마지막 비밀번호를 쓴다)
+    const issued = issueCode(`signup:${email}`)
+    if ('retryAfterSeconds' in issued) return problem(429, 'RESEND_TOO_SOON', issued)
+    pendingSignups.set(email, String(body.password))
+    return json(202, issued)
+  }
+
+  if (method === 'POST' && path === '/api/auth/signup/confirm') {
+    const email = String(body.email ?? '')
+      .trim()
+      .toLowerCase()
+    const password = pendingSignups.get(email)
+    if (password === undefined) return problem(400, 'CODE_EXPIRED')
+    const result = checkCode(`signup:${email}`, body.code, true)
+    if (!result.ok) return problem(400, result.code, result.extra as Partial<Problem>)
+    pendingSignups.delete(email)
+    if (state.accounts[email]) return problem(409, 'EMAIL_ALREADY_EXISTS')
     const id = `mock-${Date.now()}`
-    state.accounts[email] = { password: body.password, id }
+    const profile = { emailVerified: true }
+    state.accounts[email] = { password, id, profile }
     startSession(state, email)
-    issueCode(`verify:${email}`)
-    return json(201, me(email, id))
+    return json(201, me(email, id, profile))
   }
 
   if (method === 'POST' && path === '/api/auth/login') {

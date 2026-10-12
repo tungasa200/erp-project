@@ -76,8 +76,8 @@ test('가입부터 하루 마감까지', async ({ page, request, isMobile, brows
   const email = `e2e-${Date.now()}-${letters(4)}@worklog.test`
   const title = `시험 회의 ${letters(6)}`
 
-  // 1. 가입: / → 로그인 화면(랜딩 폐기, 2026-10-12) → 가입 화면, 약관 동의 후 가입하면 이메일 인증 화면(인증 필수 2026-10-13),
-  //    메일로 온 코드를 넣으면 홈으로 간다
+  // 1. 가입: / → 로그인 화면(랜딩 폐기, 2026-10-12) → 가입 화면, 약관 동의 후 가입하면 같은 화면의 코드 단계(가입은 인증 뒤 계정 생성 D-220),
+  //    메일로 온 코드를 넣으면 계정이 생기고 홈으로 간다
   await page.goto('/')
   await expect(page).toHaveURL(/\/login$/)
   await page.getByRole('link', { name: '회원가입', exact: true }).click()
@@ -87,7 +87,7 @@ test('가입부터 하루 마감까지', async ({ page, request, isMobile, brows
   await page.getByLabel('비밀번호 확인').fill(PASSWORD)
   await page.getByRole('checkbox', { name: '전체 동의' }).check()
   await page.getByRole('button', { name: '회원가입', exact: true }).click()
-  await expect(page).toHaveURL(/\/verify-email$/)
+  await expect(page.getByRole('heading', { level: 1, name: '이메일 인증' })).toBeVisible()
   await page.getByRole('textbox', { name: '인증번호' }).fill(await latestCode(request, email))
   await expect(page).toHaveURL(/\/$/)
   await closeAtMidnight(page)

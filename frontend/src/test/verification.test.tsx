@@ -245,21 +245,4 @@ describe('이메일 인증 필수 (사용자 지시 2026-10-13)', () => {
     const guest = setup({ signedIn: false, path: '/verify-email' })
     await waitFor(() => expect(guest.router.state.location.pathname).toBe('/login'))
   })
-
-  it('가입 직후 바로 인증 화면으로 간다 (D-64 첫 코드 자동 발송)', async () => {
-    stubFetch({
-      'GET /api/users/me': () => problem(401, 'UNAUTHENTICATED'),
-      'POST /api/auth/signup': () => json(201, { ...ME, emailVerified: false }),
-      'GET /api/users/me/email-verification': () =>
-        json(200, { verified: false, expiresAt: later(600), attemptsRemaining: 5, resendAvailableAt: later(60) }),
-    })
-    const { router } = renderApp('/signup')
-    await userEvent.type(await screen.findByLabelText('이메일'), 'new@example.com')
-    await userEvent.type(screen.getByLabelText('비밀번호'), 'worklog20')
-    await userEvent.type(screen.getByLabelText('비밀번호 확인'), 'worklog20')
-    await userEvent.click(screen.getByRole('checkbox', { name: /전체 동의/ }))
-    await userEvent.click(screen.getByRole('button', { name: '회원가입' }))
-    expect(await screen.findByRole('heading', { level: 1, name: '이메일 인증' })).toBeInTheDocument()
-    expect(router.state.location.pathname).toBe('/verify-email')
-  })
 })

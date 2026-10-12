@@ -1,14 +1,19 @@
 // SCR-AUTH-03 회원가입. 말투는 "~합니다" (D-36)
-import { useState, type FormEvent } from 'react'
+// 가입은 인증 뒤 계정 생성(D-220): 폼을 내면 코드만 받고, 같은 화면의 코드 단계에서 맞히면 계정이 생기고 로그인된다(GuestOnly가 홈으로)
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link } from 'react-router'
 import { toastForError } from '../api/errorToast'
 import { ApiError } from '../api/problem'
+import type { SignupRequest } from '../api/types'
 import { useAuth } from '../auth/useAuth'
 import { EMAIL_PATTERN, passwordViolations, type PasswordRuleCode } from '../auth/passwordRules'
 import { useToast } from '../components/useToast'
+import { sendLimitMessage, timesOf, type CodeTimes } from '../verification/api'
+import { CodeStep } from '../verification/CodeStep'
 import { AuthLayout } from './auth/AuthLayout'
 import { useFocusFirstError } from './auth/useFocusFirstError'
 import styles from './auth/auth.module.css'
+import codeStyles from './password/password.module.css'
 
 type Field = 'email' | 'password' | 'passwordConfirm' | 'agreements'
 type Errors = Partial<Record<Field, string>>
@@ -51,8 +56,11 @@ function mapServerErrors(list: { field: string; code: string }[]): { errors: Err
 }
 
 export function SignupPage() {
-  const { signup } = useAuth()
+  const { signup, confirmSignup } = useAuth()
   const { showToast } = useToast()
+  // 코드 단계. body는 다시 받기에 그대로 쓴다(같은 요청, 계약 0.4.0)
+  const [codeStep, setCodeStep] = useState<{ body: SignupRequest; times: CodeTimes } | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -66,6 +74,18 @@ export function SignupPage() {
   const [submitted, setSubmitted] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const { ref: formRef, focusFirstError } = useFocusFirstError<HTMLFormElement>()
+
+  // [이메일 고치기]로 폼에 돌아오면 이메일 칸으로(누른 버튼이 사라지므로). 오류가 있으면 focusFirstError가 옮긴다
+  const backToForm = useRef(false)
+  useEffect(() => {
+    if (codeStep || !backToForm.current) return
+    backToForm.current = false
+    if (!formRef.current?.querySelector('[aria-invalid="true"]')) document.getElementById('signup-email')?.focus()
+  }, [codeStep, formRef])
+  const editEmail = () => {
+    backToForm.current = true
+    setCodeStep(null)
+  }
 
   const violations = passwordViolations(password, email)
   // 72바이트 초과는 입력하는 동안 바로 알린다 (한글 약 24자)
@@ -83,6 +103,7 @@ export function SignupPage() {
     if (submitting) return
     setSubmitted(true)
     setEmailTaken(false)
+    setNotice(null)
     const next: Errors = {}
     if (!EMAIL_PATTERN.test(email.trim())) next.email = email.trim() ? MESSAGES.EMAIL_INVALID : MESSAGES.REQUIRED
     next.password = password ? passwordMessage(violations) : MESSAGES.REQUIRED
@@ -95,10 +116,16 @@ export function SignupPage() {
     }
 
     setSubmitting(true)
+    const body: SignupRequest = { email: email.trim(), password, agreeTerms, agreePrivacy }
     try {
-      await signup({ email: email.trim(), password, agreeTerms, agreePrivacy })
+      setCodeStep({ body, times: timesOf(await signup(body)) })
     } catch (error) {
-      if (error instanceof ApiError && error.code === 'EMAIL_ALREADY_EXISTS') {
+      const limited = sendLimitMessage(error)
+      if (limited?.code === 'RESEND_TOO_SOON') {
+        // 60초 안에 다시 낸 경우: 앞서 보낸 코드를 그대로 쓰면 되므로 코드 단계로 넘긴다(비밀번호 찾기와 같음)
+        setCodeStep({ body, times: { expiresAt: undefined, resendAt: limited.retryAt } })
+      } else if (limited) setNotice(limited.message)
+      else if (error instanceof ApiError && error.code === 'EMAIL_ALREADY_EXISTS') {
         setErrors({ email: MESSAGES.EMAIL_ALREADY_EXISTS })
         setEmailTaken(true)
         focusFirstError()
@@ -114,6 +141,60 @@ export function SignupPage() {
     } finally {
       setSubmitting(false)
     }
+  }
+
+  // 코드를 기다리는 사이 같은 이메일로 가입이 끝난 경우(다른 탭 등): 폼으로 돌아가 로그인을 안내한다
+  const alreadyJoined = (error: unknown): never => {
+    if (error instanceof ApiError && error.code === 'EMAIL_ALREADY_EXISTS') {
+      setErrors({ email: MESSAGES.EMAIL_ALREADY_EXISTS })
+      setEmailTaken(true)
+      setCodeStep(null)
+      focusFirstError()
+    }
+    throw error
+  }
+
+  if (codeStep) {
+    const { body } = codeStep
+    return (
+      <AuthLayout heading="이메일 인증을 마치면 가입이 끝납니다">
+        <div className={codeStyles.form}>
+          <span className={codeStyles.icon} aria-hidden="true">
+            <svg
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M4 6h16v12H4zM4 7l8 6 8-6" />
+            </svg>
+          </span>
+          <h1 className={codeStyles.title}>이메일 인증</h1>
+          <p className={codeStyles.lead}>
+            <b className={codeStyles.email}>{body.email}</b>으로 보낸 6자리 숫자를 입력하세요.
+          </p>
+          <CodeStep
+            initial={codeStep.times}
+            autoFocus
+            check={async (code) => {
+              await confirmSignup({ email: body.email, code }).catch(alreadyJoined)
+              showToast('가입을 마쳤어요')
+            }}
+            resend={() => signup(body).catch(alreadyJoined)}
+            onVerified={() => {}}
+          />
+          <p className={codeStyles.hint}>메일이 안 왔나요? 스팸함을 확인하거나 코드를 다시 받아 주세요.</p>
+          {/* 주소를 잘못 쓴 사용자가 돌아갈 길. 입력한 내용은 그대로 남는다 */}
+          <button type="button" className={`${codeStyles.linkButton} ${codeStyles.back}`} onClick={editEmail}>
+            이메일 고치기
+          </button>
+        </div>
+      </AuthLayout>
+    )
   }
 
   const allAgreed = agreeAge && agreeTerms && agreePrivacy
@@ -283,9 +364,14 @@ export function SignupPage() {
         )}
 
         <button type="submit" className={styles.submit} aria-disabled={submitting} aria-busy={submitting}>
-          {submitting ? '가입 중…' : '회원가입'}
+          {submitting ? '인증번호 보내는 중…' : '회원가입'}
         </button>
-        <p className={styles.note}>가입 후 입력한 이메일로 인증번호가 발송됩니다.</p>
+        {notice && (
+          <p role="alert" className={`${styles.fieldError} ${styles.tight}`}>
+            {notice}
+          </p>
+        )}
+        <p className={styles.note}>입력한 이메일로 인증번호가 발송되며, 인증을 마치면 가입이 완료됩니다.</p>
         <p className={styles.center}>
           이미 계정이 있으신 경우{' '}
           <Link className={styles.strong} to="/login">
