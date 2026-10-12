@@ -3,10 +3,12 @@
 // 시간은 시간 기록 옵션이 켜졌을 때만 적는다(옵션은 화면 표시만 바꾼다, TIME-09).
 // 끝나기 전 회차의 확인 대기(타이머를 1분 미만으로 버리면 서버가 PENDING으로 되돌림)는 홈 ③처럼 없는 것으로 본다(D-31).
 // 확인 대기 기록은 시간이 비어 있어(D-100) 옵션과 관계없이 계획 시간을 적는다(홈 확인 대기 목록과 같게). 확인 대기 목록의 plan, 없으면(7일 넘음) 그날 회차.
+// 머리 아래 [하루 마감](SCR-LOG-03)은 오늘·지난 날에만 둔다. 창은 openDayClose로 앱 셸이 띄운다(그날로 연다).
 // 접으면 머리글 요약 한 줄("5건 · 대기 2 · 일지 초안")과 펼치기 버튼만 남긴다(X-07 D, ux2 조건). 접힘은 이 기기에 기억한다.
 import { useId } from 'react'
 import { Skeleton } from '../components/Skeleton'
 import { useLogPeriods, type LogStatus } from '../logs/api'
+import { openDayClose } from '../logs/openDayClose'
 import type { WorkRecord } from '../records/api'
 import { planTime, usePendingRecords } from '../records/pending'
 import { useTimeTracking } from '../settings/useWorklogSettings'
@@ -14,6 +16,7 @@ import { RecordStatusTag } from './RecordStatusTag'
 import type { Occurrence } from './api'
 import { useDayPanel } from './dayPanels'
 import { occurrenceOf, planEnded, recordTimeText, useRecordsOnDate } from './recordStatus'
+import { todayIn } from './time'
 import styles from './records.module.css'
 
 interface Props {
@@ -96,6 +99,16 @@ export function DayRecords({ date, timeZone, occurrences, now, editable, onOpen,
           <span aria-hidden="true">›</span>
         </button>
       </div>
+      {date <= todayIn(timeZone, now) && (
+        <button
+          type="button"
+          className={styles.dayCloseLink}
+          aria-haspopup="dialog"
+          onClick={() => openDayClose({ date })}
+        >
+          하루 마감
+        </button>
+      )}
       {records.isPending ? (
         records.fetchStatus === 'paused' ? (
           <p className={styles.dayRecordsNote} role="status">

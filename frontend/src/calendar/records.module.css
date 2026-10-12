@@ -220,6 +220,22 @@
   overflow: hidden;
 }
 
+/* 머리 아래 [하루 마감]: 글자 링크 모양, 누르는 높이는 24px(D-76) */
+.dayCloseLink {
+  align-self: flex-start;
+  min-height: 24px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-accent-ink);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
 .dayRecordsNote {
   margin: 0;
   font-size: 12.5px;

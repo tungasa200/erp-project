@@ -2,6 +2,7 @@
 import { cleanup, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { registerDayCloseOpener } from '../logs/openDayClose'
 import { ME, json, renderApp, stubFetch } from '../test/renderApp'
 import { DayRecords } from './DayRecords'
 
@@ -33,7 +34,7 @@ const record = (id: string, status: string) => ({
   version: 0,
 })
 
-function setup() {
+function setup(now = Date.now()) {
   const fetchMock = stubFetch({
     'GET /api/users/me': () => json(200, ME),
     'GET /api/worklog/me': () =>
@@ -58,7 +59,7 @@ function setup() {
           date={DATE}
           timeZone="Asia/Seoul"
           occurrences={[]}
-          now={Date.now()}
+          now={now}
           editable
           onOpen={vi.fn()}
           onAdd={vi.fn()}
@@ -89,5 +90,22 @@ describe('이날의 기록 접기 (X-07 D)', () => {
     expect(await screen.findByRole('button', { name: '이날의 기록 펼치기' })).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: '이날의 기록 펼치기' }))
     expect(await screen.findByText('기록 a')).toBeInTheDocument()
+  })
+})
+
+describe('[하루 마감] 링크', () => {
+  it('오늘·지난 날에는 머리 아래에 있고 누르면 그날로 하루 마감을 연다', async () => {
+    const opener = vi.fn()
+    const release = registerDayCloseOpener(opener)
+    setup(Date.parse(`${DATE}T03:00:00Z`))
+    await userEvent.click(await screen.findByRole('button', { name: '하루 마감' }))
+    expect(opener).toHaveBeenCalledWith({ date: DATE })
+    release()
+  })
+
+  it('앞날에는 없다', async () => {
+    setup(Date.parse('2026-10-13T03:00:00Z'))
+    expect(await screen.findByText('기록 a')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '하루 마감' })).toBeNull()
   })
 })
