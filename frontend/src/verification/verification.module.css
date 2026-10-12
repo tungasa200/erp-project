@@ -66,13 +66,13 @@
 
 .ok {
   border: 2px solid var(--project-p3);
-  background: #f4fbf9;
+  background: var(--color-success-soft);
   color: var(--color-success-text);
 }
 
 .codeInput:disabled + .cells .cell:not(.ok) {
   background: var(--color-ground);
-  color: #8a8fa3;
+  color: var(--color-text-disabled);
 }
 
 .message {
@@ -128,6 +128,6 @@
 .resend:disabled,
 .resendStrong:disabled {
   background: var(--color-ground);
-  color: #8a8fa3;
+  color: var(--color-text-disabled);
   cursor: default;
 }

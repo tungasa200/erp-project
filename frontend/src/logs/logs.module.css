@@ -196,8 +196,8 @@
   max-width: min(280px, calc(100vw - 32px));
   padding: 8px 12px;
   border-radius: 10px;
-  background: #1f2233;
-  color: #fff;
+  background: var(--color-banner);
+  color: var(--color-on-banner);
   font-size: 13px;
   font-weight: 500;
   line-height: 1.45;
@@ -259,7 +259,7 @@
 
 .dangerFill {
   background: var(--color-danger);
-  color: #fff;
+  color: var(--color-on-danger);
 }
 
 .conflict {
@@ -1000,9 +1000,9 @@
   display: grid;
   grid-template-columns: 64px minmax(0, 1fr);
   margin: 0;
-  border: 1px solid #111111;
-  background: #ffffff;
-  color: #111111;
+  border: 1px solid var(--doc-ink);
+  background: var(--doc-surface);
+  color: var(--doc-ink);
   font-size: 13px;
 }
 
@@ -1010,14 +1010,14 @@
 .profilePreview dd {
   margin: 0;
   padding: 6px 8px;
-  border-bottom: 1px solid #c9c9c9;
+  border-bottom: 1px solid var(--doc-rule);
   overflow-wrap: anywhere;
 }
 
 .profilePreview dt {
-  background: #f3f3f3;
+  background: var(--doc-head);
   font-weight: 700;
-  border-right: 1px solid #c9c9c9;
+  border-right: 1px solid var(--doc-rule);
 }
 
 .profilePreview dt:last-of-type,
@@ -1026,7 +1026,7 @@
 }
 
 .profileBlank {
-  color: #6b6f80;
+  color: var(--doc-muted);
 }
 
 .profileError {
@@ -1184,7 +1184,7 @@
   border: 0;
   border-radius: var(--radius-pill);
   background: var(--color-text);
-  color: #ffffff;
+  color: var(--color-on-banner);
   font: inherit;
   font-size: 14px;
   font-weight: 800;

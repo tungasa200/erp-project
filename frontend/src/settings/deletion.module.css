@@ -113,7 +113,7 @@
   border: 0;
   border-radius: 26px;
   background: var(--color-danger);
-  color: #ffffff;
+  color: var(--color-on-danger);
   font: inherit;
   font-size: 15px;
   font-weight: 800;
@@ -127,7 +127,7 @@
 
 .submit:disabled {
   background: var(--color-disabled);
-  color: #3b3f52;
+  color: var(--color-text-strong);
   cursor: not-allowed;
 }
 

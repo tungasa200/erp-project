@@ -47,7 +47,7 @@
   border: 0;
   border-radius: 22px;
   background: var(--color-ground);
-  color: #3b3f52;
+  color: var(--color-text-strong);
   font-size: 20px;
   cursor: pointer;
 }

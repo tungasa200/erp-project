@@ -108,7 +108,7 @@
   border: 0;
   border-radius: 22px;
   background: var(--color-surface);
-  color: #3b3f52;
+  color: var(--color-text-strong);
   font: inherit;
   font-size: 13.5px;
   font-weight: 700;
@@ -184,7 +184,7 @@
 
 .segmentButton[aria-pressed='true'] {
   background: var(--color-banner);
-  color: #ffffff;
+  color: var(--color-on-banner);
   font-weight: 800;
 }
 
@@ -233,7 +233,7 @@
   align-items: center;
   gap: 10px;
   padding: 4px 6px;
-  border-top: 1px solid #f0f1f6;
+  border-top: 1px solid var(--color-divider-soft);
   font-size: 14px;
 }
 
@@ -293,7 +293,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #ffffff;
+  color: var(--color-on-accent);
   font-size: 12px;
   font-weight: 800;
   cursor: pointer;
@@ -359,7 +359,7 @@
 .due {
   font-size: 12.5px;
   font-weight: 700;
-  color: #3b3f52;
+  color: var(--color-text-strong);
 }
 
 /* 마감 초과 날짜·높음 우선순위. .danger가 위에 있어 같은 우선순위면 .due·.priority의 색이 이기므로 결합 선택자로 쓴다 (P1-03-05) */
@@ -372,7 +372,7 @@
   display: block;
   height: 6px;
   border-radius: 3px;
-  background: #eef0f6;
+  background: var(--color-surface-muted);
   overflow: hidden;
 }
 
@@ -397,7 +397,7 @@
   border: 0;
   border-radius: 20px;
   background: var(--color-ground);
-  color: #3b3f52;
+  color: var(--color-text-strong);
   font: inherit;
   font-size: 13px;
   font-weight: 700;
@@ -544,7 +544,7 @@
   border: 0;
   border-radius: 20px;
   background: var(--color-banner);
-  color: #ffffff;
+  color: var(--color-on-banner);
   font: inherit;
   font-size: 13px;
   font-weight: 800;

@@ -204,7 +204,7 @@
 .submit:disabled,
 .submit[aria-disabled='true'] {
   background: var(--color-disabled);
-  color: #ffffff;
+  color: var(--color-surface);
   cursor: not-allowed;
 }
 
@@ -284,7 +284,7 @@
   align-items: center;
   padding-right: 6px;
   background: var(--color-text);
-  color: #ffffff;
+  color: var(--color-on-banner);
   font-weight: 700;
 }
 
@@ -306,7 +306,7 @@
 }
 
 .alertClose:focus-visible {
-  outline: 2px solid #ffffff;
+  outline: 2px solid var(--color-on-banner);
   outline-offset: -4px;
 }
 
@@ -389,7 +389,7 @@
 .overseas {
   margin: 2px 0 0;
   padding-top: 10px;
-  border-top: 1px solid #f0f1f6;
+  border-top: 1px solid var(--color-divider-soft);
   font-size: 12.5px;
   line-height: 1.6;
   color: var(--color-text-muted);

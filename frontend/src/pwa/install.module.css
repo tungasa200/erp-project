@@ -46,8 +46,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #4b3fd6; /* 앱 아이콘 색 그대로(테마 키 컬러를 따르지 않음) */
-  color: #fff;
+  background: var(--color-brand); /* 앱 아이콘 색 그대로(테마 키 컬러를 따르지 않음) */
+  color: var(--color-on-accent);
   font-size: 17px;
   font-weight: 900;
 }
@@ -125,7 +125,7 @@
   gap: 10px;
   padding: 12px;
   border-radius: 14px;
-  background: #f7f8fc;
+  background: var(--color-surface-sunken);
   font-size: 14.5px;
   font-weight: 600;
 }
@@ -139,8 +139,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #e9e8fa;
-  color: #3c32ab;
+  background: var(--color-brand-soft);
+  color: var(--color-brand-ink);
   font-size: 13px;
   font-weight: 800;
 }
@@ -151,7 +151,7 @@
 
 .share {
   flex: none;
-  color: #2d6be4;
+  color: var(--project-p1);
 }
 
 /* 320px(REL-10, D-193): 카드 높이를 180px 이하로. 설명 줄은 제목과 뜻이 겹쳐 뺀다. [설치]·×는 44px 그대로.

@@ -146,7 +146,7 @@
   border: 0;
   border-radius: 23px;
   background: var(--color-text);
-  color: #ffffff;
+  color: var(--color-on-banner);
   font: inherit;
   font-size: 14px;
   font-weight: 800;
@@ -154,13 +154,13 @@
 }
 
 .submit[aria-disabled='true'] {
-  background: #3b3f52;
+  background: var(--color-text-strong);
   cursor: progress;
 }
 
 .submit:disabled {
   background: var(--color-disabled);
-  color: #3b3f52;
+  color: var(--color-text-strong);
   cursor: not-allowed;
 }
 

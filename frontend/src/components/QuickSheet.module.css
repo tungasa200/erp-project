@@ -42,7 +42,7 @@
   width: 40px;
   height: 5px;
   border-radius: 3px;
-  background: #b9bdcc;
+  background: var(--color-grip);
 }
 
 .title {
@@ -76,12 +76,12 @@
   gap: 12px;
   padding: 14px;
   border-radius: 18px;
-  background: #fff7e3;
-  border: 2px solid #e0a100;
+  background: var(--status-pending-card-bg);
+  border: 2px solid var(--status-pending-tag-bg);
 }
 
 .pending:has(.done:disabled) {
-  background: #f7f8fc;
+  background: var(--color-surface-sunken);
   border-color: var(--color-border);
 }
 
@@ -158,7 +158,7 @@
   width: 8px;
   height: 8px;
   border-radius: 4px;
-  background: #ff6b5e;
+  background: var(--color-live-dot);
 }
 
 @media (prefers-reduced-motion: no-preference) {
