@@ -18,6 +18,7 @@ const TABBABLE =
   'a[href], button:not(:disabled), input:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])'
 /** 이만큼 아래로 끌면 닫는다(px) */
 const DRAG_CLOSE = 80
+const FLICK_CLOSE = 0.5
 
 interface Props {
   text: string
@@ -70,9 +71,11 @@ export function QuickSheet({ text, onTextChange, onClose, onOpenPending, onStart
     }
   }, [])
 
-  // 손잡이를 아래로 끌기
-  const drag = useRef<{ y: number; id: number } | null>(null)
+  // 손잡이를 아래로 끌기. 손가락은 0ms로 따라오고, 놓았을 때 닫히지 않으면 200ms로 제자리에 돌아간다(X-12 5번, MOB-02).
+  // 80px을 넘기거나 아래로 빠르게 튕기면(0.5px/ms 이상) 닫는다
+  const drag = useRef<{ y: number; id: number; lastY: number; lastT: number; v: number } | null>(null)
   const [dragY, setDragY] = useState(0)
+  const [settling, setSettling] = useState(false)
 
   return (
     <div className={styles.backdrop} onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
@@ -81,7 +84,8 @@ export function QuickSheet({ text, onTextChange, onClose, onOpenPending, onStart
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className={styles.sheet}
+        className={settling ? `${styles.sheet} ${styles.settling}` : styles.sheet}
+        onTransitionEnd={() => setSettling(false)}
         style={{ bottom: keyboard, transform: dragY ? `translateY(${dragY}px)` : undefined }}
         // 입력칸의 Esc는 홈에서는 포커스만 빼고(글은 남김), 시트에서는 글을 남기고 시트를 닫는다(칩 고치기·도움말의 Esc는 그대로)
         onKeyDownCapture={(e) => {
@@ -114,19 +118,31 @@ export function QuickSheet({ text, onTextChange, onClose, onOpenPending, onStart
           aria-label="빠른 기록 닫기"
           onClick={() => !dragY && onClose()}
           onPointerDown={(e) => {
-            drag.current = { y: e.clientY, id: e.pointerId }
+            drag.current = { y: e.clientY, id: e.pointerId, lastY: e.clientY, lastT: e.timeStamp, v: 0 }
+            setSettling(false)
             e.currentTarget.setPointerCapture?.(e.pointerId)
           }}
           onPointerMove={(e) => {
-            if (drag.current?.id === e.pointerId) setDragY(Math.max(0, e.clientY - drag.current.y))
+            const d = drag.current
+            if (d?.id !== e.pointerId) return
+            const dt = e.timeStamp - d.lastT
+            if (dt > 0) d.v = (e.clientY - d.lastY) / dt
+            d.lastY = e.clientY
+            d.lastT = e.timeStamp
+            setDragY(Math.max(0, e.clientY - d.y))
           }}
           onPointerUp={() => {
+            const flick = (drag.current?.v ?? 0) > FLICK_CLOSE && dragY > 16
             drag.current = null
-            if (dragY > DRAG_CLOSE) onClose()
-            else setDragY(0)
+            if (dragY > DRAG_CLOSE || flick) onClose()
+            else if (dragY) {
+              setSettling(true)
+              setDragY(0)
+            }
           }}
           onPointerCancel={() => {
             drag.current = null
+            if (dragY) setSettling(true)
             setDragY(0)
           }}
         >

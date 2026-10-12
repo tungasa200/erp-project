@@ -23,13 +23,15 @@
   box-sizing: border-box;
   padding: 0 8px 0 20px;
   border: 2px solid transparent;
-  border-radius: 26px;
+  border-radius: var(--radius-pill);
   background: var(--color-surface);
-  box-shadow: 0 2px 10px rgba(40, 44, 90, 0.08);
+  box-shadow: var(--shadow-1);
 }
 
-.field:focus-within {
-  border-color: var(--color-accent);
+/* 포커스는 바깥 둥근 상자에 전역과 같은 윤곽선(COM-34) */
+.field:has(.input:focus-visible) {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
 }
 
 /* 입력이 칸 높이를 다 채워 칸 가장자리를 눌러도 포커스가 간다(UX-HOME-13) */
@@ -40,13 +42,13 @@
   border: 0;
   outline: none;
   font: inherit;
-  font-size: 16px;
+  font-size: var(--text-lg);
   font-weight: 500;
   color: var(--color-text);
   background: transparent;
 }
 
-/* 포커스 표시는 바깥 둥근 상자(.field:focus-within) 하나만 쓴다. 전역 :focus-visible과 겹치지 않게 덮는다 */
+/* 포커스 표시는 바깥 둥근 상자(.field:has(.input:focus-visible)) 하나만 쓴다. 전역 :focus-visible과 겹치지 않게 덮는다 */
 .input:focus-visible {
   outline: none;
 }
@@ -60,9 +62,9 @@
 .enter {
   flex: none;
   font-family: inherit;
-  font-size: 12px;
+  font-size: var(--text-xs);
   font-weight: 700;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   padding: 4px 8px;
 }
 
@@ -74,7 +76,7 @@
 .enter {
   color: var(--color-accent-ink);
   background: var(--color-accent-soft);
-  border-radius: 12px;
+  border-radius: var(--radius-input);
   padding: 6px 10px;
 }
 
@@ -85,11 +87,11 @@
   height: var(--size-touch);
   padding: 0 14px;
   border: 0;
-  border-radius: 22px;
+  border-radius: var(--radius-pill);
   background: var(--color-accent);
   color: var(--color-on-accent);
   font: inherit;
-  font-size: 14px;
+  font-size: var(--text-md);
   font-weight: 800;
   cursor: pointer;
 }
@@ -103,7 +105,7 @@
 .saveReason {
   margin: 0;
   padding: 0 6px;
-  font-size: 13px;
+  font-size: var(--text-sm);
   color: var(--color-text-muted);
 }
 
@@ -121,7 +123,7 @@
   width: 32px;
   height: 32px;
   border: 0;
-  border-radius: 16px;
+  border-radius: var(--radius-pill);
   background: var(--color-ground);
   color: var(--color-text-muted);
   font: inherit;
@@ -137,11 +139,11 @@
   height: 32px;
   margin-right: 4px;
   border: 0;
-  border-radius: 16px;
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--color-text-muted);
   font: inherit;
-  font-size: 20px;
+  font-size: var(--text-xl);
   line-height: 1;
   cursor: pointer;
 }
@@ -195,9 +197,9 @@
   height: 30px;
   padding: 0 12px;
   border: 0;
-  border-radius: 15px;
+  border-radius: var(--radius-pill);
   font: inherit;
-  font-size: 12.5px;
+  font-size: var(--text-xs);
   font-weight: 700;
   background: var(--color-surface-muted);
   color: var(--color-text-body);
@@ -211,8 +213,10 @@
   inset: -7px -3px;
 }
 
-.chip:hover {
-  filter: brightness(0.96);
+@media (hover: hover) and (pointer: fine) {
+  .chip:hover {
+    filter: brightness(0.96);
+  }
 }
 
 /* 칩 수정 드롭다운 (P1-09-12) */
@@ -229,9 +233,9 @@
   overflow-y: auto;
   box-sizing: border-box;
   padding: 6px;
-  border-radius: 16px;
+  border-radius: var(--radius-input);
   background: var(--color-surface);
-  box-shadow: 0 18px 44px rgba(40, 44, 90, 0.18);
+  box-shadow: var(--shadow-3);
 }
 
 .chipOption {
@@ -241,20 +245,25 @@
   min-height: var(--size-touch);
   padding: 0 12px;
   border: 0;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--color-text);
   font: inherit;
-  font-size: 14px;
+  font-size: var(--text-md);
   font-weight: 600;
   text-align: left;
   white-space: nowrap;
   cursor: pointer;
 }
 
-.chipOption:hover,
 .chipOption:focus-visible {
   background: var(--color-ground);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .chipOption:hover {
+    background: var(--color-ground);
+  }
 }
 
 .chipOption[aria-checked='true'] {
@@ -269,7 +278,7 @@
 }
 
 .chipOptionDetail {
-  font-size: 12.5px;
+  font-size: var(--text-xs);
   font-weight: 500;
   color: var(--color-text-muted);
 }
@@ -281,7 +290,7 @@
 
 .chipRemove {
   border-top: 1px solid var(--color-divider);
-  border-radius: 0 0 10px 10px;
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
   color: var(--color-text-muted);
 }
 
@@ -295,7 +304,7 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  font-size: 12.5px;
+  font-size: var(--text-xs);
   font-weight: 700;
   color: var(--color-text-muted);
 }
@@ -305,9 +314,9 @@
   box-sizing: border-box;
   padding: 0 10px;
   border: 1px solid var(--color-border);
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   font: inherit;
-  font-size: 15px;
+  font-size: var(--text-md);
   color: var(--color-text);
   background: var(--color-surface);
 }
@@ -315,7 +324,7 @@
 .timeError {
   margin: 0;
   padding: 0 6px 4px;
-  font-size: 12.5px;
+  font-size: var(--text-xs);
   color: var(--color-danger);
 }
 
@@ -328,18 +337,18 @@
 
 .timeActions .chipRemove {
   border-top: 0;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
 }
 
 .timeApply {
   min-height: var(--size-touch);
   padding: 0 18px;
   border: 0;
-  border-radius: 12px;
+  border-radius: var(--radius-input);
   background: var(--color-accent);
   color: var(--color-on-accent);
   font: inherit;
-  font-size: 14px;
+  font-size: var(--text-md);
   font-weight: 700;
   cursor: pointer;
 }
@@ -366,7 +375,7 @@
   background: var(--color-surface);
   color: var(--color-accent-ink);
   font: inherit;
-  font-size: 12.5px;
+  font-size: var(--text-xs);
   font-weight: 700;
   cursor: pointer;
 }
@@ -403,7 +412,7 @@
 .hint {
   margin: 0;
   padding: 0 2px;
-  font-size: 12.5px;
+  font-size: var(--text-xs);
   color: var(--color-text-muted);
 }
 
@@ -423,7 +432,7 @@
 .hintStrong {
   margin: 0;
   padding: 0 2px;
-  font-size: 12.5px;
+  font-size: var(--text-xs);
   font-weight: 700;
   color: var(--color-accent-ink);
 }
@@ -431,7 +440,7 @@
 .hintError {
   margin: 0;
   padding: 0 2px;
-  font-size: 12.5px;
+  font-size: var(--text-xs);
   font-weight: 600;
   color: var(--color-danger);
 }
@@ -451,9 +460,9 @@
   width: min(520px, calc(100vw - 32px));
   box-sizing: border-box;
   padding: 22px;
-  border-radius: 22px;
+  border-radius: var(--radius-card);
   background: var(--color-surface);
-  box-shadow: 0 18px 44px rgba(40, 44, 90, 0.18);
+  box-shadow: var(--shadow-3);
   outline: none;
   /* 좁은 패널(할 일 상자)에 들어가면 폭으로 줄 배치를 바꾼다 */
   container-type: inline-size;
@@ -461,7 +470,7 @@
 
 .popoverTitle {
   margin: 0;
-  font-size: 17px;
+  font-size: var(--text-xl);
   font-weight: 800;
 }
 
@@ -484,17 +493,17 @@
 
 .rule dd {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--text-md);
   color: var(--color-text-strong);
 }
 
 .code {
   font-family: inherit;
-  font-size: 14px;
+  font-size: var(--text-md);
   font-weight: 800;
   color: var(--color-accent-ink);
   background: var(--color-accent-soft);
-  border-radius: 9px;
+  border-radius: var(--radius-sm);
   padding: 5px 10px;
   /* 좁은 패널에서 줄이 바뀌어도 줄마다 알약 모양을 유지한다 */
   -webkit-box-decoration-break: clone;
@@ -503,7 +512,7 @@
 
 .examplesLabel {
   margin: 16px 0 0;
-  font-size: 13px;
+  font-size: var(--text-sm);
   font-weight: 700;
   color: var(--color-text-muted);
 }
@@ -519,11 +528,11 @@
   min-height: 44px;
   padding: 0 14px;
   border: 1.5px dashed var(--color-disabled);
-  border-radius: 14px;
+  border-radius: var(--radius-input);
   background: var(--color-surface);
   color: var(--color-text);
   font: inherit;
-  font-size: 14px;
+  font-size: var(--text-md);
   font-weight: 600;
   text-align: left;
   cursor: pointer;
@@ -542,7 +551,7 @@
 .suggestTitle {
   margin: 0;
   padding: 0 2px;
-  font-size: 12.5px;
+  font-size: var(--text-xs);
   font-weight: 700;
   color: var(--color-text-muted);
 }

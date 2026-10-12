@@ -31,14 +31,14 @@
 
 .date {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--text-md);
   font-weight: 600;
   color: var(--color-text-muted);
 }
 
 .title {
   margin: 4px 0 0;
-  font-size: 22px;
+  font-size: var(--text-2xl);
   font-weight: 800;
   letter-spacing: -0.5px;
 }
@@ -62,19 +62,19 @@
   flex-direction: column;
   gap: 8px;
   padding: 28px;
-  border-radius: 22px;
+  border-radius: var(--radius-card);
   background: var(--color-surface);
 }
 
 .emptyTitle {
   margin: 0;
-  font-size: 19px;
+  font-size: var(--text-xl);
   font-weight: 800;
 }
 
 .emptyText {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--text-md);
   color: var(--color-text-muted);
 }
 
@@ -89,11 +89,11 @@
   min-height: 44px;
   padding: 0 14px;
   border: 1.5px dashed var(--color-disabled);
-  border-radius: 14px;
+  border-radius: var(--radius-input);
   background: var(--color-surface);
   color: var(--color-text);
   font: inherit;
-  font-size: 14px;
+  font-size: var(--text-md);
   font-weight: 600;
   cursor: pointer;
 }

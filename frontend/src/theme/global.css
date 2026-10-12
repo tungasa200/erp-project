@@ -30,6 +30,24 @@ select {
   color: inherit;
 }
 
+/* 누르는 요소는 두 번 탭 확대를 기다리지 않는다(X-12 6번) */
+a,
+button,
+input,
+select,
+textarea,
+label,
+summary,
+[role='button'] {
+  touch-action: manipulation;
+}
+
+/* 누름 피드백: 배경 한 단계 어둡게, 지연 없이(X-12 2번, COM-27). hover는 (hover: hover) and (pointer: fine) 안에서만 준다 */
+button:not(:disabled):active,
+[role='button']:not([aria-disabled='true']):active {
+  filter: brightness(0.94);
+}
+
 ::placeholder {
   color: var(--color-placeholder);
   opacity: 1;
@@ -49,8 +67,10 @@ select {
 a {
   color: var(--color-accent-ink);
 }
-a:hover {
-  color: var(--color-accent-ink-strong);
+@media (hover: hover) and (pointer: fine) {
+  a:hover {
+    color: var(--color-accent-ink-strong);
+  }
 }
 
 /* 포커스 표시는 키 컬러 테두리 (화면정의서 2.5) */

@@ -42,12 +42,33 @@
   gap: 10px;
   min-height: 52px;
   padding: 10px 10px 10px 18px;
-  border-radius: 16px;
+  border-radius: var(--radius-input);
   background: var(--color-banner);
   color: var(--color-on-banner);
-  font-size: 14px;
+  font-size: var(--text-md);
   font-weight: 600;
-  box-shadow: 0 8px 24px rgba(26, 28, 43, 0.2);
+  box-shadow: var(--shadow-2);
+  /* 진입은 opacity + 이동 180ms ease-out, 퇴장은 즉시. 움직임 줄이기면 opacity만(X-12 4·7번) */
+  animation: toast-fade 180ms ease-out;
+}
+
+@keyframes toast-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .toast {
+    animation-name: toast-in;
+  }
+
+  @keyframes toast-in {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+  }
 }
 
 /* 어두운 띠 위에서는 키 컬러 링이 2.39:1이라 흰 링을 쓴다(16.9:1, UX-COM-23) */
@@ -63,7 +84,7 @@
   width: 44px;
   height: 44px;
   border: 0;
-  border-radius: 22px;
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--color-on-banner-muted);
   display: flex;
@@ -77,7 +98,7 @@
   position: relative;
   overflow: hidden;
   min-width: min(420px, 100%);
-  border-radius: 18px;
+  border-radius: var(--radius-card);
 }
 
 .undoButton {
@@ -86,11 +107,11 @@
   min-width: var(--size-touch);
   padding: 0 16px;
   border: 0;
-  border-radius: 22px;
+  border-radius: var(--radius-pill);
   background: var(--color-accent-light);
   color: var(--color-text);
   font: inherit;
-  font-size: 14px;
+  font-size: var(--text-md);
   font-weight: 800;
   cursor: pointer;
 }
@@ -103,15 +124,17 @@
   min-height: var(--size-touch);
   min-width: var(--size-touch);
   padding: 0 8px;
-  border-radius: 12px;
+  border-radius: var(--radius-input);
   color: var(--color-on-banner-link);
-  font-size: 14px;
+  font-size: var(--text-md);
   font-weight: 800;
   text-decoration: none;
 }
 
-.viewLink:hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .viewLink:hover {
+    text-decoration: underline;
+  }
 }
 
 .progress {

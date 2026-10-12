@@ -271,7 +271,9 @@ describe('기록 추가·수정 (SCR-REC-01)', () => {
     await user.clear(end)
     await user.type(end, '11:00')
     // 서울 10:00~11:00 = UTC 01:00~02:00 → 고객 통화(00:30~01:30)와 겹친다
-    expect(await within(dialog).findByText(/다른 기록과 시간이 겹쳐요: 고객 통화 \(09:30~10:30\)/)).toBeInTheDocument()
+    expect(
+      await within(dialog).findByText(/다른 기록과 시간이 겹쳐요: 고객 통화 \(09:30 – 10:30\)/),
+    ).toBeInTheDocument()
     expect(within(dialog).getByLabelText('또는 소요시간(분)')).toHaveValue(60)
 
     await user.click(within(dialog).getByRole('button', { name: '저장' }))

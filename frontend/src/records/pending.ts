@@ -3,8 +3,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../api'
 import type { components } from '../api/generated/worklog'
-import { formatMinutes, toZoned } from '../calendar/time'
-import { shortDate, todayIn } from '../quickInput/dates'
+import { shortDate, timeRange, todayIn } from '../format/datetime'
 
 type Schemas = components['schemas']
 export type PendingRecord = Schemas['PendingRecord']
@@ -43,9 +42,5 @@ export function planTime(plan: Omit<PendingPlan, 'title'>, timeZone: string): st
       : `종일 · ${shortDate(plan.endDate, todayIn(timeZone))}까지`
   }
   if (!plan.startAt || !plan.endAt) return ''
-  const s = toZoned(plan.startAt, timeZone)
-  const e = toZoned(plan.endAt, timeZone)
-  const end =
-    e.date === s.date ? formatMinutes(e.minutes) : `${shortDate(e.date, todayIn(timeZone))} ${formatMinutes(e.minutes)}`
-  return `${formatMinutes(s.minutes)} – ${end}`
+  return timeRange(plan.startAt, plan.endAt, timeZone)
 }

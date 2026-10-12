@@ -527,7 +527,7 @@ function TaskForm({
       <div className={styles.panelFoot}>
         <span className={styles.muted}>변경 사항은 자동 저장돼요</span>
         {!archived && (
-          <button type="button" className={styles.dangerButton} disabled={!online} onClick={() => void archive()}>
+          <button type="button" className={styles.archiveButton} disabled={!online} onClick={() => void archive()}>
             보관
           </button>
         )}

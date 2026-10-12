@@ -1,14 +1,14 @@
 /* SCR-HOME-03 빈 시간 메우기. 틀은 캘린더 모달, 후보는 한 번 누르면 채워지는 넓은 버튼 */
 .span {
   margin: 0;
-  font-size: 15px;
+  font-size: var(--text-md);
   font-weight: 800;
   font-variant-numeric: tabular-nums;
 }
 
 .minutes {
   margin-left: 6px;
-  font-size: 13px;
+  font-size: var(--text-sm);
   font-weight: 700;
   color: var(--color-text-muted);
 }
@@ -31,7 +31,7 @@
   box-sizing: border-box;
   padding: 8px 14px;
   border: 1px solid var(--color-border);
-  border-radius: 14px;
+  border-radius: var(--radius-input);
   background: var(--color-surface);
   color: var(--color-text);
   font: inherit;
@@ -39,9 +39,11 @@
   cursor: pointer;
 }
 
-.candidate:not(:disabled):hover {
-  border-color: var(--color-accent);
-  background: var(--color-accent-faint);
+@media (hover: hover) and (pointer: fine) {
+  .candidate:not(:disabled):hover {
+    border-color: var(--color-accent);
+    background: var(--color-accent-faint);
+  }
 }
 
 .candidate:focus-visible {
@@ -55,7 +57,7 @@
 }
 
 .candidateLabel {
-  font-size: 12px;
+  font-size: var(--text-xs);
   font-weight: 800;
   color: var(--color-accent-ink);
 }
@@ -67,7 +69,7 @@
 .candidateText {
   min-width: 0;
   overflow: hidden;
-  font-size: 14.5px;
+  font-size: var(--text-md);
   font-weight: 700;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -85,6 +87,6 @@
 
 .muted {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--text-sm);
   color: var(--color-text-muted);
 }

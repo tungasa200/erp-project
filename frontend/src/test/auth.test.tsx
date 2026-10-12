@@ -73,6 +73,16 @@ describe('라우팅', () => {
     renderApp('/no-such-page')
     expect(await screen.findByRole('heading', { name: '페이지를 찾을 수 없어요' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: '홈으로' })).toHaveAttribute('href', '/')
+    expect(screen.queryByRole('link', { name: '보관함' })).not.toBeInTheDocument()
+  })
+
+  it('앱 안에서 없는 주소로 오면 404에 보관함으로 가는 길도 보인다 (SYS-01)', async () => {
+    stubFetch({ 'GET /api/users/me': () => json(200, ME) })
+    const { router } = renderApp('/notifications')
+    await screen.findByRole('heading', { level: 1, name: '알림' })
+    await act(() => router.navigate('/no-such-page'))
+    expect(await screen.findByRole('heading', { name: '페이지를 찾을 수 없어요' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: '보관함' })).toHaveAttribute('href', '/tasks/archive')
   })
 })
 

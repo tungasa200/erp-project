@@ -12,7 +12,7 @@
 
 .cardTitle {
   margin: 0;
-  font-size: 18px;
+  font-size: var(--text-xl);
   font-weight: 800;
 }
 
@@ -29,14 +29,14 @@
 }
 
 .email {
-  font-size: 15px;
+  font-size: var(--text-md);
   font-weight: 700;
   overflow-wrap: anywhere;
 }
 
 .unverified {
   margin-top: 4px;
-  font-size: 13px;
+  font-size: var(--text-sm);
   font-weight: 700;
   color: var(--color-danger);
 }
@@ -47,10 +47,10 @@
   gap: 4px;
   margin-top: 6px;
   padding: 3px 9px;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   background: var(--project-p3-tint);
   color: var(--color-success-text);
-  font-size: 12.5px;
+  font-size: var(--text-xs);
   font-weight: 800;
 }
 
@@ -58,11 +58,11 @@
   min-height: var(--size-touch);
   padding: 0 18px;
   border: 0;
-  border-radius: 22px;
+  border-radius: var(--radius-pill);
   background: var(--color-accent);
   color: var(--color-on-accent);
   font: inherit;
-  font-size: 14px;
+  font-size: var(--text-md);
   font-weight: 800;
   cursor: pointer;
 }
@@ -100,7 +100,7 @@
 
 .fieldError {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--text-sm);
   font-weight: 600;
   color: var(--color-danger);
 }
@@ -112,7 +112,7 @@
   margin: 0;
   padding: 0;
   list-style: none;
-  font-size: 13px;
+  font-size: var(--text-sm);
   font-weight: 600;
   color: var(--color-text-muted);
 }
@@ -131,7 +131,7 @@
 .notice {
   flex: 1 1 260px;
   margin: 0;
-  font-size: 13px;
+  font-size: var(--text-sm);
   line-height: 1.55;
   color: var(--color-warning-text);
 }
@@ -144,11 +144,11 @@
   margin-left: auto;
   padding: 0 22px;
   border: 0;
-  border-radius: 23px;
+  border-radius: var(--radius-pill);
   background: var(--color-text);
   color: var(--color-on-banner);
   font: inherit;
-  font-size: 14px;
+  font-size: var(--text-md);
   font-weight: 800;
   cursor: pointer;
 }
@@ -177,10 +177,10 @@
 .lockBand {
   margin: 0;
   padding: 12px 14px;
-  border-radius: 14px;
+  border-radius: var(--radius-input);
   background: var(--color-danger-soft);
   color: var(--color-danger-text);
-  font-size: 14px;
+  font-size: var(--text-md);
   font-weight: 700;
   line-height: 1.55;
 }
@@ -204,7 +204,7 @@
   background: transparent;
   color: var(--color-text);
   font: inherit;
-  font-size: 15px;
+  font-size: var(--text-md);
   font-weight: 700;
   text-align: left;
   cursor: pointer;

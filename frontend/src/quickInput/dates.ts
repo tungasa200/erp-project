@@ -34,17 +34,8 @@ export function isoWeekday(date: string): number {
   return ((new Date(toUtc(date)).getUTCDay() + 6) % 7) + 1
 }
 
-export function todayIn(timeZone: string, now: Date = new Date()): string {
-  // en-CA 형식이 YYYY-MM-DD다.
-  return new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(now)
-}
-
-/** 짧은 날짜: 올해면 10/8(목), 다른 해면 2025/10/8(수). today는 사용자 시간대의 오늘 */
-export function shortDate(date: string, today: string): string {
-  const [y, m, d] = date.split('-').map(Number)
-  const year = date.slice(0, 4) === today.slice(0, 4) ? '' : `${y}/`
-  return `${year}${m}/${d}(${WEEKDAY_NAMES[isoWeekday(date) - 1]})`
-}
+// 오늘·짧은 날짜 표기는 공용 함수(X-13)를 쓴다
+export { shortDate, todayIn } from '../format/datetime'
 
 const WEEK_START_CODES = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY']
 

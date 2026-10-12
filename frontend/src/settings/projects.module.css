@@ -8,7 +8,7 @@
 .panel {
   box-sizing: border-box;
   padding: 22px;
-  border-radius: 22px;
+  border-radius: var(--radius-card);
   background: var(--color-surface);
   display: flex;
   flex-direction: column;
@@ -24,12 +24,12 @@
 .title {
   flex: 1;
   margin: 0;
-  font-size: 18px;
+  font-size: var(--text-xl);
   font-weight: 800;
 }
 
 .meta {
-  font-size: 13px;
+  font-size: var(--text-sm);
   font-weight: 700;
   color: var(--color-text-muted);
 }
@@ -42,8 +42,10 @@
   text-underline-offset: 3px;
 }
 
-.metaLink:hover {
-  color: var(--color-text);
+@media (hover: hover) and (pointer: fine) {
+  .metaLink:hover {
+    color: var(--color-text);
+  }
 }
 
 .metaLink:focus-visible {
@@ -54,7 +56,7 @@
 
 .muted {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--text-sm);
   color: var(--color-text-muted);
 }
 
@@ -64,7 +66,7 @@
   align-items: center;
   gap: 8px;
   margin: 0;
-  font-size: 13px;
+  font-size: var(--text-sm);
   font-weight: 600;
   color: var(--color-danger);
 }
@@ -97,13 +99,13 @@
 .name {
   flex: 1;
   min-width: 0;
-  font-size: 15px;
+  font-size: var(--text-md);
   font-weight: 700;
   overflow-wrap: anywhere;
 }
 
 .count {
-  font-size: 13px;
+  font-size: var(--text-sm);
   color: var(--color-text-muted);
 }
 
@@ -111,11 +113,11 @@
   min-height: 36px;
   padding: 0 14px;
   border: 0;
-  border-radius: 18px;
+  border-radius: var(--radius-pill);
   background: var(--color-ground);
   color: var(--color-text);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--text-sm);
   font-weight: 700;
   cursor: pointer;
 }
@@ -124,14 +126,14 @@
   margin-top: 10px;
   padding: 16px;
   border: 2px dashed var(--color-border);
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
 
 .formLabel {
-  font-size: 14px;
+  font-size: var(--text-md);
   font-weight: 800;
 }
 
@@ -144,13 +146,8 @@
   background: var(--color-surface);
   color: var(--color-text);
   font: inherit;
-  font-size: 15px;
+  font-size: var(--text-md);
   font-weight: 600;
-}
-
-.input:focus-visible {
-  outline: none;
-  border: 2px solid var(--color-accent);
 }
 
 .input[aria-invalid='true'] {
@@ -169,7 +166,7 @@
   height: 34px;
   margin: 5px;
   border: 0;
-  border-radius: 17px;
+  border-radius: var(--radius-pill);
   cursor: pointer;
 }
 
@@ -184,11 +181,11 @@
   min-height: 44px;
   padding: 0 20px;
   border: 0;
-  border-radius: 22px;
+  border-radius: var(--radius-pill);
   background: var(--color-accent);
   color: var(--color-on-accent);
   font: inherit;
-  font-size: 14px;
+  font-size: var(--text-md);
   font-weight: 800;
   cursor: pointer;
 }
@@ -214,9 +211,9 @@
   gap: 8px;
   min-height: 36px;
   padding: 0 6px 0 14px;
-  border-radius: 18px;
+  border-radius: var(--radius-pill);
   background: var(--color-ground);
-  font-size: 13.5px;
+  font-size: var(--text-sm);
   font-weight: 700;
 }
 
@@ -230,9 +227,9 @@
   width: 32px;
   height: 32px;
   border: 0;
-  border-radius: 16px;
+  border-radius: var(--radius-pill);
   background: var(--color-surface);
-  font-size: 12px;
+  font-size: var(--text-xs);
   cursor: pointer;
 }
 
@@ -250,11 +247,11 @@
   min-height: 32px;
   padding: 0 12px;
   border: 0;
-  border-radius: 16px;
+  border-radius: var(--radius-pill);
   background: var(--color-danger-soft);
   color: var(--color-danger-text);
   font: inherit;
-  font-size: 12.5px;
+  font-size: var(--text-xs);
   font-weight: 800;
   cursor: pointer;
 }
@@ -262,7 +259,7 @@
 .tagError {
   flex-basis: 100%;
   padding-bottom: 4px;
-  font-size: 12.5px;
+  font-size: var(--text-xs);
   font-weight: 600;
   color: var(--color-danger);
 }

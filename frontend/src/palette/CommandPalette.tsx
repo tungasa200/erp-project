@@ -269,7 +269,11 @@ export function CommandPalette({ onClose, onQuickAdd, timer }: Props) {
               placeholder="명령, 화면 이름, 업무를 찾아보세요"
               className={styles.input}
             />
-            <kbd className={styles.kbd}>Esc</kbd>
+            <kbd className={`${styles.kbd} ${styles.escHint}`}>Esc</kbd>
+            {/* 휴대폰 폭에는 Esc 키가 없어 닫기 버튼을 보인다(COM-31) */}
+            <button type="button" className={styles.close} aria-label="닫기" onClick={onClose}>
+              ×
+            </button>
           </div>
           <Command.List className={styles.list}>
             {exactTask && (

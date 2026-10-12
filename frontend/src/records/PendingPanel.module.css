@@ -29,7 +29,7 @@
 
 .title {
   margin: 0;
-  font-size: 22px;
+  font-size: var(--text-2xl);
   font-weight: 800;
   letter-spacing: -0.4px;
 }
@@ -45,16 +45,16 @@
   width: var(--size-touch);
   height: var(--size-touch);
   border: 0;
-  border-radius: 22px;
+  border-radius: var(--radius-pill);
   background: var(--color-ground);
   color: var(--color-text-body);
-  font-size: 20px;
+  font-size: var(--text-xl);
   cursor: pointer;
 }
 
 .lead {
   margin: 8px 0 16px;
-  font-size: 14px;
+  font-size: var(--text-md);
   color: var(--color-text-muted);
 }
 
@@ -73,7 +73,7 @@
 
 .day {
   margin: 0 0 8px;
-  font-size: 13px;
+  font-size: var(--text-sm);
   font-weight: 700;
   color: var(--color-text-muted);
 }
@@ -94,7 +94,7 @@
   gap: 10px 12px;
   padding: 12px 14px;
   border: 1px solid var(--status-pending-card-border);
-  border-radius: 16px;
+  border-radius: var(--radius-input);
   background: var(--status-pending-card-bg);
   color: var(--status-pending-text);
 }
@@ -117,7 +117,7 @@
   display: flex;
   flex-direction: column;
   margin-top: 2px;
-  font-size: 13px;
+  font-size: var(--text-sm);
   font-variant-numeric: tabular-nums;
 }
 
@@ -140,9 +140,9 @@
 .retry {
   min-height: var(--size-touch);
   padding: 0 14px;
-  border-radius: 12px;
+  border-radius: var(--radius-input);
   font: inherit;
-  font-size: 14px;
+  font-size: var(--text-md);
   font-weight: 700;
   cursor: pointer;
 }
@@ -183,9 +183,11 @@
   color: var(--color-on-accent);
 }
 
-.primary:not(:disabled):hover,
-.yes:not(:disabled):hover {
-  background: var(--color-accent-ink);
+@media (hover: hover) and (pointer: fine) {
+  .primary:not(:disabled):hover,
+  .yes:not(:disabled):hover {
+    background: var(--color-accent-ink);
+  }
 }
 
 .error {
@@ -204,7 +206,7 @@
 
 .muted {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--text-sm);
   color: var(--color-text-muted);
 }
 

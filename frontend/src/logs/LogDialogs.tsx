@@ -1,5 +1,5 @@
 // SCR-LOG-02 다시 채우기 확인창, SCR-LOG-04 ① 확정 해제 확인창·② 변경 이력 (UX-03 확인창 예외).
-// 확인창은 [취소]가 먼저 오고 처음 포커스도 [취소]다(되돌릴 수 없는 동작).
+// 확인창은 [취소]가 먼저 오고 처음 포커스도 [취소]다. 확인 버튼은 되돌릴 수 있는 동작이라 위험색 대신 중립 채움(X-03, LOG-47).
 import { useQuery } from '@tanstack/react-query'
 import { useId, useLayoutEffect, useRef, useState } from 'react'
 import { Modal } from '../calendar/Modal'
@@ -33,7 +33,7 @@ export function ConfirmDialog({ title, body, action, busy, onCancel, onConfirm }
         <button type="button" className={cal.secondary} onClick={onCancel}>
           취소
         </button>
-        <button type="button" className={styles.dangerFill} disabled={busy} onClick={onConfirm}>
+        <button type="button" className={styles.neutralFill} disabled={busy} onClick={onConfirm}>
           {action}
         </button>
       </div>

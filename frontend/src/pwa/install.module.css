@@ -14,9 +14,9 @@
     z-index: 21;
     display: block;
     padding: 18px;
-    border-radius: 24px;
+    border-radius: var(--radius-card);
     background: var(--color-surface);
-    box-shadow: 0 18px 44px rgba(26, 28, 43, 0.25);
+    box-shadow: var(--shadow-3);
   }
 
   .ios {
@@ -42,13 +42,13 @@
   flex: none;
   width: 48px;
   height: 48px;
-  border-radius: 14px;
+  border-radius: var(--radius-input);
   display: flex;
   align-items: center;
   justify-content: center;
   background: var(--color-brand); /* 앱 아이콘 색 그대로(테마 키 컬러를 따르지 않음) */
   color: var(--color-on-accent);
-  font-size: 17px;
+  font-size: var(--text-xl);
   font-weight: 900;
 }
 
@@ -60,17 +60,17 @@
 .title {
   margin: 0;
   overflow-wrap: anywhere;
-  font-size: 16px;
+  font-size: var(--text-lg);
   font-weight: 800;
 }
 
 .titleIos {
-  font-size: 17px;
+  font-size: var(--text-xl);
 }
 
 .description {
   margin: 2px 0 0;
-  font-size: 13px;
+  font-size: var(--text-sm);
   color: var(--color-text-muted);
 }
 
@@ -79,11 +79,11 @@
   height: var(--size-touch);
   padding: 0 18px;
   border: 0;
-  border-radius: 22px;
+  border-radius: var(--radius-pill);
   background: var(--color-accent);
   color: var(--color-on-accent);
   font: inherit;
-  font-size: 14px;
+  font-size: var(--text-md);
   font-weight: 800;
   cursor: pointer;
 }
@@ -124,9 +124,9 @@
   align-items: center;
   gap: 10px;
   padding: 12px;
-  border-radius: 14px;
+  border-radius: var(--radius-input);
   background: var(--color-surface-sunken);
-  font-size: 14.5px;
+  font-size: var(--text-md);
   font-weight: 600;
 }
 
@@ -141,7 +141,7 @@
   justify-content: center;
   background: var(--color-brand-soft);
   color: var(--color-brand-ink);
-  font-size: 13px;
+  font-size: var(--text-sm);
   font-weight: 800;
 }
 
@@ -169,7 +169,7 @@
 
   .title,
   .titleIos {
-    font-size: 15px;
+    font-size: var(--text-md);
   }
 
   .description {
@@ -183,7 +183,7 @@
 
   .step {
     padding: 8px 10px;
-    font-size: 13.5px;
+    font-size: var(--text-sm);
   }
 
   .step::before {

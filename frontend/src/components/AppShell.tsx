@@ -170,6 +170,10 @@ export function AppShell() {
 
   return (
     <div className={styles.shell}>
+      {/* 키보드로 메뉴를 건너뛰고 본문으로(COM-18). 포커스를 받을 때만 보인다 */}
+      <a href="#main" className={styles.skip}>
+        본문으로 건너뛰기
+      </a>
       <nav className={styles.sidebar} aria-label="주 메뉴" data-app-sidebar>
         <div className={styles.brand}>
           <span className={styles.logo} aria-hidden="true">
@@ -210,7 +214,7 @@ export function AppShell() {
         <UnverifiedBanner />
         {/* 끊긴 동안에는 화면마다 저장·편집 영역만 막는다(SCR-SYS-02 ③, 오프라인 기록은 범위 밖). 이동·열람은 된다 */}
         {/* 앱 화면의 본문 랜드마크. 페이지 컴포넌트는 <main>을 따로 두지 않는다(오류·404·점검·인증 화면은 셸 밖이라 각자 둔다) */}
-        <main className={styles.main}>
+        <main id="main" tabIndex={-1} className={styles.main}>
           {/* 업무 완료 결과 입력(SCR-TASK-03)은 목록·홈·상세 어디서 완료해도 같은 팝오버를 띄운다 */}
           <CompletionResultHost>
             <Outlet />

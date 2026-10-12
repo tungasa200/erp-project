@@ -79,7 +79,7 @@ function GeneralForm({ user, save, workHours }: { user: Me; save: Save; workHour
   const workDays = useInstantSave(user.workDays, (v) => ({ workDays: v }), save)
   const shortcuts = useInstantSave(user.keyboardShortcutsEnabled, (v) => ({ keyboardShortcutsEnabled: v }), save)
   const [noDayError, setNoDayError] = useState(false)
-  // 시간대 안내는 바꿨을 때 그 행 아래에 보여 주고 화면을 떠날 때까지 둔다 (erp-design)
+  // 시간대 안내는 바꿨을 때 그 행 아래에 보여 주고 화면을 떠날 때까지 둔다 (WY-design)
   const [tzChanged, setTzChanged] = useState(false)
 
   const toggleDay = (bit: number) => {

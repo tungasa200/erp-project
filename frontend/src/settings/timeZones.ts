@@ -1,4 +1,4 @@
-// 시간대 목록 (SCR-SET-02 ①, erp-design 기준). 저장 값은 IANA 이름이고, 보여 줄 때만 "Asia/Seoul (UTC+09:00)"로 쓴다.
+// 시간대 목록 (SCR-SET-02 ①, WY-design 기준). 저장 값은 IANA 이름이고, 보여 줄 때만 "Asia/Seoul (UTC+09:00)"로 쓴다.
 // Intl.supportedValuesOf('timeZone')은 ICU 때문에 옛 이름(Asia/Calcutta 등)을 주므로 tzdb backward 별칭을 정식 이름으로 바꾼다.
 
 // tzdb backward 파일 중 지역/도시 형식으로 남는 별칭 → 정식 이름

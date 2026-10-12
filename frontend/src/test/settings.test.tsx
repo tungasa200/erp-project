@@ -217,7 +217,7 @@ describe('SCR-SET-02 일반', () => {
     const toggle = await screen.findByRole('switch', { name: '키보드 단축키 사용' })
     expect(toggle).toHaveAttribute('aria-checked', 'true')
 
-    // 행 제목을 눌러도 켜고 끈다(누르는 영역 넓히기, erp-design)
+    // 행 제목을 눌러도 켜고 끈다(누르는 영역 넓히기, WY-design)
     expect(screen.getByText('키보드 단축키').tagName).toBe('LABEL')
 
     await userEvent.click(toggle)

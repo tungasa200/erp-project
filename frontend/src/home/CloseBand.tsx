@@ -2,7 +2,7 @@
 // 하루 마감 시각(SCR-SET-02 ⑤, 기본 18:00)이 지나면 머리 아래에 띠를 올린다. [하루 마감]이 이 화면의 유일한 채움이다.
 // 닫기는 없다. 확정하면 "오늘 일지를 확정했어요" 한 줄로 바뀐다. 비근무일은 그날 기록이 있을 때만(D-107).
 import { Link } from 'react-router'
-import { formatMinutes, toZoned } from '../calendar/time'
+import { formatMinutes, toZoned } from '../format/datetime'
 import { logHref, useLog } from '../logs/api'
 import { openDayClose } from '../logs/openDayClose'
 import type { CloseBandState } from './closeBandState'

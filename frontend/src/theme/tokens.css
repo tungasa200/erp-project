@@ -36,6 +36,8 @@
   --color-danger: #a02613;
   --color-danger-soft: #fde2dd;
   --color-danger-text: #7a1c0e;
+  /* 공휴일 글자. 값은 위험색과 같지만 뜻이 달라 따로 둔다(X-03: 위험색은 되돌릴 수 없는 동작·기한 초과에만) */
+  --color-holiday: #a02613;
   --color-warning-soft: #fff0c7;
   --color-warning-text: #6b4500;
   --color-success-text: #0a5c4e;
@@ -77,7 +79,7 @@
   --status-skipped-bg: #eceef4;
   --status-skipped-text: #8a8fa3;
 
-  /* 프로젝트 전용 팔레트 P1~P8 (테마와 무관). base: 색 점·확정 블록 채움, tint/ink: 칩·배지 배경/글자 (erp-design 확정) */
+  /* 프로젝트 전용 팔레트 P1~P8 (테마와 무관). base: 색 점·확정 블록 채움, tint/ink: 칩·배지 배경/글자 (WY-design 확정) */
   --project-p1: #2d5bd8; /* 파랑 */
   --project-p1-tint: #e5ecfc;
   --project-p1-ink: #1e3f9e;

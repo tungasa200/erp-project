@@ -2,7 +2,7 @@
 
 .lead {
   margin: -6px 0 0;
-  font-size: 14px;
+  font-size: var(--text-md);
   color: var(--color-text-muted);
 }
 
@@ -25,7 +25,7 @@
 .legend {
   padding: 0;
   margin-bottom: 8px;
-  font-size: 13px;
+  font-size: var(--text-sm);
   font-weight: 700;
   color: var(--color-text-body);
 }
@@ -44,7 +44,7 @@
   min-height: var(--size-touch);
   padding: 10px 12px;
   box-sizing: border-box;
-  border-radius: 14px;
+  border-radius: var(--radius-input);
   border: 2px solid transparent;
   background: var(--color-ground);
   cursor: pointer;
@@ -74,14 +74,14 @@
 }
 
 .optionName {
-  font-size: 15px;
+  font-size: var(--text-md);
   font-weight: 700;
   color: var(--color-text);
 }
 
 .optionHint {
   grid-column: 2;
-  font-size: 12.5px;
+  font-size: var(--text-xs);
   color: var(--color-text-muted);
 }
 
@@ -94,10 +94,10 @@
 .warning {
   margin: 0;
   padding: 10px 14px;
-  border-radius: 12px;
+  border-radius: var(--radius-input);
   background: var(--color-warning-soft);
   color: var(--color-warning-text);
-  font-size: 14px;
+  font-size: var(--text-md);
   font-weight: 700;
 }
 
@@ -106,13 +106,13 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  font-size: 13px;
+  font-size: var(--text-sm);
   font-weight: 700;
   color: var(--color-text-body);
 }
 
 .fileName output {
-  font-size: 14px;
+  font-size: var(--text-md);
   font-weight: 600;
   color: var(--color-text);
   overflow-wrap: anywhere;
@@ -120,7 +120,7 @@
 
 .error {
   margin: 0;
-  font-size: 13.5px;
+  font-size: var(--text-sm);
   font-weight: 700;
   color: var(--color-danger-text);
 }
@@ -128,7 +128,7 @@
 .progress {
   flex: 1;
   margin: 0;
-  font-size: 13.5px;
+  font-size: var(--text-sm);
   color: var(--color-text-muted);
 }
 

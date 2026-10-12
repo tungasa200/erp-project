@@ -3,7 +3,7 @@
 // ② 문서(LogPaper) ④ 데스크톱 오른쪽: 이 기간 원본 기록 — "실적에 넣기"(끌기 대신 버튼, 키보드로도 같은 일)
 // 내보내기(SCR-LOG-05, P3-10)는 고친 내용을 먼저 저장하고 연다. 고칠 수 있는 일지에 처음 들어오면 프로필 빈 칸을 묻는다(SCR-ONB-01).
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Link, useBlocker, useParams } from 'react-router'
 import { useAuth } from '../auth/useAuth'
 import { addMonths } from '../calendar/time'
@@ -57,10 +57,19 @@ function LogView({ type, start }: { type: LogType; start: string }) {
   const { showToast } = useToast()
   const query = useLog(type, start)
   const log = query.data
+  // 이 기간 원본 기록(④)을 일지와 함께 받는다. 기간 끝은 경로로 계산해 일지 응답을 기다리지 않는다(LOG-69)
+  const guessEnd = type === 'DAILY' ? start : type === 'WEEKLY' ? addDays(start, 6) : addDays(addMonths(start, 1), -1)
+  useEffect(() => {
+    void queryClient.prefetchQuery({
+      queryKey: sourceRecordsKey(start, guessEnd),
+      queryFn: () => logApi.records(start, guessEnd),
+    })
+  }, [queryClient, start, guessEnd])
   const projects = useProjects()
   const [announce, setAnnounce] = useState('')
   const [dialog, setDialog] = useState<'refill' | 'unconfirm' | 'reconfirm' | 'revisions' | 'export' | null>(null)
   const [busy, setBusy] = useState(false)
+  const [tipHidden, setTipHidden] = useState(false)
   const headingRef = useRef<HTMLHeadingElement>(null)
   const online = useOnline()
   // 줄 버튼에 포커스가 있을 때 오프라인이 되면 버튼이 꺼져 포커스가 빠진다. 마지막 포커스를 기억해 칸으로 옮긴다
@@ -172,7 +181,21 @@ function LogView({ type, start }: { type: LogType; start: string }) {
           <div className={styles.barTools}>
             <span className={`${styles.badge} ${styles[`badge${log.status}`]}`}>{STATUS_LABEL[log.status]}</span>
             {log.status === 'DRAFT' && (
-              <span className={styles.pill} tabIndex={0} aria-describedby="log-pill-tip">
+              // 말풍선은 Esc로 닫고, 포커스·포인터가 떠나면 다시 뜰 수 있다(LOG-102, WCAG 1.4.13)
+              <span
+                className={styles.pill}
+                tabIndex={0}
+                aria-describedby="log-pill-tip"
+                data-tip-hidden={tipHidden || undefined}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape' && !tipHidden) {
+                    e.stopPropagation()
+                    setTipHidden(true)
+                  }
+                }}
+                onBlur={() => setTipHidden(false)}
+                onMouseLeave={() => setTipHidden(false)}
+              >
                 {pinned ? '실적 고정' : '실적 자동'}
                 <span id="log-pill-tip" role="tooltip" className={styles.tip}>
                   {pinned
@@ -327,7 +350,10 @@ function LogView({ type, start }: { type: LogType; start: string }) {
           busy={busy}
           onCancel={() => setDialog(null)}
           onConfirm={() =>
-            void run((l) => logApi.unconfirm(l.id!, l.version), '확정을 해제했어요. 초안으로 고칠 수 있어요')
+            void run(
+              (l) => logApi.unconfirm(l.id!, l.version),
+              '확정을 해제했어요. 일지는 초안으로 돌아가고 내보낸 파일은 그대로예요',
+            )
           }
         />
       )}
@@ -432,6 +458,8 @@ async function copyEdits(
   }
 }
 
+const sourceRecordsKey = (from: string, to: string) => ['records', 'range', from, to, 'CONFIRMED']
+
 /** ④ 이 기간 원본 기록(확정). 이미 실적에 들어간 기록은 표시만 */
 function SourceRecords(props: {
   from: string
@@ -443,7 +471,7 @@ function SourceRecords(props: {
   projectName: (id: string | null) => string | null
 }) {
   const records = useQuery({
-    queryKey: ['records', 'range', props.from, props.to, 'CONFIRMED'],
+    queryKey: sourceRecordsKey(props.from, props.to),
     queryFn: () => logApi.records(props.from, props.to),
     select: (d) => d.items,
   })

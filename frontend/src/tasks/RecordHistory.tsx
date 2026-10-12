@@ -5,7 +5,8 @@ import { useEffect, useId, useRef, useState } from 'react'
 import { api } from '../api'
 import type { components } from '../api/generated/worklog'
 import { useAuth } from '../auth/useAuth'
-import { addDays, formatMinutes, toZoned, todayIn } from '../calendar/time'
+import { addDays } from '../calendar/time'
+import { formatMinutes, toZoned, todayIn } from '../format/datetime'
 import { Skeleton } from '../components/Skeleton'
 import { durationText } from '../home/gaps'
 import { shortDate } from '../quickInput/dates'
@@ -132,7 +133,7 @@ function timeText(r: WorkRecord, timeZone: string) {
     const s = toZoned(r.startAt, timeZone)
     if (!r.endAt) return `${formatMinutes(s.minutes)}~ 진행 중`
     const e = toZoned(r.endAt, timeZone)
-    return `${formatMinutes(s.minutes)}–${e.date !== s.date ? '다음 날 ' : ''}${formatMinutes(e.minutes)}`
+    return `${formatMinutes(s.minutes)} – ${e.date !== s.date ? '다음 날 ' : ''}${formatMinutes(e.minutes)}`
   }
   return r.durationMin ? durationText(r.durationMin) : null
 }

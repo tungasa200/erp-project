@@ -21,13 +21,13 @@
 
 .groupTitle {
   margin: 0;
-  font-size: 17px;
+  font-size: var(--text-xl);
   font-weight: 800;
 }
 
 .groupLead {
   margin: 4px 0 14px;
-  font-size: 13px;
+  font-size: var(--text-sm);
   color: var(--color-text-muted);
 }
 
@@ -42,7 +42,7 @@
   min-height: var(--size-touch);
   padding: 4px 0;
   border: 0;
-  border-radius: 14px;
+  border-radius: var(--radius-input);
   background: transparent;
   display: flex;
   flex-direction: column;
@@ -50,7 +50,7 @@
   gap: 6px;
   color: var(--color-text-strong);
   font: inherit;
-  font-size: 12.5px;
+  font-size: var(--text-xs);
   font-weight: 600;
   cursor: pointer;
 }
@@ -63,11 +63,11 @@
 .dot {
   width: 44px;
   height: 44px;
-  border-radius: 22px;
+  border-radius: var(--radius-pill);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px;
+  font-size: var(--text-xl);
   font-weight: 800;
 }
 
@@ -82,7 +82,7 @@
 }
 
 .customLabel {
-  font-size: 14px;
+  font-size: var(--text-md);
   font-weight: 700;
 }
 
@@ -96,7 +96,7 @@
 }
 
 .hex {
-  font-size: 13px;
+  font-size: var(--text-sm);
   color: var(--color-text-muted);
   font-variant-numeric: tabular-nums;
 }
@@ -108,7 +108,7 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 4px 8px;
-  font-size: 13px;
+  font-size: var(--text-sm);
   color: var(--color-text-body);
 }
 
@@ -116,7 +116,7 @@
   min-height: var(--size-touch);
   padding: 0 12px;
   border: 1px solid var(--color-border);
-  border-radius: 12px;
+  border-radius: var(--radius-input);
   background: var(--color-surface);
   color: var(--color-text);
   display: inline-flex;
@@ -131,16 +131,16 @@
 .suggestDot {
   width: 18px;
   height: 18px;
-  border-radius: 9px;
+  border-radius: var(--radius-pill);
 }
 
 .flipNote {
   margin: 12px 0 0;
   padding: 8px 12px;
-  border-radius: 12px;
+  border-radius: var(--radius-input);
   background: var(--color-warning-soft);
   color: var(--color-warning-text);
-  font-size: 12.5px;
+  font-size: var(--text-xs);
 }
 
 /* ② 배경 */
@@ -154,11 +154,11 @@
 .ground {
   padding: 8px;
   border: 2px solid var(--color-divider);
-  border-radius: 16px;
+  border-radius: var(--radius-input);
   background: var(--color-surface);
   color: var(--color-text);
   font: inherit;
-  font-size: 12.5px;
+  font-size: var(--text-xs);
   font-weight: 700;
   text-align: left;
   cursor: pointer;
@@ -179,7 +179,7 @@
   height: 48px;
   margin-bottom: 8px;
   border: 1px solid var(--color-divider);
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   box-sizing: border-box;
 }
 
@@ -211,9 +211,9 @@
 .save {
   min-height: 46px;
   border: 0;
-  border-radius: 23px;
+  border-radius: var(--radius-pill);
   font: inherit;
-  font-size: 14px;
+  font-size: var(--text-md);
   cursor: pointer;
 }
 
@@ -253,7 +253,7 @@
 
 .status {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--text-sm);
   color: var(--color-text-muted);
   text-align: right;
 }
@@ -266,7 +266,7 @@
 
 .previewTitle {
   margin: 0 0 10px;
-  font-size: 14px;
+  font-size: var(--text-md);
   font-weight: 700;
   color: var(--color-text-muted);
 }
@@ -277,7 +277,7 @@
   gap: 14px;
   padding: 18px;
   border: 1px solid var(--color-divider);
-  border-radius: 24px;
+  border-radius: var(--radius-card);
   background: var(--pv-ground);
   color: var(--color-text);
 }
@@ -296,13 +296,13 @@
   display: flex;
   align-items: center;
   padding: 0 12px;
-  font-size: 12.5px;
+  font-size: var(--text-xs);
   font-weight: 600;
   color: var(--color-text-strong);
 }
 
 .pvNavActive {
-  border-radius: 17px;
+  border-radius: var(--radius-card);
   background: var(--pv-accent);
   color: var(--pv-on);
   font-weight: 700;
@@ -317,7 +317,7 @@
 }
 
 .pvGreeting {
-  font-size: 17px;
+  font-size: var(--text-xl);
   font-weight: 800;
 }
 
@@ -330,7 +330,7 @@
 .pvStat,
 .pvStatAccent {
   padding: 12px;
-  border-radius: 16px;
+  border-radius: var(--radius-input);
   background: var(--color-surface);
 }
 
@@ -340,12 +340,12 @@
 }
 
 .pvStatLabel {
-  font-size: 12px;
+  font-size: var(--text-xs);
   font-weight: 600;
 }
 
 .pvStatValue {
-  font-size: 24px;
+  font-size: var(--text-2xl);
   font-weight: 800;
 }
 
@@ -354,15 +354,15 @@
   flex-direction: column;
   gap: 7px;
   padding: 12px;
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   background: var(--color-surface);
 }
 
 /* 기록 상태 색은 테마와 상관없이 고정(화면정의서 2.2) */
 .pvBlock {
   padding: 7px 10px;
-  border-radius: 11px;
-  font-size: 12px;
+  border-radius: var(--radius-input);
+  font-size: var(--text-xs);
   font-weight: 700;
 }
 
@@ -388,10 +388,10 @@
   align-items: center;
   gap: 10px;
   padding: 12px;
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   background: var(--color-banner);
   color: var(--color-on-banner);
-  font-size: 12.5px;
+  font-size: var(--text-xs);
   font-weight: 800;
 }
 
@@ -403,15 +403,15 @@
   height: 32px;
   line-height: 32px;
   padding: 0 12px;
-  border-radius: 16px;
+  border-radius: var(--radius-pill);
   background: var(--pv-light);
   color: var(--color-text);
-  font-size: 12px;
+  font-size: var(--text-xs);
 }
 
 .previewNote {
   margin: 10px 4px 0;
-  font-size: 12.5px;
+  font-size: var(--text-xs);
   color: var(--color-text-muted);
 }
 
@@ -445,7 +445,7 @@
 
   .preview {
     padding: 12px;
-    border-radius: 20px;
+    border-radius: var(--radius-card);
   }
 
   .pvNav,
@@ -499,7 +499,7 @@
   .save {
     flex: 1;
     min-height: 48px;
-    font-size: 15px;
+    font-size: var(--text-md);
   }
 
   .reset {

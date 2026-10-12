@@ -101,6 +101,12 @@ describe('일지 상세 (SCR-LOG-02)', () => {
 
     const pill = await screen.findByText('실적 자동')
     expect(pill).toHaveAccessibleDescription(/원본이 바뀌면 함께 바뀌어요/)
+    // 말풍선은 Esc로 닫히고(LOG-102), 포커스가 떠나면 다시 뜰 수 있다
+    pill.focus()
+    await user.keyboard('{Escape}')
+    expect(pill).toHaveAttribute('data-tip-hidden')
+    await user.tab()
+    expect(pill).not.toHaveAttribute('data-tip-hidden')
     expect(screen.queryByRole('button', { name: '원본에서 다시 채우기' })).not.toBeInTheDocument()
 
     const result = screen.getByRole('textbox', { name: '1번 결과' })
@@ -183,7 +189,9 @@ describe('일지 상세 (SCR-LOG-02)', () => {
       '확정본 내용이 그대로 초안이 되고, 원본 기록을 다시 반영하려면 ‘원본에서 다시 채우기’를 쓰세요.',
     )
     await user.click(within(dialog).getByRole('button', { name: '확정 해제' }))
-    expect(await screen.findByText('확정을 해제했어요. 초안으로 고칠 수 있어요')).toBeInTheDocument()
+    expect(
+      await screen.findByText('확정을 해제했어요. 일지는 초안으로 돌아가고 내보낸 파일은 그대로예요'),
+    ).toBeInTheDocument()
     expect(screen.getByText('실적 고정')).toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: '1번 결과' })).toBeInTheDocument()
   })

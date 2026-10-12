@@ -19,10 +19,13 @@ interface HomeState {
   focusQuick?: boolean
 }
 
+/** 사용자 시간대의 시각으로 인사. 새벽(0~4시)에 "아침"이라 하지 않는다(HOME-08) */
 function greeting(hour: number): string {
+  if (hour < 5) return '늦은 시간이에요'
   if (hour < 12) return '좋은 아침이에요'
   if (hour < 18) return '좋은 오후예요'
-  return '좋은 저녁이에요'
+  if (hour < 22) return '좋은 저녁이에요'
+  return '늦은 시간이에요'
 }
 
 export function HomePage() {

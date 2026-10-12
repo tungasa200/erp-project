@@ -3,7 +3,7 @@ import { api } from '../api'
 import type { components } from '../api/generated/identity'
 import { ApiError } from '../api/problem'
 import type { Me } from '../api/types'
-import { formatMinutes, toZoned } from '../calendar/time'
+import { formatMinutes, toZoned } from '../format/datetime'
 
 type Schemas = components['schemas']
 /** 코드를 새로 발급했을 때의 시각 (UTC ISO) */

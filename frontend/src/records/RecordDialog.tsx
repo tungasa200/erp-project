@@ -15,7 +15,8 @@ import { ApiError } from '../api/problem'
 import { useAuth } from '../auth/useAuth'
 import { Modal } from '../calendar/Modal'
 import { TaskLinkField } from '../calendar/TaskLinkField'
-import { MINUTES_PER_DAY, addDays, formatMinutes, fromZoned, toZoned } from '../calendar/time'
+import { MINUTES_PER_DAY, addDays, fromZoned } from '../calendar/time'
+import { formatMinutes, timeRange, toZoned } from '../format/datetime'
 import calendar from '../calendar/calendar.module.css'
 import { Skeleton } from '../components/Skeleton'
 import { useOnline } from '../components/useOnline'
@@ -556,8 +557,7 @@ export function RecordDialog({ recordId, defaults, planned, capped, onClose }: P
                 {clash && !errors.time && (
                   <p className={styles.warning} role="status">
                     다른 기록과 시간이 겹쳐요: {clip(clash.content)} (
-                    {formatMinutes(toZoned(clash.startAt!, timeZone).minutes)}~
-                    {formatMinutes(toZoned(clash.endAt!, timeZone).minutes)}). 그래도 저장할 수 있어요
+                    {timeRange(clash.startAt!, clash.endAt!, timeZone)}). 그래도 저장할 수 있어요
                   </p>
                 )}
               </fieldset>

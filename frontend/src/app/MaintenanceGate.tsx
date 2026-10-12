@@ -29,7 +29,10 @@ export function MaintenanceGate({ router, children }: { router: LocationSource; 
   }, [])
 
   return maintenance && !isPublicPath(pathname, Boolean(user)) ? (
-    <MaintenancePage retryAt={maintenance.retryAt} />
+    <MaintenancePage
+      retryAt={maintenance.retryAt}
+      timeZone={user?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone}
+    />
   ) : (
     children
   )
