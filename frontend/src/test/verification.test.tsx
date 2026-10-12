@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../api/problem'
@@ -172,11 +172,12 @@ describe('SCR-AUTH-04·05 비밀번호 찾기·재설정', () => {
 })
 
 // 미인증 배너(SCR-COM-07)는 업무일지 숨김(2026-10-12, 문안 표 4-12)으로 앱에서 뺐다. 인증 창은 설정 › 계정의 [인증하기]로 연다
-describe('SCR-COM-07 미인증 배너 숨김 · SCR-AUTH-08 이메일 인증', () => {
-  function setup(options: { verified?: boolean; path?: string } = {}) {
+describe('이메일 인증 필수 (사용자 지시 2026-10-13)', () => {
+  function setup(options: { verified?: boolean; path?: string; signedIn?: boolean } = {}) {
     let me = { ...ME, emailVerified: options.verified ?? false }
+    let signedIn = options.signedIn ?? true
     const fetchMock = stubFetch({
-      'GET /api/users/me': () => json(200, me),
+      'GET /api/users/me': () => (signedIn ? json(200, me) : problem(401, 'UNAUTHENTICATED')),
       'GET /api/users/me/email-verification': () =>
         json(200, { verified: me.emailVerified, expiresAt: later(420), attemptsRemaining: 5, resendAvailableAt: null }),
       'POST /api/users/me/email-verification': () => json(202, issued()),
@@ -185,58 +186,80 @@ describe('SCR-COM-07 미인증 배너 숨김 · SCR-AUTH-08 이메일 인증', (
         me = { ...me, emailVerified: true, version: me.version + 1 }
         return json(200, me)
       },
+      'POST /api/auth/logout': () => {
+        signedIn = false
+        return new Response(null, { status: 204 })
+      },
     })
-    renderApp(options.path ?? '/settings/account')
-    return { fetchMock }
+    const { router } = renderApp(options.path ?? '/calendar')
+    return { fetchMock, router }
   }
 
-  it('미인증이어도 홈·설정 어디에도 배너가 없다', async () => {
-    setup({ path: '/' })
-    await screen.findByRole('textbox', { name: '빠른 기록' })
-    expect(screen.queryByRole('region', { name: '이메일 인증 안내' })).not.toBeInTheDocument()
+  it('인증하지 않았으면 어떤 앱 화면이든 인증 화면으로 가고, 코드 칸에 포커스가 간다', async () => {
+    const { router } = setup({ path: '/settings/account' })
+    expect(await screen.findByRole('heading', { level: 1, name: '이메일 인증' })).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe('/verify-email')
+    expect(screen.queryByRole('navigation', { name: '주 메뉴' })).not.toBeInTheDocument()
+    expect(await screen.findByText(/남은 시간 0[67]:\d\d/)).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByRole('textbox', { name: '인증번호' })).toHaveFocus())
   })
 
-  it('인증하기 → 코드를 맞히면 모달이 닫히고 토스트로 알린다', async () => {
-    setup()
-    await userEvent.click(await screen.findByRole('button', { name: '인증하기' }))
-    const dialog = await screen.findByRole('dialog', { name: '이메일 인증' })
-    expect(within(dialog).getByText(/남은 시간 0[67]:\d\d/)).toBeInTheDocument()
-    // 열면 포커스가 모달 안 코드 칸으로 (SCR-AUTH-08)
-    await waitFor(() => expect(within(dialog).getByRole('textbox', { name: '인증번호' })).toHaveFocus())
-    expect(within(dialog).getByRole('button', { name: '다시 받기' })).toBeEnabled()
-
-    const code = within(dialog).getByRole('textbox', { name: '인증번호' })
+  it('틀린 코드는 남은 시도를 알리고, 맞히면 토스트와 함께 홈으로 간다', async () => {
+    const { router } = setup({ path: '/' })
+    const code = await screen.findByRole('textbox', { name: '인증번호' })
     await userEvent.type(code, '000000')
-    expect(await within(dialog).findByText('코드가 맞지 않아요(남은 시도 4회)')).toBeInTheDocument()
-
+    expect(await screen.findByText('코드가 맞지 않아요(남은 시도 4회)')).toBeInTheDocument()
     await userEvent.type(code, '123456')
     expect(await screen.findByText('이메일 인증을 마쳤어요')).toBeInTheDocument()
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-  })
-
-  it('Esc로 모달을 닫으면 인증하기 버튼으로 포커스가 돌아온다', async () => {
-    setup()
-    const open = await screen.findByRole('button', { name: '인증하기' })
-    await userEvent.click(open)
-    await screen.findByRole('dialog', { name: '이메일 인증' })
-    await userEvent.keyboard('{Escape}')
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    expect(open).toHaveFocus()
+    await waitFor(() => expect(router.state.location.pathname).toBe('/'))
+    expect(await screen.findByRole('navigation', { name: '주 메뉴' })).toBeInTheDocument()
   })
 
   it('다시 받기를 누르면 새 코드를 받고 쿨다운을 보여 준다', async () => {
     const { fetchMock } = setup()
-    await userEvent.click(await screen.findByRole('button', { name: '인증하기' }))
-    const dialog = await screen.findByRole('dialog', { name: '이메일 인증' })
-    await userEvent.click(within(dialog).getByRole('button', { name: '다시 받기' }))
-    expect(await within(dialog).findByText('새 코드를 보냈어요')).toBeInTheDocument()
-    expect(within(dialog).getByRole('button', { name: /다시 받기 · \d+초/ })).toBeDisabled()
-    // 누른 버튼이 잠겨도 포커스는 코드 칸으로
-    await waitFor(() => expect(within(dialog).getByRole('textbox', { name: '인증번호' })).toHaveFocus())
+    await screen.findByRole('textbox', { name: '인증번호' })
+    await userEvent.click(screen.getByRole('button', { name: '다시 받기' }))
+    expect(await screen.findByText('새 코드를 보냈어요')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /다시 받기 · \d+초/ })).toBeDisabled()
+    await waitFor(() => expect(screen.getByRole('textbox', { name: '인증번호' })).toHaveFocus())
     expect(
       fetchMock.mock.calls.filter(
         ([url, init]) => url === '/api/users/me/email-verification' && init?.method === 'POST',
       ),
     ).toHaveLength(1)
+  })
+
+  it('다른 이메일로 가입했으면 로그아웃해 로그인 화면으로 빠져나갈 수 있다', async () => {
+    const { router } = setup()
+    await screen.findByRole('textbox', { name: '인증번호' })
+    await userEvent.click(screen.getByRole('button', { name: '로그아웃' }))
+    expect(await screen.findByRole('heading', { name: '로그인' })).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe('/login')
+  })
+
+  it('인증을 마친 사용자가 /verify-email로 오면 홈으로, 로그인 안 했으면 로그인으로', async () => {
+    const { router } = setup({ verified: true, path: '/verify-email' })
+    await waitFor(() => expect(router.state.location.pathname).toBe('/'))
+    vi.unstubAllGlobals()
+
+    const guest = setup({ signedIn: false, path: '/verify-email' })
+    await waitFor(() => expect(guest.router.state.location.pathname).toBe('/login'))
+  })
+
+  it('가입 직후 바로 인증 화면으로 간다 (D-64 첫 코드 자동 발송)', async () => {
+    stubFetch({
+      'GET /api/users/me': () => problem(401, 'UNAUTHENTICATED'),
+      'POST /api/auth/signup': () => json(201, { ...ME, emailVerified: false }),
+      'GET /api/users/me/email-verification': () =>
+        json(200, { verified: false, expiresAt: later(600), attemptsRemaining: 5, resendAvailableAt: later(60) }),
+    })
+    const { router } = renderApp('/signup')
+    await userEvent.type(await screen.findByLabelText('이메일'), 'new@example.com')
+    await userEvent.type(screen.getByLabelText('비밀번호'), 'worklog20')
+    await userEvent.type(screen.getByLabelText('비밀번호 확인'), 'worklog20')
+    await userEvent.click(screen.getByRole('checkbox', { name: /전체 동의/ }))
+    await userEvent.click(screen.getByRole('button', { name: '회원가입' }))
+    expect(await screen.findByRole('heading', { level: 1, name: '이메일 인증' })).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe('/verify-email')
   })
 })

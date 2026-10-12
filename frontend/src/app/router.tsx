@@ -1,6 +1,6 @@
 import type { ComponentType } from 'react'
 import { createBrowserRouter, Navigate } from 'react-router'
-import { GuestOnly, RequireAuth } from './guards'
+import { GuestOnly, RequireAuth, RequireUnverified } from './guards'
 import { HashScroll } from './HashScroll'
 import { LogsRedirect } from './LogsRedirect'
 import { ErrorPage } from '../pages/ErrorPage'
@@ -9,6 +9,7 @@ import { NotFoundPage } from '../pages/NotFoundPage'
 import { ForgotPasswordPage } from '../pages/password/ForgotPasswordPage'
 import { ResetPasswordPage } from '../pages/password/ResetPasswordPage'
 import { SignupPage } from '../pages/SignupPage'
+import { VerifyEmailPage } from '../pages/VerifyEmailPage'
 
 /**
  * 화면 코드는 그 화면에 처음 갈 때 받는다(UX-COM-15: 앱 전체가 JS 한 덩어리라 랜딩·로그인도 캘린더·통계를 함께 받았다).
@@ -52,6 +53,8 @@ export const routes = [
           { path: '/password/reset', element: <ResetPasswordPage /> },
         ],
       },
+      // 이메일 인증 필수(사용자 지시 2026-10-13): 로그인했지만 인증하지 않은 사용자의 유일한 화면. AppShell 밖
+      { element: <RequireUnverified />, children: [{ path: '/verify-email', element: <VerifyEmailPage /> }] },
       {
         element: <RequireAuth />,
         children: [

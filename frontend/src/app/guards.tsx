@@ -25,6 +25,18 @@ export function RequireAuth() {
     }
     return <Navigate to="/login" replace state={state} />
   }
+  // 이메일 인증 필수(사용자 지시 2026-10-13): 인증하지 않았으면 어떤 앱 화면이든 인증 화면으로
+  if (!user.emailVerified) return <Navigate to="/verify-email" replace />
+  return <Outlet />
+}
+
+// 이메일 인증 화면(/verify-email)은 로그인했고 아직 인증하지 않은 사용자만. 인증을 마치면 홈으로
+export function RequireUnverified() {
+  const { user, isLoading, error } = useAuth()
+  if (isLoading) return null
+  if (error) throw error
+  if (!user) return <Navigate to="/login" replace />
+  if (user.emailVerified) return <Navigate to="/" replace />
   return <Outlet />
 }
 

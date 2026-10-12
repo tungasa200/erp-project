@@ -306,7 +306,8 @@ describe('UX-09 키보드 단축키', () => {
     const { router } = renderApp('/settings/general')
     await screen.findByRole('heading', { name: '일반' })
     await userEvent.keyboard('n')
-    expect(await screen.findByRole('textbox', { name: '빠른 기록' })).toHaveFocus()
+    // 홈 화면 코드를 받은 뒤 입력창에 포커스가 간다(CI에서 찾은 직후엔 아직 body였음)
+    await waitFor(() => expect(screen.getByRole('textbox', { name: '빠른 기록' })).toHaveFocus())
     await waitFor(() => expect(router.state.location.pathname).toBe('/'))
   })
 

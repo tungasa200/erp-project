@@ -28,7 +28,11 @@ function load(): MockState {
   } catch {
     // 저장소를 못 쓰면 기본값으로 시작
   }
-  return { accounts: { 'demo@example.com': { password: 'worklog20', id: 'mock-demo' } }, session: null }
+  return {
+    // 데모 계정은 인증을 마친 기존 회원(이메일 인증 필수 2026-10-13). 새로 가입한 계정은 미인증으로 시작해 인증 화면부터
+    accounts: { 'demo@example.com': { password: 'worklog20', id: 'mock-demo', profile: { emailVerified: true } } },
+    session: null,
+  }
 }
 
 function save(state: MockState) {

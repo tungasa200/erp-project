@@ -29,7 +29,8 @@ export function problem(status: number, code: string, extra: Record<string, unkn
 export const ME = {
   id: 'u-1',
   email: 'demo@example.com',
-  emailVerified: false,
+  // 이메일 인증 필수(2026-10-13): 앱 화면에 들어오는 사용자는 인증을 마쳤다. 미인증 흐름은 { ...ME, emailVerified: false }
+  emailVerified: true,
   name: null,
   organization: null,
   position: null,

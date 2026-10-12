@@ -266,10 +266,13 @@ describe('내보내기 (SCR-LOG-05)', () => {
 })
 
 describe('내보내기 전 이메일 인증 (SCR-LOG-06)', () => {
-  it('미인증이면 먼저 묻고, 코드를 맞히면 고른 내보내기를 이어서 한다', async () => {
+  // 이메일 인증 필수(2026-10-13)로 앱에서 미인증 사용자를 만날 일은 없다. 서버가 403 EMAIL_NOT_VERIFIED로 답하는 경우만 남는다(D-109)
+  it('서버가 미인증이라고 하면 먼저 묻고, 코드를 맞히면 고른 내보내기를 이어서 한다', async () => {
     const user = userEvent.setup()
-    let me = { ...VERIFIED, emailVerified: false }
-    const exported = vi.fn(file('업무일지_2026-10-07_김하늘.pdf'))
+    let me = { ...VERIFIED }
+    const download = file('업무일지_2026-10-07_김하늘.pdf')
+    let verified = false
+    const exported = vi.fn(() => (verified ? download() : problem(403, 'EMAIL_NOT_VERIFIED')))
     const sent = vi.fn(() => json(202, { expiresAt: later(600), resendAvailableAt: later(60) }))
     stubFetch({
       'GET /api/users/me': () => json(200, me),
@@ -278,6 +281,7 @@ describe('내보내기 전 이메일 인증 (SCR-LOG-06)', () => {
       'GET /api/users/me/email-verification': () =>
         json(200, { verified: false, expiresAt: later(420), attemptsRemaining: 5, resendAvailableAt: null }),
       'POST /api/users/me/email-verification/confirm': () => {
+        verified = true
         me = { ...me, emailVerified: true, version: 1 }
         return json(200, me)
       },
@@ -288,7 +292,7 @@ describe('내보내기 전 이메일 인증 (SCR-LOG-06)', () => {
     const { button, dialog } = await openExport(user)
     await user.click(within(dialog).getByRole('button', { name: '내려받기' }))
     const ask = await screen.findByRole('dialog', { name: '이메일 인증이 필요해요' })
-    expect(exported).not.toHaveBeenCalled()
+    expect(saved).toEqual([])
     await waitFor(() => expect(within(ask).getByRole('button', { name: '인증 코드 받기' })).toHaveFocus())
     await user.keyboard('{Enter}')
 
@@ -299,7 +303,7 @@ describe('내보내기 전 이메일 인증 (SCR-LOG-06)', () => {
     await waitFor(() => expect(code).toHaveFocus())
     await user.type(code, '123456')
 
-    await waitFor(() => expect(exported).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(exported).toHaveBeenCalledTimes(2))
     expect(saved).toEqual(['업무일지_2026-10-07_김하늘.pdf'])
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     await waitFor(() => expect(button).toHaveFocus())
@@ -308,14 +312,14 @@ describe('내보내기 전 이메일 인증 (SCR-LOG-06)', () => {
   it('[취소]하면 아무것도 받지 않고 원래 버튼으로 돌아온다', async () => {
     const user = userEvent.setup()
     stubFetch({
-      'GET /api/users/me': () => json(200, { ...VERIFIED, emailVerified: false }),
+      'GET /api/users/me': () => json(200, VERIFIED),
       'GET /api/worklog/logs/daily/2026-10-07': () => json(200, draft()),
+      'GET /api/worklog/logs/daily/2026-10-07/export': () => problem(403, 'EMAIL_NOT_VERIFIED'),
     })
     renderApp('/logs/daily/2026-10-07', routesWithHidden)
 
     const { button, dialog } = await openExport(user)
-    await user.click(within(dialog).getByRole('radio', { name: /텍스트 복사/ }))
-    await user.click(within(dialog).getByRole('button', { name: '복사' }))
+    await user.click(within(dialog).getByRole('button', { name: '내려받기' }))
     const ask = await screen.findByRole('dialog', { name: '이메일 인증이 필요해요' })
     await user.click(within(ask).getByRole('button', { name: '취소' }))
 

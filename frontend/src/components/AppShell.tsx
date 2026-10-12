@@ -220,7 +220,6 @@ export function AppShell() {
       </nav>
 
       <div ref={contentRef} className={styles.content}>
-        {/* 미인증 배너(SCR-COM-07, verification/UnverifiedBanner)는 숨김(업무일지 숨김 2026-10-12, 문안 표 4-12: 막는 기능이던 내보내기가 숨겨짐) */}
         {/* 끊긴 동안에는 화면마다 저장·편집 영역만 막는다(SCR-SYS-02 ③, 오프라인 기록은 범위 밖). 이동·열람은 된다 */}
         {/* 앱 화면의 본문 랜드마크. 페이지 컴포넌트는 <main>을 따로 두지 않는다(오류·404·점검·인증 화면은 셸 밖이라 각자 둔다) */}
         <main id="main" tabIndex={-1} className={styles.main}>

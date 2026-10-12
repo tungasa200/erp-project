@@ -1,6 +1,7 @@
 // 핵심 흐름 E2E (P4-06): 가입 → 빠른 입력 → 계획 기반 기록 확정 → 하루 마감.
 // 업무일지 숨김(D-214)으로 내보내기·그 앞 이메일 인증 단계는 뺐다. 실제 서버(gateway·identity·worklog)를 쓴다. 매번 새 이메일로 가입하므로 DB를 비우지 않아도 된다.
 import { expect, test, type Page } from '@playwright/test'
+import { latestCode } from './mailpit'
 import { allowInsecureAuthCookies } from './webkit-cookies'
 
 const PASSWORD = 'e2eFlow2026pw'
@@ -68,14 +69,15 @@ async function closeAtMidnight(page: Page) {
   expect(status).toBe(200)
 }
 
-test('가입부터 하루 마감까지', async ({ page, isMobile, browserName }) => {
+test('가입부터 하루 마감까지', async ({ page, request, isMobile, browserName }) => {
   const slot = pastSlotToday()
   test.skip(slot === null, '서울 0시 32분 전에는 오늘 안에 끝난 계획을 만들 수 없음')
   await allowInsecureAuthCookies(page, browserName)
   const email = `e2e-${Date.now()}-${letters(4)}@worklog.test`
   const title = `시험 회의 ${letters(6)}`
 
-  // 1. 가입: / → 로그인 화면(랜딩 폐기, 2026-10-12) → 가입 화면, 약관 동의 후 가입하면 홈으로 간다
+  // 1. 가입: / → 로그인 화면(랜딩 폐기, 2026-10-12) → 가입 화면, 약관 동의 후 가입하면 이메일 인증 화면(인증 필수 2026-10-13),
+  //    메일로 온 코드를 넣으면 홈으로 간다
   await page.goto('/')
   await expect(page).toHaveURL(/\/login$/)
   await page.getByRole('link', { name: '회원가입', exact: true }).click()
@@ -85,6 +87,8 @@ test('가입부터 하루 마감까지', async ({ page, isMobile, browserName })
   await page.getByLabel('비밀번호 확인').fill(PASSWORD)
   await page.getByRole('checkbox', { name: '전체 동의' }).check()
   await page.getByRole('button', { name: '회원가입', exact: true }).click()
+  await expect(page).toHaveURL(/\/verify-email$/)
+  await page.getByRole('textbox', { name: '인증번호' }).fill(await latestCode(request, email))
   await expect(page).toHaveURL(/\/$/)
   await closeAtMidnight(page)
 

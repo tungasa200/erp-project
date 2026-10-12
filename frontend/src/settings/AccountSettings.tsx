@@ -9,7 +9,6 @@ import { passwordViolations, type PasswordRuleCode } from '../auth/passwordRules
 import { useAuth } from '../auth/useAuth'
 import { MANUAL_LINK_LABEL, MANUAL_URL } from '../components/manual'
 import { useToast } from '../components/useToast'
-import { EmailVerificationDialog } from '../verification/EmailVerificationDialog'
 import account from './account.module.css'
 import styles from './settings.module.css'
 
@@ -55,8 +54,6 @@ function confirmError(values: Values): string | undefined {
 
 export function AccountSettings() {
   const { user, logout } = useAuth()
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const verifyButton = useRef<HTMLButtonElement>(null)
   if (!user) return null
 
   return (
@@ -68,7 +65,7 @@ export function AccountSettings() {
         <div className={account.emailRow}>
           <div className={account.emailText}>
             <div className={account.email}>{user.email}</div>
-            {/* 미인증 안내 줄은 숨김(업무일지 숨김 2026-10-12, 문안 표 4-9: 인증이 필요한 내보내기가 숨겨짐). [인증하기]는 그대로 */}
+            {/* 이메일 인증은 필수라(2026-10-13) 설정에 오는 사용자는 모두 인증을 마쳤다 */}
             {user.emailVerified && (
               <span className={account.verified}>
                 <svg
@@ -88,11 +85,6 @@ export function AccountSettings() {
               </span>
             )}
           </div>
-          {!user.emailVerified && (
-            <button ref={verifyButton} type="button" className={account.verify} onClick={() => setDialogOpen(true)}>
-              인증하기
-            </button>
-          )}
         </div>
       </section>
 
@@ -127,15 +119,6 @@ export function AccountSettings() {
           <span aria-hidden="true">›</span>
         </Link>
       </section>
-
-      {dialogOpen && (
-        <EmailVerificationDialog
-          onClose={() => {
-            setDialogOpen(false)
-            verifyButton.current?.focus()
-          }}
-        />
-      )}
     </div>
   )
 }
