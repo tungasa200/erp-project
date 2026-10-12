@@ -30,6 +30,21 @@ select {
   color: inherit;
 }
 
+::placeholder {
+  color: var(--color-placeholder);
+  opacity: 1;
+}
+
+/* 16px보다 작은 입력칸은 iOS가 포커스할 때 화면을 확대한다. 휴대폰 폭에서는 모든 입력을 16px로 올린다(UX-COM-10).
+   화면마다 모듈 클래스로 글자 크기를 정해 두어서 그보다 이기도록 !important를 쓴다 */
+@media (max-width: 767px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
 a {
   color: var(--color-accent);
 }

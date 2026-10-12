@@ -215,6 +215,27 @@
   font-weight: 600;
 }
 
+/* 글자 링크도 누르는 영역 44px(화면정의서 2.5, UX-AUTH-83) */
+.links a,
+.checkLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--size-touch);
+}
+
+/* 문장 안 링크는 줄 높이를 바꾸지 않고 투명한 영역으로 위아래를 넓힌다 */
+.center a,
+.overseas a {
+  position: relative;
+}
+
+.center a::after,
+.overseas a::after {
+  content: '';
+  position: absolute;
+  inset: -12px -4px;
+}
+
 .center {
   margin: 0;
   font-size: 14px;
@@ -342,7 +363,8 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  min-height: 28px;
+  /* 줄 전체가 체크박스 라벨이라 줄 높이가 곧 누르는 영역이다 */
+  min-height: var(--size-touch);
 }
 
 .check input {

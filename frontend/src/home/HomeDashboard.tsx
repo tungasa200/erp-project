@@ -22,6 +22,7 @@ import { useTasks, type Task } from '../tasks/api'
 import { isCompletionResultFocused } from '../tasks/completionResultContext'
 import { useCompleteTask } from '../tasks/useCompleteTask'
 import { DEFAULT_STATUSES, dueLabel, dueState, groupTasks } from '../tasks/view'
+import { useNow } from './useNow'
 import styles from './home.module.css'
 import { TodayTimeline } from './TodayTimeline'
 
@@ -184,16 +185,6 @@ function cardValue(query: { isPending: boolean; isError: boolean }, value: strin
 function cardSub(query: { isPending: boolean; isError: boolean }, text: string): ReactNode {
   if (query.isError) return '불러오지 못했어요'
   return query.isPending ? <Skeleton shape="line" /> : text
-}
-
-/** 1분마다 바뀌는 현재 시각 (남은 일정 수·날짜 넘김) */
-function useNow() {
-  const [now, setNow] = useState(() => Date.now())
-  useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 60_000)
-    return () => clearInterval(timer)
-  }, [])
-  return now
 }
 
 function SummaryCard(props: { to: string; label: string; value: ReactNode; sub: ReactNode; accent?: boolean }) {

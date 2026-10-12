@@ -71,6 +71,14 @@ describe('SCR-HOME-01 첫 화면 (UX-04)', () => {
 })
 
 describe('SCR-COM-02 빠른 입력창', () => {
+  it('UX-COM-25 치기를 멈추면 해석 결과를 늘 붙어 있는 낭독 영역으로 한 번 알린다', async () => {
+    const { input } = await openHome()
+    await userEvent.type(input, '보고서 14-15 #결제')
+    const live = document.querySelector('[data-live-region]')!
+    expect(live).toHaveAttribute('aria-live', 'polite')
+    await waitFor(() => expect(live).toHaveTextContent(/^일정과 업무, .*#결제/), { timeout: 2000 })
+  })
+
   it('안내 문구를 바꾸지 않으면 기본 문구를 쓴다(캘린더 업무 패널은 짧은 문구를 넘긴다)', async () => {
     const { input } = await openHome()
     expect(input).toHaveAttribute('placeholder', '무엇을 하셨나요? 한 줄로 적어 보세요')
@@ -285,7 +293,7 @@ describe('UX-09 키보드 단축키', () => {
     await screen.findByRole('heading', { name: '업무일지' })
     await userEvent.keyboard('n')
     expect(await screen.findByRole('textbox', { name: '빠른 기록' })).toHaveFocus()
-    expect(router.state.location.pathname).toBe('/')
+    await waitFor(() => expect(router.state.location.pathname).toBe('/'))
   })
 
   it('오프라인이면 N으로 기록하러 가지 않는다 (SCR-SYS-02 ③)', async () => {
@@ -294,7 +302,7 @@ describe('UX-09 키보드 단축키', () => {
     const { router } = renderApp('/logs')
     await screen.findByRole('heading', { name: '업무일지' })
     await userEvent.keyboard('n')
-    expect(router.state.location.pathname).toBe('/logs')
+    await waitFor(() => expect(router.state.location.pathname).toBe('/logs'))
     onLine.mockRestore()
   })
 
@@ -314,7 +322,7 @@ describe('SCR-COM-03 명령 팔레트', () => {
     const palette = screen.getByRole('dialog', { name: '명령 팔레트' })
     expect(within(palette).getByRole('option', { name: /업무 추가/ })).toHaveTextContent('N')
     await userEvent.keyboard('업무일지{Enter}')
-    expect(router.state.location.pathname).toBe('/logs')
+    await waitFor(() => expect(router.state.location.pathname).toBe('/logs'))
     expect(screen.queryByRole('dialog', { name: '명령 팔레트' })).not.toBeInTheDocument()
   })
 
@@ -360,7 +368,7 @@ describe('SCR-COM-03 명령 팔레트', () => {
     await userEvent.keyboard('{Control>}k{/Control}10/12')
     expect(screen.getByRole('option', { name: /10\/12\(월\) 캘린더 보기/ })).toBeInTheDocument()
     await userEvent.keyboard('{Enter}')
-    expect(router.state.location.pathname).toBe('/calendar/day/2026-10-12')
+    await waitFor(() => expect(router.state.location.pathname).toBe('/calendar/day/2026-10-12'))
   })
 })
 

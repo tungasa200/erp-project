@@ -5,6 +5,7 @@ import { useLocation } from 'react-router'
 import { useAuth } from '../auth/useAuth'
 import { useOnline } from '../components/useOnline'
 import { HomeDashboard } from '../home/HomeDashboard'
+import { useNow } from '../home/useNow'
 import { NotificationBell } from '../notifications/NotificationBell'
 import { InstallGuide } from '../pwa/InstallGuide'
 import { EXAMPLES } from '../quickInput/examples'
@@ -28,7 +29,8 @@ export function HomePage() {
   const location = useLocation()
   const [text, setText] = useState('')
   const [handledKey, setHandledKey] = useState<string | null>(null)
-  const [now] = useState(() => new Date())
+  // 띄워 둔 채 자정을 넘겨도 머리 날짜·인사말이 아래 카드와 같은 날을 보이게 1분마다 다시 그린다(UX-HOME-09)
+  const now = useNow()
   const quickSave = useQuickSave()
 
   // 명령 팔레트·단축키 N으로 들어오면 입력창을 채우고(이동마다 한 번) 포커스한다.
@@ -75,7 +77,14 @@ export function HomePage() {
         </div>
         {/* 끊긴 동안에는 기록을 막는다(SCR-SYS-02 ③) */}
         <fieldset className={styles.quick} disabled={!online}>
-          <QuickInput value={text} onChange={setText} onSubmit={quickSave} label="빠른 기록" />
+          {/* 끊긴 이유를 입력칸에서도 알린다(시트와 같은 문구, UX-COM-13) */}
+          <QuickInput
+            value={text}
+            onChange={setText}
+            onSubmit={quickSave}
+            label="빠른 기록"
+            placeholder={online ? undefined : '연결되면 입력할 수 있어요'}
+          />
         </fieldset>
       </header>
 

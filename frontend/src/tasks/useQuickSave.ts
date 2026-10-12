@@ -9,9 +9,10 @@ import { useToast } from '../components/useToast'
 import { PROJECTS_QUERY_KEY, projectApi, TAGS_QUERY_KEY, type Project } from '../projects/api'
 import type { QuickDraft } from '../quickInput/parse'
 import { refreshTasks } from './api'
-import { NeedsProjectError, saveQuickDraft, undoQuickSave } from './quickSave'
+import { NeedsProjectError, saveQuickDraft, undoQuickSave, type QuickSaveResult } from './quickSave'
 
-export function useQuickSave(): (draft: QuickDraft) => Promise<void> {
+/** 저장한 업무(·일정)를 돌려준다. 업무 목록은 새 줄을 찾아 보여 주는 데 쓴다(UX-TASK-60) */
+export function useQuickSave(): (draft: QuickDraft) => Promise<QuickSaveResult> {
   const queryClient = useQueryClient()
   const { user } = useAuth()
   const timeZone = user?.timezone ?? 'Asia/Seoul'
@@ -43,6 +44,7 @@ export function useQuickSave(): (draft: QuickDraft) => Promise<void> {
             refresh()
           },
         })
+        return result
       } catch (error) {
         if (error instanceof NeedsProjectError) {
           showToast(`"${error.projectName}" 프로젝트가 없어요. 아래 칩을 눌러 먼저 만들어 주세요`)

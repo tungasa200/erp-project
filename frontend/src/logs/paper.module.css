@@ -199,7 +199,8 @@
 }
 
 .blank {
-  color: #a6a6a6;
+  /* 비어 있다는 표시도 읽혀야 한다: 흰 종이 위 5.1:1(UX-LOG-53, 전엔 2.43:1) */
+  color: #6e6e6e;
 }
 
 .issueBox {
@@ -238,6 +239,8 @@
   min-height: 32px;
   padding: 4px 6px;
   border: 1px solid transparent;
+  /* 바탕 #fafafa만으로는 종이와 1.05:1이라 쓰는 칸인지 안 보인다. 점선 아래줄로 3:1을 넘긴다(#8c8c8c 3.36:1, UX-LOG-54) */
+  border-bottom: 1px dashed #8c8c8c;
   border-radius: 4px;
   background: #fafafa;
   font: inherit;
@@ -250,7 +253,7 @@
 }
 
 .cellInput:hover {
-  border-color: #d9d9d9;
+  border-color: #d9d9d9 #d9d9d9 #8c8c8c;
 }
 
 .cellInput:focus-visible,
@@ -266,6 +269,7 @@
   cursor: default;
 }
 
+.cellInput:read-only,
 .cellInput:read-only:hover {
   border-color: transparent;
 }

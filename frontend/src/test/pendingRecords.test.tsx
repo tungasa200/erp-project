@@ -230,7 +230,7 @@ describe('SCR-HOME-02 확인 대기 목록', () => {
     server({ hold: true })
     renderApp('/')
     const card = await screen.findByRole('button', { name: /확인 대기/ })
-    await waitFor(() => expect(within(card).getAllByRole('status')).toHaveLength(2))
+    await waitFor(() => expect(card.querySelectorAll('[data-skeleton]')).toHaveLength(2))
     expect(card).not.toHaveTextContent(/\d/)
   })
 })

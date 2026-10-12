@@ -54,6 +54,31 @@ export function TaskListPage() {
   const [quickText, setQuickText] = useState('')
   const quickSave = useQuickSave()
   const online = useOnline()
+  // 방금 만든 업무. 목록 어디(그룹 맨 아래 등)에 들어가든 그 줄을 화면 가운데로 가져와 잠깐 강조한다(UX-TASK-60).
+  // 가운데로 두면 화면 아래 되돌리기 토스트에도 가리지 않는다
+  const [justAdded, setJustAdded] = useState<string | null>(null)
+  useEffect(() => {
+    if (!justAdded) return
+    let row: HTMLElement | null = null
+    // 다시 받은 목록에 줄이 생길 때까지 잠깐 기다린다
+    const find = setInterval(() => {
+      row = document.querySelector<HTMLElement>(`[data-task-id="${justAdded}"]`)
+      if (!row) return
+      clearInterval(find)
+      row.scrollIntoView?.({ block: 'center' })
+      row.setAttribute('data-just-added', '')
+    }, 100)
+    const end = setTimeout(() => {
+      clearInterval(find)
+      row?.removeAttribute('data-just-added')
+      setJustAdded(null)
+    }, 3000)
+    return () => {
+      clearInterval(find)
+      clearTimeout(end)
+      row?.removeAttribute('data-just-added')
+    }
+  }, [justAdded])
 
   const projects = useProjects()
   const tags = useTags()
@@ -149,7 +174,12 @@ export function TaskListPage() {
 
         {/* 끊긴 동안에는 추가를 막는다(SCR-SYS-02 ③). 검색·필터·열어 보기는 그대로 */}
         <fieldset className={styles.quickGuard} disabled={!online}>
-          <QuickInput value={quickText} onChange={setQuickText} onSubmit={quickSave} label="업무 추가" />
+          <QuickInput
+            value={quickText}
+            onChange={setQuickText}
+            onSubmit={async (draft) => setJustAdded((await quickSave(draft)).task.id)}
+            label="업무 추가"
+          />
         </fieldset>
 
         <div className={styles.toolbar}>
@@ -625,6 +655,7 @@ function TaskRow({ task, today, weekStart, projects, tagNames, selected, onLeave
 
   return (
     <li
+      data-task-id={task.id}
       className={[styles.row, timed && styles.rowTimed, selected && styles.rowSelected, !online && styles.rowOffline]
         .filter(Boolean)
         .join(' ')}

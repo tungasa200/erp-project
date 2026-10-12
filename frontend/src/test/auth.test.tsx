@@ -553,6 +553,19 @@ describe('SCR-SYS-02 ③ 오프라인 띠', () => {
     expect(screen.getByRole('button', { name: '로그인' })).toBeDisabled()
   })
 
+  it('UX-COM-13 띠는 늘 붙어 있는 낭독 영역으로 알리고, 다시 연결되면 그것도 알린다', async () => {
+    const onLine = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    stubFetch({})
+    renderApp('/login')
+    const live = document.querySelector('[data-live-region]')!
+    await waitFor(() => expect(live).toHaveTextContent('연결이 끊겼어요. 다시 연결되면 입력할 수 있어요'))
+    onLine.mockReturnValue(true)
+    act(() => {
+      window.dispatchEvent(new Event('online'))
+    })
+    await waitFor(() => expect(live).toHaveTextContent('다시 연결됐어요'))
+  })
+
   it('연결되면 띠가 사라지고 입력할 수 있다', async () => {
     const onLine = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
     stubFetch({})

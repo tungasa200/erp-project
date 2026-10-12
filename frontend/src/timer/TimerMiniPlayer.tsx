@@ -52,6 +52,7 @@ export function TimerMiniPlayer() {
   // 이어달리기로 시작하면 새 타이머의 정지 버튼으로 포커스를 옮긴다
   const focusStop = useRef(false)
   const offlineId = useId()
+  const afterMessageId = useId()
 
   useEffect(() => {
     if (!running) return
@@ -193,7 +194,8 @@ export function TimerMiniPlayer() {
         timed &&
         after && (
           <section ref={afterRef} className={styles.player} aria-label="타이머">
-            <p className={styles.message} role="status">
+            {/* 안내가 나타나며 포커스가 첫 버튼으로 옮겨지므로, 늦게 끼운 role="status" 대신 버튼 설명으로 함께 읽힌다(UX-COM-25) */}
+            <p id={afterMessageId} className={styles.message}>
               {after.message}
             </p>
             {after.next && <p className={styles.relay}>다음 계획 ‘{clip(after.next.title)}’을(를) 시작할까요?</p>}
@@ -203,13 +205,19 @@ export function TimerMiniPlayer() {
                   type="button"
                   className={styles.stop}
                   disabled={busy || !online}
+                  aria-describedby={afterMessageId}
                   onClick={() => void relay(after.next!)}
                 >
                   시작
                 </button>
               )}
               {after.cappedId && (
-                <button type="button" className={styles.switch} onClick={() => setEditing(after.cappedId)}>
+                <button
+                  type="button"
+                  className={styles.switch}
+                  aria-describedby={afterMessageId}
+                  onClick={() => setEditing(after.cappedId)}
+                >
                   시간 고치기
                 </button>
               )}

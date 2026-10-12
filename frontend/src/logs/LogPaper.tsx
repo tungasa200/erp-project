@@ -1,6 +1,7 @@
 // SCR-LOG-02 ② 문서 영역: 내보낼 파일과 같은 모습(docs/업무일지_서식명세.md, 화면 px = pt × 1.35).
 // 테마 색을 쓰지 않는다. 초안을 고칠 수 있을 때만(editor) 칸이 입력으로 바뀌고 줄 버튼·계획 후보 칩이 붙는다.
 import { useEffect, useId, useLayoutEffect, useRef, useState, type ComponentProps, type ReactNode } from 'react'
+import { useToast } from '../components/useToast'
 import { WEEKDAY_NAMES, isoWeekday, todayIn } from '../quickInput/dates'
 import type { LogAchievement, LogContent, LogPlan, LogType, PlanCandidate } from './api'
 import { durationLabel, progressLabel } from './api'
@@ -270,9 +271,47 @@ function MonthDays({ days }: { days: LogContent['days'] }) {
   )
 }
 
+/**
+ * 줄 삭제를 바로 반영하고 5초 되돌리기 토스트를 띄운다(UX-LOG-101, 규칙 X-04-2). 되돌리면 지운 자리에 다시 넣고 그 줄로 포커스.
+ * 토스트가 떠 있는 동안 여러 줄을 지우면 하나로 합치고, 되돌릴 때는 나중 것부터 넣는다(latest를 바로 고쳐 연달아 써도 맞게)
+ */
+function useUndoableRemove<T>(rows: T[], apply: (next: T[]) => void, what: string, focusRow: (index: number) => void) {
+  const { showUndo } = useToast()
+  const latest = useRef(rows)
+  useLayoutEffect(() => {
+    latest.current = rows
+  }, [rows])
+  return (index: number) => {
+    const removed = latest.current[index]
+    const next = latest.current.filter((_, j) => j !== index)
+    latest.current = next
+    apply(next)
+    showUndo({
+      group: `log-${what}-remove`,
+      message: (count) => (count > 1 ? `${what} ${count}줄을 지웠어요` : `${what} 줄을 지웠어요`),
+      undo: () => {
+        const current = latest.current
+        const at = Math.min(index, current.length)
+        const back = [...current.slice(0, at), removed, ...current.slice(at)]
+        latest.current = back
+        apply(back)
+        focusRow(at)
+      },
+    })
+  }
+}
+
 function Achievements(props: { type: LogType; rows: LogAchievement[]; withProject: boolean; editor?: PaperEditor }) {
   const { rows, editor, type } = props
   const tableRef = useRef<HTMLTableElement>(null)
+  const focusText = (i: number) =>
+    requestAnimationFrame(() => {
+      const list = tableRef.current?.querySelectorAll<HTMLElement>('tbody tr [data-field="text"]')
+      const target =
+        list?.[Math.min(i, list.length - 1)] ?? tableRef.current?.closest('section')?.querySelector('[data-add]')
+      ;(target as HTMLElement | null | undefined)?.focus()
+    })
+  const removeRow = useUndoableRemove(rows, (next) => editor?.onAchievements(next), '실적', focusText)
   const showProject = props.withProject
   if (rows.length === 0 && !editor) return <p className={styles.none}>없음</p>
   const set = (i: number, patch: Partial<LogAchievement>) =>
@@ -290,13 +329,8 @@ function Achievements(props: { type: LogType; rows: LogAchievement[]; withProjec
     })
   }
   const remove = (i: number) => {
-    editor!.onAchievements(rows.filter((_, j) => j !== i))
-    requestAnimationFrame(() => {
-      const list = tableRef.current?.querySelectorAll<HTMLElement>('tbody tr [data-field="text"]')
-      const target =
-        list?.[Math.min(i, list.length - 1)] ?? tableRef.current?.closest('section')?.querySelector('[data-add]')
-      ;(target as HTMLElement | null | undefined)?.focus()
-    })
+    removeRow(i)
+    focusText(i)
   }
   const add = () => {
     editor!.onAchievements([
@@ -462,6 +496,12 @@ function Plans({ plans, editor, timeZone }: { plans: LogPlan[]; editor?: PaperEd
       const target = list?.[Math.min(index, (list?.length ?? 1) - 1)] ?? listRef.current?.querySelector('[data-add]')
       ;(target as HTMLElement | null | undefined)?.focus()
     })
+  const removePlan = useUndoableRemove(
+    plans,
+    (next) => editor?.onPlans(next),
+    '계획',
+    (i) => focusAfter('[data-plan]', i),
+  )
   const addCandidate = (c: PlanCandidate, i: number) => {
     editor!.onPlans([...plans, { id: newId(), taskId: c.taskId, text: c.title, dueDate: c.dueDate, scheduledAt: null }])
     focusAfter('[data-chip]', i)
@@ -519,7 +559,7 @@ function Plans({ plans, editor, timeZone }: { plans: LogPlan[]; editor?: PaperEd
                       disabled={editor.readOnly}
                       aria-label={`계획 ${i + 1} 삭제`}
                       onClick={() => {
-                        editor.onPlans(plans.filter((_, j) => j !== i))
+                        removePlan(i)
                         focusAfter('[data-plan]', i)
                       }}
                     >

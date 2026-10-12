@@ -245,20 +245,28 @@
   .sidebar {
     display: none;
   }
+  /* 홈 화면에 설치한 PWA(viewport-fit=cover)에서 홈 인디케이터가 탭·본문 끝을 덮지 않게 안전 영역을 더한다(UX-COM-22) */
   .main {
-    padding: 20px 16px 96px;
+    padding: 20px 16px calc(96px + env(safe-area-inset-bottom));
+  }
+  /* Tab으로 아래쪽 요소에 가도 고정된 하단 탭(+ 솟은 + 버튼)·타이머가 그 요소를 덮지 않게(WCAG 2.4.11, UX-COM-24) */
+  .content {
+    scroll-padding-bottom: calc(104px + env(safe-area-inset-bottom));
+  }
+  .shell:has(.timerMobile section) .content {
+    scroll-padding-bottom: calc(200px + env(safe-area-inset-bottom));
   }
   /* 타이머가 하단 탭 위에 떠 있으면 본문 끝이 그 아래에 가리지 않게 여백을 늘린다 */
   .timerMobile {
     position: fixed;
     left: 12px;
     right: 12px;
-    bottom: 108px; /* 탭(72px) + 위로 솟은 + 버튼(26px) + 틈 */
+    bottom: calc(108px + env(safe-area-inset-bottom)); /* 탭(72px) + 위로 솟은 + 버튼(26px) + 틈 */
     z-index: 19;
     display: block;
   }
   .shell:has(.timerMobile section) .main {
-    padding-bottom: 200px;
+    padding-bottom: calc(200px + env(safe-area-inset-bottom));
   }
   .tabs {
     position: fixed;
@@ -266,7 +274,9 @@
     right: 0;
     bottom: 0;
     z-index: 20;
-    height: 72px;
+    height: calc(72px + env(safe-area-inset-bottom));
+    padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    box-sizing: border-box;
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
     align-items: center;

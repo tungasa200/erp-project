@@ -222,6 +222,11 @@
 }
 
 /* 넓은 화면: 완료·제목·우선순위·프로젝트·태그·마감·진행률·일정 */
+/* 방금 만든 업무 줄을 3초 동안 표시(UX-TASK-60) */
+.row[data-just-added] {
+  background: var(--color-accent-soft);
+}
+
 .row {
   display: grid;
   grid-template-columns: 44px minmax(0, 1fr) 48px 96px 110px 76px 70px 24px;
@@ -615,12 +620,18 @@
   width: 90px;
   min-height: 32px;
   border: 0;
-  outline: none;
+  border-radius: 8px;
   background: transparent;
   color: var(--color-accent-ink);
   font: inherit;
   font-size: 12.5px;
   font-weight: 700;
+}
+
+/* 키보드로 태그를 추가할 때 입력 위치가 보이게 전역 포커스 윤곽선을 그대로 쓴다(UX-TASK-100) */
+.tagAdd:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
 }
 
 .block {

@@ -8,6 +8,7 @@ import { useAuth } from '../auth/useAuth'
 import { shortDate, todayIn, weekStartNumber } from '../quickInput/dates'
 import { parseQuickInput } from '../quickInput/parse'
 import { modKey, useShortcutsEnabled } from '../shortcuts/useShortcuts'
+import { announce } from '../components/announce'
 import { Skeleton } from '../components/Skeleton'
 import { taskApi, type Task } from '../tasks/api'
 import { STATUS_LABEL } from '../tasks/view'
@@ -183,6 +184,17 @@ export function CommandPalette({ onClose, onQuickAdd, onDayClose, timer }: Props
     .filter((g) => g.items.length > 0)
   // 업무 검색 결과는 명령이 아니므로, 맞는 명령이 없으면 결과가 있어도 '업무로 추가'를 맨 앞에 둔다
   const nothing = visible.matched.length === 0 && !jumpDate
+  // 결과 수·업무 검색 실패를 낭독기에 알린다(UX-COM-25). 치기를 멈추고 업무 검색이 끝난 뒤 한 번
+  const resultCount = visible.matched.length + taskSearch.items.length + (jumpDate ? 1 : 0)
+  const resultMessage =
+    q === '' || taskSearch.loading
+      ? ''
+      : `${resultCount === 0 ? '맞는 결과가 없어요' : `결과 ${resultCount}개`}${taskSearch.error ? ', 업무를 불러오지 못했어요' : ''}`
+  useEffect(() => {
+    if (!resultMessage) return
+    const timer = setTimeout(() => announce(resultMessage), 500)
+    return () => clearTimeout(timer)
+  }, [resultMessage])
   const openTask = (task: Task) => {
     onClose()
     navigate(`/tasks/${task.id}`)

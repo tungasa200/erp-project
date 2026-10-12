@@ -300,6 +300,17 @@ describe('SCR-TASK-01 업무 목록', () => {
     })
   })
 
+  it('UX-TASK-60 빠른 입력으로 만든 업무 줄을 화면 가운데로 보이고 잠깐 표시한다', async () => {
+    server([])
+    const scroll = vi.spyOn(Element.prototype, 'scrollIntoView')
+    renderApp('/tasks')
+    const input = await screen.findByRole('textbox', { name: '업무 추가' })
+    await userEvent.type(input, '견적서 회신{Enter}')
+    await waitFor(() => expect(document.querySelector('[data-task-id="new"]')).toHaveAttribute('data-just-added'))
+    expect(scroll).toHaveBeenCalledWith({ block: 'center' })
+    scroll.mockRestore()
+  })
+
   it('없는 @프로젝트로는 저장하지 않고 입력을 남긴다', async () => {
     const { calls } = server([])
     renderApp('/')

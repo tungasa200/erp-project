@@ -136,7 +136,7 @@ describe('SCR-HOME-01 홈 대시보드 1차', () => {
     server({ holdTasks: true })
     renderApp('/')
     const card = within(await screen.findByRole('list', { name: '요약' })).getByRole('link', { name: /남은 업무/ })
-    await waitFor(() => expect(within(card).getAllByRole('status')).toHaveLength(2))
+    await waitFor(() => expect(card.querySelectorAll('[data-skeleton]')).toHaveLength(2))
     expect(card).not.toHaveTextContent('마감 초과 없음')
     expect(card).not.toHaveTextContent(/\d/)
   })

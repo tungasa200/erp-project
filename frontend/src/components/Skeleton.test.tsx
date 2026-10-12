@@ -35,6 +35,20 @@ describe('Skeleton (화면정의서 2장 로딩)', () => {
     act(() => vi.advanceTimersByTime(300))
     expect(screen.getByRole('status').tagName).toBe('SPAN')
   })
+  it('UX-COM-25 여러 개가 함께 보이면 하나만 상태(status)로 알리고, 그것이 사라지면 다음 것이 넘겨받는다', () => {
+    const { rerender } = render(
+      <>
+        <Skeleton key="a" />
+        <Skeleton key="b" shape="card" />
+      </>,
+    )
+    act(() => vi.advanceTimersByTime(300))
+    expect(screen.getAllByRole('status')).toHaveLength(1)
+    expect(document.querySelectorAll('[data-skeleton]')).toHaveLength(2)
+    rerender(<Skeleton key="b" shape="card" />)
+    expect(screen.getAllByRole('status')).toHaveLength(1)
+  })
+
   it('끊긴 동안에는 막대 대신 연결되면 불러온다는 안내를 보인다 (P1-X-04)', () => {
     vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
     render(<Skeleton count={4} offlineText="연결되면 업무를 불러올게요" />)

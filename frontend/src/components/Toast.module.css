@@ -30,7 +30,7 @@
   .region {
     left: 16px;
     right: 16px;
-    bottom: var(--toast-bottom-mobile, 88px);
+    bottom: calc(var(--toast-bottom-mobile, 88px) + env(safe-area-inset-bottom));
     max-width: none;
   }
 }
@@ -48,6 +48,11 @@
   font-size: 14px;
   font-weight: 600;
   box-shadow: 0 8px 24px rgba(26, 28, 43, 0.2);
+}
+
+/* 어두운 띠 위에서는 키 컬러 링이 2.39:1이라 흰 링을 쓴다(16.9:1, UX-COM-23) */
+.toast :focus-visible {
+  outline-color: #ffffff;
 }
 
 .message {

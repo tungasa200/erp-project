@@ -144,6 +144,7 @@ export function QuickSheet({ text, onTextChange, onClose, onOpenPending, onStart
               onClose()
             }}
             label="한 줄 입력"
+            saveButton
             placeholder={online ? '예: 14-16 견적서 작성 @영업' : '연결되면 입력할 수 있어요'}
           />
         </fieldset>

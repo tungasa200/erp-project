@@ -164,7 +164,7 @@ describe('타이머 미니 플레이어 (SCR-COM-06)', () => {
     const user = show()
     await user.click(await screen.findByRole('button', { name: '타이머 정지' }))
     const panel = await screen.findByRole('region', { name: '타이머' })
-    expect(within(panel).getByRole('status')).toHaveTextContent('기록을 남겼어요')
+    expect(within(panel).getByText('기록을 남겼어요')).toBeInTheDocument()
     expect(within(panel).getByText('다음 계획 ‘주간 회의’을(를) 시작할까요?')).toBeInTheDocument()
     const startButton = within(panel).getByRole('button', { name: '시작' })
     await waitFor(() => expect(startButton).toHaveFocus())
@@ -206,8 +206,10 @@ describe('타이머 미니 플레이어 (SCR-COM-06)', () => {
     const user = show()
     await user.click(await screen.findByRole('button', { name: '타이머 정지' }))
     const panel = await screen.findByRole('region', { name: '타이머' })
-    expect(within(panel).getByRole('status')).toHaveTextContent('24시간이 넘어 24시간까지만 기록했어요')
-    expect(within(panel).getByRole('button', { name: '시간 고치기' })).toHaveFocus()
+    // 포커스가 옮겨 간 버튼의 설명으로 안내가 함께 읽힌다(UX-COM-25)
+    const fix = within(panel).getByRole('button', { name: '시간 고치기' })
+    expect(fix).toHaveFocus()
+    expect(fix).toHaveAccessibleDescription(/^24시간이 넘어 24시간까지만 기록했어요/)
   })
 
   it('업무 전환: 할 일을 적어 시작하면 서버가 앞 타이머를 멈추고 새 타이머로 바뀐다', async () => {

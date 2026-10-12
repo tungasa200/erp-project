@@ -4,10 +4,11 @@
 // 칩을 누르면 그 값만 고치는 드롭다운이 열린다(P1-09-12, ChipEditor).
 // 비어 있는 입력창에 포커스가 가면 자주 하는 업무(④, P1-09-10·P2-04)를 칩으로 보여 주고, 고르면 제목·@프로젝트·#태그를 채운다.
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useCallback, useId, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { toastForError } from '../api/errorToast'
 import { ApiError } from '../api/problem'
 import { useAuth } from '../auth/useAuth'
+import { announce } from '../components/announce'
 import { useToast } from '../components/useToast'
 import { PROJECTS_QUERY_KEY, projectApi, TAGS_QUERY_KEY, tagApi, type Project, type Tag } from '../projects/api'
 import { nextColor, projectColor } from '../projects/palette'
@@ -155,10 +156,12 @@ function chipsOf(draft: QuickDraft, spans: QuickSpans, today: string, projects?:
 interface Props {
   value: string
   onChange: (value: string) => void
-  onSubmit?: (draft: QuickDraft) => void | Promise<void>
+  onSubmit?: (draft: QuickDraft) => unknown
   label?: string
   /** 좁은 곳(캘린더 업무 패널 등)에서 짧은 안내로 바꿀 때 */
   placeholder?: string
+  /** 누르는 [저장] 버튼을 입력칸 안에 둔다(모바일 시트, UX-MOB-01). 터치에서는 Enter 안내가 뜻이 없다 */
+  saveButton?: boolean
 }
 
 export function QuickInput({
@@ -167,6 +170,7 @@ export function QuickInput({
   onSubmit,
   label = '빠른 입력',
   placeholder = '무엇을 하셨나요? 한 줄로 적어 보세요',
+  saveButton = false,
 }: Props) {
   const { user } = useAuth()
   const inputRef = useRef<HTMLInputElement>(null)
@@ -223,6 +227,28 @@ export function QuickInput({
     staleTime: 30_000,
   })
   const chips = chipsOf(draft, parsed.spans, today, projects.data, tags.data)
+
+  // 해석 결과를 낭독기에 알린다(UX-COM-25). 미리보기는 aria-describedby라 다시 포커스해야 들려서, 치기를 멈추면 한 번 읽는다
+  const summary = !typing
+    ? ''
+    : [
+        draft.title === '' ? '할 일 이름을 적어 주세요' : draft.schedule ? '일정과 업무' : '업무',
+        ...chips.map((c) =>
+          c.kind === 'tag'
+            ? `#${c.name}${c.isNew ? ' 새 태그' : ''}`
+            : c.kind === 'newProject'
+              ? `새 프로젝트 ‘${c.name}’`
+              : c.text,
+        ),
+        unreadTime ? `시간으로 읽지 못했어요: ${unreadTime}` : '',
+      ]
+        .filter(Boolean)
+        .join(', ')
+  useEffect(() => {
+    if (!summary || !focused) return
+    const timer = setTimeout(() => announce(summary), 700)
+    return () => clearTimeout(timer)
+  }, [summary, focused])
 
   // 제안을 고르면 한 줄 문법으로 채우고 입력창으로 돌아간다(시간을 덧붙여 Enter로 저장).
   // 이름에 공백이 있는 프로젝트·태그는 한 낱말로 쓸 수 없어 뺀다
@@ -282,18 +308,23 @@ export function QuickInput({
       suggestButtons.current[0]?.focus()
     } else if (e.key === 'Enter') {
       e.preventDefault()
-      if (!onSubmit) return
-      if (draft.title === '') {
-        if (typing) setEmptyTries((n) => n + 1)
-        return
-      }
-      // 저장에 실패하면(onSubmit이 거부) 입력을 그대로 남긴다. 오류 안내는 onSubmit 쪽이 맡는다.
-      void Promise.resolve(onSubmit(draft)).then(
-        () => onChange(''),
-        () => {},
-      )
+      submit()
     }
   }
+
+  function submit() {
+    if (!onSubmit) return
+    if (draft.title === '') {
+      if (typing) setEmptyTries((n) => n + 1)
+      return
+    }
+    // 저장에 실패하면(onSubmit이 거부) 입력을 그대로 남긴다. 오류 안내는 onSubmit 쪽이 맡는다.
+    void Promise.resolve(onSubmit(draft)).then(
+      () => onChange(''),
+      () => {},
+    )
+  }
+  const canSave = draft.title !== ''
 
   return (
     <div
@@ -334,11 +365,25 @@ export function QuickInput({
             onChange(e.target.value)
           }}
           onKeyDown={handleKeyDown}
+          // 휴대폰 키보드의 리턴 키를 '완료'로 보여 Enter가 저장임을 알린다(UX-MOB-01)
+          enterKeyHint={onSubmit ? 'done' : undefined}
           aria-describedby={typing ? `${id}-preview` : undefined}
           aria-invalid={titleError || undefined}
           data-quick-input
         />
-        {typing && onSubmit ? (
+        {saveButton && onSubmit ? (
+          <button
+            type="button"
+            className={styles.save}
+            aria-disabled={!canSave || undefined}
+            aria-describedby={canSave ? undefined : `${id}-save-reason`}
+            // 누르는 동안 입력칸 포커스를 지켜 휴대폰 키보드가 내려갔다 올라오지 않게
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={submit}
+          >
+            저장
+          </button>
+        ) : typing && onSubmit ? (
           <span className={styles.enter}>Enter 저장</span>
         ) : (
           // 단축키를 끄면 N 안내도 숨긴다 (qa P1-01-11)
@@ -359,6 +404,11 @@ export function QuickInput({
           ?
         </button>
       </div>
+      {saveButton && onSubmit && !canSave && (
+        <p id={`${id}-save-reason`} className={styles.saveReason}>
+          내용을 적으면 저장할 수 있어요
+        </p>
+      )}
 
       {suggestions.length > 0 && (
         <div className={styles.preview}>

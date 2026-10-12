@@ -804,3 +804,25 @@ describe('일지 오프라인 (UX-LOG-40)', () => {
     await waitFor(() => expect(screen.queryByRole('textbox', { name: '1번 결과' })).not.toBeInTheDocument())
   })
 })
+
+describe('일지 줄 삭제 되돌리기 (UX-LOG-101)', () => {
+  it('×로 지운 실적 줄은 5초 되돌리기 토스트로 같은 자리에 돌아오고, 포커스도 그 줄로 간다', async () => {
+    const user = userEvent.setup()
+    stubFetch({
+      'GET /api/users/me': me,
+      [LOG_URL]: () => json(200, workLog()),
+      'PATCH /api/worklog/logs/log-1': () => json(200, workLog()),
+    })
+    renderApp('/logs/daily/2026-10-07')
+    const first = await screen.findByRole('textbox', { name: '1번 업무 내용' })
+    const text = (first as HTMLTextAreaElement).value
+    await user.click(screen.getByRole('button', { name: '1번 줄 삭제' }))
+    expect(screen.queryByDisplayValue(text)).not.toBeInTheDocument()
+    expect(await screen.findByText('실적 줄을 지웠어요')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: '되돌리기' }))
+    const back = await screen.findByRole('textbox', { name: '1번 업무 내용' })
+    expect(back).toHaveValue(text)
+    await waitFor(() => expect(back).toHaveFocus())
+  })
+})

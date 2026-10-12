@@ -222,7 +222,7 @@ describe('P1-10-08 명령 팔레트 업무 검색', () => {
     // 맞는 명령이 없으면 업무로 추가 제안이 맨 앞
     expect(screen.getAllByRole('option')[0]).toHaveTextContent('‘견적’을 업무로 추가')
     await userEvent.keyboard('{ArrowDown}{Enter}')
-    expect(router.state.location.pathname).toBe('/tasks/k1')
+    await waitFor(() => expect(router.state.location.pathname).toBe('/tasks/k1'))
     expect(screen.queryByRole('dialog', { name: '명령 팔레트' })).not.toBeInTheDocument()
   })
 

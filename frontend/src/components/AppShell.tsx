@@ -240,7 +240,7 @@ export function AppShell() {
         <button
           type="button"
           className={styles.quick}
-          aria-label="빠른 기록"
+          aria-label="빠른 기록 열기"
           aria-haspopup="dialog"
           onClick={() => setSheetOpen(true)}
         >
