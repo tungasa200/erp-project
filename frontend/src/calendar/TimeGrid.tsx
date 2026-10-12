@@ -23,6 +23,7 @@ import {
   SLOT_MINUTES,
   WEEKDAY_LABELS,
   addDays,
+  dateName,
   formatMinutes,
   fromZoned,
   toZoned,
@@ -34,7 +35,13 @@ import actualStyles from './dayActual.module.css'
 const HOUR_HEIGHT = 48
 export const PX_PER_MINUTE = HOUR_HEIGHT / 60
 const DEFAULT_SCROLL_HOUR = 8
+/** 처음 보이는 시각 라벨(08:00)이 위 경계에 잘리지 않게 남기는 여백(UX-CAL-73) */
+const LABEL_ROOM = 12
 const DRAG_THRESHOLD = 4
+/** 끄는 손가락·커서가 스크롤 영역 위아래 이 거리 안에 들면 그쪽으로 저절로 스크롤한다(UX-CAL-94) */
+const EDGE_ZONE = 40
+/** 가장자리 끝에서의 한 프레임 스크롤 양. 가장자리에 가까울수록 빨라진다 */
+const EDGE_MAX_SPEED = 12
 export const TASK_DRAG_TYPE = 'application/x-worklog-task'
 
 export interface TimeRange {
@@ -63,6 +70,8 @@ interface Props {
   overview?: boolean
   /** false면(오프라인, P1-X-04) 끌기·길이 조절·빈 칸 만들기·업무 끌어 놓기를 끈다. 보기는 그대로 */
   editable?: boolean
+  /** 늘어날 때마다 오늘이 보이는 기간이면 현재 시각선이 화면 안에 들게 스크롤한다([오늘]·T, UX-CAL-74) */
+  nowSignal?: number
   /** 일 보기 실제 열(SCR-CAL-02 ④, 시간 기록 옵션 켜짐). 있으면 날짜 칸을 왼쪽 반(계획)으로 줄이고 오른쪽 반에 그린다 */
   actual?: { head: ReactNode; column: ReactNode }
 }
@@ -121,9 +130,24 @@ export function TimeGrid(props: Props) {
   const allDayRows = Math.max(1, ...bars.map((b) => b.row + 1))
   const nowZoned = toZoned(now, timeZone)
 
+  // 처음에는 08시부터 보인다. 오늘이 든 기간인데 지금이 그 밖(이른 아침·늦은 밤)이면 지금 한 시간 전부터(UX-CAL-74)
+  // 효과는 처음과 [오늘]에만 돌므로 그 순간의 값을 ref로 읽는다
+  const nowView = useRef({ showsToday: false, nowTop: 0 })
+  nowView.current = { showsToday: days.includes(today), nowTop: nowZoned.minutes * PX_PER_MINUTE }
+  const firstScroll = useRef(true)
   useLayoutEffect(() => {
-    if (scrollRef.current) scrollRef.current.scrollTop = DEFAULT_SCROLL_HOUR * HOUR_HEIGHT
-  }, [])
+    const el = scrollRef.current
+    if (!el) return
+    const first = firstScroll.current
+    firstScroll.current = false
+    const top = first ? DEFAULT_SCROLL_HOUR * HOUR_HEIGHT - LABEL_ROOM : el.scrollTop
+    // 높이를 모를 때(그리기 전)는 기본 범위 08~19시로 본다
+    const height = el.clientHeight || 11 * HOUR_HEIGHT
+    const { showsToday, nowTop } = nowView.current
+    const nowHidden = nowTop < top || nowTop > top + height - HOUR_HEIGHT / 2
+    el.scrollTop = showsToday && nowHidden ? Math.max(0, nowTop - HOUR_HEIGHT) : top
+    // 기간을 넘기거나 시각이 흘러도 스크롤은 그대로 둔다. 처음과 [오늘]을 누를 때만
+  }, [props.nowSignal])
 
   // 드래그 중 Esc는 취소
   useEffect(() => {
@@ -228,6 +252,14 @@ export function TimeGrid(props: Props) {
   const onPointerMove = (e: PointerEvent<HTMLDivElement>) => {
     if (gridHold.move(e)) return
     if (!drag || drag.kind === 'moveAllDay') return
+    pointer.current = { x: e.clientX, y: e.clientY }
+    updateDrag(e.clientX, e.clientY)
+  }
+
+  /** 끄는 중인 자리를 화면 좌표로 다시 계산한다(손가락이 움직일 때와 저절로 스크롤된 뒤) */
+  function updateDrag(clientX: number, clientY: number) {
+    if (!drag || drag.kind === 'moveAllDay') return
+    const e = { clientX, clientY }
     const { dayIndex, minutes } = locate(e.clientX, e.clientY)
     if (drag.kind === 'create') {
       const moved = drag.moved || Math.abs(e.clientY - drag.y) > DRAG_THRESHOLD
@@ -245,6 +277,41 @@ export function TimeGrid(props: Props) {
       setDrag({ ...drag, end: Math.max(min, Math.min(MINUTES_PER_DAY, roundSlot(minutes))) })
     }
   }
+
+  // 가장자리 자동 스크롤: 손가락으로 길게 눌러 끌면 스크롤이 막히므로, 보이는 시간 밖으로 옮기려면 그리드가 따라 움직여야 한다
+  const pointer = useRef<{ x: number; y: number } | null>(null)
+  const updateRef = useRef(updateDrag)
+  useLayoutEffect(() => {
+    updateRef.current = updateDrag
+  })
+  const gridDragging = !!drag && drag.kind !== 'moveAllDay'
+  useEffect(() => {
+    if (!gridDragging) {
+      pointer.current = null
+      return
+    }
+    let frame = 0
+    const tick = () => {
+      const el = scrollRef.current
+      const p = pointer.current
+      if (el && p) {
+        const rect = el.getBoundingClientRect()
+        const into =
+          p.y < rect.top + EDGE_ZONE
+            ? p.y - (rect.top + EDGE_ZONE)
+            : p.y > rect.bottom - EDGE_ZONE
+              ? p.y - (rect.bottom - EDGE_ZONE)
+              : 0
+        const speed = Math.max(-1, Math.min(1, into / EDGE_ZONE)) * EDGE_MAX_SPEED
+        const before = el.scrollTop
+        if (speed) el.scrollTop = before + speed
+        if (el.scrollTop !== before) updateRef.current(p.x, p.y)
+      }
+      frame = requestAnimationFrame(tick)
+    }
+    frame = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(frame)
+  }, [gridDragging])
 
   const onPointerUp = (e: PointerEvent<HTMLDivElement>) => {
     if (gridHold.end(e)) return
@@ -393,7 +460,7 @@ export function TimeGrid(props: Props) {
                 data-today={date === today || undefined}
                 data-holiday={!!holiday || undefined}
                 data-weekend={wd === 0 || wd === 6 || undefined}
-                aria-label={`${date}${holiday ? ` ${holiday}` : ''} 일 보기`}
+                aria-label={`${dateName(date)}${holiday ? ` ${holiday}` : ''} 일 보기`}
                 onClick={() => props.onOpenDay?.(date)}
                 disabled={!props.onOpenDay}
               >

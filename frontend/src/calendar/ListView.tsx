@@ -6,7 +6,7 @@ import { focusGroup, occurrenceFocusId } from './focus'
 import { holidayName } from './holidays'
 import { occurrencesByDate } from './layout'
 import { RepeatIcon } from './TimeGrid'
-import { WEEKDAY_LABELS, formatMinutes, toZoned, weekdayIndex } from './time'
+import { WEEKDAY_LABELS, dateName, formatMinutes, toZoned, weekdayIndex } from './time'
 import styles from './calendar.module.css'
 
 interface Props {
@@ -20,6 +20,10 @@ interface Props {
   projectNameOf: (o: Occurrence) => string | null
   onOpen: (o: Occurrence) => void
   onLoadMore: () => void
+  /** 빈 상태의 [일정 만들기](UX-CAL-75) */
+  onCreate: () => void
+  /** false면(오프라인) [일정 만들기]를 끈다 */
+  editable: boolean
 }
 
 function timeText(o: Occurrence, date: string, timeZone: string) {
@@ -31,7 +35,18 @@ function timeText(o: Occurrence, date: string, timeZone: string) {
   return `${start} – ${end}`
 }
 
-export function ListView({ days, occurrences, timeZone, today, colorOf, projectNameOf, onOpen, ...props }: Props) {
+export function ListView({
+  days,
+  occurrences,
+  timeZone,
+  today,
+  colorOf,
+  projectNameOf,
+  onOpen,
+  onCreate,
+  editable,
+  ...props
+}: Props) {
   const byDate = useMemo(() => occurrencesByDate(occurrences, days, timeZone), [occurrences, days, timeZone])
   const groups = days.filter((d) => byDate.get(d)!.length > 0)
   const sentinel = useRef<HTMLDivElement>(null)
@@ -47,12 +62,24 @@ export function ListView({ days, occurrences, timeZone, today, colorOf, projectN
 
   return (
     <div className={styles.list}>
-      {!loading && groups.length === 0 && <p className={styles.empty}>다가오는 일정이 없어요</p>}
+      {!loading && groups.length === 0 && (
+        <div className={styles.empty}>
+          <p className={styles.emptyTitle}>다가오는 일정이 없어요</p>
+          <p className={styles.emptyText}>일 보기의 빈 시간에서도 바로 만들 수 있어요</p>
+          <button type="button" className={styles.emptyAction} onClick={onCreate} disabled={!editable}>
+            일정 만들기
+          </button>
+        </div>
+      )}
       {groups.map((date) => {
         const holiday = holidayName(date)
         const label = `${date === today ? '오늘 · ' : ''}${WEEKDAY_LABELS[weekdayIndex(date)]}${holiday ? ` · ${holiday}` : ''}`
         return (
-          <section key={date} className={styles.listDay} aria-label={`${date} ${label}`}>
+          <section
+            key={date}
+            className={styles.listDay}
+            aria-label={`${dateName(date)}${date === today ? ', 오늘' : ''}${holiday ? ` ${holiday}` : ''}`}
+          >
             <div
               className={styles.listDate}
               data-today={date === today || undefined}

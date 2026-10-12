@@ -164,6 +164,49 @@
   color: var(--color-text);
 }
 
+/* 390px: 기간 제목·[오늘]·이전/다음을 한 줄, 보기 전환을 그 아래 한 줄로(UX-CAL-72). 이전/다음이 따로 한 줄을 차지하지 않게 */
+@media (max-width: 767px) {
+  .toolbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    gap: 8px;
+  }
+
+  .title {
+    font-size: 17px;
+    /* 넘치면 낱말(띄어쓰기) 단위로 줄을 바꾼다 */
+    word-break: keep-all;
+    text-wrap: balance;
+  }
+
+  .grow {
+    display: none;
+  }
+
+  /* 제목이 한 줄에 들어가게 버튼을 줄인다. 누르는 영역은 ::after로 44px 그대로 */
+  .toolbar .pillButton {
+    padding: 0 12px;
+  }
+
+  .stepper {
+    gap: 8px;
+  }
+
+  .stepper .iconButton {
+    width: 36px;
+    min-width: 36px;
+  }
+
+  .viewSwitch {
+    grid-column: 1 / -1;
+  }
+
+  .viewSwitch a {
+    flex: 1;
+    padding: 0 6px;
+  }
+}
+
 /* ── 시간 그리드 (일·주) */
 .timeGrid {
   display: flex;
@@ -929,6 +972,36 @@ button.monthCell {
   text-align: center;
   color: var(--color-text-muted);
   font-size: 14px;
+}
+
+/* 목록 빈 상태(UX-CAL-75): 무엇이 없는지 → 만드는 길 → [일정 만들기] */
+.emptyTitle {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--color-text);
+}
+
+.emptyText {
+  margin: 6px 0 16px;
+}
+
+.emptyAction {
+  font: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  height: 44px;
+  padding: 0 22px;
+  border: 0;
+  border-radius: 22px;
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  cursor: pointer;
+}
+
+.emptyAction:disabled {
+  opacity: 0.55;
+  cursor: default;
 }
 
 .listFoot {

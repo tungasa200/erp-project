@@ -138,6 +138,11 @@ export function formatDateLong(date: string): string {
   return `${y}년 ${m}월 ${d}일 (${WEEKDAY_LABELS[weekdayIndex(date)]})`
 }
 
+/** 10월 13일 화요일 (버튼·창의 읽는 이름) */
+export function dateName(date: string): string {
+  return `${Number(date.slice(5, 7))}월 ${Number(date.slice(8))}일 ${WEEKDAY_LABELS[weekdayIndex(date)]}요일`
+}
+
 export function isValidDate(value: string | undefined): value is string {
   if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
   return fromUtc(toUtc(value)) === value

@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { PrivacyPage } from './PrivacyPage'
@@ -39,6 +39,22 @@ describe('SCR-AUTH-06 처리방침 · SCR-AUTH-07 이용약관', () => {
       expect(a).toHaveAttribute('rel', 'noopener noreferrer')
       expect(a).toHaveAccessibleName(/새 탭에서 열림/)
     })
+  })
+
+  it('목차로 장을 옮기면 읽기 위치(포커스)가 그 장 제목으로, 장 끝 [목차로 돌아가기]는 목차로 (UX-AUTH-84)', async () => {
+    setup(<PrivacyPage />)
+    const toc = screen.getByRole('navigation', { name: '목차' })
+    const target = within(toc).getAllByRole('link')[2]
+    fireEvent.click(target)
+    await waitFor(() =>
+      expect(document.activeElement).toBe(screen.getByRole('heading', { level: 2, name: target.textContent! })),
+    )
+    const section = screen.getByRole('region', { name: target.textContent! })
+    const back = within(section).getByRole('link', { name: '목차로 돌아가기' })
+    expect(back).toHaveAttribute('href', '#legal-toc')
+    fireEvent.click(back)
+    await waitFor(() => expect(document.activeElement).toBe(toc))
+    expect(screen.getAllByRole('link', { name: '목차로 돌아가기' })).toHaveLength(10)
   })
 
   it('정해지지 않은 자리는 [확정 전]으로 표시하고 원문의 작업 메모는 보이지 않는다', () => {

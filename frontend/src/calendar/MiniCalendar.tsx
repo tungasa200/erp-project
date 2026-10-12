@@ -1,7 +1,16 @@
 // 좌측 미니 달력 (SCR-CAL-01 ②). 보고 있는 기간(주 보기는 그 주)을 강조하고, 날짜를 누르면 그 날짜로 간다.
 import { useState } from 'react'
 import { holidayName } from './holidays'
-import { WEEKDAYS, WEEKDAY_LABELS, addDays, addMonths, monthGridStart, startOfMonth, type Weekday } from './time'
+import {
+  WEEKDAYS,
+  WEEKDAY_LABELS,
+  addDays,
+  addMonths,
+  dateName,
+  monthGridStart,
+  startOfMonth,
+  type Weekday,
+} from './time'
 import styles from './calendar.module.css'
 
 interface Props {
@@ -69,7 +78,7 @@ export function MiniCalendar({ date, today, weekStart, highlight, onSelect }: Pr
                 data-out={!d.startsWith(month.slice(0, 7)) || undefined}
                 data-today={d === today || undefined}
                 data-holiday={!!holidayName(d) || undefined}
-                aria-label={d}
+                aria-label={`${dateName(d)}${d === today ? ', 오늘' : ''}${holidayName(d) ? ` ${holidayName(d)}` : ''}`}
                 aria-current={d === date ? 'date' : undefined}
                 onClick={() => onSelect(d)}
               >

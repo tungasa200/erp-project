@@ -74,6 +74,7 @@
   border-radius: 18px;
   background: var(--color-ground);
   font-size: 14px;
+  scroll-margin-top: 16px;
 }
 
 .toc ol {
@@ -103,6 +104,20 @@
   margin: 0;
   font-size: 19px;
   font-weight: 800;
+}
+
+/* 장 끝의 목차로 돌아가기: 본문보다 한 단계 작게, 오른쪽에 */
+.back {
+  display: flex;
+  justify-content: flex-end;
+  margin: 12px 0 0;
+  font-size: 14px;
+}
+
+.back a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
 }
 
 .text,
@@ -158,7 +173,9 @@
 .brand:focus-visible,
 .toc a:focus-visible,
 .link:focus-visible,
-.tableBox:focus-visible {
+.tableBox:focus-visible,
+.sectionTitle:focus-visible,
+.toc:focus-visible {
   outline: 3px solid var(--color-accent-ink);
   outline-offset: 3px;
 }
@@ -186,7 +203,8 @@
   }
 
   /* 터치 화면은 누르는 높이 44px(pm 결정 2026-10-11) */
-  .toc a {
+  .toc a,
+  .back a {
     min-height: 44px;
   }
 }

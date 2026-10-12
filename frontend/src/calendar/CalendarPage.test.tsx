@@ -148,6 +148,18 @@ describe('캘린더', () => {
     expect(await screen.findAllByRole('button', { name: /^팀 스탠드업, 10:00–11:00, 반복$/ })).toHaveLength(3)
   })
 
+  it('미니 달력 날짜 버튼은 "10월 13일 화요일"처럼 읽히고, 누르면 그 주로 간다 (UX-CAL-96)', async () => {
+    stubServer()
+    const user = userEvent.setup()
+    renderApp('/calendar/week/2026-10-07', routes)
+    await screen.findByRole('heading', { name: '2026년 10월 5일 – 11일' })
+    const mini = screen.getByRole('region', { name: '미니 달력' })
+    expect(within(mini).queryByRole('button', { name: /\d{4}-\d{2}-\d{2}/ })).toBeNull()
+    expect(within(mini).getByRole('button', { name: '10월 9일 금요일 한글날' })).toBeInTheDocument()
+    await user.click(within(mini).getByRole('button', { name: '10월 13일 화요일' }))
+    expect(await screen.findByRole('heading', { name: '2026년 10월 12일 – 18일' })).toBeInTheDocument()
+  })
+
   it('단축키 M으로 월 보기, J로 다음 달, K로 이전 달', async () => {
     stubServer()
     const user = userEvent.setup()

@@ -242,6 +242,12 @@ function Calendar({ view, date, today, timeZone, weekStart }: CalendarProps) {
   )
 
   const go = useCallback((v: CalendarView, d: string) => navigate(calendarPath(v, d)), [navigate])
+  // [오늘]·T: 오늘로 가고, 일·주 보기면 현재 시각선이 보이게 스크롤(UX-CAL-74)
+  const [nowSignal, setNowSignal] = useState(0)
+  const goToday = () => {
+    go(view, today)
+    setNowSignal((n) => n + 1)
+  }
   const step = (direction: 1 | -1) => {
     if (view === 'day') go(view, addDays(date, direction))
     else if (view === 'week') go(view, addDays(date, 7 * direction))
@@ -285,7 +291,7 @@ function Calendar({ view, date, today, timeZone, weekStart }: CalendarProps) {
     KeyM: () => go('month', date),
     KeyY: () => go('year', date),
     KeyA: () => go('list', date),
-    KeyT: () => go(view, today),
+    KeyT: goToday,
     // 관례(Google 캘린더·vim)대로 J=다음, K=이전
     KeyJ: () => step(1),
     KeyK: () => step(-1),
@@ -373,6 +379,7 @@ function Calendar({ view, date, today, timeZone, weekStart }: CalendarProps) {
       overview={view === 'week' && mobile}
       editable={online}
       actual={actual}
+      nowSignal={nowSignal}
     />
   )
 
@@ -445,7 +452,7 @@ function Calendar({ view, date, today, timeZone, weekStart }: CalendarProps) {
             </button>
           ) : (
             <>
-              <button type="button" className={styles.pillButton} onClick={() => go(view, today)} title="단축키 T">
+              <button type="button" className={styles.pillButton} onClick={goToday} title="단축키 T">
                 오늘
               </button>
               {/* 이전·다음은 한 묶음으로 줄바꿈하지 않는다(390px) */}
@@ -553,6 +560,8 @@ function Calendar({ view, date, today, timeZone, weekStart }: CalendarProps) {
             projectNameOf={projectNameOf}
             onOpen={(o) => setDialog({ kind: 'edit', occurrence: o })}
             onLoadMore={() => setListWindows((w) => ({ ...w, future: w.future + 1 }))}
+            onCreate={() => openCreate()}
+            editable={online}
           />
         )}
         {query.isError && (

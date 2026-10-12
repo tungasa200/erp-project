@@ -8,7 +8,7 @@ import { holidayName } from './holidays'
 import { occurrencesByDate } from './layout'
 import { RepeatIcon } from './TimeGrid'
 import { useTouchHold } from './touchHold'
-import { WEEKDAY_LABELS, diffDays, formatMinutes, toZoned, weekdayIndex } from './time'
+import { WEEKDAY_LABELS, dateName, diffDays, formatMinutes, toZoned, weekdayIndex } from './time'
 import styles from './calendar.module.css'
 
 const MAX_CHIPS = 3
@@ -185,7 +185,7 @@ export function MonthView({
                   <button
                     type="button"
                     className={styles.dateNumber}
-                    aria-label={`${date}${holiday ? ` ${holiday}` : ''} 일 보기`}
+                    aria-label={`${dateName(date)}${holiday ? ` ${holiday}` : ''} 일 보기`}
                     onClick={() => props.onOpenDay(date)}
                   >
                     {Number(date.slice(8))}
@@ -238,7 +238,7 @@ export function MonthView({
           <div
             role="dialog"
             data-day-popover
-            aria-label={`${popover.date} 일정`}
+            aria-label={`${dateName(popover.date)} 일정`}
             className={styles.dayPopover}
             style={{
               left: Math.min(popover.x, window.innerWidth - 256),
