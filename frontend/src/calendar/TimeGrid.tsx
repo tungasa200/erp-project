@@ -15,6 +15,7 @@ import { occurrenceKey, type Occurrence } from './api'
 import { colorVars, type BlockColor } from './colors'
 import { cycleTab, focusGroup, markFocus, occurrenceFocusId, restoreFocus } from './focus'
 import { holidayName } from './holidays'
+import { BLOCK_STATE_LABEL, blockStateOf, type BlockState } from './recordStatus'
 import {
   allDayBars,
   MORE_PX,
@@ -67,6 +68,8 @@ interface Props {
   today: string
   now: number
   colorOf: (o: Occurrence) => BlockColor | null
+  /** 회차의 기록 상태(2.3). 없으면 진행 중/계획만 */
+  stateOf?: (o: Occurrence) => BlockState
   /** 빠른 생성 중인 임시 블록 */
   pending: TimeRange | null
   onCreate: (range: TimeRange) => void
@@ -134,6 +137,7 @@ export function TimeGrid(props: Props) {
   const { days, occurrences, timeZone, today, now, colorOf, pending, overview = false, editable = true } = props
   // 훑어보기·오프라인이면 그리드에서 바꾸는 동작을 받지 않는다
   const readOnly = overview || !editable
+  const stateOf = props.stateOf ?? ((o: Occurrence) => blockStateOf(o, [], now, timeZone))
   const scrollRef = useRef<HTMLDivElement>(null)
   const columnsRef = useRef<HTMLDivElement>(null)
   const allDayRef = useRef<HTMLDivElement>(null)
@@ -538,15 +542,18 @@ export function TimeGrid(props: Props) {
             const end = Math.min(days.length, bar.startIndex + bar.span + shift)
             if (end <= start) return null
             const color = colorOf(bar.occurrence)
+            const state = stateOf(bar.occurrence)
             if (overview)
               return (
                 <div
                   key={occurrenceKey(bar.occurrence)}
                   className={styles.allDayBar}
                   data-overview
+                  data-state={state}
                   style={{ gridColumn: `${start + 1} / ${end + 1}`, gridRow: bar.row + 1, ...colorVars(color) }}
                   aria-hidden="true"
                 >
+                  <StateText state={state} />
                   {bar.occurrence.title}
                 </div>
               )
@@ -558,6 +565,7 @@ export function TimeGrid(props: Props) {
                 data-focus-id={occurrenceFocusId(bar.occurrence)}
                 data-focus-group={focusGroup(bar.occurrence, bar.occurrence.startDate!)}
                 className={styles.allDayBar}
+                data-state={state}
                 data-dragging={shift !== 0 || undefined}
                 data-held={
                   (drag?.kind === 'moveAllDay' && drag.occurrence === bar.occurrence && !drag.moved) || undefined
@@ -571,6 +579,7 @@ export function TimeGrid(props: Props) {
                 // 오프라인이면 pointer 처리가 꺼지므로 마우스 click도 여기서 연다(SCR-SYS-02 ③ 열어 보기)
                 onClick={(e) => (e.detail === 0 || readOnly) && props.onOpen(bar.occurrence)}
               >
+                <StateText state={state} />
                 {bar.occurrence.recurring && <RepeatIcon />}
                 {bar.occurrence.title}
               </button>
@@ -639,8 +648,8 @@ export function TimeGrid(props: Props) {
                       key={occurrenceKey(segment.occurrence)}
                       segment={segment}
                       color={colorOf(segment.occurrence)}
+                      state={stateOf(segment.occurrence)}
                       timeZone={timeZone}
-                      now={now}
                       drag={drag}
                       overview={overview}
                       readOnly={readOnly}
@@ -680,6 +689,7 @@ export function TimeGrid(props: Props) {
           group={morePopover.group}
           opener={morePopover.opener}
           timeZone={timeZone}
+          stateOf={stateOf}
           onClose={() => setMorePopover(null)}
           onOpen={(o) => {
             setMorePopover(null)
@@ -737,12 +747,14 @@ function MorePopover({
   group,
   opener,
   timeZone,
+  stateOf,
   onClose,
   onOpen,
 }: {
   group: MoreGroup
   opener: HTMLElement
   timeZone: string
+  stateOf: (o: Occurrence) => BlockState
   onClose: () => void
   onOpen: (o: Occurrence) => void
 }) {
@@ -784,9 +796,11 @@ function MorePopover({
             key={occurrenceKey(s.occurrence)}
             type="button"
             className={styles.morePopoverItem}
+            data-state={stateOf(s.occurrence)}
             onClick={() => onOpen(s.occurrence)}
           >
             <strong>
+              <StateText state={stateOf(s.occurrence)} />
               {s.occurrence.recurring && <RepeatIcon />}
               {s.occurrence.title}
             </strong>
@@ -801,8 +815,8 @@ function MorePopover({
 function Block({
   segment,
   color,
+  state,
   timeZone,
-  now,
   drag,
   overview,
   readOnly,
@@ -810,8 +824,8 @@ function Block({
 }: {
   segment: CappedSegment
   color: BlockColor | null
+  state: BlockState
   timeZone: string
-  now: number
   drag: Drag | null
   overview: boolean
   /** 오프라인: pointer 처리가 꺼져 마우스 click으로 연다 */
@@ -824,7 +838,6 @@ function Block({
   const top = drawnStart * PX_PER_MINUTE + 1
   // 가장 짧은 블록(30분)도 누르는 높이 24px(D-76, UX-M-CAL-91). 아래 블록과의 2px 틈만 쓰므로 겹치지 않는다
   const height = Math.max(24, (drawnEnd - drawnStart) * PX_PER_MINUTE - 2)
-  const active = Date.parse(o.startAt!) <= now && now < Date.parse(o.endAt!)
   const dragging = drag?.kind === 'move' && drag.moved && drag.segment.occurrence === o
   // 길게 눌러 잡았지만 아직 움직이지 않음(손가락 끌기 시작 표시)
   const held =
@@ -832,17 +845,20 @@ function Block({
     (drag?.kind === 'resize' && drag.segment === segment)
   const content = (
     <span className={styles.blockTitle}>
+      <StateText state={state} />
       {o.recurring && <RepeatIcon />}
-      {o.title}
+      <span className={styles.blockTitleText}>{o.title}</span>
     </span>
   )
+  // 기록 상태가 있으면 시각 줄 앞에 상태 말을 붙인다(2.3 문구, 홈 오늘 일정과 같은 말). 30분 블록은 제목 줄의 표시만 보인다
+  const timeText = `${state === 'plan' || state === 'now' ? '' : `${BLOCK_STATE_LABEL[state]} · `}${timeLabel(o, timeZone)}`
   // 훑어보기(D-77): 하루 칸 버튼 안에서 보여 주기만 한다
   if (overview)
     return (
       <div
         className={styles.block}
         data-overview
-        data-now={active || undefined}
+        data-state={state}
         style={blockStyle(color, top, height, segment.column, segment.columns, segment.reserve)}
         aria-hidden="true"
       >
@@ -856,16 +872,16 @@ function Block({
       data-focus-id={occurrenceFocusId(o)}
       data-focus-group={focusGroup(o, segment.date)}
       className={styles.block}
-      data-now={active || undefined}
+      data-state={state}
       data-dragging={dragging || undefined}
       data-held={held || undefined}
       style={blockStyle(color, top, height, segment.column, segment.columns, segment.reserve)}
       onClick={(e) => (e.detail === 0 || readOnly) && onOpen(o)}
-      // 낭독 접두는 테두리와 같다: 점선은 계획, 실선(지금 진행 중)은 진행 중(X-11, CAL-93, UX-CAL-144)
-      aria-label={`${active ? '진행 중' : '계획'} · ${o.title}, ${timeLabel(o, timeZone)}${o.recurring ? ', 반복' : ''}`}
+      // 낭독 접두는 모양과 같다: 점선은 계획, 실선은 진행 중, 노란 면은 확인 대기, 채움은 했어요, 취소선은 안 했어요(2.3, X-11, CAL-93, UX-CAL-144)
+      aria-label={`${BLOCK_STATE_LABEL[state]} · ${o.title}, ${timeLabel(o, timeZone)}${o.recurring ? ', 반복' : ''}`}
     >
       {content}
-      {height >= 34 && <span className={styles.blockTime}>{timeLabel(o, timeZone)}</span>}
+      {height >= 34 && <span className={styles.blockTime}>{timeText}</span>}
       {!segment.continuesAfter && <span className={styles.resizeHandle} data-handle="resize" aria-hidden="true" />}
     </button>
   )
@@ -898,6 +914,29 @@ function MoveGhost({
       <strong>{seg.occurrence.title}</strong>
       <span>{minutesRange(start, end)}</span>
     </div>
+  )
+}
+
+/**
+ * 칩·종일 막대 앞 상태 글자(2.3, 색만으로 구분하지 않게). 했어요는 ✓, 확인 대기는 "!"를 보이고 이름은 낭독용 글자로 준다.
+ * 계획·진행 중은 테두리(점선·실선)가 알리므로 글자를 붙이지 않는다. 안 했어요는 취소선
+ */
+export function StateText({ state }: { state: BlockState }) {
+  if (state === 'plan' || state === 'now') return null
+  return (
+    <>
+      {state === 'done' && (
+        <span className={styles.stateCheck} aria-hidden="true">
+          ✓
+        </span>
+      )}
+      {state === 'pending' && (
+        <span className={styles.stateMark} aria-hidden="true">
+          !
+        </span>
+      )}
+      <span className="visually-hidden">{BLOCK_STATE_LABEL[state]}, </span>
+    </>
   )
 }
 

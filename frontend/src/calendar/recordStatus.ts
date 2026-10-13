@@ -52,6 +52,44 @@ export function planEnded(
   return !plan.endAt || Date.parse(plan.endAt) <= now
 }
 
+/** 블록·칩·종일 막대가 그리는 회차 상태(2.3). CSS는 data-state로 모양을 바꾼다 */
+export type BlockState = 'plan' | 'now' | 'pending' | 'done' | 'skipped'
+
+/** 낭독 접두. 홈 오늘 일정과 같은 말을 쓴다 */
+export const BLOCK_STATE_LABEL: Record<BlockState, string> = {
+  plan: '계획',
+  now: '진행 중',
+  pending: '확인 대기',
+  done: '했어요',
+  skipped: '안 했어요',
+}
+
+/**
+ * 회차의 상태: 기록이 있으면 그 상태(확인 대기는 끝난 회차만, ff78fa4·D-31), 없으면 진행 중/계획.
+ * 끝났는데 기록이 없는 회차(7일 지난 것 등)는 계획 모양 그대로 둔다
+ */
+export function blockStateOf(o: Occurrence, records: WorkRecord[], now: number, timeZone: string): BlockState {
+  const record = recordOf(records, o)
+  if (record?.status === 'CONFIRMED') return 'done'
+  if (record?.status === 'DISMISSED') return 'skipped'
+  if (record?.status === 'PENDING' && planEnded(o, now, timeZone)) return 'pending'
+  if (o.allDay) return 'plan'
+  return Date.parse(o.startAt!) <= now && now < Date.parse(o.endAt!) ? 'now' : 'plan'
+}
+
+/**
+ * 보이는 기간(일·주·월 보기)의 기록. 하루면 useRecordsOnDate와 같은 키라 캐시를 함께 쓰고 서버가 확인 대기를 먼저 만든다(D-39).
+ * 여러 날이면 이미 만들어진 기록만 받는다
+ */
+export function useRecordsBetween(from: string, to: string, enabled: boolean) {
+  return useQuery({
+    queryKey: from === to ? ['records', 'on', from] : ['records', 'range', from, to],
+    queryFn: () => api.request<components['schemas']['WorkRecordList']>(`/api/worklog/records?from=${from}&to=${to}`),
+    enabled,
+    select: (d) => d.items,
+  })
+}
+
 /** 시간 일정이면 확인 대기 수정 창에 채울 계획 시각(RecordDialog planned). 회차를 그대로 넘긴다 */
 export { plannedOf } from '../records/pending'
 

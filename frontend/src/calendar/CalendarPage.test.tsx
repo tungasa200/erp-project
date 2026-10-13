@@ -683,7 +683,7 @@ describe('캘린더', () => {
     ]
     const user = userEvent.setup()
     renderApp('/calendar/day/2026-10-07', routes)
-    const panel = await screen.findByRole('region', { name: '이날의 기록' })
+    const panel = await screen.findByRole('region', { name: /^이날의 기록/ })
     const note = await within(panel).findByRole('button', { name: /견적 메일 회신/ })
     expect(note).toHaveTextContent('했어요')
     expect(note).toHaveTextContent('금요일까지 확정')
@@ -716,7 +716,7 @@ describe('캘린더', () => {
     ]
     try {
       renderApp('/calendar/day/2026-10-07', routes)
-      const panel = await screen.findByRole('region', { name: '이날의 기록' })
+      const panel = await screen.findByRole('region', { name: /^이날의 기록/ })
       await within(panel).findByRole('button', { name: /견적 메일 회신/ })
       expect(within(panel).queryByRole('button', { name: /팀 스탠드업/ })).not.toBeInTheDocument()
     } finally {
@@ -736,7 +736,8 @@ describe('캘린더', () => {
     ]
     const user = userEvent.setup()
     renderApp('/calendar/week/2026-10-07', routes)
-    const [block] = await screen.findAllByRole('button', { name: /^계획 · 팀 스탠드업, 10:00 – 11:00, 반복$/ })
+    // 그 회차 블록은 기록 상태(안 했어요)를 낭독 접두로 갖는다(2.3)
+    const block = await screen.findByRole('button', { name: /^안 했어요 · 팀 스탠드업, 10:00 – 11:00, 반복$/ })
     block.focus()
     await user.keyboard('{Enter}')
     const dialog = await screen.findByRole('dialog', { name: '일정 편집' })
@@ -748,7 +749,7 @@ describe('캘린더', () => {
     await waitFor(() => expect(within(recordDialog).getByLabelText(/한 일/)).toHaveFocus())
     await user.keyboard('{Escape}')
     await waitFor(() =>
-      expect(screen.getAllByRole('button', { name: /^계획 · 팀 스탠드업, 10:00 – 11:00, 반복$/ })[0]).toHaveFocus(),
+      expect(screen.getByRole('button', { name: /^안 했어요 · 팀 스탠드업, 10:00 – 11:00, 반복$/ })).toHaveFocus(),
     )
   })
 
@@ -838,7 +839,7 @@ describe('캘린더', () => {
       stubServer()
       records = [timedRecord()]
       renderApp('/calendar/day/2026-10-07', routes)
-      await screen.findByRole('region', { name: '이날의 기록' })
+      await screen.findByRole('region', { name: /^이날의 기록/ })
       await screen.findByRole('button', { name: /^계획 · 팀 스탠드업, 10:00 – 11:00/ })
       expect(screen.queryByRole('group', { name: /^실제/ })).not.toBeInTheDocument()
       expect(screen.queryByText('계획')).not.toBeInTheDocument()

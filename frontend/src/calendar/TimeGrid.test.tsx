@@ -667,3 +667,40 @@ describe('겹침 상한 "+n" (CAL-70, UX-CAL-171)', () => {
     expect(screen.queryByRole('dialog')).toBeNull()
   })
 })
+
+describe('블록 기록 상태 (2.3)', () => {
+  it('상태를 낭독 접두·data-state로 갖고, 기록 상태는 시각 줄 앞에 말로 적는다', () => {
+    const occ = (id: string, hour: number) =>
+      ({
+        scheduleId: id,
+        occurrenceStart: `${DAY}T${hour}:00:00Z`,
+        title: `일정 ${id}`,
+        allDay: false,
+        startAt: `${DAY}T${hour}:00:00Z`,
+        endAt: `${DAY}T${hour + 1}:00:00Z`,
+      }) as Occurrence
+    const states = { a: 'done', b: 'pending', c: 'skipped', d: 'plan' } as const
+    render(
+      <TimeGrid
+        days={[DAY]}
+        occurrences={[occ('a', 10), occ('b', 12), occ('c', 14), occ('d', 16)]}
+        timeZone="UTC"
+        today={DAY}
+        now={Date.parse(`${DAY}T00:00:00Z`)}
+        colorOf={() => null}
+        stateOf={(o) => states[o.scheduleId as keyof typeof states]}
+        pending={null}
+        onCreate={vi.fn()}
+        onCreateAllDay={vi.fn()}
+        onOpen={vi.fn()}
+        onMove={vi.fn()}
+      />,
+    )
+    const done = screen.getByRole('button', { name: /^했어요 · 일정 a, / })
+    expect(done).toHaveAttribute('data-state', 'done')
+    expect(done).toHaveTextContent('✓')
+    expect(screen.getByRole('button', { name: /^확인 대기 · 일정 b, / })).toHaveTextContent('확인 대기 · 12:00')
+    expect(screen.getByRole('button', { name: /^안 했어요 · 일정 c, / })).toHaveAttribute('data-state', 'skipped')
+    expect(screen.getByRole('button', { name: /^계획 · 일정 d, / })).toHaveAttribute('data-state', 'plan')
+  })
+})

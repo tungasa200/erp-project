@@ -101,3 +101,9 @@
 .agendaCreate:active:not(:disabled) {
   background: var(--color-surface-muted);
 }
+
+/* 안 했어요(2.3): 제목에 취소선. 했어요·확인 대기는 제목 앞 ✓·! 표시가 알린다 */
+.agendaItem[data-state='skipped'] .agendaText {
+  text-decoration: line-through;
+  color: var(--color-text-muted);
+}

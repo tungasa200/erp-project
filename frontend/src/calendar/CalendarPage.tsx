@@ -21,7 +21,7 @@ import { ListView } from './ListView'
 import { MiniCalendar } from './MiniCalendar'
 import { MonthView } from './MonthView'
 import { QuickCreate, type CreateTarget, type ScheduleDraft } from './QuickCreate'
-import { occurrenceOf, plannedOf } from './recordStatus'
+import { blockStateOf, occurrenceOf, plannedOf, useRecordsBetween } from './recordStatus'
 import recordStyles from './records.module.css'
 import { ScheduleDialog } from './ScheduleDialog'
 import { ScopeDialog } from './ScopeDialog'
@@ -248,6 +248,18 @@ function Calendar({ view, date, today, timeZone, weekStart }: CalendarProps) {
       }),
     [visible, query.data, hiddenProjects],
   )
+  // 블록·칩의 기록 상태(2.3): 일·주·월 보기에서 보이는 기간의 기록. 주·월은 전날부터(자정을 넘는 회차의 기록 날짜는 시작한 날).
+  // 일 보기는 "이날의 기록"과 같은 하루 요청이라 캐시를 함께 쓴다
+  const records = useRecordsBetween(
+    view === 'day' ? first : addDays(first, -1),
+    last,
+    view === 'day' || view === 'week' || view === 'month',
+  )
+  const recordItems = records.data
+  const stateOf = useCallback(
+    (o: Occurrence) => blockStateOf(o, recordItems ?? [], now, timeZone),
+    [recordItems, now, timeZone],
+  )
 
   const go = useCallback((v: CalendarView, d: string) => navigate(calendarPath(v, d)), [navigate])
   // [오늘]·T: 오늘로 가고, 일·주 보기면 현재 시각선이 보이게 스크롤(UX-CAL-74)
@@ -379,6 +391,7 @@ function Calendar({ view, date, today, timeZone, weekStart }: CalendarProps) {
       today={today}
       now={now}
       colorOf={colorOf}
+      stateOf={stateOf}
       pending={quick && !quick.target.allDay ? (quick.target as TimeRange) : null}
       onCreate={(range) => openQuick({ ...range, allDay: false })}
       onCreateAllDay={createAllDay}
@@ -539,6 +552,7 @@ function Calendar({ view, date, today, timeZone, weekStart }: CalendarProps) {
             timeZone={timeZone}
             today={today}
             colorOf={colorOf}
+            stateOf={stateOf}
             onOpen={(o) => setDialog({ kind: 'edit', occurrence: o })}
             onOpenDay={(d) => go('day', d)}
             onCreateAllDay={createAllDay}
@@ -639,6 +653,7 @@ function Calendar({ view, date, today, timeZone, weekStart }: CalendarProps) {
                 label="업무 빠른 입력"
                 // 좁은 패널에 맞춘 짧은 안내(목업 CAL-09)
                 placeholder="+ 업무 추가"
+                hideKeyHints
                 value={panelText}
                 onChange={setPanelText}
                 onSubmit={panel.quickSave}

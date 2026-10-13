@@ -321,10 +321,11 @@
   font-weight: var(--weight-title);
   text-align: left;
   min-width: 0;
-  border: 0;
+  box-sizing: border-box;
+  border: 1.5px dashed var(--block-base, var(--color-accent));
   border-radius: var(--radius-sm);
   padding: 0 var(--space-2);
-  background: var(--block-tint, var(--color-accent-soft));
+  background: var(--color-surface);
   color: var(--block-ink, var(--color-accent-ink));
   white-space: nowrap;
   overflow: hidden;
@@ -417,7 +418,7 @@ button.column {
   pointer-events: none;
 }
 
-/* 일정 블록: 계획은 프로젝트 연한 색 + 점선, 진행 중은 실선 (2.3). 프로젝트가 없으면 키 컬러 계열 */
+/* 일정 블록: 계획은 흰 면 + 프로젝트 색 점선, 진행 중은 진한 채움 (2.3, D-231). 프로젝트가 없으면 키 컬러 계열 */
 .block,
 .ghostBlock,
 .pendingBlock {
@@ -436,15 +437,116 @@ button.column {
 }
 
 .block {
-  background: var(--block-tint, var(--color-accent-soft));
+  background: var(--color-surface);
   border: 2px dashed var(--block-base, var(--color-accent));
   color: var(--block-ink, var(--color-accent-ink));
   cursor: grab;
   touch-action: pan-y;
 }
 
-.block[data-now] {
+/*
+ * 기록 상태(2.3, 홈 재디자인 목업 v2 최종): 예정 흰 면 + 점선(기본) · 진행 중 진한 채움 + 흰 글자 · 확인 대기 노란 면 + 실선
+ * · 했어요 옅은 면 + 진한 글자 + ✓ · 안 했어요 회색 + 취소선.
+ * 블록·월 칩·종일 막대가 함께 쓴다. 테두리 두께는 각자 것(블록 2, 칩·막대 1.5)을 두고 모양·색만 바꾼다
+ */
+/* 진한 채움은 "지금 하는 일" 하나에만. 흰 글자는 팔레트 8색 base 위 4.66:1 이상(가장 낮은 주황) */
+.block[data-state='now'],
+.chip[data-state='now'],
+.allDayBar[data-state='now'] {
   border-style: solid;
+  background: var(--block-base, var(--color-accent));
+  color: var(--color-on-accent);
+}
+
+/* 시각 글자 흐림(0.92)이 진한 면 위 대비를 깎지 않게 */
+.block[data-state='now'] .blockTime {
+  opacity: 1;
+}
+
+.block[data-state='pending'],
+.chip[data-state='pending'],
+.allDayBar[data-state='pending'] {
+  border-style: solid;
+  border-color: var(--status-pending-border);
+  background: var(--status-pending-bg);
+  color: var(--status-pending-text);
+}
+
+/*
+ * 했어요(확정): 홈 행과 같이 프로젝트 옅은 면 + ink 글자 + ✓(D-231, 목업 v2 승인 카드 20261013-1620).
+ * 테두리는 면과 같은 색 실선이라 보이지 않고, 고대비에서만 1.5px 실선으로 남는다
+ */
+.block[data-state='done'],
+.chip[data-state='done'],
+.allDayBar[data-state='done'] {
+  border-style: solid;
+  border-color: var(--block-tint, var(--color-accent-soft));
+  background: var(--block-tint, var(--color-accent-soft));
+  color: var(--block-ink, var(--color-accent-ink));
+}
+
+/* 회색 면. 글자는 skipped-text(#8A8FA3)가 회색 면 위 2.8:1이라 4.5:1을 넘는 muted를 쓴다 */
+.block[data-state='skipped'],
+.chip[data-state='skipped'],
+.allDayBar[data-state='skipped'] {
+  border-style: solid;
+  border-color: var(--color-border);
+  background: var(--status-skipped-bg);
+  color: var(--color-text-muted);
+}
+
+.block[data-state='skipped'] .blockTitleText,
+.chip[data-state='skipped'] .chipText,
+.allDayBar[data-state='skipped'],
+.morePopoverItem[data-state='skipped'] strong {
+  text-decoration: line-through;
+}
+
+/* 막대처럼 flex가 아닌 곳에서도 ✓와 제목 사이를 띄운다 */
+.stateCheck,
+.stateMark {
+  margin-inline-end: 3px;
+}
+
+/* 확인 대기 표시 "!"(2.3 태그 색). 칩·막대·30분 블록처럼 상태 말이 들어갈 자리가 없는 곳의 글자 표시 */
+.stateMark {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 2px;
+  box-sizing: border-box;
+  border-radius: 3px;
+  background: var(--status-pending-tag-bg);
+  color: var(--status-pending-tag-text);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-strong);
+  line-height: 1;
+}
+
+/*
+ * 고대비: 면 색이 지워지므로 모양으로 남긴다. 예정 점선, 진행 중 3px 실선("채운 블록"), 했어요·안 했어요 1.5px 실선, 확인 대기 이중선.
+ * 글자 표시(✓·!·취소선)도 남는다
+ */
+@media (forced-colors: active) {
+  .block[data-state='now'],
+  .chip[data-state='now'],
+  .allDayBar[data-state='now'] {
+    border-width: 3px;
+  }
+
+  .block[data-state='done'],
+  .block[data-state='skipped'] {
+    border-width: 1.5px;
+  }
+
+  .block[data-state='pending'],
+  .chip[data-state='pending'],
+  .allDayBar[data-state='pending'] {
+    border-style: double;
+    border-width: 4px;
+  }
 }
 
 .block[data-dragging] {
@@ -467,6 +569,13 @@ button.column {
   gap: 3px;
   font-weight: var(--weight-strong);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 제목은 상태 표시·반복 아이콘 뒤에서 말줄임한다 */
+.blockTitleText {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -520,6 +629,8 @@ button.column {
   left: -2px;
   right: 0;
   border-top: 2px solid var(--color-accent);
+  /* 진행 중 블록(진한 채움) 위에서도 보이게 흰 1px 테두리(보라 선 대 파랑 채움 1.2:1) */
+  box-shadow: 0 0 0 1px var(--color-on-accent);
   pointer-events: none;
   z-index: 3;
 }
@@ -534,6 +645,8 @@ button.column {
   background: var(--color-accent);
   border-radius: var(--radius-sm);
   padding: 1px var(--space-1);
+  /* 시각 표시도 진행 중 블록 위에서 묻히지 않게 같은 흰 테두리 */
+  box-shadow: 0 0 0 1px var(--color-on-accent);
 }
 
 /* ── 월 보기 */
@@ -647,7 +760,7 @@ button.column {
   text-align: left;
   border-radius: var(--radius-sm);
   padding: 2px var(--space-1);
-  background: var(--block-tint, var(--color-accent-soft));
+  background: var(--color-surface);
   color: var(--block-ink, var(--color-accent-ink));
   border: 1.5px dashed var(--block-base, var(--color-accent));
   box-sizing: border-box;

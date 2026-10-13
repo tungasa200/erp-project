@@ -7,7 +7,8 @@ import { colorVars, type BlockColor } from './colors'
 import { cycleTab, focusGroup, markFocus, occurrenceFocusId, restoreFocus } from './focus'
 import { holidayName } from './holidays'
 import { occurrencesByDate } from './layout'
-import { RepeatIcon } from './TimeGrid'
+import { BLOCK_STATE_LABEL, type BlockState } from './recordStatus'
+import { RepeatIcon, StateText } from './TimeGrid'
 import { useTouchHold } from './touchHold'
 import { WEEKDAY_LABELS, dateName, diffDays, formatMinutes, timeText, toZoned, weekdayIndex } from './time'
 import styles from './calendar.module.css'
@@ -24,6 +25,8 @@ interface Props {
   timeZone: string
   today: string
   colorOf: (o: Occurrence) => BlockColor | null
+  /** 회차의 기록 상태(2.3). 없으면 모두 계획 모양 */
+  stateOf?: (o: Occurrence) => BlockState
   onOpen: (o: Occurrence) => void
   onOpenDay: (date: string) => void
   onCreateAllDay: (date: string) => void
@@ -37,6 +40,10 @@ interface Props {
 
 type Drag = { occurrence: Occurrence; from: string; over: string; x: number; y: number; moved: boolean }
 
+const planState = (): BlockState => 'plan'
+/** 칩 낭독 접두. 계획은 지금처럼 붙이지 않는다 */
+const stateLabel = (state: BlockState) => (state === 'plan' ? '' : `${BLOCK_STATE_LABEL[state]}, `)
+
 function chipLabel(o: Occurrence, timeZone: string) {
   return o.allDay ? o.title : `${formatMinutes(toZoned(o.startAt!, timeZone).minutes)} ${o.title}`
 }
@@ -48,6 +55,7 @@ export function MonthView({
   timeZone,
   today,
   colorOf,
+  stateOf = planState,
   overview = false,
   editable = true,
   ...props
@@ -213,13 +221,15 @@ export function MonthView({
                     data-focus-id={occurrenceFocusId(o)}
                     data-focus-group={focusGroup(o, date)}
                     className={styles.chip}
+                    data-state={stateOf(o)}
                     data-held={(drag?.occurrence === o && drag.from === date && !drag.moved) || undefined}
                     style={colorVars(colorOf(o))}
                     // 오프라인이면 pointer 처리가 꺼지므로 마우스 click도 여기서 연다(SCR-SYS-02 ③ 열어 보기)
                     onClick={(e) => (e.detail === 0 || readOnly) && props.onOpen(o)}
                     // 칸이 좁으면 시각을 숨기므로(제목 우선, SCR-CAL-03) 접근 이름에는 시각을 그대로 둔다
-                    aria-label={`${chipLabel(o, timeZone)}${o.recurring ? ', 반복' : ''}`}
+                    aria-label={`${stateLabel(stateOf(o))}${chipLabel(o, timeZone)}${o.recurring ? ', 반복' : ''}`}
                   >
+                    <StateText state={stateOf(o)} />
                     {o.recurring && <RepeatIcon />}
                     <span className={styles.chipText}>
                       {!o.allDay && (
@@ -252,6 +262,7 @@ export function MonthView({
           list={byDate.get(selected) ?? []}
           timeZone={timeZone}
           colorOf={colorOf}
+          stateOf={stateOf}
           editable={editable}
           onOpen={props.onOpen}
           onOpenDay={props.onOpenDay}
@@ -280,12 +291,14 @@ export function MonthView({
                 key={occurrenceKey(o)}
                 type="button"
                 className={styles.chip}
+                data-state={stateOf(o)}
                 style={colorVars(colorOf(o))}
                 onClick={() => {
                   setPopover(null)
                   props.onOpen(o)
                 }}
               >
+                <StateText state={stateOf(o)} />
                 {o.recurring && <RepeatIcon />}
                 <span className={styles.chipText}>{chipLabel(o, timeZone)}</span>
               </button>
@@ -303,6 +316,7 @@ function DayAgenda({
   list,
   timeZone,
   colorOf,
+  stateOf,
   editable,
   onOpen,
   onOpenDay,
@@ -312,6 +326,7 @@ function DayAgenda({
   list: Occurrence[]
   timeZone: string
   colorOf: (o: Occurrence) => BlockColor | null
+  stateOf: (o: Occurrence) => BlockState
   editable: boolean
   onOpen: (o: Occurrence) => void
   onOpenDay: (date: string) => void
@@ -352,6 +367,7 @@ function DayAgenda({
               <button
                 type="button"
                 className={agendaStyles.agendaItem}
+                data-state={stateOf(o)}
                 style={colorVars(colorOf(o))}
                 data-focus-id={occurrenceFocusId(o)}
                 data-focus-group={focusGroup(o, date)}
@@ -359,6 +375,7 @@ function DayAgenda({
               >
                 <span className={styles.listColor} />
                 <span className={agendaStyles.agendaTime}>{timeText(o, date, timeZone)}</span>{' '}
+                <StateText state={stateOf(o)} />
                 <span className={agendaStyles.agendaText}>{o.title}</span>
                 {o.recurring && (
                   <>
