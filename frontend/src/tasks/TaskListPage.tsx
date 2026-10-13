@@ -13,6 +13,7 @@ import { useMediaQuery } from '../components/useMediaQuery'
 import { useOnline } from '../components/useOnline'
 import { useToast } from '../components/useToast'
 import { useProjects, useTags, type Project } from '../projects/api'
+import { NewProjectInput } from '../projects/NewProjectInput'
 import { projectColor } from '../projects/palette'
 import { todayIn, weekStartNumber } from '../quickInput/dates'
 import { QuickInput } from '../quickInput/QuickInput'
@@ -238,6 +239,7 @@ export function TaskListPage() {
             }
           />
         ))}
+        {mobile && <SheetProjectActions />}
       </FilterMenu>
       <FilterMenu
         inline={mobile}
@@ -679,6 +681,38 @@ function FilterSheet({ onClose, children }: { onClose: () => void; children: Rea
           완료
         </button>
       </section>
+    </div>
+  )
+}
+
+// 휴대폰 필터 시트의 프로젝트 묶음 맨 아래: '+ 새 프로젝트'(그 자리 이름 칸)·'프로젝트 관리'(D-226). 데스크톱은 사이드바에 있다
+function SheetProjectActions() {
+  const online = useOnline()
+  const [adding, setAdding] = useState(false)
+  const addButton = useRef<HTMLButtonElement>(null)
+  return (
+    <div className={styles.sheetProjectActions}>
+      {adding ? (
+        <NewProjectInput
+          onDone={() => {
+            setAdding(false)
+            setTimeout(() => addButton.current?.focus())
+          }}
+        />
+      ) : (
+        <button
+          ref={addButton}
+          type="button"
+          className={styles.sheetAction}
+          disabled={!online}
+          onClick={() => setAdding(true)}
+        >
+          + 새 프로젝트
+        </button>
+      )}
+      <Link to="/settings/projects" className={styles.sheetAction}>
+        프로젝트 관리
+      </Link>
     </div>
   )
 }

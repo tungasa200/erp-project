@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { json, ME, renderApp, stubFetch } from './renderApp'
+import { json, ME, problem, renderApp, stubFetch } from './renderApp'
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -200,5 +200,66 @@ describe('SCR-COM-05 ② 알림 종 배치 (P4-01)', () => {
     // 홈 머리의 종은 CSS로 모바일에서만 보인다(jsdom은 둘 다 그린다)
     const header = screen.getByRole('heading', { level: 1 }).closest('header')!
     expect(within(header).getByRole('button', { name: '알림, 안 읽음 12개' })).toBeInTheDocument()
+  })
+})
+
+describe('SCR-COM-01 사이드바 프로젝트 만들기·관리 (D-226)', () => {
+  const sales = {
+    id: 'p-sales',
+    name: '영업',
+    color: 'P2',
+    archived: false,
+    taskCount: 0,
+    openTaskCount: 0,
+    createdAt: '2026-10-01T00:00:00Z',
+    version: 0,
+  }
+
+  it('프로젝트가 없어도 제목 줄의 [+]로 그 자리에서 만들고, 만든 뒤 목록에 넣고 [+]로 돌아온다', async () => {
+    const sent: unknown[] = []
+    stubFetch({
+      'GET /api/users/me': () => json(200, ME),
+      'GET /api/worklog/projects': () => json(200, { items: [] }),
+      'POST /api/worklog/projects': (init) => {
+        const body = JSON.parse(String(init?.body))
+        sent.push(body)
+        return json(201, { ...sales, id: 'p-new', name: body.name, color: body.color })
+      },
+    })
+    renderApp('/')
+    const sidebar = await screen.findByRole('navigation', { name: '주 메뉴' })
+    const add = await within(sidebar).findByRole('button', { name: '새 프로젝트' })
+    expect(within(sidebar).getByRole('link', { name: '프로젝트 관리' })).toHaveAttribute('href', '/settings/projects')
+
+    await userEvent.click(add)
+    const input = within(sidebar).getByRole('textbox', { name: '새 프로젝트 이름' })
+    expect(input).toHaveFocus()
+    await userEvent.type(input, '  신규 고객  {Enter}')
+    expect(await within(sidebar).findByRole('link', { name: '신규 고객, 남은 업무 0개' })).toBeInTheDocument()
+    expect(sent).toEqual([{ name: '신규 고객', color: 'P1' }])
+    expect(within(sidebar).queryByRole('textbox', { name: '새 프로젝트 이름' })).not.toBeInTheDocument()
+    expect(add).toHaveFocus()
+    expect(screen.getByText('‘신규 고객’ 프로젝트를 만들었어요')).toBeInTheDocument()
+  })
+
+  it('같은 이름이면 칸 아래에 알리고 칸을 둔다. Esc는 만들지 않고 [+]로 돌아온다', async () => {
+    stubFetch({
+      'GET /api/users/me': () => json(200, ME),
+      'GET /api/worklog/projects': () => json(200, { items: [sales] }),
+      'POST /api/worklog/projects': () => problem(409, 'DUPLICATE_NAME'),
+    })
+    renderApp('/')
+    const sidebar = await screen.findByRole('navigation', { name: '주 메뉴' })
+    const add = await within(sidebar).findByRole('button', { name: '새 프로젝트' })
+    await userEvent.click(add)
+    const input = within(sidebar).getByRole('textbox', { name: '새 프로젝트 이름' })
+    await userEvent.type(input, '영업{Enter}')
+    expect(await within(sidebar).findByRole('alert')).toHaveTextContent('같은 이름의 프로젝트가 있어요')
+    expect(input).toHaveAttribute('aria-invalid', 'true')
+    expect(input).toHaveFocus()
+
+    await userEvent.keyboard('{Escape}')
+    expect(within(sidebar).queryByRole('textbox', { name: '새 프로젝트 이름' })).not.toBeInTheDocument()
+    expect(add).toHaveFocus()
   })
 })

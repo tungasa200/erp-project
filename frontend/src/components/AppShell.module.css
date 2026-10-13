@@ -113,6 +113,70 @@
   overflow-y: auto;
 }
 
+/* 제목 줄: '프로젝트' + [+](44px, D-226) */
+.projectsHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.projectAdd {
+  width: var(--size-touch);
+  height: var(--size-touch);
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .projectAdd:not(:disabled):hover {
+    background: var(--color-accent-faint);
+    color: var(--color-text);
+  }
+}
+
+/* 목록이 스크롤 상자(overflow)라 바깥 고리가 잘린다. 안쪽에 그린다 */
+.projectAdd:focus-visible,
+.projectManage:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+}
+
+.projectAdd:disabled {
+  color: var(--color-disabled);
+  cursor: not-allowed;
+}
+
+.projectAddField {
+  padding: 0 var(--space-1) var(--space-1);
+}
+
+/* 목록 끝 '프로젝트 관리' → 설정 프로젝트·태그 */
+.projectManage {
+  display: flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-pill);
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .projectManage:hover {
+    background: var(--color-accent-faint);
+    color: var(--color-text);
+  }
+}
+
 .projectsTitle {
   margin: 0;
   padding: var(--space-1) var(--space-3);

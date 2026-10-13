@@ -481,6 +481,30 @@ describe('SCR-TASK-02 업무 상세', () => {
     await waitFor(() => expect(applied).toHaveFocus())
   })
 
+  it('휴대폰 필터 시트의 프로젝트 묶음 맨 아래에 + 새 프로젝트(그 자리 이름 칸)·프로젝트 관리가 있다(D-226)', async () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query === '(max-width: 767px)',
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }))
+    server(SAMPLE)
+    const { router } = renderApp('/tasks')
+    await userEvent.click(await screen.findByRole('button', { name: '필터' }))
+    const group = within(await screen.findByRole('dialog', { name: '필터' })).getByRole('group', { name: '프로젝트' })
+    const add = within(group).getByRole('button', { name: '+ 새 프로젝트' })
+
+    await userEvent.click(add)
+    const input = within(group).getByRole('textbox', { name: '새 프로젝트 이름' })
+    expect(input).toHaveFocus()
+    // Esc는 이름 칸만 닫고 시트는 그대로
+    await userEvent.keyboard('{Escape}')
+    expect(screen.getByRole('dialog', { name: '필터' })).toBeInTheDocument()
+    await waitFor(() => expect(within(group).getByRole('button', { name: '+ 새 프로젝트' })).toHaveFocus())
+
+    await userEvent.click(within(group).getByRole('link', { name: '프로젝트 관리' }))
+    await waitFor(() => expect(router.state.location.pathname).toBe('/settings/projects'))
+  })
+
   it('제목을 비우면 저장하지 않고 원래 제목으로 돌린다', async () => {
     const { calls } = server(SAMPLE)
     renderApp('/tasks/none')

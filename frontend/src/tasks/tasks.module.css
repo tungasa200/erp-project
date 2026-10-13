@@ -995,6 +995,40 @@
   font-weight: 700;
 }
 
+/* 필터 시트 프로젝트 묶음 맨 아래 '+ 새 프로젝트'·'프로젝트 관리'(D-226). 줄을 바꿔 한 줄 전체를 쓴다 */
+.sheetProjectActions {
+  flex-basis: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+  margin-top: var(--space-1);
+}
+
+.sheetProjectActions > div {
+  align-self: stretch;
+}
+
+.sheetAction {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--size-touch);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-accent-ink);
+  font: inherit;
+  font-size: var(--text-md);
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.sheetAction:disabled {
+  color: var(--color-disabled);
+  cursor: not-allowed;
+}
+
 .sheetGroup .check {
   min-height: var(--size-touch);
   padding: 0;

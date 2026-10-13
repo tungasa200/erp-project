@@ -11,6 +11,7 @@ import { DayCloseHost } from '../logs/DayCloseHost'
 import { openDayClose } from '../logs/openDayClose'
 import { CommandPalette } from '../palette/CommandPalette'
 import { useProjects } from '../projects/api'
+import { NewProjectInput } from '../projects/NewProjectInput'
 import { PendingPanel } from '../records/PendingPanel'
 import { todayIn } from '../quickInput/dates'
 import { projectColor } from '../projects/palette'
@@ -434,13 +435,43 @@ function MoreMenu() {
 }
 
 // SCR-COM-01 ① 사이드바 프로젝트 목록(보관하지 않은 것). 누르면 그 프로젝트로 거른 업무 목록으로 간다.
+// 제목 옆 [+]는 그 자리 이름 칸으로 바로 만들고, 목록 끝 '프로젝트 관리'는 설정(SCR-SET-08)으로(D-226).
+// 프로젝트가 하나도 없어도 첫 프로젝트를 만들 수 있게 제목 줄은 둔다. 접힌 레일(태블릿)에서는 목록과 함께 숨는다
 function SidebarProjects() {
   const { data } = useProjects()
-  const projects = data?.filter((p) => !p.archived) ?? []
-  if (projects.length === 0) return null
+  const online = useOnline()
+  const [adding, setAdding] = useState(false)
+  const addButton = useRef<HTMLButtonElement>(null)
+  if (!data) return null
+  const projects = data.filter((p) => !p.archived)
   return (
     <div className={styles.projects}>
-      <p className={styles.projectsTitle}>프로젝트</p>
+      <div className={styles.projectsHead}>
+        <p className={styles.projectsTitle}>프로젝트</p>
+        <button
+          ref={addButton}
+          type="button"
+          className={styles.projectAdd}
+          aria-label="새 프로젝트"
+          aria-expanded={adding}
+          title={online ? '새 프로젝트' : '연결되면 만들 수 있어요'}
+          disabled={!online}
+          // 열려 있으면 그대로(빈 칸을 떠나면 닫히므로 토글하면 닫혔다 다시 열린다)
+          onClick={() => setAdding(true)}
+        >
+          <Icon d="M12 5v14M5 12h14" size={16} />
+        </button>
+      </div>
+      {adding && (
+        <div className={styles.projectAddField}>
+          <NewProjectInput
+            onDone={() => {
+              setAdding(false)
+              addButton.current?.focus()
+            }}
+          />
+        </div>
+      )}
       {projects.map((p) => (
         // NavLink는 쿼리를 보지 않아 /tasks에서 모든 항목이 현재 페이지로 읽히므로 Link를 쓴다
         <Link
@@ -458,6 +489,9 @@ function SidebarProjects() {
           </span>
         </Link>
       ))}
+      <Link to="/settings/projects" className={styles.projectManage}>
+        프로젝트 관리
+      </Link>
     </div>
   )
 }
