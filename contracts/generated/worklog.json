@@ -3046,7 +3046,7 @@
     },
     "/api/worklog/logs/{logId}/unconfirm" : {
       "post" : {
-        "description" : "status=DRAFT로 되돌리고 마지막 확정 이력에 해제 시각을 적는다. 내용은 확정본 그대로 초안이 된다(실적은 자동 상태가 아니다).\n원본으로 다시 만들려면 다시 채우기를 쓴다. 이미 초안이면 409(code=LOG_NOT_CONFIRMED).",
+        "description" : "status=DRAFT로 되돌리고 마지막 확정 이력에 해제 시각을 적는다. 내용은 확정본 그대로 초안이 된다. 실적은 확정할 때 자동 상태였으면 다시 자동 상태가 되어 원본에서 새로 만들고(그 사이 남긴 기록이 들어간다), 직접 고친 실적이었으면 확정본 그대로 고정된다.\n원본으로 다시 만들려면 다시 채우기를 쓴다. 이미 초안이면 409(code=LOG_NOT_CONFIRMED).",
         "operationId" : "unconfirmLog",
         "parameters" : [ {
           "in" : "path",

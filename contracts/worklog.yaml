@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: worklog-service API
-  version: 0.7.0
+  version: 0.7.1
   description: |
     구현 전 합의용 계약. P0 범위(GET /api/worklog/me)는 구현 완료, P1-01~03 범위는 2026-10-05 확정(구현 전).
     P3 업무일지(logs)·기간 기록 내보내기(records/export)는 2026-10-08 확정(사용자 카드 20261008-1130·1131 추천안). 파일 생성 라이브러리는 P3-01 뒤 정한다.
@@ -1530,7 +1530,7 @@ paths:
       operationId: unconfirmLog
       summary: '확정 해제 (LOG-06, SCR-LOG-04 — 화면이 확인창을 먼저 띄운다)'
       description: |
-        status=DRAFT로 되돌리고 마지막 확정 이력에 해제 시각을 적는다. 내용은 확정본 그대로 초안이 된다(실적은 자동 상태가 아니다).
+        status=DRAFT로 되돌리고 마지막 확정 이력에 해제 시각을 적는다. 내용은 확정본 그대로 초안이 된다. 실적은 확정할 때 자동 상태였으면 다시 자동 상태가 되어 원본에서 새로 만들고(그 사이 남긴 기록이 들어간다), 직접 고친 실적이었으면 확정본 그대로 고정된다.
         원본으로 다시 만들려면 다시 채우기를 쓴다. 이미 초안이면 409(code=LOG_NOT_CONFIRMED).
       parameters:
         - $ref: '#/components/parameters/LogId'

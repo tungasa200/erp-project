@@ -169,6 +169,26 @@ class DailyCloseApiTest {
 	}
 
 	@Test
+	void 마감_취소_뒤_남긴_기록은_다시_마감할_때_실적에_들어간다() throws Exception {
+		record(ALICE, "{\"content\":\"첫 기록\",\"workDate\":\"2026-10-07\"}");
+		ResultActions closed = send(ALICE, post(CLOSE), "{\"version\":0,\"carryOverTaskIds\":[]}")
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.log.content.achievements", hasSize(1)));
+		String logId = JsonPath.read(closed.andReturn().getResponse().getContentAsString(), "$.log.id");
+		int version = JsonPath.read(closed.andReturn().getResponse().getContentAsString(), "$.log.version");
+
+		ResultActions draft = send(ALICE, post("/api/worklog/logs/" + logId + "/unconfirm"), "{\"version\":" + version + "}")
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.content.achievementsAuto").value(true));
+		version = JsonPath.read(draft.andReturn().getResponse().getContentAsString(), "$.version");
+		record(ALICE, "{\"content\":\"취소 뒤 기록\",\"workDate\":\"2026-10-07\"}");
+
+		send(ALICE, post(CLOSE), "{\"version\":" + version + ",\"carryOverTaskIds\":[]}")
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.log.content.achievements", hasSize(2)));
+	}
+
+	@Test
 	void 마감_오류는_아무것도_저장하지_않는다() throws Exception {
 		String bobs = task(BOB, "{\"title\":\"남의 것\"}");
 		String archived = task(ALICE, "{\"title\":\"보관\"}");

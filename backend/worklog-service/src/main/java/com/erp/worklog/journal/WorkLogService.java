@@ -20,6 +20,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -42,6 +43,8 @@ class WorkLogService {
 
 	private static final Set<String> OUTCOMES = Set.of("DONE", "REVIEW_REQUESTED", "IN_PROGRESS");
 	private static final Set<String> SOURCES = Set.of("RECORD", "TASK", "MANUAL");
+	/** 저장된 확정본에만 두는 표시: 확정할 때 실적이 자동이었다. 응답(Content)에는 없다. 해제하면 실적을 다시 자동으로 (UX-M-LOG-55). */
+	private static final String AUTO_AT_CONFIRM = "autoAtConfirm";
 
 	/** null은 보내지 않은 칸. issues는 issuesSent로 비우기를 가린다. */
 	record Change(long version, List<Achievement> achievements, List<Plan> plans, boolean issuesSent, String issues) {
@@ -134,15 +137,17 @@ class WorkLogService {
 	WorkLogView confirm(UUID ownerId, Profile profile, UUID id, long version) {
 		Context c = context(ownerId, profile);
 		Row row = editable(ownerId, id, version);
-		Content snapshot = builder.build(c, row.type(), row.periodStart(), read(row.content(), Draft.class)).asConfirmed();
-		String content = write(snapshot);
+		Draft draft = read(row.content(), Draft.class);
+		Content snapshot = builder.build(c, row.type(), row.periodStart(), draft).asConfirmed();
+		String content = draft.achievements() == null ? write(json.<ObjectNode>valueToTree(snapshot).put(AUTO_AT_CONFIRM, true))
+				: write(snapshot);
 		Instant now = clock.instant();
 		WorkLogView saved = save(c, row, true, content, now);
 		logs.addRevision(row.id(), content, now);
 		return saved;
 	}
 
-	/** 확정 해제: 확정본 그대로 초안이 된다(실적은 고정, 자동 아님). 확정본은 이력에 남는다. */
+	/** 확정 해제: 확정본 그대로 초안이 된다. 실적은 확정할 때 자동이었으면 다시 자동, 직접 고쳤으면 고정. 확정본은 이력에 남는다. */
 	@Transactional
 	WorkLogView unconfirm(UUID ownerId, Profile profile, UUID id, long version) {
 		Context c = context(ownerId, profile);
@@ -154,9 +159,10 @@ class WorkLogService {
 			throw Conflicts.versionConflict();
 		}
 		Content snapshot = read(row.content(), Content.class);
+		boolean auto = json.readTree(row.content()).path(AUTO_AT_CONFIRM).asBoolean(false);
 		Instant now = clock.instant();
 		WorkLogView saved = save(c, row, false,
-				write(new Draft(snapshot.achievements(), snapshot.plans(), snapshot.issues())), null);
+				write(new Draft(auto ? null : snapshot.achievements(), snapshot.plans(), snapshot.issues())), null);
 		logs.markUnconfirmed(row.id(), now);
 		return saved;
 	}

@@ -243,10 +243,11 @@ class WorkLogApiTest {
 		send(ALICE, post("/api/worklog/logs/" + log + "/confirm"), "{\"version\":1}")
 			.andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("LOG_CONFIRMED"));
 
+		// 확정할 때 실적이 자동이었으면 해제하면 다시 자동: 원본을 다시 읽는다 (UX-M-LOG-55)
 		send(ALICE, post("/api/worklog/logs/" + log + "/unconfirm"), "{\"version\":1}").andExpect(status().isOk())
 			.andExpect(jsonPath("$.status").value("DRAFT"))
-			.andExpect(jsonPath("$.content.achievementsAuto").value(false))
-			.andExpect(jsonPath("$.content.achievements[0].text").value("확정 전"));
+			.andExpect(jsonPath("$.content.achievementsAuto").value(true))
+			.andExpect(jsonPath("$.content.achievements[0].text").value("확정 뒤"));
 		send(ALICE, post("/api/worklog/logs/" + log + "/unconfirm"), "{\"version\":2}")
 			.andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("LOG_NOT_CONFIRMED"));
 		send(ALICE, post("/api/worklog/logs/" + log + "/confirm"), "{\"version\":2}").andExpect(status().isOk());
@@ -260,6 +261,24 @@ class WorkLogApiTest {
 			.andExpect(jsonPath("$.revisionNo").value(1))
 			.andExpect(jsonPath("$.content.achievements[0].text").value("확정 전"));
 		send(ALICE, get("/api/worklog/logs/" + log + "/revisions/9"), "").andExpect(status().isNotFound());
+	}
+
+	@Test
+	void 고친_실적으로_확정한_일지는_해제해도_실적이_고정된다() throws Exception {
+		record(ALICE, "{\"content\":\"원본\",\"workDate\":\"2026-10-07\"}");
+		String log = id(send(ALICE, post(TODAY), ""));
+		send(ALICE, patch("/api/worklog/logs/" + log), """
+				{"version":0,"achievements":[{"id":"%s","text":"직접 쓴 줄","outcome":"DONE","source":"MANUAL"}]}"""
+				.formatted(UUID.randomUUID()))
+			.andExpect(status().isOk());
+		send(ALICE, post("/api/worklog/logs/" + log + "/confirm"), "{\"version\":1}").andExpect(status().isOk());
+		record(ALICE, "{\"content\":\"확정 뒤 기록\",\"workDate\":\"2026-10-07\"}");
+
+		send(ALICE, post("/api/worklog/logs/" + log + "/unconfirm"), "{\"version\":2}").andExpect(status().isOk())
+			.andExpect(jsonPath("$.status").value("DRAFT"))
+			.andExpect(jsonPath("$.content.achievementsAuto").value(false))
+			.andExpect(jsonPath("$.content.achievements", hasSize(1)))
+			.andExpect(jsonPath("$.content.achievements[0].text").value("직접 쓴 줄"));
 	}
 
 	@Test
