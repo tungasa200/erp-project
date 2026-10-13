@@ -1652,6 +1652,17 @@ fieldset.fieldset:disabled {
 
 .discardText {
   flex: 1 1 180px;
+  word-break: keep-all;
+}
+
+/* [계속 편집]·[버리고 닫기]는 한 덩어리로, 좁으면 문구 아래 줄 오른쪽 끝에(위험 동작이 끝, X-03a, UX-M-REC-103).
+   짝이 한 줄에 안 들어가는 폭(195)에서만 짝 안에서 꺾여 [버리고 닫기]가 아래 오른쪽 끝 */
+.discardActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-left: auto;
 }
 
 .conflict {
@@ -1690,6 +1701,7 @@ fieldset.fieldset:disabled {
 
 .actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
   gap: var(--space-2);
@@ -1701,6 +1713,8 @@ fieldset.fieldset:disabled {
 .danger,
 .plain,
 .link {
+  /* 좁은 폭(195)에서 이름이 '삭/제'처럼 꺾이지 않게, 대신 줄이 넘어간다 */
+  white-space: nowrap;
   font: inherit;
   font-size: var(--text-md);
   font-weight: var(--weight-title);

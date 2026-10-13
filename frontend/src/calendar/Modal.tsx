@@ -191,12 +191,14 @@ export function Modal({ labelledBy, describedBy, onClose, narrow, sheet, role = 
             <span id={askId} className={styles.discardText}>
               고친 내용이 있어요. 버리고 닫을까요?
             </span>
-            <button type="button" ref={keepRef} className={styles.secondary} onClick={keepEditing}>
-              계속 편집
-            </button>
-            <button type="button" className={styles.danger} onClick={onClose}>
-              버리고 닫기
-            </button>
+            <span className={styles.discardActions}>
+              <button type="button" ref={keepRef} className={styles.secondary} onClick={keepEditing}>
+                계속 편집
+              </button>
+              <button type="button" className={styles.danger} onClick={onClose}>
+                버리고 닫기
+              </button>
+            </span>
           </div>
         )}
         <RequestClose.Provider value={requestClose}>{children}</RequestClose.Provider>
