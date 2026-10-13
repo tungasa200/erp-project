@@ -499,7 +499,7 @@ export function ScheduleDialog({ timeZone, draft, occurrence, askScope, onDelete
         <form ref={formRef} className={styles.fieldset} onSubmit={(e) => void submit(e)} noValidate>
           {!online && (
             <p className={styles.muted} role="status">
-              연결이 끊겼어요. 다시 연결되면 고칠 수 있어요
+              연결이 끊겼어요. 입력한 내용은 그대로 남아 있고, 다시 연결되면 저장할 수 있어요
             </p>
           )}
           <fieldset className={styles.fieldset} disabled={!online}>

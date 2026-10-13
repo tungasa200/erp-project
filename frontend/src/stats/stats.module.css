@@ -95,6 +95,14 @@
   flex: 1 1 320px;
 }
 
+/* 완료 칸이 하나뿐일 때 막대 대신 쓰는 문장(UX-M-STAT-52) */
+.trendSentence {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-md);
+  line-height: 1.6;
+  color: var(--color-text-body);
+}
+
 .muted {
   margin: var(--space-1) 0 0;
   font-size: var(--text-sm);

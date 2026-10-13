@@ -166,4 +166,19 @@ describe('기록이 많은 날 (UX-M-REC-56)', () => {
     expect(await screen.findByText('기록 e')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /펼치기$/ })).toBeNull()
   })
+  it('시각순(startAt, 없으면 회차 시작, 둘 다 없으면 끝)이고 한 줄 행 오른쪽에 시작 시각, 시간 기록을 꺼도 회차 시각(UX-M-REC-102)', async () => {
+    setup(Date.now(), 'CONFIRMED', [
+      record('none', 'CONFIRMED'),
+      { ...record('late', 'CONFIRMED'), startAt: '2026-10-14T05:00:00Z', endAt: '2026-10-14T06:00:00Z' },
+      { ...record('occ', 'CONFIRMED'), scheduleId: 's1', occurrenceStart: '2026-10-14T00:30:00Z' },
+    ])
+    await screen.findByText('기록 none')
+    const rows = screen.getAllByRole('button', { name: /^했어요,/ })
+    // 시간 기록이 꺼져 있어 startAt만 있는 기록은 시각을 비운다(정렬에는 쓴다)
+    expect(rows.map((b) => b.textContent)).toEqual([
+      '✓했어요, 기록 occ 09:30',
+      '✓했어요, 기록 late',
+      '✓했어요, 기록 none',
+    ])
+  })
 })

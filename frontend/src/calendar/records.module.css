@@ -265,7 +265,7 @@
 
 .recordLineTime {
   flex: none;
-  font-size: var(--text-xs);
+  font-size: var(--text-sm);
   color: var(--color-text-muted);
   font-variant-numeric: tabular-nums;
 }

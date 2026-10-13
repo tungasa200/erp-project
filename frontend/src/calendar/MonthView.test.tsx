@@ -1,5 +1,6 @@
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
+import { subscribeAnnounce } from '../components/announce'
 import type { Occurrence } from './api'
 import { MonthView } from './MonthView'
 import { addDays, monthGridStart } from './time'
@@ -127,7 +128,12 @@ describe('월 보기 (P1-07-11)', () => {
     const cell = screen.getByRole('button', { name: '10월 6일 화요일, 일정 4개' })
     // 점은 3개까지, 나머지는 +n
     expect(cell).toHaveTextContent('+1')
+    // 고르면 목록이 바뀐 것을 한 번 알린다(UX-M-CAL-92)
+    const spoken: string[] = []
+    const unsubscribe = subscribeAnnounce((m) => spoken.push(m))
     fireEvent.click(cell)
+    unsubscribe()
+    expect(spoken).toEqual(['10월 6일 화요일 일정 4개'])
     expect(onOpenDay).not.toHaveBeenCalled()
     expect(cell).toHaveAttribute('aria-pressed', 'true')
     expect(agenda()).toHaveAccessibleName('10월 6일 화요일 일정')

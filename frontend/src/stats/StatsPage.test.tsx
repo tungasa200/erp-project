@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { json, ME, problem, renderApp, stubFetch } from '../test/renderApp'
@@ -190,6 +190,19 @@ describe('SCR-STAT-01 통계', () => {
     expect(screen.getByRole('button', { name: '이번 달' })).toHaveAccessibleDescription(
       '첫 기록을 남기면 7일 뒤부터 추이와 기간을 볼 수 있어요',
     )
+  })
+
+  it('완료가 있는 주가 하나면 막대 대신 문장, 없으면 프로젝트별 카드와 같은 문구(UX-M-STAT-52)', async () => {
+    const one = REPORT.daily.map((d) => ({ ...d, completedTaskCount: d.date === '2026-10-13' ? 1 : 0 }))
+    setup(() => json(200, { ...REPORT, completedTaskCount: 1, daily: one }))
+    expect(await screen.findByText('10/12 주에 1건 완료했어요')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: '주별 완료 업무' })).toBeInTheDocument()
+    expect(screen.queryByRole('table', { name: '주별 완료 업무' })).not.toBeInTheDocument()
+    cleanup()
+
+    const none = REPORT.daily.map((d) => ({ ...d, completedTaskCount: 0 }))
+    setup(() => json(200, { ...REPORT, completedTaskCount: 0, daily: none, projects: [] }))
+    expect(await screen.findAllByText('이 기간에 완료한 업무가 없어요')).toHaveLength(2)
   })
 
   it('고른 기간에 아무것도 없으면 다른 기간 안내', async () => {

@@ -1730,22 +1730,25 @@ fieldset.fieldset:disabled {
   cursor: default;
 }
 
+/* 되돌릴 수 없는 동작(버리고 닫기·기록 삭제): 위험 윤곽(X-03a). 위험색 면 채움은 확인 창 마지막 버튼에만(X-03) */
 .danger {
-  background: transparent;
+  background: var(--color-surface);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-danger) 40%, var(--color-surface));
   color: var(--color-danger);
-  padding: 0 var(--space-2);
 }
 
-/* 일정 삭제는 5초 되돌리기가 있어 위험색이 아니라 중립(X-03) */
+/* 일정 삭제는 5초 되돌리기가 있어 위험색이 아니라 중립 윤곽(X-03, X-03a) */
 .plain {
-  background: transparent;
+  background: var(--color-surface);
+  box-shadow: inset 0 0 0 1px var(--color-border);
   color: var(--color-text-strong);
-  padding: 0 var(--space-2);
 }
 
 .danger:disabled,
 .plain:disabled {
-  color: var(--color-text-muted);
+  background: var(--color-surface);
+  box-shadow: inset 0 0 0 1px var(--color-border);
+  color: var(--color-disabled);
   cursor: default;
 }
 
@@ -1861,6 +1864,10 @@ fieldset.fieldset:disabled {
   background: var(--color-surface-muted);
 }
 
+.danger:active:not(:disabled) {
+  background: var(--color-danger-soft);
+}
+
 .createButton:active:not(:disabled),
 .emptyAction:active,
 .primary:active:not(:disabled) {
@@ -1884,6 +1891,10 @@ fieldset.fieldset:disabled {
   .plain:hover:not(:disabled),
   .link:hover {
     background: var(--color-surface-muted);
+  }
+
+  .danger:hover:not(:disabled) {
+    background: var(--color-danger-soft);
   }
 
   .dayHeadButton:not([data-today]):hover,

@@ -11,7 +11,7 @@ import { useTimeSummary } from '../home/gaps'
 import { useProjects, type Project } from '../projects/api'
 import { useTimeTracking } from '../settings/useWorklogSettings'
 import { usePlanVsActual, useStats, type Stats } from './api'
-import { completedBuckets, projectName, readiness, READY_DAYS, weekAligned } from './buckets'
+import { completedBuckets, projectName, readiness, READY_DAYS, weekAligned, type Bucket } from './buckets'
 import { ProjectBars, TimeShare, WeeklyChart } from './charts'
 import { count, diffText, diffTone, hoursText } from './format'
 import { PeriodDialog } from './PeriodDialog'
@@ -155,6 +155,23 @@ function lockReason(firstRecordDate: string | null, today: string) {
   return `추이는 ${shortDay(addDays(firstRecordDate, READY_DAYS), today)}부터 볼 수 있어요(기록이 ${READY_DAYS}일치 쌓이면)`
 }
 
+/** 완료가 있는 칸이 2개 미만이면 막대 대신 문장 한 줄(UX-M-STAT-52, WY-design). 모든 폭에서 같다 */
+function CompletedTrend({ buckets, title }: { buckets: Bucket[]; title: string }) {
+  const done = buckets.filter((b) => b.value > 0)
+  if (done.length === 0) return <p className={styles.muted}>이 기간에 완료한 업무가 없어요</p>
+  if (done.length === 1) {
+    const [b] = done
+    // 주는 막대 이름(10/12) 뒤에 "주", 달은 막대 이름(10월), 다른 해 달은 긴 이름(2025년 9월)
+    const when = b.key.length === 7 ? (b.label.endsWith('월') ? b.label : b.long) : `${b.label} 주`
+    return (
+      <p className={styles.trendSentence}>
+        {when}에 {count(b.value)}건 완료했어요
+      </p>
+    )
+  }
+  return <WeeklyChart buckets={buckets} title={title} />
+}
+
 /** 홈 "이번 주 완료" 칸과 같은 이름을 쓴다(X-08) */
 const COMPLETED_LABEL: Record<Period['kind'], string> = {
   week: '이번 주 완료',
@@ -237,7 +254,7 @@ function StatsBody(props: { report: Stats; today: string; weekStart: Weekday; ki
           <h2 id="stats-weekly" className={styles.cardTitle}>
             {chartTitle}
           </h2>
-          <WeeklyChart buckets={buckets} title={chartTitle} />
+          <CompletedTrend buckets={buckets} title={chartTitle} />
         </section>
         <section aria-labelledby="stats-projects" className={`${styles.card} ${styles.narrow}`}>
           <h2 id="stats-projects" className={styles.cardTitle}>

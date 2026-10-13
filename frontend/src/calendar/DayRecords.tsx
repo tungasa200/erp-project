@@ -17,7 +17,7 @@ import { RecordStatusTag } from './RecordStatusTag'
 import type { Occurrence } from './api'
 import { useDayPanel } from './dayPanels'
 import { occurrenceOf, planEnded, recordTimeText, useRecordsOnDate } from './recordStatus'
-import { todayIn } from './time'
+import { formatMinutes, todayIn, toZoned } from './time'
 import styles from './records.module.css'
 
 interface Props {
@@ -52,7 +52,10 @@ export function DayRecords({ date, timeZone, occurrences, now, editable, onOpen,
   const all = records.data ?? []
   const pending = usePendingRecords(all.some((r) => r.status === 'PENDING'))
   const planOf = (r: WorkRecord) => pending.data?.find((p) => p.id === r.id)?.plan ?? occurrenceOf(occurrences, r)
-  const items = all.filter((r) => r.status !== 'PENDING' || planEnded(planOf(r), now, timeZone))
+  // 시각순(UX-M-REC-102): startAt, 없으면 회차 시작, 둘 다 없으면 맨 끝. 같으면 받은 순서(정렬은 안정)
+  const items = all
+    .filter((r) => r.status !== 'PENDING' || planEnded(planOf(r), now, timeZone))
+    .sort((a, b) => sortTime(a) - sortTime(b))
   // 펼침은 그 날에만. 날을 옮기면 다시 접힌다
   const [expandedDate, setExpandedDate] = useState<string | null>(null)
   const expanded = expandedDate === date
@@ -165,6 +168,7 @@ export function DayRecords({ date, timeZone, occurrences, now, editable, onOpen,
             {shownItems.map((r) => {
               const plan = planText(r)
               const time = plan ? null : timed ? recordTimeText(r, timeZone) : null
+              const lineTime = startText(r, timed, timeZone)
               // 결과 글 없이 '했어요'뿐이면 한 줄. 상태는 ✓ 모양과 함께 낭독용 글로 알린다
               if (r.status === 'CONFIRMED' && !r.result)
                 return (
@@ -181,7 +185,9 @@ export function DayRecords({ date, timeZone, occurrences, now, editable, onOpen,
                       </span>
                       <span className="visually-hidden">했어요, </span>
                       <span className={styles.recordLineText}>{r.content}</span>
-                      {time && <span className={styles.recordLineTime}>{time}</span>}
+                      {/* 낭독 이름에서 제목과 시각이 붙지 않게 띄운다(flex라 화면에는 영향 없음) */}
+                      {lineTime && ' '}
+                      {lineTime && <span className={styles.recordLineTime}>{lineTime}</span>}
                     </button>
                   </li>
                 )
@@ -228,6 +234,19 @@ export function DayRecords({ date, timeZone, occurrences, now, editable, onOpen,
 }
 
 const FOLD_AFTER = 5
+
+const sortTime = (r: WorkRecord) => {
+  const at = r.startAt ?? r.occurrenceStart
+  return at ? Date.parse(at) : Infinity
+}
+
+/** 한 줄 행의 시작 시각(UX-M-REC-102): "09:30", 진행 중이면 "09:30~". 시간 기록을 끄면 회차 시작만(TIME-09) */
+function startText(r: WorkRecord, timed: boolean, timeZone: string) {
+  const at = (timed && r.startAt) || r.occurrenceStart
+  if (!at) return null
+  const text = formatMinutes(toZoned(at, timeZone).minutes)
+  return timed && r.startAt && !r.endAt ? `${text}~` : text
+}
 
 // 업무일지 숨김(D-214): 확정이면 '마감함'만, 초안은 보이지 않는다
 const LOG_TEXT: Partial<Record<LogStatus, string>> = { CONFIRMED: '마감함' }

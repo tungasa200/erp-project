@@ -1,6 +1,7 @@
 // 월 보기 (SCR-CAL-03): 6주 × 7일, 칸마다 일정 칩 3개 + "+n개 더보기". 칩을 끌어 다른 날짜로 옮긴다.
 // 일지 상태 점(③)은 P2 데이터라 아직 없다.
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react'
+import { announce } from '../components/announce'
 import { occurrenceKey, type Occurrence } from './api'
 import { colorVars, type BlockColor } from './colors'
 import { cycleTab, focusGroup, markFocus, occurrenceFocusId, restoreFocus } from './focus'
@@ -165,7 +166,12 @@ export function MonthView({
                   data-rest={wd === 0 || wd === 6 || !!holiday || undefined}
                   aria-pressed={date === selected}
                   aria-label={`${dateName(date)}${holiday ? ` ${holiday}` : ''}, 일정 ${list.length}개`}
-                  onClick={() => (date === selected ? props.onOpenDay(date) : setPicked({ month, date }))}
+                  onClick={() => {
+                    if (date === selected) return props.onOpenDay(date)
+                    setPicked({ month, date })
+                    // 아래 목록이 바뀐 것을 알린다(UX-M-CAL-92). 고를 때만 한 번: 달 이동·데이터 도착으로는 읽지 않는다
+                    announce(`${dateName(date)} 일정 ${list.length}개`)
+                  }}
                 >
                   <span className={styles.dateNumber}>{Number(date.slice(8))}</span>
                   <span className={styles.monthDots} aria-hidden="true">
@@ -315,7 +321,7 @@ function DayAgenda({
   return (
     <section className={agendaStyles.agenda} aria-label={`${dateName(date)} 일정`}>
       <div className={agendaStyles.agendaHead}>
-        <h2 className={agendaStyles.agendaTitle} aria-live="polite">
+        <h2 className={agendaStyles.agendaTitle}>
           {heading} · 일정 {list.length}
         </h2>
         <button
