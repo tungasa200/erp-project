@@ -264,6 +264,14 @@
   cursor: default;
 }
 
+/* 고대비(forced-colors)에서는 inset 그림자 테두리가 지워지므로 짝 모두 실제 테두리로 경계를 둔다(높이는 그대로, border-box) */
+@media (forced-colors: active) {
+  .restore,
+  .purge {
+    border: 1px solid ButtonText;
+  }
+}
+
 .dangerFill {
   font: inherit;
   font-size: var(--text-md);
