@@ -638,12 +638,30 @@ describe('하루 마감 (SCR-LOG-03)', () => {
     renderApp('/', closeRoutes())
 
     expect(await screen.findByRole('heading', { name: '하루 마감 1/3' })).toBeInTheDocument()
-    expect(screen.getByText(/확인 대기 기록이 2건 있어요/)).toBeInTheDocument()
+    expect(screen.getByText('확인 대기 기록이 2건 있어요. 확정한 기록만 오늘 실적으로 남아요.')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: '그대로 다음' }))
     await waitFor(() => expect(screen.getByRole('heading', { name: '하루 마감 2/3' })).toHaveFocus())
     expect(screen.getByText('넘긴 일은 다음 주 계획에 들어가요. 업무의 마감일은 바뀌지 않아요.')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: '이전' }))
     await waitFor(() => expect(screen.getByRole('heading', { name: '하루 마감 1/3' })).toHaveFocus())
+  })
+
+  it('지난 날을 마감하면 확인 대기 안내가 그 날짜 실적으로 남는다고 말한다', async () => {
+    stubFetch({
+      'GET /api/users/me': me,
+      'GET /api/worklog/logs/daily/2026-10-07/close': () => json(200, plan({ pendingCount: 1 })),
+      [LOG_URL]: () => json(200, workLog()),
+    })
+    renderApp('/', [
+      {
+        path: '/',
+        element: <DayClose date="2026-10-07" today="2026-10-08" timeZone="Asia/Seoul" onClose={() => {}} />,
+      },
+    ])
+
+    expect(
+      await screen.findByText('확인 대기 기록이 1건 있어요. 확정한 기록만 10월 7일 실적으로 남아요.'),
+    ).toBeInTheDocument()
   })
 
   it('계획 50줄 상한: 남은 칸만큼만 기본 선택·더 고를 수 없고 안내, 서버 400은 이유를 알린다', async () => {

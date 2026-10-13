@@ -436,7 +436,7 @@ export function DayClose({ date, today, timeZone, quick = false, onClose }: Prop
           <>
             <p className={styles.dialogBody}>
               {waiting
-                ? `확인 대기 기록이 ${d.pendingCount}건 있어요. 확정한 기록만 오늘 실적으로 남아요.`
+                ? `확인 대기 기록이 ${d.pendingCount}건 있어요. 확정한 기록만 ${dayName} 실적으로 남아요.`
                 : '확인 대기 기록을 모두 처리했어요.'}
             </p>
             {waiting &&
