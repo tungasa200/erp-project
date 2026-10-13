@@ -280,3 +280,45 @@ describe('데모 시드: 지난 2주 확정 기록·완료 업무·확정 일지
     }
   })
 })
+
+describe('가짜 영구 삭제(purgeTask·purgeProject)', () => {
+  const stored = () => JSON.parse(localStorage.getItem('worklog.mock.worklog')!)
+
+  it('보관한 업무만 지우고, 그 업무의 확인 대기 기록은 지우고 나머지 기록은 업무 없음으로 남긴다', async () => {
+    const [target] = await tasks()
+    expect(handleWorklog('DELETE', `/api/worklog/tasks/${target.id}/permanent`, {}, r)!.status).toBe(409)
+
+    handleWorklog('DELETE', `/api/worklog/tasks/${target.id}`, {}, r)
+    const state = stored()
+    state.records = [
+      { id: 'rec-pending', taskId: target.id, status: 'PENDING' },
+      { id: 'rec-done', taskId: target.id, status: 'CONFIRMED' },
+    ]
+    localStorage.setItem('worklog.mock.worklog', JSON.stringify(state))
+
+    expect(handleWorklog('DELETE', `/api/worklog/tasks/${target.id}/permanent`, {}, r)!.status).toBe(204)
+    const after = stored()
+    expect(after.tasks.some((t: Task) => t.id === target.id)).toBe(false)
+    expect(after.records.filter((x: { id: string }) => x.id.startsWith('rec-'))).toEqual([
+      { id: 'rec-done', taskId: null, status: 'CONFIRMED' },
+    ])
+    expect(handleWorklog('DELETE', `/api/worklog/tasks/${target.id}/permanent`, {}, r)!.status).toBe(404)
+  })
+
+  it('보관한 프로젝트만 지우고 소속 업무는 프로젝트 없음으로 남긴다', async () => {
+    const owned = (await tasks()).find((t) => t.projectId)!
+    const projectId = owned.projectId!
+    expect(handleWorklog('DELETE', `/api/worklog/projects/${projectId}/permanent`, {}, r)!.status).toBe(409)
+
+    const project = stored().projects.find((p: { id: string }) => p.id === projectId)
+    handleWorklog('PATCH', `/api/worklog/projects/${projectId}`, { version: project.version, archived: true }, r)
+    expect(handleWorklog('DELETE', `/api/worklog/projects/${projectId}/permanent`, {}, r)!.status).toBe(204)
+
+    const after = stored()
+    expect(after.projects.some((p: { id: string }) => p.id === projectId)).toBe(false)
+    const task = after.tasks.find((t: Task) => t.id === owned.id)
+    expect(task.projectId).toBeNull()
+    expect(task.version).toBe(owned.version)
+    expect(handleWorklog('DELETE', `/api/worklog/projects/${projectId}/permanent`, {}, r)!.status).toBe(404)
+  })
+})

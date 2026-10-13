@@ -448,6 +448,18 @@ export function handleWorklog(
     return r.json(201, project)
   }
 
+  // 영구 삭제(purgeProject): 보관한 프로젝트만. 소속 업무는 '프로젝트 없음'(projectId null)으로 남는다(업무 version은 그대로)
+  const purgeProject = /^\/api\/worklog\/projects\/([^/]+)\/permanent$/.exec(path)
+  if (purgeProject && method === 'DELETE') {
+    const index = state.projects.findIndex((p) => p.id === purgeProject[1])
+    if (index < 0) return r.problem(404, 'NOT_FOUND')
+    if (!state.projects[index].archived) return r.problem(409, 'PROJECT_NOT_ARCHIVED')
+    state.projects.splice(index, 1)
+    for (const t of state.tasks) if (t.projectId === purgeProject[1]) t.projectId = null
+    save(state)
+    return new Response(null, { status: 204 })
+  }
+
   const projectMatch = /^\/api\/worklog\/projects\/([^/]+)$/.exec(path)
   if (method === 'PATCH' && projectMatch) {
     const project = state.projects.find((p) => p.id === projectMatch[1])
@@ -619,6 +631,21 @@ function handleTasks(
     state.tasks.push(task)
     save(state)
     return r.json(201, task)
+  }
+
+  // 영구 삭제(purgeTask): 보관한 업무만. 확인 대기 기록은 지우고 나머지 기록은 '업무 없음'(taskId null)으로 남긴다.
+  // 일정의 연결은 일정 mock(mockSchedules)이 없는 업무를 보는 쪽에서 다룬다
+  const purge = /^\/api\/worklog\/tasks\/([^/]+)\/permanent$/.exec(path)
+  if (purge && method === 'DELETE') {
+    const index = state.tasks.findIndex((t) => t.id === purge[1])
+    if (index < 0) return r.problem(404, 'NOT_FOUND')
+    if (!state.tasks[index].deletedAt) return r.problem(409, 'TASK_NOT_ARCHIVED')
+    state.tasks.splice(index, 1)
+    state.records = (state.records ?? [])
+      .filter((x) => !(x.taskId === purge[1] && x.status === 'PENDING'))
+      .map((x) => (x.taskId === purge[1] ? { ...x, taskId: null } : x))
+    save(state)
+    return new Response(null, { status: 204 })
   }
 
   const m = /^\/api\/worklog\/tasks\/([^/]+)(\/restore)?$/.exec(path)

@@ -405,6 +405,26 @@ export interface paths {
         patch: operations["updateProject"];
         trace?: never;
     };
+    "/api/worklog/projects/{projectId}/permanent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * 보관한 프로젝트 영구 삭제 (보관함)
+         * @description 보관한 프로젝트만 지운다. 소속 업무는 지우지 않고 projectId를 비운다(업무의 version은 그대로). version을 받지 않는다. 다시 보내면 404.
+         */
+        delete: operations["purgeProject"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/worklog/push/public-key": {
         parameters: {
             query?: never;
@@ -915,6 +935,26 @@ export interface paths {
          *     보관한 업무는 수정할 수 없다(409 TASK_DELETED).
          */
         patch: operations["updateTask"];
+        trace?: never;
+    };
+    "/api/worklog/tasks/{taskId}/permanent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * 보관한 업무 영구 삭제 (보관함)
+         * @description 보관한 업무만 지운다. 그 업무의 확인 대기 기록은 지우고, 나머지 기록·연결 일정은 남기고 taskId를 비운다. version을 받지 않는다. 다시 보내면 404.
+         */
+        delete: operations["purgeTask"];
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/worklog/tasks/{taskId}/restore": {
@@ -3141,6 +3181,45 @@ export interface operations {
             };
         };
     };
+    purgeProject: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 영구 삭제됨 */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description 없거나 다른 사용자의 프로젝트 (code=NOT_FOUND) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description 보관하지 않은 프로젝트 (code=PROJECT_NOT_ARCHIVED) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     getPushPublicKey: {
         parameters: {
             query?: never;
@@ -4423,6 +4502,45 @@ export interface operations {
                 };
             };
             /** @description version 불일치(code=VERSION_CONFLICT) 또는 보관한 업무(code=TASK_DELETED) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    purgeTask: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                taskId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 영구 삭제됨 */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description 없거나 다른 사용자의 업무 (code=NOT_FOUND) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description 보관하지 않은 업무 (code=TASK_NOT_ARCHIVED) */
             409: {
                 headers: {
                     [name: string]: unknown;
