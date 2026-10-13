@@ -47,15 +47,17 @@ function seed(): MockSchedule[] {
   // 매주 반복은 시작일의 요일을 포함해야 한다(D-71). 주말에 처음 열어도 규칙이 맞게 오늘 요일을 더한다.
   const weekdays = [...new Set([...WEEKDAYS.slice(1, 6), WEEKDAYS[weekdayIndex(today)]])]
   // ID를 고정해 새 브라우저에서도 같은 예시 일정을 가리킨다.
+  // 업무에 연결해 블록이 프로젝트 색(영업·개발·공통)으로 보이게 한다. 스탠드업은 업무 없는 일정이라 키 색 기본으로 남긴다
   return [
     timed('mock-schedule-standup', '팀 스탠드업', 0, 9.5, 10, { recurrence: { frequency: 'WEEKLY', weekdays } }),
-    timed('mock-schedule-quote', '견적서 작성', 0, 14, 16),
-    timed('mock-schedule-review', '코드 리뷰', 1, 10, 11.5),
-    timed('mock-schedule-client', '고객사 미팅', 2, 15, 16),
+    timed('mock-schedule-quote', '견적서 작성', 0, 14, 16, { taskId: 'mock-task-quote' }),
+    timed('mock-schedule-review', '코드 리뷰', 1, 10, 11.5, { taskId: 'mock-task-review' }),
+    timed('mock-schedule-client', '고객사 미팅', 2, 15, 16, { taskId: 'mock-task-report' }),
     schedule('mock-schedule-trip', '부산 출장', tz, {
       allDay: true,
       startDate: addDays(today, 3),
       endDate: addDays(today, 4),
+      taskId: 'mock-task-onboarding',
     }),
   ]
 }
