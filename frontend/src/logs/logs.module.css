@@ -1159,6 +1159,7 @@
 
 .pendingItem {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   gap: var(--space-3);
   padding: var(--space-2) var(--space-3);
@@ -1176,14 +1177,16 @@
 }
 
 .pendingTitle {
-  flex: 1;
+  flex: 1 1 8em;
   min-width: 0;
+  word-break: keep-all;
   overflow-wrap: anywhere;
   font-weight: 600;
 }
 
 .dateBadge {
   flex: none;
+  margin-inline-start: auto;
   padding: 2px var(--space-2);
   border-radius: var(--radius-pill);
   background: var(--color-ground);
@@ -1192,12 +1195,11 @@
   font-weight: 800;
 }
 
-/* [그대로 다음]은 글자 링크로 낮추고 왼쪽에 둔다 */
+/* [그대로 다음]은 중립 윤곽 버튼(X-03a)으로 왼쪽에 두고 빈칸으로 띄운다(창 바닥 규칙) */
 .pendingActions {
   flex-wrap: wrap;
 }
 
-.skipLink,
 .inlineButton {
   display: inline-flex;
   align-items: center;
@@ -1218,7 +1220,6 @@
   margin-right: auto;
 }
 
-.skipLink:focus-visible,
 .inlineButton:focus-visible,
 .neutralFill:focus-visible {
   outline: 2px solid var(--color-accent);

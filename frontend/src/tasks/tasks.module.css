@@ -521,10 +521,27 @@
   gap: var(--space-2);
 }
 
+/* 짝 틀은 같게(X-03a): 알약 44·space-4. [보관함]은 주 동작(accent-soft), [닫기]는 중립 윤곽 — 404 화면 짝과 같은 역할 */
 .missingActions .smallButton {
   display: inline-flex;
   align-items: center;
+  min-height: var(--size-touch);
+  padding: 0 var(--space-4);
+  background: var(--color-surface);
+  box-shadow: inset 0 0 0 1px var(--color-border);
   text-decoration: none;
+}
+
+.missingActions .missingPrimary {
+  background: var(--color-accent-soft);
+  box-shadow: inset 0 0 0 1px var(--color-accent-soft);
+  color: var(--color-accent-ink);
+}
+
+@media (forced-colors: active) {
+  .missingActions .smallButton {
+    border: 1px solid ButtonText;
+  }
 }
 
 /* 상세 패널의 [캘린더에 배치]는 주 동작이라 데스크톱에서도 44px(UX-TASK-152) */

@@ -466,7 +466,7 @@ export function DayClose({ date, today, timeZone, quick = false, onClose }: Prop
               ))}
             <div className={`${cal.actions} ${styles.pendingActions}`}>
               {waiting && (
-                <button type="button" className={styles.skipLink} onClick={() => go('carry')}>
+                <button type="button" className={`${cal.secondary} ${styles.skipLink}`} onClick={() => go('carry')}>
                   그대로 다음
                 </button>
               )}

@@ -133,7 +133,7 @@ export function TaskDetailPanel() {
             주소가 바뀌었거나 보관된 항목일 수 있어요. 보관한 업무는 보관함에서 찾을 수 있어요.
           </p>
           <div className={styles.missingActions}>
-            <Link to="/tasks/archive" className={styles.smallButton}>
+            <Link to="/tasks/archive" className={`${styles.smallButton} ${styles.missingPrimary}`}>
               보관함
             </Link>
             <button type="button" className={styles.smallButton} onClick={close}>
