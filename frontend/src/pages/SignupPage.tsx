@@ -75,9 +75,9 @@ export function SignupPage() {
   const [submitted, setSubmitted] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const { ref: formRef, focusFirstError } = useFocusFirstError<HTMLFormElement>()
-  // 767px 이하(D-223 ④): 동의는 한 줄로 접고, 비밀번호 두 칸에 [보기]. 768 이상은 그대로
+  // 767px 이하(D-223 ④): 비밀번호 두 칸에 [보기], 국외 이전 안내는 [회원가입] 아래. 768 이상은 그대로.
+  // 동의 3항목은 모든 폭에서 늘 펼친다(사용자 결정 2026-10-13, 개인정보 보호법 제22조 ①: 수집·이용 동의는 다른 동의와 구분해 각각)
   const mobile = useMediaQuery('(max-width: 767px)')
-  const [consentOpen, setConsentOpen] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
 
@@ -115,8 +115,6 @@ export function SignupPage() {
     next.password = password ? passwordMessage(violations) : MESSAGES.REQUIRED
     if (password && passwordConfirm !== password) next.passwordConfirm = MESSAGES.PASSWORD_MISMATCH
     if (!agreeAge || !agreeTerms || !agreePrivacy) next.agreements = MESSAGES.AGREEMENT_REQUIRED
-    // 접힌 동의에서 빠진 항목이 있으면 펼쳐서 그 항목으로 포커스가 가게 한다
-    if (next.agreements) setConsentOpen(true)
     setErrors(next)
     if (Object.values(next).some(Boolean)) {
       focusFirstError()
@@ -140,7 +138,6 @@ export function SignupPage() {
       } else if (error instanceof ApiError && error.code === 'VALIDATION_FAILED') {
         const mapped = mapServerErrors(error.problem?.errors ?? [])
         setErrors(mapped.errors)
-        if (mapped.errors.agreements) setConsentOpen(true)
         focusFirstError()
         if (mapped.unknown) showToast('입력 내용을 다시 확인해 주세요', { traceId: error.traceId })
       } else {
@@ -317,126 +314,59 @@ export function SignupPage() {
           aria-describedby={errors.agreements ? 'signup-agreements-error' : undefined}
         >
           <legend className="visually-hidden">약관 동의</legend>
-          {mobile ? (
-            <>
-              <div className={styles.consentLine}>
-                <label className={`${styles.check} ${styles.checkAll}`}>
-                  <input
-                    type="checkbox"
-                    checked={allAgreed}
-                    onChange={(e) => {
-                      setAgreeAge(e.target.checked)
-                      setAgreeTerms(e.target.checked)
-                      setAgreePrivacy(e.target.checked)
-                    }}
-                  />
-                  <span className={styles.checkText}>
-                    [필수] 만 14세 이상이며, 이용약관·개인정보 수집·이용에 모두 동의합니다
-                  </span>
-                </label>
-                <button
-                  type="button"
-                  className={styles.consentToggle}
-                  aria-expanded={consentOpen}
-                  aria-controls="signup-consent-items"
-                  onClick={() => setConsentOpen((v) => !v)}
-                >
-                  {consentOpen ? '접기' : '펼치기'}
-                </button>
-              </div>
-              {consentOpen && (
-                <div id="signup-consent-items" className={styles.consentItems}>
-                  <label className={styles.check}>
-                    <input
-                      type="checkbox"
-                      checked={agreeAge}
-                      onChange={(e) => setAgreeAge(e.target.checked)}
-                      {...requiredCheck(agreeAge)}
-                    />
-                    <span className={styles.checkText}>[필수] 만 14세 이상입니다</span>
-                  </label>
-                  <label className={styles.check}>
-                    <input
-                      type="checkbox"
-                      checked={agreeTerms}
-                      onChange={(e) => setAgreeTerms(e.target.checked)}
-                      {...requiredCheck(agreeTerms)}
-                    />
-                    <span className={styles.checkText}>[필수] 이용약관 동의</span>
-                    <Link className={styles.checkLink} to="/terms" target="_blank">
-                      내용 보기
-                    </Link>
-                  </label>
-                  <label className={styles.check}>
-                    <input
-                      type="checkbox"
-                      checked={agreePrivacy}
-                      onChange={(e) => setAgreePrivacy(e.target.checked)}
-                      {...requiredCheck(agreePrivacy)}
-                    />
-                    <span className={styles.checkText}>[필수] 개인정보 수집·이용 동의</span>
-                    <Link className={styles.checkLink} to="/privacy" target="_blank">
-                      내용 보기
-                    </Link>
-                  </label>
-                </div>
-              )}
-            </>
-          ) : (
-            <>
-              <label className={`${styles.check} ${styles.checkAll}`}>
-                <input
-                  type="checkbox"
-                  checked={allAgreed}
-                  onChange={(e) => {
-                    setAgreeAge(e.target.checked)
-                    setAgreeTerms(e.target.checked)
-                    setAgreePrivacy(e.target.checked)
-                  }}
-                />
-                전체 동의
-              </label>
-              <label className={styles.check}>
-                <input
-                  type="checkbox"
-                  checked={agreeAge}
-                  onChange={(e) => setAgreeAge(e.target.checked)}
-                  {...requiredCheck(agreeAge)}
-                />
-                <span className={styles.checkText}>[필수] 만 14세 이상입니다</span>
-              </label>
-              <label className={styles.check}>
-                <input
-                  type="checkbox"
-                  checked={agreeTerms}
-                  onChange={(e) => setAgreeTerms(e.target.checked)}
-                  {...requiredCheck(agreeTerms)}
-                />
-                <span className={styles.checkText}>[필수] 이용약관 동의</span>
-                <Link className={styles.checkLink} to="/terms" target="_blank">
-                  내용 보기
-                </Link>
-              </label>
-              <label className={styles.check}>
-                <input
-                  type="checkbox"
-                  checked={agreePrivacy}
-                  onChange={(e) => setAgreePrivacy(e.target.checked)}
-                  {...requiredCheck(agreePrivacy)}
-                />
-                <span className={styles.checkText}>[필수] 개인정보 수집·이용 동의</span>
-                <Link className={styles.checkLink} to="/privacy" target="_blank">
-                  내용 보기
-                </Link>
-              </label>
-              <p className={styles.overseas}>
-                회원 정보와 서비스 이용 기록은 싱가포르 소재 서버(Railway)에 보관되며, 메일 발송 등 일부 업무는 국외
-                업체에 위탁하여 처리합니다.{' '}
-                <Link to="/privacy#legal-3" target="_blank">
-                  자세히 보기
-                </Link>
-              </p>
-            </>
+          <label className={`${styles.check} ${styles.checkAll}`}>
+            <input
+              type="checkbox"
+              checked={allAgreed}
+              onChange={(e) => {
+                setAgreeAge(e.target.checked)
+                setAgreeTerms(e.target.checked)
+                setAgreePrivacy(e.target.checked)
+              }}
+            />
+            전체 동의
+          </label>
+          <label className={styles.check}>
+            <input
+              type="checkbox"
+              checked={agreeAge}
+              onChange={(e) => setAgreeAge(e.target.checked)}
+              {...requiredCheck(agreeAge)}
+            />
+            <span className={styles.checkText}>[필수] 만 14세 이상입니다</span>
+          </label>
+          <label className={styles.check}>
+            <input
+              type="checkbox"
+              checked={agreeTerms}
+              onChange={(e) => setAgreeTerms(e.target.checked)}
+              {...requiredCheck(agreeTerms)}
+            />
+            <span className={styles.checkText}>[필수] 이용약관 동의</span>
+            <Link className={styles.checkLink} to="/terms" target="_blank">
+              내용 보기
+            </Link>
+          </label>
+          <label className={styles.check}>
+            <input
+              type="checkbox"
+              checked={agreePrivacy}
+              onChange={(e) => setAgreePrivacy(e.target.checked)}
+              {...requiredCheck(agreePrivacy)}
+            />
+            <span className={styles.checkText}>[필수] 개인정보 수집·이용 동의</span>
+            <Link className={styles.checkLink} to="/privacy" target="_blank">
+              내용 보기
+            </Link>
+          </label>
+          {!mobile && (
+            <p className={styles.overseas}>
+              회원 정보와 서비스 이용 기록은 싱가포르 소재 서버(Railway)에 보관되며, 메일 발송 등 일부 업무는 국외
+              업체에 위탁하여 처리합니다.{' '}
+              <Link to="/privacy#legal-3" target="_blank">
+                자세히 보기
+              </Link>
+            </p>
           )}
         </fieldset>
         {errors.agreements && (

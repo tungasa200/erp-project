@@ -513,23 +513,29 @@ describe('SCR-AUTH-03 회원가입', () => {
       }))
     })
 
-    it('동의는 만 14세를 담은 한 줄로 접히고, 빠진 항목이 있으면 펼쳐서 첫 빠진 항목으로 포커스한다', async () => {
+    it('동의 3항목은 데스크톱과 같이 늘 펼쳐 각각 고르고, 빠진 항목이 있으면 첫 빠진 항목으로 포커스한다(개인정보 보호법 제22조 ①)', async () => {
       stubFetch({})
       renderApp('/signup')
       const user = userEvent.setup()
-      const all = await screen.findByRole('checkbox', {
-        name: '[필수] 만 14세 이상이며, 이용약관·개인정보 수집·이용에 모두 동의합니다',
-      })
-      expect(screen.queryByRole('checkbox', { name: '[필수] 이용약관 동의' })).not.toBeInTheDocument()
-      // 국외 이전 안내와 처리방침 링크는 접혀도 가입 폼 화면에 있다(D-33)
+      const all = await screen.findByRole('checkbox', { name: '전체 동의' })
+      // 접기·펼치기 없이 세 항목과 '내용 보기'가 처음부터 보인다
+      expect(screen.queryByRole('button', { name: '펼치기' })).not.toBeInTheDocument()
+      expect(screen.getByRole('checkbox', { name: '[필수] 만 14세 이상입니다' })).toBeInTheDocument()
+      expect(screen.getByRole('checkbox', { name: /^\[필수\] 이용약관 동의/ })).toBeInTheDocument()
+      expect(screen.getByRole('checkbox', { name: /^\[필수\] 개인정보 수집·이용 동의/ })).toBeInTheDocument()
+      expect(screen.getAllByRole('link', { name: '내용 보기' }).map((a) => a.getAttribute('href'))).toEqual([
+        '/terms',
+        '/privacy',
+      ])
+      // 국외 이전 안내와 처리방침 링크는 가입 폼 화면에 있다(D-33)
       expect(screen.getByText(/싱가포르 소재 서버\(Railway\)/)).toBeInTheDocument()
       expect(screen.getByRole('link', { name: '자세히 보기' })).toHaveAttribute('href', '/privacy#legal-3')
 
       await user.type(screen.getByLabelText('이메일'), 'a@b.com')
       await user.type(screen.getByLabelText('비밀번호'), 'worklog20')
       await user.type(screen.getByLabelText('비밀번호 확인'), 'worklog20')
+      await user.click(screen.getByRole('checkbox', { name: /^\[필수\] 이용약관 동의/ }))
       await user.click(screen.getByRole('button', { name: '회원가입' }))
-      expect(screen.getByRole('button', { name: '접기' })).toHaveAttribute('aria-expanded', 'true')
       await waitFor(() => expect(screen.getByRole('checkbox', { name: '[필수] 만 14세 이상입니다' })).toHaveFocus())
       expect(all).not.toBeChecked()
     })
