@@ -80,7 +80,12 @@
 }
 
 @media (max-width: 767px) {
+  /* 휴대폰은 폼을 위에 붙인다: 짧은 로그인 폼이 가운데로 내려가 가입과 틀이 달라지지 않게, 키보드가 올라와도 칸이 위에 남게(UX-M-AUTH-101) */
+  .page {
+    align-content: flex-start; /* 줄바꿈된 로고 줄이 남는 높이를 나눠 갖지 않게 */
+  }
   .main {
+    justify-content: flex-start;
     padding: var(--space-5) var(--space-4) var(--space-7);
   }
 }

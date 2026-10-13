@@ -473,12 +473,38 @@ describe('SCR-TASK-02 업무 상세', () => {
     await userEvent.click(
       within(within(sheet).getByRole('group', { name: '상태' })).getByRole('checkbox', { name: '완료' }),
     )
-    await waitFor(() => expect(router.state.location.search).toContain('status=DONE'))
+    // 목록에는 바로 걸리고(버튼 수), 주소에는 닫을 때 쓴다(UX-M-TASK-101)
+    expect(screen.getByRole('button', { name: '필터 (1)', hidden: true })).toBeInTheDocument()
+    expect(router.state.location.search).not.toContain('status=DONE')
 
     await userEvent.keyboard('{Escape}')
-    expect(screen.queryByRole('dialog', { name: '필터' })).not.toBeInTheDocument()
-    const applied = screen.getByRole('button', { name: '필터 (1)' })
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: '필터' })).not.toBeInTheDocument())
+    expect(router.state.location.search).toContain('status=DONE')
+    // 시트 기록은 걷혔다: 다음 뒤로 가기는 시트가 아니라 화면 기록으로 간다
+    expect((history.state as Record<string, unknown> | null)?.wyOverlay).toBeUndefined()
+    const applied = await screen.findByRole('button', { name: '필터 (1)' })
     await waitFor(() => expect(applied).toHaveFocus())
+  })
+
+  it('필터 시트를 뒤로 가기로 닫아도 고른 조건은 남는다(UX-M-TASK-101)', async () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query === '(max-width: 767px)',
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }))
+    server(SAMPLE)
+    const { router } = renderApp('/tasks')
+    await userEvent.click(await screen.findByRole('button', { name: '필터' }))
+    const sheet = await screen.findByRole('dialog', { name: '필터' })
+    await userEvent.click(
+      within(within(sheet).getByRole('group', { name: '상태' })).getByRole('checkbox', { name: '완료' }),
+    )
+
+    history.back()
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: '필터' })).not.toBeInTheDocument())
+    expect(router.state.location.pathname).toBe('/tasks')
+    expect(router.state.location.search).toContain('status=DONE')
+    await waitFor(() => expect(screen.getByRole('button', { name: '필터 (1)' })).toHaveFocus())
   })
 
   it('휴대폰 필터 시트의 프로젝트 묶음 맨 아래에 + 새 프로젝트(그 자리 이름 칸)·프로젝트 관리가 있다(D-226)', async () => {

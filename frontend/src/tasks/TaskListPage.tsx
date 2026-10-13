@@ -8,7 +8,7 @@ import { ApiError } from '../api/problem'
 import { useAuth } from '../auth/useAuth'
 import { inertOutside } from '../components/inertOutside'
 import { Skeleton } from '../components/Skeleton'
-import { useBackClose } from '../components/useBackClose'
+import { closeByBack, useBackClose } from '../components/useBackClose'
 import { useMediaQuery } from '../components/useMediaQuery'
 import { useOnline } from '../components/useOnline'
 import { useToast } from '../components/useToast'
@@ -51,7 +51,10 @@ export function TaskListPage() {
   const { user } = useAuth()
   const { taskId } = useParams()
   const [search, setSearch] = useSearchParams()
-  const params = readParams(search)
+  // 휴대폰 필터 시트가 열린 동안 고른 조건. 목록에는 바로 걸고 주소에는 시트를 닫을 때 한 번 쓴다(UX-M-TASK-101):
+  // 열린 동안 주소를 바꾸면 시트가 쌓은 뒤로 가기 기록을 덮어써, 뒤로 가기가 필터를 풀거나 화면을 떠나지 못한다
+  const [draft, setDraft] = useState<ListParams | null>(null)
+  const params = draft ?? readParams(search)
   const timeZone = user?.timezone ?? 'Asia/Seoul'
   const today = todayIn(timeZone)
   const weekStart = weekStartNumber(user?.weekStart)
@@ -121,7 +124,8 @@ export function TaskListPage() {
   const doneItems = showsDone ? [] : done.items
   const [doneOpen, setDoneOpen] = useState(false)
 
-  const update = (next: Partial<ListParams>) => setSearch(writeParams({ ...params, ...next }), { replace: true })
+  const update = (next: Partial<ListParams>) =>
+    draft ? setDraft({ ...draft, ...next }) : setSearch(writeParams({ ...params, ...next }), { replace: true })
 
   // X-11: 화면 안 추가는 지금 조건을 미리 채운 같은 빠른 입력이다. 프로젝트·태그를 하나씩 골랐으면 @·# 칩으로 미리 넣는다
   // (공백 있는 이름은 한 낱말로 쓸 수 없어 뺀다). 사용자가 아직 고치지 않았으면 조건이 바뀔 때 함께 바뀐다
@@ -358,7 +362,10 @@ export function TaskListPage() {
               type="button"
               className={applied > 0 ? `${styles.filterButton} ${styles.filterActive}` : styles.filterButton}
               aria-haspopup="dialog"
-              onClick={() => setFilterSheet(true)}
+              onClick={() => {
+                setDraft(params)
+                setFilterSheet(true)
+              }}
             >
               {applied > 0 ? `필터 (${applied})` : '필터'}
             </button>
@@ -375,6 +382,9 @@ export function TaskListPage() {
           <FilterSheet
             onClose={() => {
               setFilterSheet(false)
+              // 시트 기록을 걷어 낸 뒤(뒤로 가기·closeByBack) 불리므로 아래 화면 기록의 주소를 고친다
+              if (draft) setSearch(writeParams(draft), { replace: true })
+              setDraft(null)
               // 시트가 사라져 뒤 화면의 inert가 풀린 뒤에 옮긴다(그 전에는 버튼이 포커스를 받지 못한다)
               setTimeout(() => filterButton.current?.focus())
             }}
@@ -648,11 +658,15 @@ function FilterDropdown({
   )
 }
 
-// 휴대폰 필터 시트(UX-M-TASK-43, D-223 ③). 고르는 즉시 목록에 걸리고 [완료]·바깥·Esc·뒤로 가기로 닫는다
-function FilterSheet({ onClose, children }: { onClose: () => void; children: ReactNode }) {
+// 휴대폰 필터 시트(UX-M-TASK-43, D-223 ③). 고르는 즉시 목록에 걸리고 [완료]·바깥·Esc·뒤로 가기로 닫는다.
+// 어느 쪽으로 닫든 시트 기록을 뒤로 가기로 먼저 걷고 닫아서, 고른 조건은 화면 기록에 남고 다음 뒤로 가기는 화면을 떠난다(UX-M-TASK-101)
+function FilterSheet({ onClose: closed, children }: { onClose: () => void; children: ReactNode }) {
   const sheet = useRef<HTMLElement>(null)
   const titleId = useId()
-  useBackClose(true, onClose)
+  useBackClose(true, closed)
+  const onClose = () => {
+    if (!closeByBack()) closed()
+  }
   useEffect(() => {
     if (!sheet.current) return
     sheet.current.querySelector<HTMLElement>('h2')?.focus()

@@ -94,9 +94,15 @@ export function AppShell() {
   const [sheetText, setSheetText] = useState('')
   const [pendingFrom, setPendingFrom] = useState<{ today: string; timeZone: string } | null>(null)
   const [searchParams, setSearchParams] = useSearchParams()
-  // PWA 바로가기 '빠른 기록'(manifest shortcuts, /?quick=1)으로 열리면 시트를 바로 띄우고 주소에서 뺀다
+  // PWA 바로가기 '빠른 기록'(manifest shortcuts, /?quick=1)으로 열리면 주소에서 뺀 뒤 시트를 띄운다.
+  // 시트가 먼저 뜨면 뒤로 가기 기록(useBackClose) 위에서 주소를 바꿔 그 기록을 덮어쓴다(UX-M-TASK-101과 같은 틀)
   const quickParam = searchParams.get('quick') === '1'
-  if (quickParam && !sheetOpen) setSheetOpen(true)
+  const [quickQueued, setQuickQueued] = useState(false)
+  if (quickParam && !quickQueued) setQuickQueued(true)
+  if (quickQueued && !quickParam) {
+    setQuickQueued(false)
+    setSheetOpen(true)
+  }
   useEffect(() => {
     if (!quickParam) return
     setSearchParams(
@@ -109,10 +115,20 @@ export function AppShell() {
   }, [quickParam, setSearchParams])
   // 하루 마감 알림·푸시(/?close=YYYY-MM-DD)로 오면 그날 마감 창을 열고 주소에서 뺀다. 창 자리(DayCloseHost)는 자식이라 먼저 등록돼 있다
   // 홈에서만 본다: 옛 주소 /logs/daily/{날짜}?close=1에서 먼저 지우면 LogsRedirect가 날짜를 넘기지 못한다
+  // 마감 창도 주소에서 뺀 뒤에 연다(위 빠른 기록과 같은 까닭)
   const closeParam = pathname === '/' ? searchParams.get('close') : null
+  const closeQueued = useRef<string | null>(null)
+  useEffect(() => {
+    if (closeParam !== null) {
+      closeQueued.current = closeParam
+      return
+    }
+    const date = closeQueued.current
+    closeQueued.current = null
+    if (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) openDayClose({ date })
+  }, [closeParam])
   useEffect(() => {
     if (closeParam === null) return
-    if (/^\d{4}-\d{2}-\d{2}$/.test(closeParam)) openDayClose({ date: closeParam })
     setSearchParams(
       (params) => {
         params.delete('close')

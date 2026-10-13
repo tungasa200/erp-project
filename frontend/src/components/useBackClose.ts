@@ -12,6 +12,7 @@ const stack: Entry[] = []
 let seq = 0
 let swallow = 0
 let listening = false
+let leaving: number | undefined
 
 function markerOf(state: unknown): number | undefined {
   const value = (state as Record<string, unknown> | null)?.[KEY]
@@ -21,6 +22,7 @@ function markerOf(state: unknown): number | undefined {
 // 라우터보다 먼저(캡처 단계) 받아서, 창 기록이 오갈 때는 라우터에 POP이 가지 않게 막는다.
 // 창 기록은 아래 라우터 기록과 주소·idx가 같아 라우터가 알 필요가 없다(알면 useBlocker가 이탈 확인을 띄움).
 function onPopState(event: PopStateEvent) {
+  leaving = undefined
   if (swallow > 0) {
     swallow--
     event.stopImmediatePropagation()
@@ -77,4 +79,18 @@ export function useBackClose(open: boolean, onClose: () => void) {
       })
     }
   }, [open])
+}
+
+// 창 안 버튼([완료]·Esc·바깥)으로 닫을 때도 뒤로 가기처럼 창 기록을 먼저 걷고, 닫기(onClose)는 popstate에서 부른다.
+// 닫으면서 주소를 바꾸는 창이 쓴다: 창 기록 위에서 주소를 바꾸면 그 기록이 남아 다음 뒤로 가기가 화면을 떠나지 못한다.
+// 맨 위 창의 기록이 지금 기록이 아니면 false(부른 쪽이 바로 닫는다)
+export function closeByBack(): boolean {
+  const top = markerOf(history.state)
+  if (top === undefined || stack[stack.length - 1]?.id !== top) return false
+  // 두 번 눌러도 한 번만 되돌린다(두 번째 back은 화면을 떠난다)
+  if (leaving !== top) {
+    leaving = top
+    history.back()
+  }
+  return true
 }

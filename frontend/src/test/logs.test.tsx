@@ -662,6 +662,8 @@ describe('하루 마감 (SCR-LOG-03)', () => {
     expect(
       await screen.findByText('확인 대기 기록이 1건 있어요. 확정한 기록만 10월 7일 실적으로 남아요.'),
     ).toBeInTheDocument()
+    // 지난 날 창은 제목에도 날짜가 있다(UX-M-HOME-101)
+    expect(screen.getByRole('heading', { level: 2, name: /^10월 7일 하루 마감 1\// })).toBeInTheDocument()
   })
 
   it('계획 50줄 상한: 남은 칸만큼만 기본 선택·더 고를 수 없고 안내, 서버 400은 이유를 알린다', async () => {

@@ -176,6 +176,8 @@ export function DayClose({ date, today, timeZone, quick = false, onClose }: Prop
   })
 
   const dayName = date === today ? '오늘' : `${Number(date.slice(5, 7))}월 ${Number(date.slice(8))}일`
+  // 지난 날이면 창 제목에도 날짜를 넣는다(UX-M-HOME-101: 오늘 마감과 구분)
+  const closeTitle = date === today ? '하루 마감' : `${dayName} 하루 마감`
   const titleId = `${id}-t`
 
   if (pendingOpen) {
@@ -345,7 +347,7 @@ export function DayClose({ date, today, timeZone, quick = false, onClose }: Prop
   } else if (plan.isPending || log.isPending || !selected || (quick && data?.log.status !== 'CONFIRMED')) {
     body = (
       <>
-        {head(quick ? '빠른 마감' : '하루 마감')}
+        {head(quick ? '빠른 마감' : closeTitle)}
         {plan.isError || log.isError ? (
           <div className={styles.failed}>
             <p>마감 정보를 불러오지 못했어요.</p>
@@ -375,7 +377,7 @@ export function DayClose({ date, today, timeZone, quick = false, onClose }: Prop
   } else if (data!.log.status === 'CONFIRMED') {
     body = (
       <>
-        {head('하루 마감')}
+        {head(closeTitle)}
         <p className={styles.dialogBody}>{dayName}은 이미 마감했어요.</p>
         <div className={cal.actions}>
           <button type="button" className={cal.primary} onClick={onClose}>
@@ -431,7 +433,7 @@ export function DayClose({ date, today, timeZone, quick = false, onClose }: Prop
     }
     body = (
       <>
-        {head(`하루 마감 ${stepText}`)}
+        {head(`${closeTitle} ${stepText}`)}
         {current === 'pending' && (
           <>
             <p className={styles.dialogBody}>
