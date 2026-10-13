@@ -81,7 +81,7 @@ describe('이날의 기록 접기 (X-07 D)', () => {
   it('기본은 펼침이고 머리에 접힌 요약과 같은 말(UX-M-REC-56). 접으면 요약 한 줄·펼치기, 다시 열어도 접힌 채(이 기기에 기억)', async () => {
     const fetchMock = setup()
     expect(await screen.findByText('기록 a')).toBeInTheDocument()
-    await waitFor(() => expect(screen.getByRole('heading', { name: /3건\s*· 마감함/ })).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole('heading', { name: /3건\s*·\s마감함/ })).toBeInTheDocument())
     expect(logCalls(fetchMock)).toHaveLength(1)
 
     await userEvent.click(screen.getByRole('button', { name: '이날의 기록 접기' }))
@@ -138,7 +138,9 @@ describe('기록이 많은 날 (UX-M-REC-56)', () => {
     setup(Date.now(), 'CONFIRMED', items)
     await screen.findByText('기록 r1')
     // jsdom은 인라인 span 사이 공백을 이름에서 지운다. 보이는 글은 '이날의 기록 · 8건 · 대기 1 · 마감함'
-    expect(await screen.findByRole('heading', { name: /^이날의 기록\s*· 8건 · 대기 1 · 마감함$/ })).toBeInTheDocument()
+    expect(
+      await screen.findByRole('heading', { name: /^이날의 기록\s*·\s8건\s·\s대기\s1\s·\s마감함$/ }),
+    ).toBeInTheDocument()
     // 결과 글이 있으면 카드, 없으면 한 줄(낭독용 '했어요')
     expect(screen.getByText('기록 r1').closest('button')).toHaveTextContent('초안 공유')
     expect(screen.getByRole('button', { name: /^했어요,\s*기록 r2$/ })).toBeInTheDocument()

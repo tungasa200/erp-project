@@ -102,6 +102,49 @@
   background: var(--color-surface-muted);
 }
 
+/* 진행 중(2.3, D-231): 홈 오늘 일정 행과 같이 프로젝트 색 진한 채움 + 흰 글자. 흰 글자 대비는 팔레트 8색 위 4.66:1 이상 */
+.agendaItem[data-state='now'] {
+  background: var(--block-base, var(--color-accent));
+  color: var(--color-on-accent);
+}
+
+.agendaItem[data-state='now'] .agendaTime {
+  color: inherit;
+}
+
+/* 채운 면과 같은 색이라 묻히는 프로젝트 색 점은 흰 점으로 */
+.agendaItem[data-state='now'] .agendaDot {
+  background: var(--color-on-accent);
+}
+
+/* 홈 진행 중 배지와 같은 각진 작은 태그: 흰 면 + 프로젝트 ink */
+.nowTag {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  box-sizing: border-box;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--color-surface);
+  color: var(--block-ink, var(--color-accent-ink));
+  font-size: var(--text-xs);
+  font-weight: 800;
+  line-height: 18px;
+  white-space: nowrap;
+}
+
+/* 고대비: 면이 지워지므로 홈 행처럼 3px 실선으로 "채운 행"을 남기고, 배지 글이 상태를 말한다 */
+@media (forced-colors: active) {
+  .agendaItem[data-state='now'] {
+    border: 3px solid CanvasText;
+  }
+
+  .nowTag {
+    border: 1px solid CanvasText;
+  }
+}
+
 /* 안 했어요(2.3): 제목에 취소선. 했어요·확인 대기는 제목 앞 ✓·! 표시가 알린다 */
 .agendaItem[data-state='skipped'] .agendaText {
   text-decoration: line-through;

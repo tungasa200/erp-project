@@ -232,6 +232,8 @@
 
 /* 머리 제목 옆 건수(UX-M-REC-56) */
 .dayRecordsCount {
+  /* '3'·'건'처럼 숫자와 글자 사이에서 꺾이지 않게. 꺾는 자리는 묶음 사이 공백뿐 */
+  word-break: keep-all;
   font-size: var(--text-sm);
   font-weight: var(--weight-title);
   color: var(--color-text-muted);

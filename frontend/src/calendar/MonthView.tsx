@@ -373,8 +373,17 @@ function DayAgenda({
                 data-focus-group={focusGroup(o, date)}
                 onClick={() => onOpen(o)}
               >
-                <span className={styles.listColor} />
+                <span className={`${styles.listColor} ${agendaStyles.agendaDot}`} />
                 <span className={agendaStyles.agendaTime}>{timeText(o, date, timeZone)}</span>{' '}
+                {/* 진행 중은 홈 오늘 일정 행처럼 행을 채우고 흰 면 배지로 보인다. 낭독은 다른 상태(StateText)와 같은 "상태, " 꼴 */}
+                {stateOf(o) === 'now' && (
+                  <>
+                    <span className={agendaStyles.nowTag} aria-hidden="true">
+                      {BLOCK_STATE_LABEL.now}
+                    </span>
+                    <span className="visually-hidden">{BLOCK_STATE_LABEL.now}, </span>
+                  </>
+                )}
                 <StateText state={stateOf(o)} />
                 <span className={agendaStyles.agendaText}>{o.title}</span>
                 {o.recurring && (

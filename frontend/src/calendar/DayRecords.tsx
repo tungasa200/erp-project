@@ -108,9 +108,10 @@ export function DayRecords({ date, timeZone, occurrences, now, editable, onOpen,
           이날의 기록
           {records.isSuccess && items.length > 0 && (
             <span className={styles.dayRecordsCount}>
-              {' '}
-              · {items.length}건{waiting ? ` · 대기 ${waiting}` : ''}
-              {logText ? ` · ${logText}` : ''}
+              {/* 묶음 안(·와 건수, '대기 n')은 줄이 갈리지 않게 붙이고, 묶음 사이 공백에서만 꺾는다(CAL-ST-02) */}
+              {` ·\u00a0${items.length}건`}
+              {waiting ? ` ·\u00a0대기\u00a0${waiting}` : ''}
+              {logText ? ` ·\u00a0${logText}` : ''}
             </span>
           )}
         </h2>

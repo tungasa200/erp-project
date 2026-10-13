@@ -148,6 +148,31 @@ describe('월 보기 (P1-07-11)', () => {
     expect(onOpenDay).toHaveBeenCalledWith('2026-10-06')
   })
 
+  it('아래 목록의 진행 중 일정은 행을 채우고 "진행 중" 배지로 말한다(홈 오늘 일정 행과 같은 규칙), 나머지는 그대로', () => {
+    render(
+      <MonthView
+        days={days}
+        month="2026-10"
+        occurrences={occurrences}
+        timeZone="Asia/Seoul"
+        today="2026-10-06"
+        colorOf={() => null}
+        stateOf={(o) => (o.title === '디자인 검토' ? 'now' : 'plan')}
+        onOpen={vi.fn()}
+        onOpenDay={vi.fn()}
+        onCreateAllDay={vi.fn()}
+        onMoveDays={vi.fn()}
+        overview
+        editable
+      />,
+    )
+    const agenda = screen.getByRole('region', { name: /일정$/ })
+    const now = within(agenda).getByRole('button', { name: /^종일 진행 중,\s*디자인 검토$/ })
+    expect(now).toHaveAttribute('data-state', 'now')
+    expect(within(agenda).getAllByText('진행 중')).toHaveLength(1)
+    expect(within(agenda).getByRole('button', { name: '종일 기획 회의' })).toHaveAttribute('data-state', 'plan')
+  })
+
   it('오프라인이면 아래 목록의 [+ 일정]을 끈다', () => {
     renderMonth(true, false)
     expect(screen.getByRole('button', { name: '+ 일정' })).toBeDisabled()
