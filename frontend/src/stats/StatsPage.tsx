@@ -1,8 +1,9 @@
 // SCR-STAT-01 통계 (STAT-01, TIME-07, UX-05 · P4-02). 목업 STAT-01(넓은 화면)·STAT-01s(390·빈 상태·로딩·기간 고르기).
 // 읽기 전용 화면이라 끊긴 동안에도 막을 동작이 없다. 첫 로딩만 스켈레톤(0.3초 뒤), 다시 받을 때는 지금 내용을 둔다.
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { useAuth } from '../auth/useAuth'
+import { closeByBack } from '../components/useBackClose'
 import { todayIn, type Weekday } from '../calendar/time'
 import { useDelayed } from '../components/useDelayed'
 import { useOnline } from '../components/useOnline'
@@ -27,6 +28,15 @@ export function StatsPage() {
   const period = readPeriod(search, today, weekStart)
   const [picking, setPicking] = useState(false)
   const choose = (next: Period) => setSearch(writePeriod(next), { replace: true })
+  // 적용한 기간은 창 기록을 걷어 낸 뒤(closeByBack → popstate) 아래 화면 기록의 주소에 쓴다(TASK-101과 같은 문제).
+  // 창 기록 위에서 주소를 바꾸면 그 기록이 남아, 다음 뒤로 가기가 화면을 떠나지 않고 이전 기간으로 돌아간다
+  const applied = useRef<Period | null>(null)
+  const closePicker = () => {
+    setPicking(false)
+    const next = applied.current
+    applied.current = null
+    if (next) choose(next)
+  }
 
   const stats = useStats(period.from, period.to)
   // 7일이 안 됐으면 추이를 막고 기간도 끈다. 꺼진 버튼은 이유를 바로 아래에 보인다(X-08, STAT-67)
@@ -82,10 +92,10 @@ export function StatsPage() {
           to={period.to}
           today={today}
           weekStart={weekStart}
-          onClose={() => setPicking(false)}
+          onClose={closePicker}
           onApply={(from, to) => {
-            setPicking(false)
-            choose({ kind: 'custom', from, to })
+            applied.current = { kind: 'custom', from, to }
+            if (!closeByBack()) closePicker()
           }}
         />
       )}

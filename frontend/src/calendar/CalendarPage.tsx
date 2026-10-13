@@ -275,17 +275,19 @@ function Calendar({ view, date, today, timeZone, weekStart }: CalendarProps) {
   }
 
   // 업무 상세에서 [캘린더에 배치]로 오면 업무 패널 "일정 잡기"처럼 만들기 창을 한 번 연다.
-  // state를 지워 새로고침·뒤로 가기에 다시 열리지 않게 한다
+  // state를 지워 새로고침·뒤로 가기에 다시 열리지 않게 한다. 지운 뒤에 창을 연다: 모바일 시트가 쌓은 뒤로 가기 기록 위에서
+  // replace하면 그 기록이 덮여, 창을 닫아도 기록이 남고 뒤로 가기가 이 화면으로 돌아와 창을 다시 연다(TASK-101과 같은 문제)
   const scheduleTask = (location.state as CalendarLocationState | null)?.scheduleTask
-  const [handledKey, setHandledKey] = useState<string | null>(null)
-  if (scheduleTask && handledKey !== location.key) {
-    // 이동마다 한 번만 연다(location.key 기준)
-    setHandledKey(location.key)
-    openCreate(scheduleTask)
-  }
+  const openCreateRef = useRef(openCreate)
+  useEffect(() => {
+    openCreateRef.current = openCreate
+  })
   const { pathname, search } = location
   useEffect(() => {
-    if (scheduleTask) void navigate({ pathname, search }, { replace: true, state: null })
+    if (!scheduleTask) return
+    void Promise.resolve(navigate({ pathname, search }, { replace: true, state: null })).then(() =>
+      openCreateRef.current(scheduleTask),
+    )
   }, [scheduleTask, navigate, pathname, search])
 
   const openQuick = (target: CreateTarget) => {
