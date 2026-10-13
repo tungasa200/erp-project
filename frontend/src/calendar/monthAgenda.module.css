@@ -69,7 +69,9 @@
   flex: none;
   font-size: var(--text-sm);
   font-weight: var(--weight-title);
-  color: var(--color-text-body);
+  /* 홈 오늘 일정 행 시각과 같게: 행 글자색을 받고 조금 흐리게(진행 중·안 했어요는 흐리지 않음) */
+  color: inherit;
+  opacity: 0.85;
   font-variant-numeric: tabular-nums;
 }
 
@@ -111,8 +113,9 @@
   color: var(--color-on-accent);
 }
 
-.agendaItem[data-state='now'] .agendaTime {
-  color: inherit;
+.agendaItem[data-state='now'] .agendaTime,
+.agendaItem[data-state='skipped'] .agendaTime {
+  opacity: 1;
 }
 
 /* 채운 면과 같은 색이라 묻히는 프로젝트 색 점은 흰 점으로 */
@@ -162,11 +165,6 @@
   border-color: var(--color-divider);
   background: var(--status-skipped-bg);
   color: var(--color-text-muted);
-}
-
-.agendaItem[data-state='pending'] .agendaTime,
-.agendaItem[data-state='skipped'] .agendaTime {
-  color: inherit;
 }
 
 .agendaItem[data-state='skipped'] .agendaText {
