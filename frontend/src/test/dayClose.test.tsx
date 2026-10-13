@@ -302,3 +302,54 @@ describe('하루 마감 v1.1 (SCR-LOG-03, X-05)', () => {
     expect(screen.getByRole('button', { name: '마감 취소' })).toBeInTheDocument()
   })
 })
+
+describe('지난 날 하루 마감 1단계는 그날 이하의 확인 대기만', () => {
+  const Y_CLOSE = '/api/worklog/logs/daily/2026-10-06/close'
+  const yesterdayRoutes = [
+    {
+      path: '/',
+      element: <DayClose date="2026-10-06" today="2026-10-07" timeZone="Asia/Seoul" onClose={() => {}} />,
+    },
+  ]
+  // 서울 10/6 10:00(어제), 10/7 11:00(오늘)
+  const yesterday = ['p-y', '어제 회의', '2026-10-06T01:00:00Z', '2026-10-06T02:00:00Z'] as const
+  const today = ['p-t', '오늘 리뷰', '2026-10-07T02:00:00Z', '2026-10-07T03:00:00Z'] as const
+  const routes = (items: ReturnType<typeof pendingRec>[], confirmBodies: unknown[] = []) => ({
+    'GET /api/users/me': me,
+    [`GET ${Y_CLOSE}`]: () => json(200, plan({ date: '2026-10-06', pendingCount: items.length })),
+    'GET /api/worklog/logs/daily/2026-10-06': () => json(200, workLog()),
+    'GET /api/worklog/records/pending': () => json(200, { items }),
+    'POST /api/worklog/records/pending/confirm': (init?: RequestInit) => {
+      confirmBodies.push(JSON.parse(String(init?.body)))
+      return json(200, { items: [{ ...pendingRec(...yesterday, 1), status: 'CONFIRMED' }] })
+    },
+  })
+
+  it('어제 대기 1건·오늘 대기 1건이면 목록·건수·[모두 했어요]·[하나씩 확인]은 어제 1건만', async () => {
+    const user = userEvent.setup()
+    const confirmBodies: unknown[] = []
+    stubFetch(routes([pendingRec(...yesterday), pendingRec(...today)], confirmBodies))
+    renderApp('/', yesterdayRoutes)
+
+    const list = await screen.findByRole('list', { name: '확인 대기 기록' })
+    expect(within(list).getAllByRole('listitem')).toHaveLength(1)
+    expect(list).toHaveTextContent('어제 회의')
+    expect(screen.getByText(/확인 대기 기록이 1건 있어요/)).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: '하나씩 확인' }))
+    const panel = await screen.findByRole('dialog', { name: /확인 대기 1건/ })
+    expect(within(panel).queryByText('오늘 리뷰')).not.toBeInTheDocument()
+    await user.keyboard('{Escape}')
+
+    await user.click(await screen.findByRole('button', { name: '모두 했어요' }))
+    await waitFor(() => expect(confirmBodies).toEqual([{ ids: ['p-y'] }]))
+  })
+
+  it('오늘 대기만 있으면 1단계를 건너뛴다', async () => {
+    stubFetch(routes([pendingRec(...today)]))
+    renderApp('/', yesterdayRoutes)
+    expect(await screen.findByRole('heading', { name: '10월 6일 하루 마감 1/2' })).toBeInTheDocument()
+    expect(screen.queryByRole('list', { name: '확인 대기 기록' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '모두 했어요' })).not.toBeInTheDocument()
+  })
+})

@@ -2,7 +2,7 @@
 // ① 날짜별 목록(일정명·계획 시간·연결 업무) ② 항목별 했어요/수정/안 했어요 ③ 모두 했어요.
 // 수정은 SCR-REC-01(RecordDialog)을 연다: 저장하면 고친 칸과 했어요가 한 요청으로 간다. 확인은 반드시 사람이 한다: 모두 했어요는 화면에 보인 id만 보낸다.
 import { useQueryClient } from '@tanstack/react-query'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Skeleton } from '../components/Skeleton'
 import { useOnline } from '../components/useOnline'
 import { useBackClose } from '../components/useBackClose'
@@ -19,19 +19,22 @@ interface Props {
   timeZone: string
   /** emptied: 다 처리해서 저절로 닫힘 */
   onClose: (emptied: boolean) => void
+  /** 보일 기록만 남긴다(하루 마감 1단계: 마감하는 날 이하). [모두 했어요]도 보인 것만 보낸다 */
+  filter?: (record: PendingRecord) => boolean
 }
 
 const NONE: PendingRecord[] = []
 const CONFIRM_LIMIT = 200
 
-export function PendingPanel({ today, timeZone, onClose }: Props) {
+export function PendingPanel({ today, timeZone, onClose, filter }: Props) {
   const pending = usePendingRecords()
   const queryClient = useQueryClient()
   const { showUndo } = useToast()
   const { decide: decideStatus, undoAll, fail, refresh } = usePendingDecision()
   const online = useOnline()
   const [busy, setBusy] = useState<Set<string>>(() => new Set())
-  const items = pending.data ?? NONE
+  const all = pending.data ?? NONE
+  const items = useMemo(() => (filter ? all.filter(filter) : all), [all, filter])
   // 휴대폰 뒤로 가기는 이 시트만 닫는다(UX-M-COM-02, D-223 ①). 위에 뜬 기록 수정 창이 있으면 그것부터
   useBackClose(true, () => onClose(false))
 

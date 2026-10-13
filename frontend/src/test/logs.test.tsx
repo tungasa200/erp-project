@@ -533,6 +533,30 @@ describe('일지 목록 (SCR-LOG-01)', () => {
   })
 })
 
+// 하루 마감 1단계는 받은 확인 대기 목록에서 마감하는 날 이하만 센다
+const pendingItem = (id: string, startAt: string) => ({
+  id,
+  status: 'PENDING',
+  workDate: startAt.slice(0, 10),
+  content: id,
+  taskId: null,
+  projectId: null,
+  tagIds: [],
+  scheduleId: `s-${id}`,
+  occurrenceStart: startAt,
+  result: null,
+  outcome: null,
+  progress: null,
+  startAt: null,
+  endAt: null,
+  durationMin: null,
+  deletedAt: null,
+  createdAt: startAt,
+  updatedAt: startAt,
+  version: 0,
+  plan: { title: id, allDay: false, startAt, endAt: startAt, startDate: null, endDate: null },
+})
+
 describe('하루 마감 (SCR-LOG-03)', () => {
   const plan = (extra: Record<string, unknown> = {}) => ({
     date: '2026-10-07',
@@ -634,6 +658,8 @@ describe('하루 마감 (SCR-LOG-03)', () => {
       'GET /api/worklog/logs/daily/2026-10-07/close': () =>
         json(200, plan({ pendingCount: 2, planScope: 'NEXT_WEEK' })),
       [LOG_URL]: () => json(200, workLog()),
+      'GET /api/worklog/records/pending': () =>
+        json(200, { items: [pendingItem('p-1', '2026-10-07T00:00:00Z'), pendingItem('p-2', '2026-10-07T01:00:00Z')] }),
     })
     renderApp('/', closeRoutes())
 
@@ -651,6 +677,7 @@ describe('하루 마감 (SCR-LOG-03)', () => {
       'GET /api/users/me': me,
       'GET /api/worklog/logs/daily/2026-10-07/close': () => json(200, plan({ pendingCount: 1 })),
       [LOG_URL]: () => json(200, workLog()),
+      'GET /api/worklog/records/pending': () => json(200, { items: [pendingItem('p-1', '2026-10-07T00:00:00Z')] }),
     })
     renderApp('/', [
       {

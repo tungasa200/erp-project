@@ -5,7 +5,7 @@
 // 업무일지 숨김(사용자 결정 2026-10-12, docs/ux/업무일지숨김_문안_v1.md 3장): 창 안에서는 지금처럼 일지를 확정하지만 '일지'라는 말을 쓰지 않고,
 // [일지 보기]·주간·월간 제안·[내보내기]·프로필 안내·3단계 일지 미리보기(요약 한 줄만 남김)는 보이지 않는다.
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react'
+import { useCallback, useEffect, useId, useRef, useState, type KeyboardEvent } from 'react'
 import { ApiError } from '../api/client'
 import { toastForError } from '../api/errorToast'
 import { Modal, ModalCloseButton } from '../calendar/Modal'
@@ -61,7 +61,16 @@ export function DayClose({ date, today, timeZone, quick = false, onClose }: Prop
   const log = useLog('DAILY', date)
   const [step, setStep] = useState<Step | null>(null)
   const [hadPending, setHadPending] = useState<boolean | null>(null)
-  const pending = usePendingRecords(hadPending === true && !quick)
+  // 1단계는 마감하는 날 이하의 대기만 다룬다(지난 날을 마감할 때 오늘 기록까지 확정되지 않게). closePlan의 pendingCount는 최근 7일 전체라 목록으로 센다
+  const pending = usePendingRecords(!quick && (plan.data?.pendingCount ?? 0) > 0)
+  const inScope = useCallback(
+    (r: PendingRecord) => {
+      const day = pendingDate(r, timeZone)
+      return day == null || day <= date
+    },
+    [timeZone, date],
+  )
+  const scoped = (pending.data ?? []).filter(inScope)
   const [selected, setSelected] = useState<Set<string> | null>(null)
   const [issue, setIssue] = useState('')
   const [busy, setBusy] = useState(false)
@@ -81,8 +90,10 @@ export function DayClose({ date, today, timeZone, quick = false, onClose }: Prop
   const data = plan.data
   // 처음 받은 값으로 단계 수·기본 선택을 정한다(1단계에서 다 처리해도 "1/3"이 "1/2"로 바뀌지 않게). 렌더 중 한 번 맞춤
   // 기본 선택은 계획 남은 칸까지만(계획 50줄, 이미 계획에 있는 업무는 칸을 쓰지 않음)
-  if (data && log.data && hadPending == null) {
-    setHadPending(data.pendingCount > 0)
+  const scopeKnown = quick || data?.pendingCount === 0 || !pending.isPending
+  if (data && log.data && hadPending == null && scopeKnown) {
+    // 목록을 못 받았으면 전체 건수로(1단계를 보이고 [모두 했어요]는 꺼진 채)
+    setHadPending(quick || pending.isError ? data.pendingCount > 0 : scoped.length > 0)
     const inPlan = new Set(log.data.content.plans.map((p) => p.taskId))
     let room = PLAN_MAX - log.data.content.plans.length
     const pick = data.carryOverCandidates.filter((c) => c.selected && (inPlan.has(c.taskId) || room-- > 0))
@@ -185,6 +196,7 @@ export function DayClose({ date, today, timeZone, quick = false, onClose }: Prop
       <PendingPanel
         today={today}
         timeZone={timeZone}
+        filter={inScope}
         onClose={(emptied) => {
           setPendingOpen(false)
           void plan.refetch()
@@ -408,10 +420,11 @@ export function DayClose({ date, today, timeZone, quick = false, onClose }: Prop
         이전
       </button>
     )
-    const records = [...(pending.data ?? [])].sort((a, b) =>
+    const records = [...scoped].sort((a, b) =>
       (a.plan.startAt ?? a.plan.startDate ?? '').localeCompare(b.plan.startAt ?? b.plan.startDate ?? ''),
     )
-    const waiting = d.pendingCount > 0
+    const waitingCount = pending.isError ? d.pendingCount : records.length
+    const waiting = waitingCount > 0
     // 각 단계에서 Enter는 그 단계의 주 버튼이다(버튼·링크·입력 칸 위에서는 그 요소의 동작). 확정만 Ctrl/⌘+Enter
     onKeyDown = (e) => {
       if (e.key !== 'Enter' || e.nativeEvent.isComposing) return
@@ -438,7 +451,7 @@ export function DayClose({ date, today, timeZone, quick = false, onClose }: Prop
           <>
             <p className={styles.dialogBody}>
               {waiting
-                ? `확인 대기 기록이 ${d.pendingCount}건 있어요. 확정한 기록만 ${dayName} 실적으로 남아요.`
+                ? `확인 대기 기록이 ${waitingCount}건 있어요. 확정한 기록만 ${dayName} 실적으로 남아요.`
                 : '확인 대기 기록을 모두 처리했어요.'}
             </p>
             {waiting &&
