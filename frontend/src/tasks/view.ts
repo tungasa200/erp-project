@@ -62,14 +62,21 @@ const DUE_GROUPS: { state: DueState; label: string; tone?: TaskGroup['tone'] }[]
 export function groupTasks(
   tasks: Task[],
   by: GroupBy,
-  context: { today: string; weekStart: number; projects: Project[] },
+  context: {
+    today: string
+    weekStart: number
+    projects: Project[]
+    /** 마감일이 없을 때 대신 묶을 날짜(홈: 연결 일정의 가장 이른 회차 날짜) */
+    fallbackDate?: (task: Task) => string | undefined
+  },
 ): TaskGroup[] {
   if (by === 'due') {
+    const dateOf = (t: Task) => t.dueDate ?? context.fallbackDate?.(t)
     return DUE_GROUPS.map((g) => ({
       key: g.state,
       label: g.label,
       tone: g.tone,
-      items: tasks.filter((t) => dueState(t.dueDate, context.today, context.weekStart) === g.state),
+      items: tasks.filter((t) => dueState(dateOf(t), context.today, context.weekStart) === g.state),
     })).filter((g) => g.items.length > 0)
   }
   if (by === 'status') {

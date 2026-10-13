@@ -190,6 +190,26 @@ describe('SCR-HOME-01 홈 대시보드 1차', () => {
     expect(within(section).getByRole('heading', { name: '프로젝트 없음 3' })).toBeInTheDocument()
   })
 
+  it('마감 없이 일정만 잡힌 업무는 가장 이른 회차 날짜로 묶고(날짜 칩은 그대로 없음), 회차 없는 업무는 날짜 없는 업무로 둔다', async () => {
+    server({
+      remaining: [...REMAINING, task('sched', '제안서 검토', { hasSchedule: true })],
+      occurrences: [
+        ...OCCURRENCES,
+        // 오늘 회차와 다음 주 회차가 함께 있으면 가장 이른 오늘로
+        { ...occurrence('s4', '제안서 검토', '2026-10-07T08:00:00Z', '2026-10-07T09:00:00Z'), taskId: 'sched' },
+        { ...occurrence('s4', '제안서 검토', '2026-10-13T08:00:00Z', '2026-10-13T09:00:00Z'), taskId: 'sched' },
+      ],
+    })
+    renderApp('/')
+    const section = await screen.findByRole('region', { name: '남은 업무' })
+    const todayList = await within(section).findByRole('list', { name: '오늘 2' })
+    const row = within(todayList).getByText('제안서 검토').closest('li')!
+    // 일정 날짜를 마감처럼 보이지 않게 행의 날짜 칩은 없다
+    expect(row).not.toHaveTextContent('오늘')
+    expect(within(section).getByRole('button', { name: '날짜 없는 업무 1개' })).toBeInTheDocument()
+    expect(within(section).queryByText('온보딩 자료 정리')).not.toBeInTheDocument()
+  })
+
   it('UX-HOME-11 남은 업무는 앞 10개만 그리고, 묶음 제목은 전체 수, 링크는 "n개 더 보기"', async () => {
     const many = Array.from({ length: 13 }, (_, i) => task(`t${i}`, `오늘 업무 ${i + 1}`, { dueDate: '2026-10-07' }))
     server({ remaining: [...many, task('n1', '날짜 없는 일')] })

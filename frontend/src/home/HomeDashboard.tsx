@@ -56,6 +56,11 @@ export function HomeDashboard({ empty }: { empty: ReactNode }) {
   const days = Array.from({ length: UPCOMING_DAYS + 1 }, (_, i) => addDays(today, i))
   const byDate = occurrencesByDate(occurrences.data ?? [], days, timeZone)
   const todayList = byDate.get(today) ?? []
+  // 마감 없이 일정만 잡힌 업무는 가장 이른 회차 날짜로 남은 업무를 묶는다(날짜 없는 업무로 숨지 않게). 행의 날짜 표시는 마감일 그대로
+  const scheduledDate = new Map<string, string>()
+  for (const day of days)
+    for (const o of byDate.get(day) ?? [])
+      if (o.taskId && !scheduledDate.has(o.taskId)) scheduledDate.set(o.taskId, day)
   const notEnded = (o: Occurrence) => o.allDay || Date.parse(o.endAt!) > now
   const todayLeft = todayList.filter(notEnded).length
 
@@ -175,6 +180,7 @@ export function HomeDashboard({ empty }: { empty: ReactNode }) {
             today={today}
             weekStart={weekStart}
             projects={projects.data ?? []}
+            scheduledDate={scheduledDate}
           />
         )}
         <div className={styles.stack}>
@@ -223,15 +229,22 @@ interface RemainingProps {
   today: string
   weekStart: number
   projects: Project[]
+  scheduledDate: Map<string, string>
 }
 
 const HOME_TASK_LIMIT = 10
 
-function RemainingTasks({ tasks, loading, failed, onRetry, today, weekStart, projects }: RemainingProps) {
+function RemainingTasks(props: RemainingProps) {
+  const { tasks, loading, failed, onRetry, today, weekStart, projects, scheduledDate } = props
   const [by, setBy] = useState<'due' | 'project'>('due')
   const [showUndated, setShowUndated] = useState(false)
   const complete = useCompleteTask()
-  const groups = groupTasks(tasks, by, { today, weekStart, projects })
+  const groups = groupTasks(tasks, by, {
+    today,
+    weekStart,
+    projects,
+    fallbackDate: (t) => scheduledDate.get(t.id),
+  })
   // 마감순에서는 날짜 없는 업무를 접어 둔다(목업 "날짜 없는 업무 n개")
   const undated = by === 'due' ? groups.find((g) => g.key === 'none') : undefined
   // 100개까지 받아도 홈에는 마감순 앞 10개만 그린다. 나머지는 'n개 더'로 업무 화면에 넘긴다(UX-HOME-11)

@@ -267,58 +267,63 @@ function PlanRow(props: {
 
   return (
     <li className={rowClass} style={style}>
+      {/* 배지는 행 맨 앞 고정 칸 하나(기록 상태 > 진행 중). 없어도 칸을 비워 시간 열을 맞춘다 */}
+      <span className={styles.badgeSlot}>
+        {status === 'CONFIRMED' ? (
+          <span className={styles.tagDone}>
+            <span aria-hidden="true">✓ </span>했어요
+          </span>
+        ) : status === 'DISMISSED' ? (
+          <span className={styles.tagSkipped}>안 했어요</span>
+        ) : status === 'PENDING' ? (
+          <span className={styles.tagPending}>확인 대기</span>
+        ) : phase === 'now' ? (
+          <span className={styles.tagNow}>진행 중</span>
+        ) : (
+          // 기록이 아직 없으면(끝난 직후·목록을 못 받음) '확인 대기'라고 단정하지 않는다
+          phase === 'ended' && !record && statusKnown && <span className={styles.tagMuted}>끝남</span>
+        )}
+      </span>
       <span className={styles.time}>{o.allDay ? '종일' : `${formatMinutes(entry.start)} – ${endText(entry.end)}`}</span>
       <span className={styles.title} title={o.title}>
         {o.title}
       </span>
-      <span className={styles.state}>
-        {phase === 'now' && <span className={styles.tagNow}>진행 중</span>}
-        {status === 'CONFIRMED' && (
-          <span className={styles.tagDone}>
-            <span aria-hidden="true">✓ </span>했어요
-          </span>
-        )}
-        {status === 'DISMISSED' && <span className={styles.tagSkipped}>안 했어요</span>}
-        {/* 기록이 아직 없으면(끝난 직후·목록을 못 받음) '확인 대기'라고 단정하지 않는다 */}
-        {phase === 'ended' && !record && statusKnown && <span className={styles.tagMuted}>끝남</span>}
-        {status === 'PENDING' && (
-          <span className={styles.actions}>
-            <span className={styles.tagPending}>확인 대기</span>
-            <button
-              type="button"
-              className={styles.yes}
-              data-timeline-confirm={entry.key}
-              aria-label={`${o.title} 했어요`}
-              disabled={disabled}
-              title={offline ? '연결되면 처리할 수 있어요' : undefined}
-              onClick={() => onDecide('CONFIRMED')}
-            >
-              했어요
-            </button>
-            <button
-              type="button"
-              className={styles.no}
-              aria-label={`${o.title} 수정`}
-              aria-haspopup="dialog"
-              disabled={disabled}
-              title={offline ? '연결되면 처리할 수 있어요' : undefined}
-              onClick={onEdit}
-            >
-              수정
-            </button>
-            <button
-              type="button"
-              className={styles.no}
-              aria-label={`${o.title} 안 했어요`}
-              disabled={disabled}
-              title={offline ? '연결되면 처리할 수 있어요' : undefined}
-              onClick={() => onDecide('DISMISSED')}
-            >
-              안 했어요
-            </button>
-          </span>
-        )}
-      </span>
+      {status === 'PENDING' && (
+        <span className={styles.actions}>
+          <button
+            type="button"
+            className={styles.yes}
+            data-timeline-confirm={entry.key}
+            aria-label={`${o.title} 했어요`}
+            disabled={disabled}
+            title={offline ? '연결되면 처리할 수 있어요' : undefined}
+            onClick={() => onDecide('CONFIRMED')}
+          >
+            했어요
+          </button>
+          <button
+            type="button"
+            className={styles.no}
+            aria-label={`${o.title} 수정`}
+            aria-haspopup="dialog"
+            disabled={disabled}
+            title={offline ? '연결되면 처리할 수 있어요' : undefined}
+            onClick={onEdit}
+          >
+            수정
+          </button>
+          <button
+            type="button"
+            className={styles.no}
+            aria-label={`${o.title} 안 했어요`}
+            disabled={disabled}
+            title={offline ? '연결되면 처리할 수 있어요' : undefined}
+            onClick={() => onDecide('DISMISSED')}
+          >
+            안 했어요
+          </button>
+        </span>
+      )}
     </li>
   )
 }

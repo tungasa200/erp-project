@@ -43,7 +43,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-1) var(--space-3);
+  gap: var(--space-2);
   min-height: var(--size-touch);
   box-sizing: border-box;
   padding: var(--space-2) var(--space-3);
@@ -77,9 +77,16 @@
   text-decoration: line-through;
 }
 
+/* 배지 칸(폭 56): 배지 없는 행도 비워 두어 시간 열이 모든 행에서 같은 줄에 선다 */
+.badgeSlot {
+  display: flex;
+  flex: none;
+  width: 56px;
+}
+
 .time {
   flex: none;
-  min-width: 104px;
+  min-width: 88px;
   font-size: var(--text-sm);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
@@ -96,19 +103,13 @@
   white-space: nowrap;
 }
 
-.state {
+/* 좁으면 이름 칸(140)을 지키고 버튼 묶음이 다음 줄 오른쪽으로 간다 */
+.actions {
   display: flex;
   flex: none;
   align-items: center;
-  gap: var(--space-1);
+  gap: var(--space-2);
   margin-left: auto;
-}
-
-.actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-1);
 }
 
 .tagNow,
@@ -116,10 +117,16 @@
 .tagSkipped,
 .tagPending,
 .tagMuted {
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-pill);
+  /* 버튼(알약)과 구별되는 각진 작은 태그: 높이 22, 테두리 없음 */
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  box-sizing: border-box;
+  padding: 2px 6px;
+  border-radius: 4px;
   font-size: var(--text-xs);
   font-weight: 800;
+  line-height: 18px;
   white-space: nowrap;
 }
 
@@ -144,14 +151,18 @@
 }
 
 .tagMuted {
+  padding-left: 0;
   color: var(--color-text-muted);
 }
 
 .yes,
 .no {
+  /* 줄 버튼 짝 틀(X-03a): 알약 44·space-4·inset 1px, 색만 역할대로 */
   min-height: var(--size-touch);
-  padding: 0 var(--space-3);
-  border-radius: var(--radius-input);
+  padding: 0 var(--space-4);
+  border: 0;
+  border-radius: var(--radius-pill);
+  white-space: nowrap;
   font: inherit;
   font-size: var(--text-sm);
   font-weight: 600;
@@ -160,8 +171,8 @@
 
 /* 목록 안 반복 동작이라 채움이 아니라 accent-soft(X-02, UX-HOME-140). 홈 한 시야의 채움은 마감 띠 하나 */
 .yes {
-  border: 0;
   background: var(--color-accent-soft);
+  box-shadow: inset 0 0 0 1px var(--color-accent-soft);
   color: var(--color-accent-ink);
 }
 
@@ -171,18 +182,27 @@
   }
 }
 
+/* 중립 윤곽. 확인 대기 행의 노란색은 버튼에 쓰지 않는다 */
 .no {
-  border: 1px solid var(--status-pending-card-border);
   background: var(--color-surface);
-  color: var(--status-pending-text);
+  box-shadow: inset 0 0 0 1px var(--color-border);
+  color: var(--color-text-strong);
 }
 
 .yes:disabled,
 .no:disabled {
-  border-color: var(--color-disabled);
   background: var(--color-disabled);
+  box-shadow: none;
   color: var(--color-surface);
   cursor: not-allowed;
+}
+
+/* 고대비 모드는 box-shadow를 지우므로 테두리로 경계를 남긴다 */
+@media (forced-colors: active) {
+  .yes,
+  .no {
+    border: 1px solid ButtonText;
+  }
 }
 
 .nowLine {

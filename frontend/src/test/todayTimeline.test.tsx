@@ -167,10 +167,10 @@ describe('SCR-HOME-01 ③ 오늘 일정 (P2-08)', () => {
       .getAllByRole('listitem')
       .map((li) => li.textContent)
     expect(rows).toEqual([
-      expect.stringMatching(/^09:00 – 09:30데일리 스탠드업.*했어요$/),
-      expect.stringMatching(/^10:00 – 11:00코드 리뷰확인 대기했어요수정안 했어요$/),
-      expect.stringMatching(/^11:00 – 11:30짧은 회고확인 대기/),
-      expect.stringMatching(/^11:30 – 13:00워크숍진행 중$/),
+      expect.stringMatching(/^✓ 했어요09:00 – 09:30데일리 스탠드업$/),
+      expect.stringMatching(/^확인 대기10:00 – 11:00코드 리뷰했어요수정안 했어요$/),
+      expect.stringMatching(/^확인 대기11:00 – 11:30짧은 회고/),
+      expect.stringMatching(/^진행 중11:30 – 13:00워크숍$/),
       '지금 12:00',
       '15:00 – 16:00고객사 미팅',
     ])
@@ -358,7 +358,7 @@ describe('SCR-HOME-01 ③ 오늘 일정 (P2-08)', () => {
     const rows = within(today)
       .getAllByRole('listitem')
       .map((li) => li.textContent)
-    expect(rows.slice(3)).toEqual(['11:30 – 13:00워크숍진행 중', '지금 12:00', '15:00 – 16:00고객사 미팅'])
+    expect(rows.slice(3)).toEqual(['진행 중11:30 – 13:00워크숍', '지금 12:00', '15:00 – 16:00고객사 미팅'])
     expect(within(today).queryByRole('button', { name: '워크숍 했어요' })).not.toBeInTheDocument()
     expect(within(today).queryByRole('button', { name: '고객사 미팅 했어요' })).not.toBeInTheDocument()
   })
