@@ -251,8 +251,14 @@ ol {
   margin: 0 0 3.5mm;
   padding-left: 5.5mm;
 }
+/* 항목 4개 이하 짧은 목록은 쪽에서 나누지 않는다: 마지막 항목만 다음 쪽에 외톨이로 남던 것(PDF p14) */
+ul:not(:has(> li:nth-child(5))),
+ol:not(:has(> li:nth-child(5))) {
+  break-inside: avoid;
+}
 li {
   margin-bottom: 1mm;
+  break-inside: avoid;
 }
 li::marker {
   color: var(--accent);
@@ -359,6 +365,10 @@ figure.shot img {
   max-width: 100%;
   border: 1px solid var(--border);
   border-radius: 2mm;
+}
+/* 웹 그림(1280px)은 본문 폭보다 조금 좁게: 장 끝 몇 줄만 다음 쪽으로 넘어가던 것(PDF p14·p72) */
+figure.shot-W img:not([src$='.svg']) {
+  max-width: 160mm;
 }
 figure.shot-M img {
   width: 58mm;
