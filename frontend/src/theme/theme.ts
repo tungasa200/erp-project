@@ -66,9 +66,9 @@ function mix(a: string, b: string, t: number): string {
   )
 }
 
-/** 현재 메뉴 글자(--color-accent-ink, 키 80%+검정) 대 그 바탕(--color-accent-soft, 키 12%+흰색). 14px 600이라 4.5 필요(UX-COM-152) */
+/** 현재 메뉴 글자(--color-accent-ink-strong, 키 55%+검정) 대 그 바탕(--color-accent-selected, 키 28%+흰색). 4.5 필요(UX-COM-152, D-236 ①) */
 export function menuTextContrast(accent: string): number {
-  return contrastRatio(mix(accent, '#000000', 0.8), mix(accent, WHITE, 0.12))
+  return contrastRatio(mix(accent, '#000000', 0.55), mix(accent, WHITE, 0.28))
 }
 
 /** 키 컬러로 그린 글자가 4.5:1에 못 미친다: 키 컬러 위 흰 글자, 또는 현재 메뉴 글자 */

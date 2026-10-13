@@ -4,7 +4,9 @@ import {
   contrastRatio,
   darkenForWhite,
   isAccentReadable,
+  isAccentTextFaint,
   isWhiteTextFaint,
+  menuTextContrast,
   normalizeAccent,
   onColor,
 } from './theme'
@@ -55,6 +57,16 @@ describe('theme', () => {
     const adjusted = darkenForWhite('#0F8A7F')
     expect(contrastRatio('#FFFFFF', adjusted)).toBeGreaterThanOrEqual(4.5)
     expect(isWhiteTextFaint(adjusted)).toBe(false)
+  })
+
+  it('현재 메뉴 글자 대비는 ink-strong(키 55%+검정) 대 selected 면(키 28%+흰색)으로 센다(D-236 ①)', () => {
+    // 기본 보라: #292376 대 #CDC9F4
+    expect(menuTextContrast('#4B3FD6')).toBeCloseTo(contrastRatio('#292376', '#CDC9F4'), 1)
+    const presets = ['#4B3FD6', '#2D6BE4', '#0E857A', '#2C873B', '#C7510A', '#D1344A', '#C2378B', '#2B2E3B']
+    for (const a of presets) expect(menuTextContrast(a), a).toBeGreaterThanOrEqual(4.5)
+    expect(menuTextContrast('#FFD43B')).toBeLessThan(4.5)
+    expect(isAccentTextFaint('#FFD43B')).toBe(true)
+    expect(menuTextContrast(darkenForWhite('#FFD43B'))).toBeGreaterThanOrEqual(4.5)
   })
 
   it('COM-26 문서 전체에 칠하면 theme-color가 바탕색을 따른다', () => {

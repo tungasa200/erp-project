@@ -21,6 +21,8 @@
   /* 파생 색 9종 (화면정의서 2.2). 괄호는 기본 키 컬러일 때 값 */
   /* soft·softer는 개선 1단계(홈PC 재디자인 v2 0장, 디자인컨셉_이탈진단_v1 5장)로 한 칸씩 진하게 */
   --color-accent-soft: color-mix(in srgb, var(--color-accent) 20%, white); /* 흰색 80% (#DBD9F7) */
+  /* 현재 위치(사이드바 현재 메뉴·레일) 전용 면. 다른 옅은 면은 soft 그대로(D-236 ①) */
+  --color-accent-selected: color-mix(in srgb, var(--color-accent) 28%, white); /* 흰색 72% (#CDC9F4) */
   --color-accent-softer: color-mix(in srgb, var(--color-accent) 12%, white); /* 흰색 88% (#E9E8FA) */
   --color-accent-faint: color-mix(in srgb, var(--color-accent) 5%, white); /* 흰색 95% (#F6F5FD) */
   --color-accent-light: color-mix(in srgb, var(--color-accent) 55%, white); /* 흰색 45% (#9C95E8) */

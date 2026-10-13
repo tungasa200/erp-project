@@ -231,18 +231,29 @@
   }
 }
 
-/* 현재 메뉴는 상태라 면을 진하게 칠하지 않는다: 옅은 키 컬러 바탕 + 진한 키 컬러 글자(UX-COM-140, 목업 .nav a.on, X-02 한 시야에 채움 하나) */
-.active {
-  background: var(--color-accent-soft);
-  color: var(--color-accent-ink);
-  font-weight: 600;
+/* 현재 메뉴는 상태라 채우지 않고, 현재 위치 전용 옅은 면(selected 28%) + 가장 진한 키 컬러 글자 700, 아이콘은 accent-ink.
+   레일(태블릿)도 같은 면이다(UX-COM-140, X-02 한 시야에 채움 하나, D-236 ①). 마우스를 올려도 그대로 */
+.active,
+.active:hover {
+  background: var(--color-accent-selected);
+  color: var(--color-accent-ink-strong);
+  font-weight: 700;
 }
 
-@media (hover: hover) and (pointer: fine) {
+.active svg {
+  color: var(--color-accent-ink);
+}
+
+/* 고대비 모드는 면을 지우므로 시스템 강조색으로 칠한다(아이콘은 글자색을 따른다) */
+@media (forced-colors: active) {
+  .active,
   .active:hover {
-    background: var(--color-accent-soft);
-    color: var(--color-accent-ink);
-    font-weight: 600;
+    background: Highlight;
+    color: HighlightText;
+  }
+
+  .active svg {
+    color: currentColor;
   }
 }
 
@@ -404,8 +415,18 @@
 }
 
 .tabActive {
-  /* 11px 글자라 진한 키 컬러(4.5:1, SET-77) */
+  /* 하단 탭은 면 없이 진한 키 컬러 아이콘·글자 700(11px라 4.5:1, SET-77, D-236 ①) */
   color: var(--color-accent-ink);
+  font-weight: 700;
+}
+
+/* 고대비 모드: 색만으로는 모를 수 있어 글자에 밑줄을 더한다 */
+@media (forced-colors: active) {
+  .tabActive {
+    color: Highlight;
+    text-decoration: underline 2px;
+    text-underline-offset: 3px;
+  }
 }
 
 /* 하단 탭 '더보기' 메뉴: 버튼 위로 뜨는 작은 목록 (P1-X-01) */

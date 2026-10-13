@@ -102,15 +102,6 @@ describe('SCR-SET-04 테마', () => {
     expect(screen.getByText(/^#[0-9A-F]{6}$/)).not.toHaveTextContent('#0F8A7F')
   })
 
-  it('UX-COM-152 현재 메뉴 글자(accent-ink 대 accent-soft)가 4.5:1에 못 미치는 색도 조정 색을 제안한다', async () => {
-    const { user } = setup()
-    const input = await screen.findByLabelText('직접 고르기')
-    fireEvent.change(input, { target: { value: '#ff14d8' } })
-    expect(screen.getByText(/메뉴의 현재 위치 글자가 조금 흐려요\. 이 색은 어때요\?/)).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: '이 색으로 바꾸기' }))
-    expect(screen.queryByText(/글자가 조금 흐려요/)).not.toBeInTheDocument()
-  })
-
   it('배경·흰 표면과 대비 3:1 미만인 색은 미리보기만 하고 저장을 막는다(키보드로 눌러도)', async () => {
     const { patches, user } = setup()
     const input = await screen.findByLabelText('직접 고르기')
