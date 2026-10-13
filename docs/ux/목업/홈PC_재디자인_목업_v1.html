@@ -1,0 +1,432 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>홈 PC 다시 디자인 목업 v1 (SCR-HOME-01)</title>
+<style>
+/* 앱과 같은 글꼴(frontend가 번들하는 Pretendard). 저장소 안에서 열 때만 잡히고, 없으면 시스템 글꼴 */
+@font-face{font-family:'Pretendard Variable';font-weight:45 920;src:url('../../../frontend/node_modules/pretendard/dist/web/variable/woff2/PretendardVariable.woff2') format('woff2')}
+/* 토큰: 묶음0_A_홈_하루마감.html·frontend/src/theme/tokens.css와 같은 값 */
+:root{
+  --color-accent:#4b3fd6;--color-on-accent:#fff;--color-ground:#f2f4fa;
+  --color-accent-soft:#e9e8fa;--color-accent-softer:#f1f0fc;--color-accent-faint:#f6f5fd;--color-accent-ink:#3c32ab;--color-accent-ink-strong:#292376;
+  --color-surface:#fff;--color-text:#1a1c2b;--color-text-muted:#5e6377;--color-text-body:#4a4f63;--color-text-strong:#3b3f52;
+  --color-border:#d5d8e5;--color-divider:#e1e4ee;--color-placeholder:#686d81;
+  --color-danger-text:#7a1c0e;--color-danger-soft:#fbe9e6;--color-success-text:#0a5c4e;
+  --status-pending-bg:#ffe9b8;--status-pending-border:#e0a100;--status-pending-text:#4a3000;
+  --status-pending-tag-bg:#e0a100;--status-pending-tag-text:#2a1b00;
+  --status-pending-card-bg:#fff7e3;--status-pending-card-border:#f2c54a;
+  --status-skipped-bg:#eceef4;--status-skipped-text:#8a8fa3;
+  --p1:#2d5bd8;--p1t:#e5ecfc;--p1i:#1e3f9e;--p3:#0e7f6c;--p3t:#ddf3ee;--p3i:#0a5c4e;--p2:#bc5711;--p2t:#fcebdd;--p2i:#8a3d06;
+  --t-xs:12px;--t-sm:13px;--t-md:14px;--t-lg:16px;--t-xl:18px;--t-2xl:22px;--t-3xl:28px;
+  --r-sm:8px;--r-input:12px;--r-card:20px;--r-pill:999px;
+  --font:'Pretendard Variable',Pretendard,-apple-system,system-ui,'Apple SD Gothic Neo','Noto Sans KR','Malgun Gothic',sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#dfe2ec;font-family:var(--font);color:var(--color-text);font-size:var(--t-md)}
+.sheet{padding:32px 24px 64px}
+.note{max-width:1280px;margin:0 auto 12px;font-size:var(--t-sm);color:var(--color-text-body);line-height:1.6}
+.note h1{font-size:var(--t-xl);margin:0 0 4px;color:var(--color-text)}
+.note b{color:var(--color-text)}
+.frameTitle{max-width:1280px;margin:40px auto 8px;font-size:var(--t-lg);font-weight:800}
+.frameTitle small{font-weight:400;color:var(--color-text-body);font-size:var(--t-sm);margin-left:8px}
+.new{display:inline-block;padding:0 5px;border-radius:4px;background:#1a1c2b;color:#fff;font-size:11px;font-weight:800;margin-left:4px;vertical-align:1px}
+
+/* ── 1280 화면 틀 ── */
+.screen{width:1280px;margin:0 auto;display:flex;background:var(--color-ground);border-radius:12px;overflow:hidden;box-shadow:0 8px 24px rgba(26,28,43,.14)}
+.side{width:240px;flex:none;background:var(--color-surface);border-right:1px solid var(--color-divider);padding:20px 12px}
+.logo{display:flex;align-items:center;gap:8px;font-weight:800;font-size:var(--t-lg);padding:0 8px 16px}
+.logo i{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:8px;background:var(--color-accent);color:#fff;font-style:normal}
+.nav a{display:flex;align-items:center;min-height:44px;padding:0 12px;border-radius:var(--r-input);color:var(--color-text-strong);text-decoration:none;font-weight:600}
+.nav a.on{background:var(--color-accent-soft);color:var(--color-accent-ink)}
+.main{flex:1;padding:24px;min-width:0}
+.col{width:992px}
+
+/* ① 머리: 지금 그대로 */
+.date{font-size:var(--t-sm);font-weight:600;color:var(--color-text-muted)}
+.hi{font-size:var(--t-2xl);font-weight:800;margin:4px 0 12px}
+.qi{display:flex;align-items:center;gap:8px;height:52px;padding:0 8px 0 20px;border-radius:var(--r-pill);background:var(--color-surface);box-shadow:0 2px 10px rgba(40,44,90,.08);font-size:var(--t-lg);color:var(--color-placeholder)}
+.qi span{flex:1}.qi kbd{display:inline-grid;place-items:center;min-width:24px;height:24px;border-radius:var(--r-sm);background:#eef0f6;color:var(--color-text-strong);font:inherit;font-size:var(--t-xs);font-weight:800}.qi i{display:inline-grid;place-items:center;width:32px;height:32px;border-radius:var(--r-pill);background:#eef0f6;font-style:normal;font-size:var(--t-sm);font-weight:800;color:var(--color-text-strong)}
+
+/* 하루 마감 띠: 지금 그대로(accent-soft 면 + accent 1px), 모서리만 20 */
+.band{display:flex;align-items:center;justify-content:space-between;gap:8px 16px;margin-top:16px;padding:12px 12px 12px 16px;border-radius:var(--r-card);background:var(--color-accent-soft);box-shadow:inset 0 0 0 1px var(--color-accent)}
+.band p{margin:0;display:flex;flex-direction:column;gap:2px}
+.band small{font-size:var(--t-sm);color:var(--color-text-body)}
+.btnFill{min-height:44px;padding:0 16px;border:0;border-radius:var(--r-pill);background:var(--color-accent);color:var(--color-on-accent);font:inherit;font-weight:600}
+
+/* ② 요약 타일 4개 */
+.tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:16px 0 16px;padding:0;list-style:none}
+.tile{display:block;padding:16px;border-radius:var(--r-card);background:var(--color-surface);color:var(--color-text);text-decoration:none}
+.tile .l{font-size:var(--t-md);font-weight:600;color:var(--color-text-body)}
+.tile .n{font-size:var(--t-3xl);font-weight:800;letter-spacing:-.5px;line-height:1.25;font-variant-numeric:tabular-nums}
+.tile .s{min-height:1.5em;font-size:var(--t-sm);color:var(--color-text-muted)}
+.tile .over{color:var(--color-danger-text);font-weight:800}
+.tileFill{background:var(--color-accent)}
+.tileFill .l,.tileFill .n,.tileFill .s{color:var(--color-on-accent)}
+.tileFill .over{color:var(--color-on-accent)}
+.tilePending{background:var(--status-pending-card-bg);box-shadow:inset 0 0 0 1px var(--status-pending-card-border)}
+.tilePending .n{color:var(--status-pending-text)}
+.tileWeek .n{color:var(--color-success-text)}
+
+/* 패널 */
+.panel{padding:24px;border-radius:var(--r-card);background:var(--color-surface)}
+.panelHead{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.panelTitle{margin:0;font-size:var(--t-xl);font-weight:800}
+.dayLink{color:var(--color-accent-ink);font-weight:600;font-size:var(--t-md);text-decoration:none}
+.columns{display:flex;gap:16px;margin-top:16px;align-items:flex-start}
+.columns>*{flex:1 1 0;min-width:0}
+.stack{display:flex;flex-direction:column;gap:16px}
+
+/* ③ 오늘 일정 행 */
+.list{display:flex;flex-direction:column;gap:4px;margin:0;padding:0;list-style:none}
+.row{--plan-base:var(--color-accent);--plan-tint:var(--color-accent-softer);--plan-ink:var(--color-accent-ink);
+  display:flex;flex-wrap:wrap;align-items:center;gap:8px;min-height:44px;padding:8px 12px;border:1.5px solid transparent;border-radius:var(--r-input);color:var(--color-text)}
+.row.pj1{--plan-base:var(--p1);--plan-tint:var(--p1t);--plan-ink:var(--p1i)}
+.row.pj2{--plan-base:var(--p2);--plan-tint:var(--p2t);--plan-ink:var(--p2i)}
+.row.pj3{--plan-base:var(--p3);--plan-tint:var(--p3t);--plan-ink:var(--p3i)}
+.rowPlan{background:var(--color-surface);border:1.5px dashed var(--plan-base)}
+.rowNow{background:var(--plan-tint);box-shadow:inset 0 0 0 2px var(--plan-base)}
+.rowDone{background:var(--plan-tint)}
+.rowDone .title{color:var(--plan-ink)}
+.rowPending{background:var(--status-pending-card-bg);border-color:var(--status-pending-border);color:var(--status-pending-text)}
+.rowSkipped{background:var(--status-skipped-bg);border-color:var(--color-divider);color:var(--color-text-muted)}/* skipped-text(#8A8FA3)는 회색 면 위 2.8:1이라 muted(5.1:1), 캘린더와 같음 */
+.rowSkipped .title{text-decoration:line-through}
+.rowSkipped .time{opacity:1}
+.rowEnded{background:var(--color-surface);border-color:var(--color-divider)}
+.slot{display:flex;flex:none;width:56px}
+.time{flex:none;min-width:88px;font-size:var(--t-sm);font-weight:600;font-variant-numeric:tabular-nums;opacity:.85}
+.title{flex:1 1 140px;min-width:0;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.proj{font-weight:400;font-size:var(--t-sm);color:var(--color-text-muted);margin-left:6px}
+.rowSkipped .proj{color:inherit}
+.tag{display:inline-flex;align-items:center;height:22px;padding:2px 6px;border-radius:4px;font-size:var(--t-xs);font-weight:800;white-space:nowrap}
+.tagNow{background:var(--plan-base);color:#fff}
+.tagDone{background:var(--color-surface);color:var(--color-success-text)}
+.tagSkipped{background:var(--color-surface);color:var(--color-text-muted)}
+.tagPending{background:var(--status-pending-tag-bg);color:var(--status-pending-tag-text)}
+.actions{display:flex;gap:8px;margin-left:auto;flex:none}
+.yes,.no{min-height:44px;padding:0 16px;border:0;border-radius:var(--r-pill);font:inherit;font-size:var(--t-sm);font-weight:600;white-space:nowrap}
+.yes{background:var(--color-accent-soft);color:var(--color-accent-ink)}
+.no{background:var(--color-surface);box-shadow:inset 0 0 0 1px var(--color-border);color:var(--color-text-strong)}
+.nowLine{position:relative;height:18px;display:flex;align-items:center}
+.nowLine::before{content:'';position:absolute;inset:50% 0 auto;border-top:2px solid var(--color-accent)}
+.nowLine span{position:relative;margin-left:12px;padding:1px 8px;border-radius:var(--r-pill);background:var(--color-accent);color:#fff;font-size:var(--t-xs);font-weight:800}
+
+/* ④ 남은 업무 */
+.grp{margin:12px 0 6px;font-size:var(--t-sm);font-weight:800;color:var(--color-text-body)}
+.grp.late{color:var(--color-danger-text)}
+.trow{display:flex;align-items:center;gap:10px;min-height:44px;padding:8px 12px;border-radius:var(--r-input);background:#f9fafd;margin-bottom:4px}
+.trow.late{background:var(--color-danger-soft)}
+.check{width:20px;height:20px;border-radius:6px;box-shadow:inset 0 0 0 1.5px var(--color-border);background:#fff;flex:none}
+.ttl{flex:1;font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chip{font-size:var(--t-xs);font-weight:700;padding:2px 8px;border-radius:var(--r-pill);background:var(--color-surface);box-shadow:inset 0 0 0 1px var(--color-border);color:var(--color-text-body)}
+.chip.late{background:var(--color-danger-text);color:#fff;box-shadow:none}
+.chip.today{background:var(--color-accent-soft);color:var(--color-accent-ink);box-shadow:none}
+
+/* ⑤ 오늘 마감 카드 */
+.bars{display:flex;gap:4px;margin:4px 0 6px}
+.bars i{width:28px;height:8px;border-radius:4px;background:var(--color-ground);box-shadow:inset 0 0 0 1px var(--color-border)}
+.bars i.on{background:var(--color-accent);box-shadow:none}
+.barsRow{display:flex;align-items:center;gap:10px}
+.small{font-size:var(--t-sm);color:var(--color-text-muted)}
+.body{font-size:var(--t-md);color:var(--color-text-body);margin:4px 0 0}
+.softBtn{min-height:44px;padding:0 16px;border:0;border-radius:var(--r-pill);background:var(--color-accent-soft);color:var(--color-accent-ink);font:inherit;font-weight:600}
+
+/* ⑥ 다가오는 일정 */
+.up{display:flex;gap:12px;align-items:center;padding:6px 0}
+.dbadge{width:44px;height:44px;flex:none;border-radius:var(--r-input);display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.1}
+.dbadge small{font-size:11px;font-weight:600}.dbadge b{font-size:var(--t-lg)}
+.dpj1{background:var(--p1t);color:var(--p1i)}.dpj2{background:var(--p2t);color:var(--p2i)}.dpj3{background:var(--p3t);color:var(--p3i)}
+.dnone{background:var(--color-accent-soft);color:var(--color-accent-ink)}
+.dhol{background:var(--color-danger-soft);color:var(--color-danger-text)}
+.upT{font-weight:600}.upS{font-size:var(--t-sm);color:var(--color-text-muted)}
+
+/* ⑦ 이번 주 */
+.week{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:8px}
+.wd{border-radius:var(--r-input);padding:8px 4px;text-align:center;font-size:var(--t-xs);background:var(--color-accent-faint)}
+.wd b{display:block;font-size:var(--t-md);margin-bottom:2px}
+.wdDone{color:var(--color-accent-ink-strong);font-weight:700}
+.wdDue{color:var(--status-pending-text);font-weight:700;background:var(--status-pending-card-bg)}
+.wdToday{box-shadow:inset 0 0 0 2px var(--color-accent)}
+.wdPlan{color:var(--color-text-body)}
+.wdOff{background:transparent;box-shadow:inset 0 0 0 1px var(--color-border);color:var(--color-text-muted)}
+
+/* 설명 붙임표 */
+.callouts{width:1280px;margin:10px auto 0;display:grid;grid-template-columns:repeat(2,1fr);gap:8px 24px;font-size:var(--t-sm);color:var(--color-text-body);line-height:1.55}
+.callouts p{margin:0}
+.callouts b{color:var(--color-text)}
+
+/* ── 캘린더 비교 ── */
+.cmp{width:1280px;margin:0 auto;display:flex;gap:24px;align-items:flex-start}
+.cmpBox{background:var(--color-surface);border-radius:12px;padding:16px 20px;box-shadow:0 8px 24px rgba(26,28,43,.10)}
+.cmpBox h3{margin:0 0 4px;font-size:var(--t-md)}
+.cmpBox p{margin:0 0 12px;font-size:var(--t-sm);color:var(--color-text-body)}
+.cal{display:grid;grid-template-columns:repeat(5,108px);gap:8px}
+.cal .lbl{font-size:var(--t-xs);font-weight:700;color:var(--color-text-muted);text-align:center}
+.grid{position:relative;height:120px;border-radius:8px;background:repeating-linear-gradient(to bottom,#fff 0 29px,var(--color-divider) 29px 30px);box-shadow:inset 0 0 0 1px var(--color-divider)}
+.blk{position:absolute;left:4px;right:4px;top:14px;height:76px;border:2px dashed var(--block-base);border-radius:var(--r-sm);padding:4px 6px;font-size:var(--t-xs);font-weight:600;line-height:1.35;overflow:hidden;
+  --block-base:var(--p1);--block-tint:var(--p1t);--block-ink:var(--p1i)}
+.blk span{display:block;font-weight:400;opacity:.85}
+/* 지금 구현(2.3) */
+.o-plan{background:var(--block-tint);color:var(--block-ink)}
+.o-now{background:var(--block-tint);color:var(--block-ink);border-style:solid}
+.o-pend{background:var(--status-pending-bg);border:2px solid var(--status-pending-border);color:var(--status-pending-text)}
+.o-done{background:var(--block-base);border-style:solid;color:#fff}
+.o-skip{background:var(--status-skipped-bg);border:2px solid var(--color-border);color:var(--color-text-muted)}
+.o-skip b,.n-skip b{text-decoration:line-through}
+.o-skip span,.n-skip span{opacity:1}
+/* 바뀌는 모양 */
+.n-plan{background:var(--color-surface);color:var(--block-ink)}
+.n-now{background:var(--block-tint);color:var(--block-ink);border-style:solid}
+.n-pend{background:var(--status-pending-bg);border:2px solid var(--status-pending-border);color:var(--status-pending-text)}
+.n-done{background:var(--block-tint);border:2px solid var(--block-tint);color:var(--block-ink)}
+.n-skip{background:var(--status-skipped-bg);border:2px solid var(--color-border);color:var(--color-text-muted)}
+.nowMark{position:absolute;left:0;right:0;top:56px;border-top:2px solid var(--color-accent)}
+
+/* ── 390 ── */
+.phone{width:390px;background:var(--color-ground);border-radius:24px;padding:16px;box-shadow:0 8px 24px rgba(26,28,43,.14)}
+.phone .panel{padding:16px}
+.phone .row{padding:8px 10px}
+.phone .time{min-width:76px}
+.phone .rowPending .actions{flex-basis:100%;justify-content:flex-end}
+.phone .week{gap:4px}
+.phone .wd{padding:6px 2px}
+.mSum{display:flex;justify-content:space-between;padding:12px 16px;border-radius:var(--r-card);background:var(--color-surface);font-size:var(--t-sm);margin:12px 0}
+.mSum b{display:block;font-size:var(--t-xl)}
+.pnote{width:520px;font-size:var(--t-sm);color:var(--color-text-body);line-height:1.6}
+.pnote ul{margin:6px 0 0;padding-left:18px}
+</style>
+</head>
+<body>
+<div class="sheet">
+
+<div class="note">
+  <h1>홈 대시보드 PC 다시 디자인 목업 v1 (SCR-HOME-01)</h1>
+  WY-design, 2026-10-13. 사양 <b>docs/ux/홈PC_재디자인_사양_v1.md</b>. 사용자 결정(카드 20261013-1400)을 반영: ① 768 이상에서 요약 타일 4개·숫자 28, 390은 한 줄 그대로 ② <b>남은 업무 타일은 키 색 채움</b>(목업처럼) ③ 했어요 행은 프로젝트 옅은 면+진한 글자+✓, 계획 행은 흰 면+프로젝트 색 점선.
+  한 줄 입력창은 지금 모양(전체 폭 알약·높이 52·16px·N·? 단추)과 위치(인사 바로 아래) 그대로. <span class="new">바뀜</span> 표시가 이번에 바뀌는 곳.
+</div>
+
+<!-- ═════════ 화면 1: 마감 시각 전 ═════════ -->
+<div class="frameTitle">화면 1 · 1280 · 오후 2시 10분(마감 시각 전) <small>마감 띠 없음. 화면의 키 색 채움은 남은 업무 타일 하나</small></div>
+<div class="screen">
+  <nav class="side">
+    <div class="logo"><i>w</i>WY</div>
+    <div class="nav"><a class="on" href="#">홈</a><a href="#">캘린더</a><a href="#">업무</a><a href="#">일지</a><a href="#">통계</a><a href="#">설정</a></div>
+  </nav>
+  <main class="main"><div class="col">
+    <div class="date">10월 13일 화요일</div>
+    <div class="hi">좋은 오후예요, 지은 님</div>
+    <div class="qi"><span>무엇을 할지 한 줄로 적어 보세요</span><kbd>N</kbd><i aria-hidden="true">?</i></div>
+
+    <ul class="tiles" aria-label="요약">
+      <li><a class="tile tileFill" href="#"><div class="l">남은 업무 <span class="new">바뀜</span></div><div class="n">6</div><div class="s"><span class="over">초과 1</span></div></a></li>
+      <li><a class="tile" href="#"><div class="l">오늘 일정</div><div class="n">5</div><div class="s">남은 2</div></a></li>
+      <li><a class="tile tilePending" href="#"><div class="l">확인 대기</div><div class="n">1</div><div class="s"></div></a></li>
+      <li><a class="tile tileWeek" href="#"><div class="l">이번 주 완료</div><div class="n">9</div><div class="s"></div></a></li>
+    </ul>
+
+    <section class="panel">
+      <div class="panelHead"><h2 class="panelTitle">오늘 일정</h2><a class="dayLink" href="#">캘린더에서 보기</a></div>
+      <ul class="list">
+        <li class="row pj1 rowDone"><span class="slot"><span class="tag tagDone">✓ 했어요</span></span><span class="time">09:00–10:00</span><span class="title">주간 스탠드업<span class="proj">웹 개편</span></span></li>
+        <li class="row pj2 rowSkipped"><span class="slot"><span class="tag tagSkipped">안 했어요</span></span><span class="time">10:30–11:30</span><span class="title">거래처 미팅 준비<span class="proj">영업 지원</span></span></li>
+        <li class="row pj3 rowPending"><span class="slot"><span class="tag tagPending">확인 대기</span></span><span class="time">11:30–12:30</span><span class="title">API 문서 정리<span class="proj">백엔드</span></span>
+          <span class="actions"><button class="yes">했어요</button><button class="no">수정</button><button class="no">안 했어요</button></span></li>
+        <li class="nowLine"><span>14:10</span></li>
+        <li class="row pj1 rowNow"><span class="slot"><span class="tag tagNow">진행 중</span></span><span class="time">13:30–15:00</span><span class="title">메인 화면 시안 검토<span class="proj">웹 개편</span></span></li>
+        <li class="row pj3 rowPlan"><span class="slot"></span><span class="time">16:00–17:00</span><span class="title">배포 체크리스트 점검<span class="proj">백엔드</span></span></li>
+      </ul>
+    </section>
+
+    <div class="columns">
+      <section class="panel">
+        <div class="panelHead"><h2 class="panelTitle">남은 업무</h2><a class="dayLink" href="#">모두 보기</a></div>
+        <div class="grp late">마감 지남 1</div>
+        <div class="trow late"><span class="check"></span><span class="ttl">견적서 회신</span><span class="chip late">10/10</span></div>
+        <div class="grp">오늘</div>
+        <div class="trow"><span class="check"></span><span class="ttl">메인 화면 시안 검토</span><span class="chip today">오늘</span></div>
+        <div class="trow"><span class="check"></span><span class="ttl">배포 체크리스트 점검</span><span class="chip today">오늘</span></div>
+        <div class="grp">이번 주</div>
+        <div class="trow"><span class="check"></span><span class="ttl">로그인 오류 재현</span><span class="chip">10/15</span></div>
+        <div class="trow"><span class="check"></span><span class="ttl">분기 보고서 초안</span><span class="chip">10/16</span></div>
+        <div class="trow"><span class="check"></span><span class="ttl">신규 입사자 안내 자료</span><span class="chip">10/17</span></div>
+      </section>
+      <div class="stack">
+        <section class="panel">
+          <div class="panelHead"><h2 class="panelTitle">오늘 마감</h2><button class="softBtn">하루 마감</button></div>
+          <div class="barsRow"><div class="bars" aria-hidden="true"><i class="on"></i><i></i><i></i></div><span class="small">1/3칸 채웠어요 <span class="new">바뀜</span></span></div>
+          <p class="body">확정 기록 1건 · 다음 근무일 계획 0건 · 이슈 없음</p>
+        </section>
+        <section class="panel">
+          <h2 class="panelTitle">다가오는 일정 <span class="new">바뀜</span></h2>
+          <div class="up"><span class="dbadge dpj1"><small>수</small><b>14</b></span><div><div class="upT">디자인 리뷰</div><div class="upS">10:00–11:00 · 웹 개편</div></div></div>
+          <div class="up"><span class="dbadge dpj2"><small>목</small><b>15</b></span><div><div class="upT">거래처 방문</div><div class="upS">14:00–16:00 · 영업 지원</div></div></div>
+          <div class="up"><span class="dbadge dnone"><small>목</small><b>15</b></span><div><div class="upT">치과 예약</div><div class="upS">18:30–19:00 · 프로젝트 없음</div></div></div>
+          <div class="up"><span class="dbadge dhol"><small>금</small><b>16</b></span><div><div class="upT">공휴일(예시)</div><div class="upS">종일</div></div></div>
+        </section>
+        <section class="panel">
+          <h2 class="panelTitle">이번 주 <span class="new">바뀜</span></h2>
+          <div class="week">
+            <div class="wd wdDone"><b>월</b>마감함</div>
+            <div class="wd wdDue wdToday"><b>화</b>마감 전</div>
+            <div class="wd wdPlan"><b>수</b>예정</div>
+            <div class="wd wdPlan"><b>목</b>예정</div>
+            <div class="wd wdPlan"><b>금</b>예정</div>
+            <div class="wd wdOff"><b>토</b>쉬는 날</div>
+            <div class="wd wdOff"><b>일</b>쉬는 날</div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div></main>
+</div>
+<div class="callouts">
+  <p><b>② 요약 타일.</b> 남은 업무만 키 색 채움(흰 글자, "초과 n"도 흰 글자 800). 오늘 일정·이번 주 완료는 흰 면, 이번 주 완료 숫자만 성공색. 확인 대기는 1건 이상일 때 노란 옅은 면+노란 1px 테두리, 0건이면 흰 면. 진한 채움은 남은 업무 하나.</p>
+  <p><b>③ 오늘 일정 행.</b> 위에서부터 했어요(프로젝트 옅은 면+진한 프로젝트 글자+✓ 배지) · 안 했어요(회색+취소선) · 확인 대기(노란 면+버튼 셋) · 지금 선 · 진행 중(옅은 면+2px 실선) · 예정(흰 면+프로젝트 색 1.5px 점선).</p>
+  <p><b>④ 남은 업무 행.</b> 연보라(accent-faint) 대신 회백(#F9FAFD). 키 색은 "누를 것"과 남은 업무 타일에만 남긴다.</p>
+  <p><b>⑤⑥⑦.</b> 오늘 마감 진행 막대 3칸(8px, 버튼 아님), 다가오는 일정 날짜 칸은 그 일정의 프로젝트 색(없으면 보라, 공휴일 빨강), 이번 주는 오늘 2px 테두리·마감 전 노랑·쉬는 날 테두리만.</p>
+</div>
+
+<!-- ═════════ 화면 2: 저녁, 마감 띠 ═════════ -->
+<div class="frameTitle">화면 2 · 1280 · 오후 6시 40분(마감 띠가 뜬 저녁) <small>남은 업무 진한 타일과 [하루 마감]이 함께 보이는 상태</small></div>
+<div class="screen">
+  <nav class="side">
+    <div class="logo"><i>w</i>WY</div>
+    <div class="nav"><a class="on" href="#">홈</a><a href="#">캘린더</a><a href="#">업무</a><a href="#">일지</a><a href="#">통계</a><a href="#">설정</a></div>
+  </nav>
+  <main class="main"><div class="col">
+    <div class="date">10월 13일 화요일</div>
+    <div class="hi">수고 많았어요, 지은 님</div>
+    <div class="qi"><span>무엇을 할지 한 줄로 적어 보세요</span><kbd>N</kbd><i aria-hidden="true">?</i></div>
+
+    <div class="band"><p><b>오늘 하루를 마감할 시간이에요</b><small>확인 대기 1건 · 일지 1/3칸</small></p><button class="btnFill">하루 마감</button></div>
+
+    <ul class="tiles" aria-label="요약">
+      <li><a class="tile tileFill" href="#"><div class="l">남은 업무</div><div class="n">4</div><div class="s"><span class="over">초과 1</span></div></a></li>
+      <li><a class="tile" href="#"><div class="l">오늘 일정</div><div class="n">5</div><div class="s">모두 지남</div></a></li>
+      <li><a class="tile tilePending" href="#"><div class="l">확인 대기</div><div class="n">1</div><div class="s"></div></a></li>
+      <li><a class="tile tileWeek" href="#"><div class="l">이번 주 완료</div><div class="n">11</div><div class="s"></div></a></li>
+    </ul>
+
+    <section class="panel">
+      <div class="panelHead"><h2 class="panelTitle">오늘 일정</h2><a class="dayLink" href="#">캘린더에서 보기</a></div>
+      <ul class="list">
+        <li class="row pj1 rowDone"><span class="slot"><span class="tag tagDone">✓ 했어요</span></span><span class="time">09:00–10:00</span><span class="title">주간 스탠드업<span class="proj">웹 개편</span></span></li>
+        <li class="row pj2 rowSkipped"><span class="slot"><span class="tag tagSkipped">안 했어요</span></span><span class="time">10:30–11:30</span><span class="title">거래처 미팅 준비<span class="proj">영업 지원</span></span></li>
+        <li class="row pj3 rowDone"><span class="slot"><span class="tag tagDone">✓ 했어요</span></span><span class="time">11:30–12:30</span><span class="title">API 문서 정리<span class="proj">백엔드</span></span></li>
+        <li class="row pj1 rowDone"><span class="slot"><span class="tag tagDone">✓ 했어요</span></span><span class="time">13:30–15:00</span><span class="title">메인 화면 시안 검토<span class="proj">웹 개편</span></span></li>
+        <li class="row pj3 rowPending"><span class="slot"><span class="tag tagPending">확인 대기</span></span><span class="time">16:00–17:00</span><span class="title">배포 체크리스트 점검<span class="proj">백엔드</span></span>
+          <span class="actions"><button class="yes">했어요</button><button class="no">수정</button><button class="no">안 했어요</button></span></li>
+        <li class="nowLine"><span>18:40</span></li>
+      </ul>
+    </section>
+
+    <div class="columns">
+      <section class="panel">
+        <div class="panelHead"><h2 class="panelTitle">남은 업무</h2><a class="dayLink" href="#">모두 보기</a></div>
+        <div class="grp late">마감 지남 1</div>
+        <div class="trow late"><span class="check"></span><span class="ttl">견적서 회신</span><span class="chip late">10/10</span></div>
+        <div class="grp">이번 주</div>
+        <div class="trow"><span class="check"></span><span class="ttl">로그인 오류 재현</span><span class="chip">10/15</span></div>
+        <div class="trow"><span class="check"></span><span class="ttl">분기 보고서 초안</span><span class="chip">10/16</span></div>
+        <div class="trow"><span class="check"></span><span class="ttl">신규 입사자 안내 자료</span><span class="chip">10/17</span></div>
+      </section>
+      <div class="stack">
+        <section class="panel">
+          <div class="panelHead"><h2 class="panelTitle">오늘 마감</h2></div>
+          <div class="barsRow"><div class="bars" aria-hidden="true"><i class="on"></i><i></i><i></i></div><span class="small">1/3칸 채웠어요</span></div>
+          <p class="body">확정 기록 3건 · 다음 근무일 계획 0건 · 이슈 없음</p>
+        </section>
+        <section class="panel">
+          <h2 class="panelTitle">이번 주</h2>
+          <div class="week">
+            <div class="wd wdDone"><b>월</b>마감함</div>
+            <div class="wd wdDue wdToday"><b>화</b>마감 전</div>
+            <div class="wd wdPlan"><b>수</b>예정</div>
+            <div class="wd wdPlan"><b>목</b>예정</div>
+            <div class="wd wdPlan"><b>금</b>예정</div>
+            <div class="wd wdOff"><b>토</b>쉬는 날</div>
+            <div class="wd wdOff"><b>일</b>쉬는 날</div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div></main>
+</div>
+<div class="callouts">
+  <p><b>채움이 둘(사용자가 받아들인 X-02 예외).</b> 띠는 지금 모양 그대로(옅은 보라 면+보라 1px 테두리, 화면 폭 전체)이고 타일 줄 <b>위</b>에 둔다. 위에서 아래로 읽으니 띠의 문장과 [하루 마감]이 먼저 읽히고, 버튼은 오른쪽 끝, 채운 타일은 왼쪽 끝이라 대각선으로 떨어져 한 덩어리로 보이지 않는다.</p>
+  <p><b>띠와 타일 사이.</b> 띠 아래 16px(타일끼리는 12px)로 띠를 "알림 한 줄", 타일 줄을 "현황"으로 나눈다. 띠 모서리만 20으로 맞추고 색·테두리는 바꾸지 않는다. 띠가 떠 있으면 오늘 마감 카드의 [하루 마감]은 숨는다(지금 규칙).</p>
+</div>
+
+<!-- ═════════ 캘린더 비교 ═════════ -->
+<div class="frameTitle">비교 · 캘린더 주 보기 블록 다섯 상태 <small>홈 행과 같은 규칙. 블록 테두리 두께는 지금처럼 2px(월 칩·종일 막대는 1.5px)</small></div>
+<div class="cmp">
+  <div class="cmpBox">
+    <h3>지금(화면정의서 2.3)</h3>
+    <p>계획은 옅은 면+점선, 했어요는 프로젝트 색 채움+흰 글자</p>
+    <div class="cal">
+      <div class="lbl">예정</div><div class="lbl">진행 중</div><div class="lbl">확인 대기</div><div class="lbl">했어요</div><div class="lbl">안 했어요</div>
+      <div class="grid"><div class="blk o-plan"><b>배포 점검</b><span>16:00–17:00</span></div></div>
+      <div class="grid"><div class="blk o-now"><b>시안 검토</b><span>13:30–15:00</span></div><div class="nowMark"></div></div>
+      <div class="grid"><div class="blk o-pend"><b>! API 문서</b><span>11:30–12:30</span></div></div>
+      <div class="grid"><div class="blk o-done"><b>스탠드업</b><span>09:00–10:00</span></div></div>
+      <div class="grid"><div class="blk o-skip"><b>미팅 준비</b><span>10:30–11:30</span></div></div>
+    </div>
+  </div>
+  <div class="cmpBox">
+    <h3>바뀌는 모양 <span class="new">바뀜</span></h3>
+    <p>예정은 흰 면+점선, 했어요는 옅은 면+진한 글자+✓(테두리는 면과 같은 색이라 크기는 그대로)</p>
+    <div class="cal">
+      <div class="lbl">예정</div><div class="lbl">진행 중</div><div class="lbl">확인 대기</div><div class="lbl">했어요</div><div class="lbl">안 했어요</div>
+      <div class="grid"><div class="blk n-plan"><b>배포 점검</b><span>16:00–17:00</span></div></div>
+      <div class="grid"><div class="blk n-now"><b>시안 검토</b><span>13:30–15:00</span></div><div class="nowMark"></div></div>
+      <div class="grid"><div class="blk n-pend"><b>! API 문서</b><span>11:30–12:30</span></div></div>
+      <div class="grid"><div class="blk n-done"><b>✓ 스탠드업</b><span>09:00–10:00</span></div></div>
+      <div class="grid"><div class="blk n-skip"><b>미팅 준비</b><span>10:30–11:30</span></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═════════ 390 ═════════ -->
+<div class="frameTitle">390 · 휴대폰 <small>요약 한 줄·높이는 그대로. 바뀌는 것은 색·테두리뿐</small></div>
+<div class="cmp">
+  <div class="phone">
+    <div class="mSum"><span>남은 업무<b>6</b></span><span>오늘 일정<b>5</b></span><span>확인 대기<b style="color:var(--status-pending-text)">1</b></span><span>이번 주<b>9</b></span></div>
+    <section class="panel">
+      <div class="panelHead"><h2 class="panelTitle">오늘 일정</h2></div>
+      <ul class="list">
+        <li class="row pj1 rowDone"><span class="slot"><span class="tag tagDone">✓ 했어요</span></span><span class="time">09:00–10:00</span><span class="title">주간 스탠드업</span></li>
+        <li class="row pj2 rowSkipped"><span class="slot"><span class="tag tagSkipped">안 했어요</span></span><span class="time">10:30–11:30</span><span class="title">거래처 미팅 준비</span></li>
+        <li class="row pj3 rowPending"><span class="slot"><span class="tag tagPending">확인 대기</span></span><span class="time">11:30–12:30</span><span class="title">API 문서 정리</span>
+          <span class="actions"><button class="yes">했어요</button><button class="no">수정</button><button class="no">안 했어요</button></span></li>
+        <li class="row pj1 rowNow"><span class="slot"><span class="tag tagNow">진행 중</span></span><span class="time">13:30–15:00</span><span class="title">메인 화면 시안 검토</span></li>
+        <li class="row pj3 rowPlan"><span class="slot"></span><span class="time">16:00–17:00</span><span class="title">배포 체크리스트 점검</span></li>
+      </ul>
+    </section>
+    <section class="panel" style="margin-top:12px">
+      <h2 class="panelTitle">다가오는 일정</h2>
+      <div class="up"><span class="dbadge dpj1"><small>수</small><b>14</b></span><div><div class="upT">디자인 리뷰</div><div class="upS">10:00–11:00 · 웹 개편</div></div></div>
+      <div class="up"><span class="dbadge dpj2"><small>목</small><b>15</b></span><div><div class="upT">거래처 방문</div><div class="upS">14:00–16:00 · 영업 지원</div></div></div>
+    </section>
+    <section class="panel" style="margin-top:12px">
+      <h2 class="panelTitle">이번 주</h2>
+      <div class="week">
+        <div class="wd wdDone"><b>월</b>마감</div><div class="wd wdDue wdToday"><b>화</b>전</div><div class="wd wdPlan"><b>수</b>예정</div><div class="wd wdPlan"><b>목</b>예정</div><div class="wd wdPlan"><b>금</b>예정</div><div class="wd wdOff"><b>토</b>쉼</div><div class="wd wdOff"><b>일</b>쉼</div>
+      </div>
+    </section>
+  </div>
+  <div class="pnote">
+    <b>390에서 바뀌는 것</b>(높이·배치 변화 없음)
+    <ul>
+      <li>오늘 일정 행: 예정은 흰 면+점선, 했어요는 프로젝트 옅은 면+진한 글자. 캘린더와 같은 뜻이 폭마다 달라 보이지 않게.</li>
+      <li>다가오는 일정 날짜 칸: 프로젝트 색.</li>
+      <li>이번 주 칸: 상태 글자색(마감 전 노랑, 오늘 2px 테두리).</li>
+      <li>남은 업무 행 회백 면, 마감 띠 모서리 20.</li>
+    </ul>
+    <b>바뀌지 않는 것</b>: 요약 한 줄(타일 아님, 채움 없음), 오늘 마감 카드(막대 없음), 한 줄 입력·확인 대기 행의 버튼 둘째 줄 배치.
+    <p style="margin:12px 0 0"><b>고대비 모드(forced-colors).</b> 면 색이 지워지므로: 남은 업무 타일은 3px 실선 테두리(다른 타일 1px)로 "채운 타일"을 남기고, 오늘 일정·캘린더는 예정=점선, 진행 중·했어요·안 했어요=실선, 확인 대기=이중선, 글자 표시(✓·!·취소선·배지 글)로 구분한다.</p>
+  </div>
+</div>
+
+</div>
+</body>
+</html>
