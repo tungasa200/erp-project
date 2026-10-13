@@ -187,6 +187,11 @@ describe('SCR-HOME-01 홈 대시보드 1차', () => {
     expect(await within(section).findByRole('heading', { name: '마감 초과 1' })).toBeInTheDocument()
     expect(within(section).getByRole('heading', { name: '오늘 1' })).toBeInTheDocument()
     expect(within(section).getByRole('heading', { name: '이번 주 1' })).toBeInTheDocument()
+    // 기한 칩(D-236 ③): 초과는 빨강, 오늘은 노랑 옅은 면, 그 밖은 회색
+    const chipOf = (list: string) => within(section).getByRole('list', { name: list }).querySelector('.due')
+    expect(chipOf('마감 초과 1')).toHaveClass('dueLate')
+    expect(chipOf('오늘 1')).toHaveClass('dueToday')
+    expect(chipOf('이번 주 1')).not.toHaveClass('dueToday')
     expect(within(section).queryByText('온보딩 자료 정리')).not.toBeInTheDocument()
 
     const toggle = within(section).getByRole('button', { name: '날짜 없는 업무 1개' })

@@ -921,8 +921,16 @@ function TaskRow({ task, today, weekStart, projects, tagNames, selected, onLeave
         )}
       </span>
       <span className={styles.tags}>{tagText}</span>
-      <span className={state === 'overdue' && !done ? `${styles.due} ${styles.danger}` : styles.due}>
-        {task.dueDate ? dueLabel(task.dueDate, today) : ''}
+      <span className={styles.due}>
+        {task.dueDate && (
+          <span
+            className={
+              done ? undefined : state === 'overdue' ? styles.dueLate : state === 'today' ? styles.dueToday : undefined
+            }
+          >
+            {dueLabel(task.dueDate, today)}
+          </span>
+        )}
       </span>
       <span className={styles.progress} aria-label={`진행률 ${task.progress}%`}>
         {task.progress > 0 && (

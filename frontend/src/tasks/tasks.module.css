@@ -450,8 +450,34 @@
   color: var(--color-text-strong);
 }
 
-/* 마감 초과 날짜·높음 우선순위. .danger가 위에 있어 같은 우선순위면 .due·.priority의 색이 이기므로 결합 선택자로 쓴다 (P1-03-05) */
-.due.danger,
+/* 기한 칩(D-236 ③): 초과는 빨강 옅은 면, 오늘은 노랑 옅은 면. 완료한 업무에는 두지 않는다 */
+.dueLate,
+.dueToday {
+  display: inline-block;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+}
+
+.dueLate {
+  background: var(--color-danger-soft);
+  color: var(--color-danger-text);
+}
+
+.dueToday {
+  background: var(--color-warning-soft);
+  color: var(--color-warning-text);
+}
+
+/* 고대비 모드는 면을 지우므로 칩 테두리로 남긴다 */
+@media (forced-colors: active) {
+  .dueLate,
+  .dueToday {
+    border: 1px solid CanvasText;
+  }
+}
+
+/* 높음 우선순위. .danger가 위에 있어 같은 우선순위면 .priority의 색이 이기므로 결합 선택자로 쓴다 (P1-03-05) */
 .priority.danger {
   color: var(--color-danger);
 }

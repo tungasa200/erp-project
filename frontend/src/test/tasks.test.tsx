@@ -156,6 +156,10 @@ describe('SCR-TASK-01 업무 목록', () => {
     expect(today.getByText('영업')).toBeInTheDocument()
     expect(today.getByText('#견적')).toBeInTheDocument()
     expect(today.getByLabelText('일정에 배치됨')).toBeInTheDocument()
+    // 기한 칩(D-236 ③): 초과는 빨강, 오늘은 노랑 옅은 면, 그 밖은 글자만
+    expect(today.getByText('오늘')).toHaveClass('dueToday')
+    expect(within(screen.getByRole('list', { name: '마감 초과 · 1' })).getByText(/^10\/6\(/)).toHaveClass('dueLate')
+    expect(within(screen.getByRole('list', { name: '다음 · 1' })).getByText(/^10\/20\(/)).not.toHaveClass('dueToday')
   })
 
   it('필터는 URL에 남고 API 조건으로 보낸다 (사이드바 프로젝트 → /tasks?project=)', async () => {

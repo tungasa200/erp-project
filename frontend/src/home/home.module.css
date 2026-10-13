@@ -380,12 +380,20 @@ button.card[aria-disabled='true'] {
 
 .dueLate {
   background: var(--color-danger-soft);
-  color: var(--color-danger);
+  color: var(--color-danger-text);
 }
 
 .dueToday {
   background: var(--color-warning-soft);
   color: var(--color-warning-text);
+}
+
+/* 고대비 모드는 면을 지우므로 기한 칩(D-236 ③)을 테두리로 남긴다 */
+@media (forced-colors: active) {
+  .dueLate,
+  .dueToday {
+    border: 1px solid CanvasText;
+  }
 }
 
 .undated {
