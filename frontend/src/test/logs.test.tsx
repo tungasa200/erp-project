@@ -152,7 +152,7 @@ describe('일지 상세 (SCR-LOG-02)', () => {
     const open = await screen.findByRole('button', { name: '원본에서 다시 채우기' })
     await user.click(open)
     const dialog = screen.getByRole('alertdialog', { name: '원본에서 다시 채울까요?' })
-    expect(dialog).toHaveTextContent('직접 고친 실적이 지금 기록으로 바뀌어요. 계획과 이슈는 그대로예요.')
+    expect(dialog).toHaveAccessibleDescription('직접 고친 실적이 지금 기록으로 바뀌어요. 계획과 이슈는 그대로예요.')
     expect(within(dialog).getByRole('button', { name: '취소' })).toHaveFocus()
     await user.keyboard('{Escape}')
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()

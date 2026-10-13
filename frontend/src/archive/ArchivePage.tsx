@@ -23,6 +23,16 @@ import styles from './archive.module.css'
 
 type Kind = 'tasks' | 'projects'
 
+// 영문·숫자로 끝나는 이름은 읽는 소리로 받침을 본다(L·M·N·R 엘·엠·엔·알, 0·1·3·6·7·8 영·일·삼·육·칠·팔).
+// 끝의 괄호·기호는 건너뛴다. 영어 낱말은 글자 이름으로 읽은 근사다
+const FINAL_CONSONANT = /[lmnr013678]/i
+function particle(name: string): string {
+  const word = name.replace(/[^\p{L}\p{N}]+$/u, '')
+  const last = word.at(-1) ?? ''
+  if (/[a-z0-9]/i.test(last)) return FINAL_CONSONANT.test(last) ? '을' : '를'
+  return objectParticle(word || name)
+}
+
 // 영구 삭제(되돌릴 수 없음). 생성 타입이 나오기 전이라 계약(contracts/worklog.yaml)대로 직접 부른다
 const purgeApi = {
   task: (id: string) => api.request<void>(`/api/worklog/tasks/${id}/permanent`, { method: 'DELETE' }),
@@ -134,6 +144,7 @@ export function ArchivePage() {
           ) : (
             <ProjectList
               projects={archivedProjects}
+              archivedTasks={tasks.isPending || tasks.isError || tasks.hasNextPage ? null : archivedTasks}
               timeZone={timeZone}
               pending={projectsQuery.isPending}
               error={projectsQuery.isError}
@@ -241,7 +252,7 @@ function useRestore(onFail?: () => void) {
       showUndo({
         group: done.group,
         message: (n) =>
-          n > 1 ? `${done.unit} ${n}개를 복원했어요` : `'${done.name}'${objectParticle(done.name)} 복원했어요`,
+          n > 1 ? `${done.unit} ${n}개를 복원했어요` : `'${done.name}'${particle(done.name)} 복원했어요`,
         undo: () => done.undo(restored),
         view: done.view,
       })
@@ -260,8 +271,8 @@ function useRestore(onFail?: () => void) {
 interface PurgeTarget {
   id: string
   name: string
-  /** 프로젝트: 프로젝트 없음으로 옮겨지는 업무 수 */
-  taskCount?: number
+  /** 프로젝트: 프로젝트 없음으로 옮겨지는 업무 수(보관한 업무 포함). 보관한 업무를 다 받지 못했으면 null */
+  taskCount?: number | null
 }
 
 /**
@@ -278,7 +289,7 @@ function usePurge(kind: 'task' | 'project') {
     setBusy(true)
     try {
       await purgeApi[kind](target.id)
-      showToast(`'${target.name}'${objectParticle(target.name)} 영구 삭제했어요`)
+      showToast(`'${target.name}'${particle(target.name)} 영구 삭제했어요`)
     } catch (err) {
       if (err instanceof ApiError && err.status === 404) showToast('이미 삭제된 항목이에요')
       else if (err instanceof ApiError && err.status === 409) showToast('보관함에 있는 항목만 삭제할 수 있어요')
@@ -303,13 +314,15 @@ function PurgeDialog({ kind, purge }: { kind: 'task' | 'project'; purge: ReturnT
   const body =
     kind === 'task'
       ? '삭제하면 되돌릴 수 없어요. 이 업무로 남긴 기록과 일정은 그대로 남고, 업무 연결만 없어져요.'
-      : `삭제하면 되돌릴 수 없어요. 이 프로젝트의 업무 ${target.taskCount ?? 0}개는 지워지지 않고 '프로젝트 없음'으로 옮겨져요.`
+      : `삭제하면 되돌릴 수 없어요. 이 프로젝트의 업무${target.taskCount == null ? '는' : ` ${target.taskCount}개는`} 지워지지 않고 '프로젝트 없음'으로 옮겨져요.`
   return (
-    <Modal labelledBy={`${id}-t`} onClose={purge.cancel} narrow role="alertdialog">
+    <Modal labelledBy={`${id}-t`} describedBy={`${id}-b`} onClose={purge.cancel} narrow role="alertdialog">
       <h2 id={`${id}-t`} className={styles.dialogTitle}>
-        '{target.name}'{objectParticle(target.name)} 영구 삭제할까요?
+        '{target.name}'{particle(target.name)} 영구 삭제할까요?
       </h2>
-      <p className={styles.dialogBody}>{body}</p>
+      <p id={`${id}-b`} className={styles.dialogBody}>
+        {body}
+      </p>
       <div className={cal.actions}>
         <button type="button" className={cal.secondary} onClick={purge.cancel}>
           취소
@@ -427,7 +440,14 @@ function TaskList(
   )
 }
 
-function ProjectList(props: ListState & { projects: Project[]; timeZone: string }) {
+function ProjectList(
+  props: ListState & {
+    projects: Project[]
+    /** 보관한 업무 전부. 아직 다 받지 못했으면 null(확인 창에 개수를 쓰지 않는다) */
+    archivedTasks: Task[] | null
+    timeZone: string
+  },
+) {
   const queryClient = useQueryClient()
   const online = useOnline()
   // 다른 곳에서 고쳐 version이 어긋났으면(409) 새 version으로 다시 받아 다음 복원이 맞게 가도록
@@ -483,7 +503,16 @@ function ProjectList(props: ListState & { projects: Project[]; timeZone: string 
               <PurgeButton
                 name={p.name}
                 busy={busy === p.id}
-                onClick={() => purge.open({ id: p.id, name: p.name, taskCount: p.taskCount })}
+                onClick={() =>
+                  purge.open({
+                    id: p.id,
+                    name: p.name,
+                    // taskCount는 보관하지 않은 업무만 센다. 보관한 소속 업무도 함께 프로젝트 없음이 된다
+                    taskCount: props.archivedTasks
+                      ? p.taskCount + props.archivedTasks.filter((t) => t.projectId === p.id).length
+                      : null,
+                  })
+                }
               />
             </li>
           )

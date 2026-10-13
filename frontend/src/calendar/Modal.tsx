@@ -73,6 +73,8 @@ export function ModalCancelButton({
 
 interface Props {
   labelledBy: string
+  /** 확인 창 본문 id. 열릴 때 제목과 함께 읽힌다(alertdialog) */
+  describedBy?: string
   onClose: () => void
   narrow?: boolean
   /** 모바일(~767px)에서 아래에서 올라오는 시트로 띄운다(통계 기간 고르기) */
@@ -83,7 +85,7 @@ interface Props {
   children: ReactNode
 }
 
-export function Modal({ labelledBy, onClose, narrow, sheet, role = 'dialog', dirty, children }: Props) {
+export function Modal({ labelledBy, describedBy, onClose, narrow, sheet, role = 'dialog', dirty, children }: Props) {
   const ref = useRef<HTMLDivElement>(null)
   const askId = useId()
   // 물을 때 포커스가 있던 칸. [계속 편집]이면 그 자리로 돌아간다
@@ -157,6 +159,7 @@ export function Modal({ labelledBy, onClose, narrow, sheet, role = 'dialog', dir
         role={role}
         aria-modal="true"
         aria-labelledby={labelledBy}
+        aria-describedby={describedBy}
         className={`${styles.dialog} ${narrow ? styles.dialogNarrow : ''} ${sheet ? styles.dialogSheet : ''} ${mobileSheet ? 'wy-sheet' : ''}`}
         onKeyDown={(e) => {
           if (e.key === 'Escape') {

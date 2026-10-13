@@ -212,14 +212,44 @@ describe('SCR-TASK-04 보관함', () => {
     )
   })
 
-  it('프로젝트 영구 삭제: 옮겨질 업무 수를 알리고, 마지막 줄이면 포커스는 빈 상태 제목', async () => {
-    setup()
+  it('프로젝트 영구 삭제: 옮겨질 업무 수(보관한 소속 업무 포함)를 알리고, 마지막 줄이면 포커스는 빈 상태 제목', async () => {
+    setup({ tasks: [task('t-old', 'QA삭제P', '2026-09-28T00:12:00Z', { projectId: 'p-old' })] })
     await userEvent.click(await screen.findByRole('tab', { name: '프로젝트 1' }))
     await userEvent.click(screen.getByRole('button', { name: '레거시 영구 삭제' }))
     const dialog = screen.getByRole('alertdialog', { name: "'레거시'를 영구 삭제할까요?" })
-    expect(dialog).toHaveTextContent("이 프로젝트의 업무 2개는 지워지지 않고 '프로젝트 없음'으로 옮겨져요.")
+    // 보관하지 않은 업무 2개(taskCount) + 보관한 소속 업무 1개
+    expect(dialog).toHaveAccessibleDescription(
+      "삭제하면 되돌릴 수 없어요. 이 프로젝트의 업무 3개는 지워지지 않고 '프로젝트 없음'으로 옮겨져요.",
+    )
     await userEvent.click(within(dialog).getByRole('button', { name: '영구 삭제' }))
     expect(await screen.findByText("'레거시'를 영구 삭제했어요")).toBeInTheDocument()
     await waitFor(() => expect(screen.getByText('보관한 프로젝트가 없어요')).toHaveFocus())
+  })
+
+  it('보관한 업무를 다 받지 못했으면 확인 창에 개수를 쓰지 않는다', async () => {
+    stubFetch({
+      'GET /api/users/me': () => json(200, ME),
+      'GET /api/worklog/projects': () =>
+        json(200, { items: [project('p-old', '레거시', { archived: true, archivedAt: '2026-10-02T02:05:00Z' })] }),
+      'GET /api/worklog/tasks': () =>
+        json(200, { items: [task('t-1', '첫 장', '2026-10-01T00:00:00Z')], nextCursor: 'more' }),
+    })
+    renderApp('/tasks/archive?type=projects', [{ path: '/tasks/archive', element: <Shell /> }])
+    await userEvent.click(await screen.findByRole('button', { name: '레거시 영구 삭제' }))
+    expect(screen.getByRole('alertdialog')).toHaveTextContent(
+      "이 프로젝트의 업무는 지워지지 않고 '프로젝트 없음'으로 옮겨져요.",
+    )
+  })
+
+  it.each([
+    ['QA삭제P', '를'],
+    ['버전 3', '을'],
+    ['Plan', '을'],
+    ['회의(정기)', '를'],
+    ['결제 모듈', '을'],
+  ])("이름이 '%s'이면 조사는 '%s'", async (title, josa) => {
+    setup({ tasks: [task('t-new', title, '2026-10-06T08:40:00Z')] })
+    await userEvent.click(await screen.findByRole('button', { name: `${title} 영구 삭제` }))
+    expect(screen.getByRole('alertdialog', { name: `'${title}'${josa} 영구 삭제할까요?` })).toBeInTheDocument()
   })
 })

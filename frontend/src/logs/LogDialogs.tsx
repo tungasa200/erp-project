@@ -22,7 +22,7 @@ interface ConfirmProps {
 export function ConfirmDialog({ title, body, action, busy, onCancel, onConfirm }: ConfirmProps) {
   const id = useId()
   return (
-    <Modal labelledBy={`${id}-t`} onClose={onCancel} narrow role="alertdialog">
+    <Modal labelledBy={`${id}-t`} describedBy={`${id}-b`} onClose={onCancel} narrow role="alertdialog">
       <h2 id={`${id}-t`} className={styles.dialogTitle}>
         {title}
       </h2>
