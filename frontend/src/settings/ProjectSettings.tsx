@@ -1,4 +1,5 @@
-// SCR-SET-08 설정 — 프로젝트·태그 (TASK-04). 프로젝트는 삭제 없이 보관만 하고(되돌리기 토스트), 태그는 이름 변경과 사용 수를 보여 준다.
+// SCR-SET-08 설정 — 프로젝트·태그 (TASK-04). 프로젝트는 여기서는 보관만 하고(되돌리기 토스트), 완전히 지우는 것은 보관함의 영구 삭제다(D-226).
+// 태그는 이름 변경과 사용 수를 보여 준다.
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { Link } from 'react-router'
@@ -131,6 +132,7 @@ function ProjectSection() {
                 type="button"
                 className={styles.smallButton}
                 aria-label={`${p.name} 보관`}
+                aria-describedby="settings-projects-archive-note"
                 data-project-archive={p.id}
                 onClick={() => void archive(p)}
               >
@@ -139,6 +141,13 @@ function ProjectSection() {
             </li>
           ))}
         </ul>
+      )}
+      {active.length > 0 && (
+        // [보관]이 무엇을 하는지(D-226 ④, D-59 '보관만'을 바꿈)
+        <p id="settings-projects-archive-note" className={`${styles.muted} ${styles.keepWords}`}>
+          보관한 프로젝트는 <Link to="/tasks/archive?type=projects">보관함</Link>에서 되돌릴 수 있어요. 완전히 지우려면
+          보관함에서 영구 삭제하세요.
+        </p>
       )}
 
       {projects && (

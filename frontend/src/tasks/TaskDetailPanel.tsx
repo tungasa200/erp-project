@@ -3,7 +3,7 @@
 // 기록 이력(⑥)은 RecordHistory, 이월 이력(⑦)은 P3에서 채운다. 연결 일정 목록(⑤)은 업무별 일정 조회 API가 없어 배치 여부와 캘린더 링크만 둔다.
 import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
-import { useNavigate, useOutletContext, useParams, useSearchParams } from 'react-router'
+import { Link, useNavigate, useOutletContext, useParams, useSearchParams } from 'react-router'
 import { toastForError } from '../api/errorToast'
 import { ApiError } from '../api/problem'
 import { isValidDate } from '../calendar/time'
@@ -88,7 +88,9 @@ export function TaskDetailPanel() {
 
   // 휴대폰 폭에서는 패널이 화면 전체를 덮는 창이다: 대화창으로 알리고 뒤 목록·하단 탭을 Tab·낭독기에서 뺀다(UX-M-TASK-44).
   // 태블릿은 목록 옆에 겹쳐 떠서 목록을 눌러 다른 업무로 옮겨 가므로 그대로 둔다
-  const fullScreen = useMediaQuery('(max-width: 767px)')
+  // 없는 업무(404)는 창이 아니라 안내 한 장이다: 하단 탭을 가리지 않고 다른 화면으로 갈 수 있게 둔다(UX-M-TASK-58)
+  const missing = task.isError && task.error instanceof ApiError && task.error.status === 404
+  const fullScreen = useMediaQuery('(max-width: 767px)') && !missing
   useEffect(() => {
     if (!fullScreen || !panelRef.current) return
     return inertOutside(panelRef.current)
@@ -103,7 +105,7 @@ export function TaskDetailPanel() {
       role={fullScreen ? 'dialog' : undefined}
       aria-modal={fullScreen ? true : undefined}
       aria-labelledby="task-detail-title"
-      className={styles.panel}
+      className={missing ? `${styles.panel} ${styles.panelMissing}` : styles.panel}
       onKeyDown={(e) => {
         // 입력칸·메모 안의 Esc는 닫지 않는다. 진행률 슬라이더(range)는 Esc 동작이 없으니 닫는다
         const typing =
@@ -121,12 +123,29 @@ export function TaskDetailPanel() {
         ) : (
           <Skeleton count={6} />
         ))}
-      {task.isError && (
+      {missing && (
+        // 404 화면(SCR-SYS-01)과 같은 문구·보관함 길
+        <div className={styles.panelBody}>
+          <h2 id="task-detail-title" className={styles.missingTitle}>
+            업무를 찾을 수 없어요
+          </h2>
+          <p className={`${styles.muted} ${styles.missingText}`}>
+            주소가 바뀌었거나 보관된 항목일 수 있어요. 보관한 업무는 보관함에서 찾을 수 있어요.
+          </p>
+          <div className={styles.missingActions}>
+            <Link to="/tasks/archive" className={styles.smallButton}>
+              보관함
+            </Link>
+            <button type="button" className={styles.smallButton} onClick={close}>
+              닫기
+            </button>
+          </div>
+        </div>
+      )}
+      {task.isError && !missing && (
         <div className={styles.panelBody}>
           <p role="alert" className={styles.error}>
-            {task.error instanceof ApiError && task.error.status === 404
-              ? '업무를 찾을 수 없어요'
-              : '업무를 불러오지 못했어요'}
+            업무를 불러오지 못했어요
           </p>
           <button type="button" className={styles.smallButton} onClick={close}>
             닫기

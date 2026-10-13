@@ -529,9 +529,20 @@
   font-weight: 800;
 }
 
+/* 좁으면(200% 확대 등) 상태·마감 줄을 이름 아래로 내린다. 이름이 한 글자씩 세로로 꺾이지 않게(UX-M-LOG-61) */
+.carryItem {
+  flex-wrap: wrap;
+  padding-block: var(--space-1);
+}
+
+.carryItem > :last-child {
+  margin-inline-start: auto;
+}
+
 .carryTitle {
-  flex: 1;
+  flex: 1 1 8em;
   min-width: 0;
+  word-break: keep-all;
   overflow-wrap: anywhere;
 }
 

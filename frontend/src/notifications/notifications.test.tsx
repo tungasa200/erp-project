@@ -292,7 +292,7 @@ describe('SCR-SET-05 설정 — 알림', () => {
     expect(screen.getByRole('button', { name: '허용하기' })).toBeEnabled()
   })
 
-  it('알림이 꺼져 있으면 꺼진 [허용하기]를 가리켜 켜는 법을 말한다(UX-M-SET-72)', async () => {
+  it('알림이 꺼져 있으면 꺼진 [허용하기]·"아직 묻지 않음" 없이 켜는 법을 한 줄로 말하고, 켜면 [허용하기]로 간다(UX-M-SET-72)', async () => {
     vi.stubGlobal('Notification', { permission: 'default' })
     vi.stubGlobal('PushManager', function PushManager() {})
     Object.defineProperty(navigator, 'serviceWorker', {
@@ -303,8 +303,15 @@ describe('SCR-SET-05 설정 — 알림', () => {
       delete (navigator as { serviceWorker?: unknown }).serviceWorker
     })
     setup({ path: '/settings/notifications', notifyEnabled: false })
-    expect(await screen.findByText('위의 하루 마감 알림을 켜면 [허용하기]를 누를 수 있어요')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: '허용하기' })).toBeDisabled()
+    const user = userEvent.setup()
+    expect(
+      await screen.findByText('위의 하루 마감 알림을 켜면 이 기기에서 푸시 알림을 허용할 수 있어요'),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '허용하기' })).not.toBeInTheDocument()
+    expect(screen.queryByText('아직 묻지 않음')).not.toBeInTheDocument()
+    await user.click(screen.getByRole('switch', { name: '하루 마감 알림' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: '허용하기' })).toHaveFocus())
+    expect(screen.getByText('아직 묻지 않음')).toBeInTheDocument()
   })
 
   it('푸시를 받을 수 없는 브라우저(서비스 워커 없음)면 지원 안 함', async () => {

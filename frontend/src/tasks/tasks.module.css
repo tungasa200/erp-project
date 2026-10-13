@@ -503,6 +503,30 @@
   cursor: pointer;
 }
 
+/* 없는 업무 안내(UX-M-TASK-58): 404 화면과 같은 문구에 [보관함]·[닫기] */
+.missingTitle {
+  margin: 0;
+  font-size: var(--text-xl);
+  font-weight: 800;
+  color: var(--color-text);
+}
+
+.missingText {
+  word-break: keep-all;
+}
+
+.missingActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.missingActions .smallButton {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+
 /* 상세 패널의 [캘린더에 배치]는 주 동작이라 데스크톱에서도 44px(UX-TASK-152) */
 .placeButton {
   min-height: var(--size-touch);
@@ -596,6 +620,9 @@
   resize: none;
   overflow: hidden;
   line-height: 1.35;
+  /* 한글 낱말 중간에서 꺾지 않는다. 칸보다 긴 영문·주소는 anywhere가 끊는다(UX-M-TASK-100) */
+  word-break: keep-all;
+  overflow-wrap: anywhere;
   padding: var(--space-1) var(--space-2);
   border: 1.5px solid transparent;
   border-radius: var(--radius-sm);
@@ -848,6 +875,11 @@
     width: 100%;
   }
 
+  /* 없는 업무 안내는 하단 탭(72px) 위에서 멈춘다 */
+  .panelMissing {
+    bottom: calc(72px + env(safe-area-inset-bottom));
+  }
+
   .listCard {
     padding: var(--space-1) var(--space-3) var(--space-3);
   }
@@ -869,6 +901,7 @@
     border-block: var(--space-3) solid transparent;
     line-height: 20px;
     white-space: normal;
+    word-break: keep-all;
     overflow-wrap: anywhere;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;

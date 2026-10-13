@@ -100,6 +100,15 @@ describe('SCR-SET-08 프로젝트', () => {
     )
   })
 
+  it('[보관] 설명: 보관함에서 되돌리거나 영구 삭제한다(D-226 ④)', async () => {
+    setup()
+    const archive = await screen.findByRole('button', { name: '개발 보관' })
+    expect(archive).toHaveAccessibleDescription(
+      '보관한 프로젝트는 보관함에서 되돌릴 수 있어요. 완전히 지우려면 보관함에서 영구 삭제하세요.',
+    )
+    expect(screen.getByRole('link', { name: '보관함' })).toHaveAttribute('href', '/tasks/archive?type=projects')
+  })
+
   it('보관하면 목록에서 빠지고 되돌리기로 보관을 푼다', async () => {
     const { calls } = setup()
     await userEvent.click(await screen.findByRole('button', { name: '개발 보관' }))

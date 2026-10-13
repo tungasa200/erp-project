@@ -427,7 +427,7 @@ export function RecordDialog({ recordId, defaults, planned, capped, onClose }: P
         >
           {!online && (
             <p className={calendar.muted} role="status">
-              연결이 끊겼어요. 다시 연결되면 고칠 수 있어요
+              연결이 끊겼어요. 쓴 내용은 그대로 남아 있고, 다시 연결되면 저장할 수 있어요
             </p>
           )}
           {archived && (

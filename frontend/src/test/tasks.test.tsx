@@ -115,7 +115,7 @@ function server(
         current.deletedAt = null
         return json(200, current)
       }
-      if (method === 'GET') return json(200, current)
+      if (method === 'GET') return current ? json(200, current) : problem(404, 'TASK_NOT_FOUND')
       if (method === 'DELETE') {
         current.deletedAt = '2026-10-07T03:00:00Z'
         return new Response(null, { status: 204 })
@@ -484,6 +484,24 @@ describe('SCR-TASK-02 업무 상세', () => {
     expect((history.state as Record<string, unknown> | null)?.wyOverlay).toBeUndefined()
     const applied = await screen.findByRole('button', { name: '필터 (1)' })
     await waitFor(() => expect(applied).toHaveFocus())
+  })
+
+  it('없는 업무 주소는 404와 같은 문구에 [보관함]·[닫기]이고, 휴대폰에서도 창이 아니라 하단 탭을 쓸 수 있다(UX-M-TASK-58)', async () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query === '(max-width: 767px)',
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }))
+    server(SAMPLE)
+    const { router } = renderApp('/tasks/t-none')
+    const panel = within((await screen.findByRole('heading', { name: '업무를 찾을 수 없어요' })).closest('aside')!)
+    expect(screen.getByText(/보관한 업무는 보관함에서 찾을 수 있어요/)).toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    // 뒤 화면을 막지 않는다(하단 탭이 Tab·낭독기에 남는다)
+    expect(document.querySelector('[inert]')).toBeNull()
+    expect(panel.getByRole('button', { name: '닫기' })).toBeInTheDocument()
+    await userEvent.click(panel.getByRole('link', { name: '보관함' }))
+    await waitFor(() => expect(router.state.location.pathname).toBe('/tasks/archive'))
   })
 
   it('필터 시트를 뒤로 가기로 닫아도 고른 조건은 남는다(UX-M-TASK-101)', async () => {

@@ -520,7 +520,7 @@ export function DayClose({ date, today, timeZone, quick = false, onClose }: Prop
               <fieldset className={styles.carry} aria-describedby={newCount > room ? capId : undefined}>
                 <legend className="visually-hidden">계획으로 넘길 업무</legend>
                 {d.carryOverCandidates.map((c) => (
-                  <label key={c.taskId} className={cal.check}>
+                  <label key={c.taskId} className={`${cal.check} ${styles.carryItem}`}>
                     <input
                       type="checkbox"
                       checked={selected.has(c.taskId)}
