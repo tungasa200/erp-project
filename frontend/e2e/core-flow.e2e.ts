@@ -85,7 +85,9 @@ test('가입부터 하루 마감까지', async ({ page, request, isMobile, brows
   await page.getByLabel('이메일').fill(email)
   await page.getByLabel('비밀번호', { exact: true }).fill(PASSWORD)
   await page.getByLabel('비밀번호 확인').fill(PASSWORD)
-  await page.getByRole('checkbox', { name: '전체 동의' }).check()
+  // 767px 이하는 동의를 한 줄로 접고 그 줄의 체크박스가 전체 동의를 맡는다(D-223 ④, AUTH-72)
+  const agreeAll = isMobile ? '[필수] 만 14세 이상이며, 이용약관·개인정보 수집·이용에 모두 동의합니다' : '전체 동의'
+  await page.getByRole('checkbox', { name: agreeAll, exact: true }).check()
   await page.getByRole('button', { name: '회원가입', exact: true }).click()
   await expect(page.getByRole('heading', { level: 1, name: '이메일 인증' })).toBeVisible()
   await page.getByRole('textbox', { name: '인증번호' }).fill(await latestCode(request, email))
