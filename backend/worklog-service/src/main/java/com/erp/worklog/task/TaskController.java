@@ -287,4 +287,19 @@ class TaskController {
 	TaskView restore(@Parameter(hidden = true) CurrentUser user, @PathVariable UUID taskId) {
 		return TaskView.of(tasks.restore(user.id(), taskId));
 	}
+
+	@DeleteMapping("/{taskId}/permanent")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	@Operation(operationId = "purgeTask", summary = "보관한 업무 영구 삭제 (보관함)",
+			description = "보관한 업무만 지운다. 그 업무의 확인 대기 기록은 지우고, 나머지 기록·연결 일정은 남기고 taskId를 비운다. "
+					+ "version을 받지 않는다. 다시 보내면 404.",
+			security = @SecurityRequirement(name = SecurityConfig.COOKIE_SCHEME))
+	@ApiResponse(responseCode = "204", description = "영구 삭제됨")
+	@ApiResponse(responseCode = "404", description = "없거나 다른 사용자의 업무 (code=NOT_FOUND)", content = @Content(
+			mediaType = "application/problem+json", schema = @Schema(ref = OpenApiAutoConfiguration.PROBLEM_REF)))
+	@ApiResponse(responseCode = "409", description = "보관하지 않은 업무 (code=TASK_NOT_ARCHIVED)", content = @Content(
+			mediaType = "application/problem+json", schema = @Schema(ref = OpenApiAutoConfiguration.PROBLEM_REF)))
+	void purge(@Parameter(hidden = true) CurrentUser user, @PathVariable UUID taskId) {
+		tasks.purge(user.id(), taskId);
+	}
 }

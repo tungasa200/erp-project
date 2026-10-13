@@ -1,8 +1,10 @@
 package com.erp.worklog.project;
 
+import com.erp.common.error.ApiException;
 import com.erp.worklog.error.Conflicts;
 import com.erp.worklog.error.Errors;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -74,6 +76,17 @@ public class ProjectService {
 		}
 		p.update(name, change.color(), change.archived(), clock.instant());
 		return info(saveChecked(p), taskCounts(ownerId).getOrDefault(id, Counts.NONE));
+	}
+
+	/** 보관한 프로젝트를 실제로 지운다 (카드 20261013-1010). 소속 업무는 남고 project_id가 비워진다(V10 ON DELETE SET NULL). */
+	@Transactional
+	public void purge(UUID ownerId, UUID id) {
+		Project p = projects.findByIdAndOwnerId(id, ownerId).orElseThrow(Errors::notFound);
+		if (p.archivedAt() == null) {
+			throw new ApiException(HttpStatus.CONFLICT, "PROJECT_NOT_ARCHIVED", "보관함에 있는 프로젝트만 영구 삭제할 수 있어요.");
+		}
+		projects.delete(p);
+		projects.flush();
 	}
 
 	/** 응답에 바뀐 version을 실으려고 바로 반영한다. 이름 확인과 저장 사이에 같은 이름이 들어오면 유니크 인덱스가 막는다. */

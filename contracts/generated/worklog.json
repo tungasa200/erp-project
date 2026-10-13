@@ -3798,6 +3798,54 @@
         "tags" : [ "projects" ]
       }
     },
+    "/api/worklog/projects/{projectId}/permanent" : {
+      "delete" : {
+        "description" : "보관한 프로젝트만 지운다. 소속 업무는 지우지 않고 projectId를 비운다(업무의 version은 그대로). version을 받지 않는다. 다시 보내면 404.",
+        "operationId" : "purgeProject",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "projectId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "영구 삭제됨"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/Unauthorized"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "없거나 다른 사용자의 프로젝트 (code=NOT_FOUND)"
+          },
+          "409" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "보관하지 않은 프로젝트 (code=PROJECT_NOT_ARCHIVED)"
+          }
+        },
+        "security" : [ {
+          "accessTokenCookie" : [ ]
+        } ],
+        "summary" : "보관한 프로젝트 영구 삭제 (보관함)",
+        "tags" : [ "projects" ]
+      }
+    },
     "/api/worklog/push/public-key" : {
       "get" : {
         "description" : "PushManager.subscribe의 applicationServerKey에 넣는 값(base64url, 비압축 P-256 공개 키 65바이트).\n공개 키라 비밀이 아니지만 서버 환경변수 하나(VAPID_PUBLIC_KEY)로 관리하려고 API로 준다.",
@@ -5650,6 +5698,54 @@
           "accessTokenCookie" : [ ]
         } ],
         "summary" : "업무 수정 (항목별 자동 저장)",
+        "tags" : [ "tasks" ]
+      }
+    },
+    "/api/worklog/tasks/{taskId}/permanent" : {
+      "delete" : {
+        "description" : "보관한 업무만 지운다. 그 업무의 확인 대기 기록은 지우고, 나머지 기록·연결 일정은 남기고 taskId를 비운다. version을 받지 않는다. 다시 보내면 404.",
+        "operationId" : "purgeTask",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "taskId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "영구 삭제됨"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/Unauthorized"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "없거나 다른 사용자의 업무 (code=NOT_FOUND)"
+          },
+          "409" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "보관하지 않은 업무 (code=TASK_NOT_ARCHIVED)"
+          }
+        },
+        "security" : [ {
+          "accessTokenCookie" : [ ]
+        } ],
+        "summary" : "보관한 업무 영구 삭제 (보관함)",
         "tags" : [ "tasks" ]
       }
     },

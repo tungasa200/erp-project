@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: worklog-service API
-  version: 0.6.0
+  version: 0.7.0
   description: |
     구현 전 합의용 계약. P0 범위(GET /api/worklog/me)는 구현 완료, P1-01~03 범위는 2026-10-05 확정(구현 전).
     P3 업무일지(logs)·기간 기록 내보내기(records/export)는 2026-10-08 확정(사용자 카드 20261008-1130·1131 추천안). 파일 생성 라이브러리는 P3-01 뒤 정한다.
@@ -12,6 +12,7 @@ info:
     P2-06 타이머(timer)·P2-07 집계·빈 시간(records/time-summary, records/gaps)과 기록 생성·수정의 "진행 중" 규칙 변경은 2026-10-07 확정(D-101·D-102).
     업무 시간대 설정(TIME-11)은 P1-01의 PATCH /me/settings(workHoursStart·End)로 이미 있다.
     P4 통계(stats, P4-02), 알림 센터·웹 푸시(notifications·push, P4-01), 설정 dailyCloseNotifyEnabled, 탈퇴 파기 지연 상한(P4-05)은 2026-10-10 확정(사용자 카드 20261011-0400·0401, D-176).
+    보관한 업무·프로젝트 영구 삭제(DELETE /api/worklog/tasks/{taskId}/permanent, /projects/{projectId}/permanent)는 2026-10-13 확정(사용자 카드 20261013-1000·1010).
 
     탈퇴 파기 지연 상한 (P4-05, AUTH-06·NFR-10, D-45 — identity.yaml 탈퇴 API·처리방침과 같은 수치, 카드 0330):
     - worklog는 identity 사용자 변경 피드를 30초 간격(앞 읽기가 끝난 뒤부터)으로 읽고, 한 번에 밀린 페이지를 모두 따라잡는다.
@@ -231,7 +232,7 @@ paths:
       operationId: updateProject
       summary: 프로젝트 수정·보관·보관 해제
       description: |
-        삭제 API는 두지 않는다. 화면(SCR-SET-08)은 보관만 있고, 업무가 프로젝트를 계속 가리키게 하기 위함이다.
+        삭제는 보관(archived=true)이다. 보관한 프로젝트는 보관함에서 영구 삭제할 수 있다(DELETE ./permanent, 카드 20261013-1010).
         보관한 프로젝트의 업무는 업무 목록 기본 조회에서 빠진다(목록의 projectId 필터로는 조회 가능).
       requestBody:
         required: true
@@ -254,6 +255,32 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           description: version 불일치(code=VERSION_CONFLICT) 또는 같은 이름의 프로젝트가 있음(code=DUPLICATE_NAME)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /api/worklog/projects/{projectId}/permanent:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+    delete:
+      tags: [projects]
+      operationId: purgeProject
+      summary: 보관한 프로젝트 영구 삭제 (보관함)
+      description: |
+        보관한(archivedAt 있는) 프로젝트만 지운다. 되돌릴 수 없다(화면이 확인창을 띄운다, UX-03 예외).
+        소속 업무(보관한 업무 포함)는 지우지 않고 projectId를 비운다(DB ON DELETE SET NULL, V10) → '프로젝트 없음'.
+        업무의 version·updatedAt은 바뀌지 않는다. 프로젝트별 집계에서는 그 업무의 기록이 '프로젝트 없음'으로 옮겨진다.
+        확정한 업무일지(스냅숏)는 바꾸지 않는다.
+        version을 받지 않는다. 다시 보내면 404(이미 없음).
+      responses:
+        '204':
+          description: 영구 삭제됨
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: 보관하지 않은 프로젝트(code=PROJECT_NOT_ARCHIVED). 먼저 보관(PATCH archived=true)
           content:
             application/problem+json:
               schema:
@@ -619,6 +646,37 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+  /api/worklog/tasks/{taskId}/permanent:
+    parameters:
+      - $ref: '#/components/parameters/TaskId'
+    delete:
+      tags: [tasks]
+      operationId: purgeTask
+      summary: 보관한 업무 영구 삭제 (보관함)
+      description: |
+        보관한(deletedAt 있는) 업무만 지운다. 되돌릴 수 없다(화면이 확인창을 띄운다, UX-03 예외).
+        한 트랜잭션에서:
+        - 이 업무의 확인 대기(PENDING) 기록을 지운다(사람이 확인하지 않은 계획이라 남길 이유가 없다, D-98 일정 삭제와 같음).
+        - 나머지 기록(확정·하지 않음·보관·실행 중 타이머)과 연결 일정은 남기고 taskId를 비운다(DB ON DELETE SET NULL, V10).
+          기록의 content·시간은 그대로라 실적 시간·일별 합계는 유지되고, 업무별·프로젝트별 집계에서는 '업무 없음'으로 옮겨진다.
+          연결이 끊긴 일정은 더는 확인 대기를 만들지 않는다(D-100: 업무에 연결된 일정만 대상).
+        - 업무 태그 연결(task_tag)은 함께 지워지고, 이 업무에서 이월된 업무의 carriedOverFromId는 비워진다(V4 그대로).
+        - 확정한 업무일지(스냅숏)는 바꾸지 않는다.
+        version을 받지 않는다(보관한 업무는 고칠 수 없어 동시 수정이 없다).
+        다시 보내면 404(이미 없음).
+      responses:
+        '204':
+          description: 영구 삭제됨
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: 보관하지 않은 업무(code=TASK_NOT_ARCHIVED). 먼저 보관(DELETE /api/worklog/tasks/{taskId})
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
   /api/worklog/schedules:
     get:
       tags: [schedules]

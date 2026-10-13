@@ -117,6 +117,21 @@ public class TaskService {
 		find(ownerId, id).delete(clock.instant());
 	}
 
+	/**
+	 * 보관한 업무를 실제로 지운다 (카드 20261013-1000). 그 업무의 확인 대기 기록만 함께 지우고,
+	 * 나머지 기록·일정은 남아 task_id가 비워진다(V10 ON DELETE SET NULL). task_tag는 CASCADE.
+	 */
+	@Transactional
+	public void purge(UUID ownerId, UUID id) {
+		Task task = find(ownerId, id);
+		if (task.deletedAt() == null) {
+			throw new ApiException(HttpStatus.CONFLICT, "TASK_NOT_ARCHIVED", "보관함에 있는 업무만 영구 삭제할 수 있어요.");
+		}
+		jdbc.sql("DELETE FROM work_record WHERE task_id = ? AND status = 'PENDING'").param(id).update();
+		tasks.delete(task);
+		tasks.flush();
+	}
+
 	@Transactional
 	public TaskInfo restore(UUID ownerId, UUID id) {
 		Task task = find(ownerId, id);

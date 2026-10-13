@@ -146,6 +146,28 @@ class ProjectTagApiTest {
 	}
 
 	@Test
+	void projectPurgeOnlyWhenArchivedAndKeepsTasks() throws Exception {
+		String id = id(send(ALICE, post("/api/worklog/projects"), "{\"name\":\"p\",\"color\":\"P1\"}"));
+		UUID open = insertTask(id, null);
+		UUID archived = insertTask(id, "now()");
+
+		mvc.perform(delete("/api/worklog/projects/" + id + "/permanent").with(user(ALICE)))
+				.andExpect(status().isConflict())
+				.andExpect(jsonPath("$.code").value("PROJECT_NOT_ARCHIVED"));
+		send(ALICE, patch("/api/worklog/projects/" + id), "{\"version\":0,\"archived\":true}").andExpect(status().isOk());
+		mvc.perform(delete("/api/worklog/projects/" + id + "/permanent").with(user(BOB))).andExpect(status().isNotFound());
+
+		mvc.perform(delete("/api/worklog/projects/" + id + "/permanent").with(user(ALICE))).andExpect(status().isNoContent());
+		mvc.perform(delete("/api/worklog/projects/" + id + "/permanent").with(user(ALICE))).andExpect(status().isNotFound());
+
+		mvc.perform(get("/api/worklog/projects/" + id).with(user(ALICE))).andExpect(status().isNotFound());
+		for (UUID task : new UUID[] { open, archived }) {
+			assertThat(jdbc.sql("SELECT count(*) FROM task WHERE id = ? AND project_id IS NULL").param(task)
+					.query(Long.class).single()).isOne();
+		}
+	}
+
+	@Test
 	void tagCreateIsGetOrCreate() throws Exception {
 		String id = id(send(ALICE, post("/api/worklog/tags"), "{\"name\":\"Review\"}")
 				.andExpect(status().isCreated())

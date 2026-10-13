@@ -169,6 +169,40 @@ class TaskApiTest {
 	}
 
 	@Test
+	void purgeDeletesOnlyArchivedTaskAndKeepsRecordsAndSchedules() throws Exception {
+		String tag = id(send(ALICE, post("/api/worklog/tags"), "{\"name\":\"t\"}"));
+		String task = id(send(ALICE, post("/api/worklog/tasks"), "{\"title\":\"잘못 올린 일\",\"tagIds\":[\"" + tag + "\"]}"));
+		UUID schedule = insertSchedule(task, null);
+		UUID confirmed = insertRecord(task, null, "CONFIRMED");
+		UUID pending = insertRecord(task, schedule, "PENDING");
+		UUID carried = UUID.randomUUID();
+		jdbc.sql("""
+						INSERT INTO task (id, owner_id, title, status, priority, progress, carried_over_from, version, created_at, updated_at)
+						VALUES (?, ?, '이월', 'TODO', 'NORMAL', 0, ?, 0, now(), now())""")
+				.params(carried, ALICE, UUID.fromString(task)).update();
+
+		mvc.perform(delete("/api/worklog/tasks/" + task + "/permanent").with(user(ALICE)))
+				.andExpect(status().isConflict())
+				.andExpect(jsonPath("$.code").value("TASK_NOT_ARCHIVED"));
+		mvc.perform(delete("/api/worklog/tasks/" + task).with(user(ALICE))).andExpect(status().isNoContent());
+		mvc.perform(delete("/api/worklog/tasks/" + task + "/permanent").with(user(BOB))).andExpect(status().isNotFound());
+
+		mvc.perform(delete("/api/worklog/tasks/" + task + "/permanent").with(user(ALICE))).andExpect(status().isNoContent());
+		mvc.perform(delete("/api/worklog/tasks/" + task + "/permanent").with(user(ALICE))).andExpect(status().isNotFound());
+
+		mvc.perform(get("/api/worklog/tasks/" + task).with(user(ALICE))).andExpect(status().isNotFound());
+		assertThat(jdbc.sql("SELECT count(*) FROM task_tag").query(Long.class).single()).isZero();
+		assertThat(jdbc.sql("SELECT count(*) FROM work_record WHERE id = ?").param(pending).query(Long.class).single()).isZero();
+		assertThat(jdbc.sql("SELECT count(*) FROM work_record WHERE id = ? AND task_id IS NULL").param(confirmed)
+				.query(Long.class).single()).isOne();
+		assertThat(jdbc.sql("SELECT count(*) FROM schedule WHERE id = ? AND task_id IS NULL").param(schedule)
+				.query(Long.class).single()).isOne();
+		assertThat(jdbc.sql("SELECT count(*) FROM task WHERE id = ? AND carried_over_from IS NULL").param(carried)
+				.query(Long.class).single()).isOne();
+		mvc.perform(get("/api/worklog/tags").with(user(ALICE))).andExpect(jsonPath("$.items[0].id").value(tag));
+	}
+
+	@Test
 	void otherUsersTaskIsNotFound() throws Exception {
 		String task = id(send(ALICE, post("/api/worklog/tasks"), "{\"title\":\"t\"}"));
 
@@ -261,13 +295,27 @@ class TaskApiTest {
 		assertThat(jdbc.sql("SELECT count(*) FROM task WHERE owner_id = ?").param(BOB).query(Long.class).single()).isOne();
 	}
 
-	private void insertSchedule(String taskId, String rrule) {
+	private UUID insertSchedule(String taskId, String rrule) {
+		UUID id = UUID.randomUUID();
 		jdbc.sql("""
 						INSERT INTO schedule (id, owner_id, task_id, title, all_day, start_at, end_at, timezone, recurrence_rule,
 						                      span_start, version, created_at, updated_at)
 						VALUES (?, ?, ?, 's', false, now(), now() + interval '1 hour', 'Asia/Seoul', ?, now(), 0, now(), now())""")
-				.params(UUID.randomUUID(), ALICE, UUID.fromString(taskId), rrule)
+				.params(id, ALICE, UUID.fromString(taskId), rrule)
 				.update();
+		return id;
+	}
+
+	private UUID insertRecord(String taskId, UUID scheduleId, String status) {
+		UUID id = UUID.randomUUID();
+		jdbc.sql("""
+						INSERT INTO work_record (id, owner_id, task_id, schedule_id, occurrence_start, status, work_date, content,
+						                         version, created_at, updated_at)
+						VALUES (?, ?, ?, ?, ?, ?, current_date, 'c', 0, now(), now())""")
+				.params(id, ALICE, UUID.fromString(taskId), scheduleId,
+						scheduleId == null ? null : java.sql.Timestamp.from(java.time.Instant.parse("2026-10-13T00:00:00Z")), status)
+				.update();
+		return id;
 	}
 
 	private List<String> pageThrough(String query, int limit) throws Exception {

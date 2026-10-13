@@ -18,6 +18,7 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -32,7 +33,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
-/** /api/worklog/projects (P1-02, contracts/worklog.yaml). 삭제 API는 없고 보관만 한다. */
+/** /api/worklog/projects (P1-02, contracts/worklog.yaml). 삭제는 보관이고, 보관한 프로젝트만 영구 삭제한다. */
 @RestController
 @RequestMapping(path = "/api/worklog/projects", produces = MediaType.APPLICATION_JSON_VALUE)
 @Tag(name = "projects")
@@ -137,5 +138,20 @@ class ProjectController {
 			@Valid @RequestBody ProjectPatch body) {
 		return ProjectView.of(projects.update(user.id(), projectId,
 				new ProjectService.Change(body.version(), body.name(), body.color(), body.archived())));
+	}
+
+	@DeleteMapping("/{projectId}/permanent")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	@Operation(operationId = "purgeProject", summary = "보관한 프로젝트 영구 삭제 (보관함)",
+			description = "보관한 프로젝트만 지운다. 소속 업무는 지우지 않고 projectId를 비운다(업무의 version은 그대로). "
+					+ "version을 받지 않는다. 다시 보내면 404.",
+			security = @SecurityRequirement(name = SecurityConfig.COOKIE_SCHEME))
+	@ApiResponse(responseCode = "204", description = "영구 삭제됨")
+	@ApiResponse(responseCode = "404", description = "없거나 다른 사용자의 프로젝트 (code=NOT_FOUND)", content = @Content(
+			mediaType = "application/problem+json", schema = @Schema(ref = OpenApiAutoConfiguration.PROBLEM_REF)))
+	@ApiResponse(responseCode = "409", description = "보관하지 않은 프로젝트 (code=PROJECT_NOT_ARCHIVED)", content = @Content(
+			mediaType = "application/problem+json", schema = @Schema(ref = OpenApiAutoConfiguration.PROBLEM_REF)))
+	void purge(@Parameter(hidden = true) CurrentUser user, @PathVariable UUID projectId) {
+		projects.purge(user.id(), projectId);
 	}
 }
