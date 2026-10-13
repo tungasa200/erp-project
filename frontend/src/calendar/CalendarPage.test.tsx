@@ -51,7 +51,8 @@ function stubServer() {
     if (url.startsWith('/api/worklog/records/time-summary?'))
       return json(200, { from: '', to: '', totalMin, recordCount: 0, projects: [], tasks: [] })
     // 일 보기 "이날의 기록"·일정 상세 ⑥이 받는 그날 기록과 기록 한 건
-    if (url.startsWith('/api/worklog/records?')) return json(200, { items: records })
+    if (url.startsWith('/api/worklog/records?'))
+      return recordsDown ? problem(500, 'INTERNAL_ERROR') : json(200, { items: records })
     const one = /^\/api\/worklog\/records\/([^/?]+)$/.exec(url)
     if (one) {
       const found = records.find((r) => r.id === one[1])
@@ -122,6 +123,7 @@ let records: ReturnType<typeof workRecord>[] = []
 let timed = false
 let gaps: Record<string, unknown>[] = []
 let totalMin = 0
+let recordsDown = false
 
 beforeEach(() => {
   localStorage.setItem('worklog.mock.schedules', JSON.stringify([standup]))
@@ -129,6 +131,7 @@ beforeEach(() => {
   timed = false
   gaps = []
   totalMin = 0
+  recordsDown = false
 })
 
 // matchMedia 등 테스트에서 바꾼 전역을 다음 테스트로 넘기지 않는다
@@ -149,6 +152,20 @@ describe('캘린더', () => {
     expect(screen.getByText('한글날')).toBeInTheDocument()
     // until 10/9까지 수·목·금 3회
     expect(await screen.findAllByRole('button', { name: /^계획 · 팀 스탠드업, 10:00 – 11:00, 반복$/ })).toHaveLength(3)
+  })
+
+  it('기록을 못 받으면 블록은 계획 모양 그대로, 격자 위에 안내와 [다시 시도]. 받으면 안내가 사라지고 포커스는 제목으로', async () => {
+    recordsDown = true
+    stubServer()
+    renderApp('/calendar/week/2026-10-07', routes)
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('기록 상태를 불러오지 못했어요.')
+    expect(await screen.findAllByRole('button', { name: /^계획 · 팀 스탠드업/ })).toHaveLength(3)
+
+    recordsDown = false
+    await userEvent.click(within(alert).getByRole('button', { name: '다시 시도' }))
+    await waitFor(() => expect(screen.queryByText('기록 상태를 불러오지 못했어요.')).not.toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole('heading', { name: '2026년 10월 5일 – 11일' })).toHaveFocus())
   })
 
   it('미니 달력 날짜 버튼은 "10월 13일 화요일"처럼 읽히고, 누르면 그 주로 간다 (UX-CAL-96)', async () => {

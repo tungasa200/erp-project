@@ -520,6 +520,17 @@ function Calendar({ view, date, today, timeZone, weekStart }: CalendarProps) {
           </nav>
         </div>
 
+        {/* 기록을 못 받으면 블록은 계획 모양으로 남는다. 상태가 빠졌다는 것을 격자 위에서 알린다(홈 오늘 일정과 같은 말).
+            일정 자체를 못 받았으면 아래 일정 오류가 대신 알린다. 성공해 이 줄이 사라지면 포커스는 useFocusRescue가 제목으로 */}
+        {records.isError && !query.isError && (
+          <p className={styles.recordsError} role="alert">
+            기록 상태를 불러오지 못했어요.
+            <button type="button" className={styles.link} onClick={() => void records.refetch()}>
+              다시 시도
+            </button>
+          </p>
+        )}
+
         {query.isPending && (
           <div className={styles.viewSkeleton}>
             {view === 'list' ? (

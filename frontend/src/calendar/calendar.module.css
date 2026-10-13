@@ -107,6 +107,19 @@
   font-weight: var(--weight-strong);
 }
 
+/* 기록 상태 오류 한 줄(툴바 아래, 격자 위). 홈 오늘 일정 오류(.error)와 같은 글자 크기·굵기·위험색 */
+.recordsError {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+  margin: calc(-1 * var(--space-2)) 0 var(--space-2);
+  padding: 0 var(--space-4);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-title);
+  color: var(--color-danger);
+}
+
 .pillButton,
 .iconButton {
   font: inherit;
