@@ -141,6 +141,7 @@ function Search({
           aria-activedescendant={expanded ? `${id}-option-${active}` : undefined}
           placeholder="업무 이름으로 찾기"
           autoComplete="off"
+          enterKeyHint="search"
           autoFocus={autoFocus}
           value={text}
           onChange={(e) => {

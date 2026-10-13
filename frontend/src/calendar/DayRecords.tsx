@@ -4,8 +4,9 @@
 // 끝나기 전 회차의 확인 대기(타이머를 1분 미만으로 버리면 서버가 PENDING으로 되돌림)는 홈 ③처럼 없는 것으로 본다(D-31).
 // 확인 대기 기록은 시간이 비어 있어(D-100) 옵션과 관계없이 계획 시간을 적는다(홈 확인 대기 목록과 같게). 확인 대기 목록의 plan, 없으면(7일 넘음) 그날 회차.
 // 머리 아래 [하루 마감](SCR-LOG-03)은 오늘·지난 날에만 둔다. 창은 openDayClose로 앱 셸이 띄운다(그날로 연다).
+// 머리에 건수. 결과 글 없는 '했어요' 기록은 한 줄 행(44px), 6건 이상이면 끝난 기록은 5번째 뒤부터 접는다. 확인 대기는 할 일이라 접지 않는다(UX-M-REC-56, WY-design 2026-10-13).
 // 접으면 머리글 요약 한 줄("5건 · 대기 2 · 일지 초안")과 펼치기 버튼만 남긴다(X-07 D, ux2 조건). 접힘은 이 기기에 기억한다.
-import { useId, useLayoutEffect, useRef } from 'react'
+import { useId, useLayoutEffect, useRef, useState } from 'react'
 import { Skeleton } from '../components/Skeleton'
 import { useLogPeriods, type LogStatus } from '../logs/api'
 import { openDayClose } from '../logs/openDayClose'
@@ -52,6 +53,17 @@ export function DayRecords({ date, timeZone, occurrences, now, editable, onOpen,
   const pending = usePendingRecords(all.some((r) => r.status === 'PENDING'))
   const planOf = (r: WorkRecord) => pending.data?.find((p) => p.id === r.id)?.plan ?? occurrenceOf(occurrences, r)
   const items = all.filter((r) => r.status !== 'PENDING' || planEnded(planOf(r), now, timeZone))
+  // 펼침은 그 날에만. 날을 옮기면 다시 접힌다
+  const [expandedDate, setExpandedDate] = useState<string | null>(null)
+  const expanded = expandedDate === date
+  const headRef = useRef<HTMLDivElement>(null)
+  const foldable = (r: WorkRecord, i: number) => i >= FOLD_AFTER && r.status !== 'PENDING'
+  const hiddenCount = items.length > FOLD_AFTER ? items.filter(foldable).length : 0
+  const shownItems = expanded || !hiddenCount ? items : items.filter((r, i) => !foldable(r, i))
+  const waiting = items.filter((r) => r.status === 'PENDING').length
+  // 펼친 머리도 접힌 요약과 같은 말(건수 · 대기 · 마감함, UX-M-REC-56 재평가)
+  const periods = useLogPeriods('DAILY', date, date)
+  const logText = logTextOf(periods.data?.items.find((p) => p.periodStart === date)?.status)
   const planText = (r: WorkRecord) => {
     if (r.status !== 'PENDING' || r.startAt) return null
     const plan = planOf(r)
@@ -88,9 +100,16 @@ export function DayRecords({ date, timeZone, occurrences, now, editable, onOpen,
 
   return (
     <section className={styles.dayRecords} aria-labelledby={`${id}-title`}>
-      <div className={styles.dayRecordsHead}>
+      <div className={styles.dayRecordsHead} ref={headRef}>
         <h2 id={`${id}-title`} className={styles.dayRecordsTitle}>
           이날의 기록
+          {records.isSuccess && items.length > 0 && (
+            <span className={styles.dayRecordsCount}>
+              {' '}
+              · {items.length}건{waiting ? ` · 대기 ${waiting}` : ''}
+              {logText ? ` · ${logText}` : ''}
+            </span>
+          )}
         </h2>
         <button
           type="button"
@@ -141,47 +160,87 @@ export function DayRecords({ date, timeZone, occurrences, now, editable, onOpen,
       ) : items.length === 0 ? (
         <p className={styles.dayRecordsNote}>이날 남긴 기록이 없어요</p>
       ) : (
-        <ul className={styles.recordList}>
-          {items.map((r) => {
-            const plan = planText(r)
-            const time = plan ? null : timed ? recordTimeText(r, timeZone) : null
-            return (
-              <li key={r.id} className={r.status === 'DISMISSED' ? styles.recordDismissed : undefined}>
-                <button
-                  type="button"
-                  className={styles.recordItem}
-                  aria-haspopup="dialog"
-                  data-record-id={r.id}
-                  onClick={() => onOpen(r)}
-                >
-                  <span className={styles.recordMeta}>
-                    <RecordStatusTag record={r} />
-                    {plan && <span>계획 {plan}</span>}
-                    {time && <span>{time}</span>}
-                  </span>
-                  <span className={styles.recordContent}>{r.content}</span>
-                  {r.result && <span className={styles.recordResult}>{r.result}</span>}
-                </button>
-              </li>
-            )
-          })}
-        </ul>
+        <>
+          <ul className={styles.recordList} id={`${id}-list`}>
+            {shownItems.map((r) => {
+              const plan = planText(r)
+              const time = plan ? null : timed ? recordTimeText(r, timeZone) : null
+              // 결과 글 없이 '했어요'뿐이면 한 줄. 상태는 ✓ 모양과 함께 낭독용 글로 알린다
+              if (r.status === 'CONFIRMED' && !r.result)
+                return (
+                  <li key={r.id}>
+                    <button
+                      type="button"
+                      className={`${styles.recordItem} ${styles.recordLine}`}
+                      aria-haspopup="dialog"
+                      data-record-id={r.id}
+                      onClick={() => onOpen(r)}
+                    >
+                      <span className={styles.recordLineCheck} aria-hidden="true">
+                        ✓
+                      </span>
+                      <span className="visually-hidden">했어요, </span>
+                      <span className={styles.recordLineText}>{r.content}</span>
+                      {time && <span className={styles.recordLineTime}>{time}</span>}
+                    </button>
+                  </li>
+                )
+              return (
+                <li key={r.id} className={r.status === 'DISMISSED' ? styles.recordDismissed : undefined}>
+                  <button
+                    type="button"
+                    className={styles.recordItem}
+                    aria-haspopup="dialog"
+                    data-record-id={r.id}
+                    onClick={() => onOpen(r)}
+                  >
+                    <span className={styles.recordMeta}>
+                      <RecordStatusTag record={r} />
+                      {plan && <span>계획 {plan}</span>}
+                      {time && <span>{time}</span>}
+                    </span>
+                    <span className={styles.recordContent}>{r.content}</span>
+                    {r.result && <span className={styles.recordResult}>{r.result}</span>}
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+          {hiddenCount > 0 && (
+            <button
+              type="button"
+              className={styles.foldButton}
+              aria-expanded={expanded}
+              aria-controls={`${id}-list`}
+              onClick={() => {
+                setExpandedDate(expanded ? null : date)
+                // 접은 뒤 빈 자리에 머물지 않게 목록 머리로. 포커스는 이 버튼에 남는다
+                if (expanded) headRef.current?.scrollIntoView?.({ block: 'nearest' })
+              }}
+            >
+              {expanded ? '접기' : `나머지 ${hiddenCount}건 펼치기`}
+            </button>
+          )}
+        </>
       )}
     </section>
   )
 }
 
+const FOLD_AFTER = 5
+
 // 업무일지 숨김(D-214): 확정이면 '마감함'만, 초안은 보이지 않는다
 const LOG_TEXT: Partial<Record<LogStatus, string>> = { CONFIRMED: '마감함' }
+const logTextOf = (status: LogStatus | undefined) => (status ? LOG_TEXT[status] : undefined)
 
-/** 접힌 패널의 요약. 일지 상태는 접혔을 때만 묻는다(펼친 패널은 목록이 대신 보여 준다) */
+/** 접힌 패널의 요약 */
 function RecordsSummary({ date, count, pending }: { date: string; count: number | null; pending: number }) {
   const periods = useLogPeriods('DAILY', date, date)
   const status = periods.data?.items.find((p) => p.periodStart === date)?.status
   const parts = [
     count === null ? null : `${count}건`,
     pending ? `대기 ${pending}` : null,
-    status ? LOG_TEXT[status] : null,
+    logTextOf(status) ?? null,
   ].filter(Boolean)
   return <span className={styles.dayRecordsSummary}>{parts.join(' · ')}</span>
 }

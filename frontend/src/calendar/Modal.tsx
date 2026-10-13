@@ -1,7 +1,10 @@
 // 캘린더의 모달 틀: 바깥 누르기·Esc로 닫고, 열 때 첫 입력에 포커스, 닫으면 원래 자리로 포커스를 돌린다.
 // 열린 동안 Tab은 창 안을 돌고, 창 밖(사이드바·본문)은 inert로 막는다(TC-P3-prod-ONB01-focus).
-// 고친 내용이 있으면(dirty) Esc·바깥 누르기·머리 [×](ModalCloseButton)는 바로 닫지 않고 창 안 한 줄로 한 번 묻는다(X-04 대화창 안 D, CAL-89).
+// 고친 내용이 있으면(dirty) Esc·바깥 누르기·머리 [×](ModalCloseButton)·[취소](ModalCancelButton)는 바로 닫지 않고 창 안 한 줄로 한 번 묻는다(X-04 대화창 안 D, CAL-89).
+// 모바일(~767px)에서 바텀시트로 뜨는 창은 공용 진입 모션(wy-sheet·wy-scrim, UX-M-COM-10)을 쓰고, 뒤로 가기로 닫는다(useBackClose, UX-M-COM-02).
 import { createContext, useContext, useEffect, useId, useRef, useState, type ReactNode, type Ref } from 'react'
+import { useBackClose } from '../components/useBackClose'
+import { useMediaQuery } from '../components/useMediaQuery'
 import { markFocus, restoreFocus } from './focus'
 import styles from './calendar.module.css'
 
@@ -50,6 +53,24 @@ export function ModalCloseButton({ onClose, buttonRef }: { onClose: () => void; 
   )
 }
 
+/** 창 아래의 [취소]. 머리 [×]와 같은 dirty 확인을 거친다(UX-M-REC-54) */
+export function ModalCancelButton({
+  onClose,
+  className,
+  children,
+}: {
+  onClose: () => void
+  className?: string
+  children: ReactNode
+}) {
+  const requestClose = useContext(RequestClose) ?? onClose
+  return (
+    <button type="button" className={className} onClick={requestClose}>
+      {children}
+    </button>
+  )
+}
+
 interface Props {
   labelledBy: string
   onClose: () => void
@@ -72,6 +93,8 @@ export function Modal({ labelledBy, onClose, narrow, sheet, role = 'dialog', dir
   const downOutside = useRef(false)
   // 처음 포커스는 열 때 한 번만 정한다
   const sheetTitleId = useRef(sheet ? labelledBy : null)
+  // 모바일에서 바텀시트로 뜨는 창: 좁은 확인 창(narrow)은 가운데 그대로라 빠진다(calendar.module.css 767px 규칙과 같게)
+  const mobileSheet = useMediaQuery('(max-width: 767px)') && (sheet || !narrow)
 
   const requestClose = () => {
     if (!dirty) return onClose()
@@ -86,6 +109,8 @@ export function Modal({ labelledBy, onClose, narrow, sheet, role = 'dialog', dir
   useEffect(() => {
     if (asking) keepRef.current?.focus()
   }, [asking])
+  // 뒤로 가기도 같은 확인을 거친다. 묻는 동안은 기록을 내려놓고, [계속 편집]이면 다시 쌓는다
+  useBackClose(mobileSheet && !asking, requestClose)
 
   useEffect(() => {
     const previous = markFocus()
@@ -117,7 +142,7 @@ export function Modal({ labelledBy, onClose, narrow, sheet, role = 'dialog', dir
 
   return (
     <div
-      className={styles.overlay}
+      className={mobileSheet ? `${styles.overlay} wy-scrim` : styles.overlay}
       onPointerDown={(e) => {
         downOutside.current = e.target === e.currentTarget
       }}
@@ -132,7 +157,7 @@ export function Modal({ labelledBy, onClose, narrow, sheet, role = 'dialog', dir
         role={role}
         aria-modal="true"
         aria-labelledby={labelledBy}
-        className={`${styles.dialog} ${narrow ? styles.dialogNarrow : ''} ${sheet ? styles.dialogSheet : ''}`}
+        className={`${styles.dialog} ${narrow ? styles.dialogNarrow : ''} ${sheet ? styles.dialogSheet : ''} ${mobileSheet ? 'wy-sheet' : ''}`}
         onKeyDown={(e) => {
           if (e.key === 'Escape') {
             e.stopPropagation()

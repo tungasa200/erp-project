@@ -22,16 +22,10 @@
   font-weight: 600;
 }
 
-/* 저장 단축키 안내(REC-58). 터치 기기에서는 뜻이 없어 숨긴다 */
+/* 저장 단축키 안내(REC-58). 터치 기기에서는 전역 keyboard-only로 숨긴다 */
 .keyHint {
   align-self: center;
   color: var(--color-text-muted);
   font-size: var(--text-sm);
   font-variant-numeric: tabular-nums;
-}
-
-@media (pointer: coarse) {
-  .keyHint {
-    display: none;
-  }
 }

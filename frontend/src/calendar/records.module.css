@@ -230,6 +230,72 @@
   overflow: hidden;
 }
 
+/* 머리 제목 옆 건수(UX-M-REC-56) */
+.dayRecordsCount {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-title);
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 결과 글 없는 '했어요' 기록: 한 줄 행(UX-M-REC-56). 한 일은 줄이고 전체는 기록 창에서 */
+.recordLine {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-2);
+  padding-block: 0;
+}
+
+.recordLineCheck {
+  flex: none;
+  color: var(--color-success-text);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-strong);
+}
+
+.recordLineText {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-title);
+}
+
+.recordLineTime {
+  flex: none;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* [나머지 n건 펼치기]·[접기] */
+.foldButton {
+  align-self: stretch;
+  min-height: var(--size-touch);
+  margin-top: var(--space-1);
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: var(--radius-input);
+  background: none;
+  color: var(--color-accent-ink);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-title);
+  cursor: pointer;
+}
+
+.foldButton:active {
+  background: var(--color-surface-muted);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .foldButton:hover {
+    background: var(--color-ground);
+  }
+}
+
 /* 머리 아래 [하루 마감]: 글자 링크 모양. 보이는 높이 24px, 누르는 높이는 ::after로 44px(UX-CAL-143).
    위는 머리 제목(누르는 것 아님) 쪽, 아래는 기록 목록과 겹치지 않게 아래 여백 2px(간격 8 + 2 = 위아래 10) */
 .dayCloseLink {

@@ -13,7 +13,7 @@ import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { toastForError } from '../api/errorToast'
 import { ApiError } from '../api/problem'
 import { useAuth } from '../auth/useAuth'
-import { Modal } from '../calendar/Modal'
+import { Modal, ModalCancelButton, ModalCloseButton } from '../calendar/Modal'
 import { TaskLinkField } from '../calendar/TaskLinkField'
 import { MINUTES_PER_DAY, addDays, fromZoned } from '../calendar/time'
 import { formatMinutes, timeRange, toZoned } from '../format/datetime'
@@ -199,11 +199,15 @@ export function RecordDialog({ recordId, defaults, planned, capped, onClose }: P
 
   // 확인 대기 목록을 받는 동안은 칸을 내지 않는다(받은 뒤 채우면 이미 고친 칸이 빈 채로 남는다). 끊겨 멈췄으면 기다리지 않는다
   const planLoading = needsPlan && pending.isPending && pending.fetchStatus === 'fetching'
-  const current =
-    form ??
-    (original && !planLoading
+  // 처음 값: 새 기록은 연 때의 칸, 고치기는 받은 기록. 지금 칸과 다르면 닫기 전에 한 번 묻는다(D-212 Q1, UX-M-REC-54)
+  const [initialForm] = useState(form)
+  const baseline = recordId
+    ? original && !planLoading
       ? { ...formWithPlan(original, timeZone, plan), ...(capped && timed ? { end: '' } : {}) }
-      : null)
+      : null
+    : initialForm
+  const current = form ?? baseline
+  const dirty = !!form && !!baseline && JSON.stringify(form) !== JSON.stringify(baseline)
   const running = !!original?.startAt && !original.endAt
   const archived = !!original?.deletedAt
   const editable = online && !archived
@@ -385,18 +389,10 @@ export function RecordDialog({ recordId, defaults, planned, capped, onClose }: P
     .join(' ')
 
   return (
-    <Modal labelledBy={`${id}-title`} onClose={() => onClose(false)}>
+    <Modal labelledBy={`${id}-title`} onClose={() => onClose(false)} dirty={dirty && !saving}>
       <div className={calendar.dialogHead}>
         <h2 id={`${id}-title`}>{title}</h2>
-        <button
-          type="button"
-          ref={closeRef}
-          className={calendar.close}
-          aria-label="닫기"
-          onClick={() => onClose(false)}
-        >
-          ×
-        </button>
+        <ModalCloseButton buttonRef={closeRef} onClose={() => onClose(false)} />
       </div>
       {conflict && (
         <div className={calendar.conflict} role="alert">
@@ -470,6 +466,7 @@ export function RecordDialog({ recordId, defaults, planned, capped, onClose }: P
                 className={calendar.input}
                 maxLength={200}
                 autoComplete="off"
+                enterKeyHint="done"
                 placeholder="예: 초안 공유, 금요일에 확정"
                 value={current.result}
                 onChange={(e) => update({ result: e.target.value })}
@@ -576,12 +573,12 @@ export function RecordDialog({ recordId, defaults, planned, capped, onClose }: P
               </button>
             )}
             <span className={calendar.grow} />
-            <span id={`${id}-save-key`} className={styles.keyHint}>
+            <span id={`${id}-save-key`} className={`${styles.keyHint} keyboard-only`}>
               {modKey('Enter')}로 저장
             </span>
-            <button type="button" className={calendar.secondary} onClick={() => onClose(false)}>
+            <ModalCancelButton className={calendar.secondary} onClose={() => onClose(false)}>
               취소
-            </button>
+            </ModalCancelButton>
             <button
               type="submit"
               className={calendar.primary}

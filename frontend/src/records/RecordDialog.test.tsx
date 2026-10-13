@@ -126,6 +126,37 @@ describe('기록 추가·수정 (SCR-REC-01)', () => {
     expect(screen.getByRole('button', { name: '열기' })).toHaveFocus()
   })
 
+  it('UX-M-REC-54 쓴 글이 있으면 [×]·[취소]·Esc로 바로 닫지 않고 한 번 묻는다. 비어 있으면 바로 닫는다', async () => {
+    server()
+    const { user, dialog } = await open()
+    const content = within(dialog).getByRole('textbox', { name: '한 일' })
+    await waitFor(() => expect(content).toHaveFocus())
+    await user.type(content, '배포 점검')
+
+    await user.click(within(dialog).getByRole('button', { name: '닫기' }))
+    expect(within(dialog).getByText('고친 내용이 있어요. 버리고 닫을까요?')).toBeInTheDocument()
+    await user.click(within(dialog).getByRole('button', { name: '계속 편집' }))
+    expect(content).toHaveValue('배포 점검')
+    // 물을 때 포커스가 있던 자리([×])로 돌아온다
+    expect(within(dialog).getByRole('button', { name: '닫기' })).toHaveFocus()
+
+    // 창 아래 [취소]도 같은 확인을 거친다
+    await user.click(within(dialog).getByRole('button', { name: '취소' }))
+    expect(within(dialog).getByText('고친 내용이 있어요. 버리고 닫을까요?')).toBeInTheDocument()
+    await user.click(within(dialog).getByRole('button', { name: '계속 편집' }))
+    expect(content).toHaveValue('배포 점검')
+
+    await user.keyboard('{Escape}')
+    await user.click(within(dialog).getByRole('button', { name: '버리고 닫기' }))
+    await waitFor(() => expect(screen.getByText('그대로')).toBeInTheDocument())
+
+    // 아무것도 쓰지 않았으면 묻지 않는다
+    await user.click(screen.getByRole('button', { name: '열기' }))
+    const again = await screen.findByRole('dialog')
+    await user.click(within(again).getByRole('button', { name: '닫기' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
   it('REC-58 한 일 칸의 Enter는 줄바꿈이고, Ctrl+Enter로 어디서든 저장한다', async () => {
     const { sent } = server()
     const { user, dialog } = await open()

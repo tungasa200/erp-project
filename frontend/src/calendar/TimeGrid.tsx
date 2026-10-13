@@ -822,7 +822,8 @@ function Block({
   const end = drag?.kind === 'resize' && drag.segment === segment ? drag.end : segment.end
   const [drawnStart, drawnEnd] = drawnRange(segment.start, end)
   const top = drawnStart * PX_PER_MINUTE + 1
-  const height = (drawnEnd - drawnStart) * PX_PER_MINUTE - 2
+  // 가장 짧은 블록(30분)도 누르는 높이 24px(D-76, UX-M-CAL-91). 아래 블록과의 2px 틈만 쓰므로 겹치지 않는다
+  const height = Math.max(24, (drawnEnd - drawnStart) * PX_PER_MINUTE - 2)
   const active = Date.parse(o.startAt!) <= now && now < Date.parse(o.endAt!)
   const dragging = drag?.kind === 'move' && drag.moved && drag.segment.occurrence === o
   // 길게 눌러 잡았지만 아직 움직이지 않음(손가락 끌기 시작 표시)
