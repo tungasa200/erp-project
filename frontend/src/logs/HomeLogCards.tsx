@@ -45,6 +45,9 @@ export function TodayLogCard({
         </p>
       ) : (
         <>
+          <CloseProgress
+            filled={[c.achievements.length > 0, c.plans.length > 0, !!c.issues?.trim()].filter(Boolean).length}
+          />
           <p className={styles.fillText}>
             확정 기록 {c.achievements.length}건 · {c.planTitle} {c.plans.length}건 · 이슈{' '}
             {c.issues?.trim() ? '있음' : '없음'}
@@ -64,6 +67,20 @@ export function TodayLogCard({
         </>
       )}
     </section>
+  )
+}
+
+/** 기록·계획·이슈 세 칸 진행 막대(홈PC 재디자인 v2 ⑤, 768 이상). 같은 정보는 아래 글이 말해 막대는 읽지 않는다 */
+function CloseProgress({ filled }: { filled: number }) {
+  return (
+    <div className={styles.closeProgress}>
+      <span className={styles.closeBars} aria-hidden="true">
+        {[0, 1, 2].map((i) => (
+          <span key={i} className={i < filled ? `${styles.closeBar} ${styles.closeBarOn}` : styles.closeBar} />
+        ))}
+      </span>
+      <span className={styles.closeProgressText}>{filled}/3칸 채웠어요</span>
+    </div>
   )
 }
 
@@ -117,6 +134,9 @@ export function WeekLogStatus({ today, weekFirst }: { today: string; weekFirst: 
                 p.workday === false && styles.cellOff,
                 p.periodStart === today && styles.cellToday,
                 styles[`cell${DAY_CELL[p.status]}`],
+                // 마감 전과 예정을 글자색으로 가른다(홈PC 재디자인 v2 ⑦)
+                label === '마감 전' && styles.weekDue,
+                label === '예정' && styles.weekPlanned,
               ]
                 .filter(Boolean)
                 .join(' ')

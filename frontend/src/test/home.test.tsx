@@ -162,6 +162,16 @@ describe('SCR-HOME-01 홈 대시보드 1차', () => {
     expect(within(cards).getByRole('button', { name: /확인 대기/ })).toHaveTextContent('확인 대기0')
   })
 
+  it('요약 타일 면: 남은 업무는 키 색 채움, 확인 대기는 1건 이상일 때만 노란 면, 이번 주 완료는 1건 이상이면 숫자색(홈PC 재디자인 v2 ②)', async () => {
+    server()
+    renderApp('/')
+    const cards = await screen.findByRole('list', { name: '요약' })
+    await waitFor(() => expect(within(cards).getByRole('link', { name: /이번 주 완료/ })).toHaveClass('tileWeek'))
+    expect(within(cards).getByRole('link', { name: /남은 업무/ })).toHaveClass('tileFill')
+    expect(within(cards).getByRole('link', { name: /오늘 일정/ })).not.toHaveClass('tileFill')
+    expect(within(cards).getByRole('button', { name: /확인 대기/ })).not.toHaveClass('tilePending')
+  })
+
   it('P1-11-07 불러오는 동안 요약에 "없음"·0을 먼저 보이지 않고 숫자를 스켈레톤으로 둔다', async () => {
     server({ holdTasks: true })
     renderApp('/')

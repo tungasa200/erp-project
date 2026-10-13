@@ -105,22 +105,84 @@ button.card[aria-disabled='true'] {
   opacity: 0.9;
 }
 
-.columns {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: var(--space-4);
-}
-
-.columns > * {
-  flex: 1 1 320px;
-  min-width: 0;
-}
-
-.stack {
+/* 홈 본문(홈PC 재디자인 v2 ②a). 마감 띠·요약·카드 묶음이 같은 폭을 따른다 */
+.home {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
+  min-width: 0;
+}
+
+/* 1열: 카드를 차례로 쌓는다. 칸(.cell)은 상자를 만들지 않아 휴대폰에서 숨긴 카드가 틈을 남기지 않는다 */
+.board {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.cell {
+  display: contents;
+}
+
+/* 2·3열(본문 폭으로 정함, useHomeLayout): 기둥마다 카드가 제 높이대로 쌓인다.
+   칸은 4px 줄을 높이만큼 차지하고(span), dense라 위가 빈 기둥으로 올라간다. 이번 주는 맨 아래 전체 폭 */
+@media (min-width: 768px) {
+  .home[data-cols='2'] .board,
+  .home[data-cols='3'] .board {
+    display: grid;
+    grid-auto-rows: 4px;
+    grid-auto-flow: row dense;
+    align-items: start;
+    gap: 0 var(--space-4);
+  }
+
+  .home[data-cols='2'] .board {
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  }
+
+  .home[data-cols='3'] .board {
+    grid-template-columns: minmax(360px, 1.4fr) minmax(260px, 1fr) minmax(260px, 1fr);
+  }
+
+  .home[data-cols='2'] .cell,
+  .home[data-cols='3'] .cell {
+    display: block;
+    min-width: 0;
+  }
+
+  /* 2열: 왼쪽 오늘 일정 + 오늘 마감, 오른쪽 남은 업무 + 다가오는 일정 */
+  .home[data-cols='2'] [data-cell='today'],
+  .home[data-cols='2'] [data-cell='close'] {
+    grid-column: 1;
+  }
+
+  .home[data-cols='2'] [data-cell='tasks'],
+  .home[data-cols='2'] [data-cell='upcoming'] {
+    grid-column: 2;
+  }
+
+  /* 3열: 오늘 일정 | 남은 업무 | 오늘 마감 + 다가오는 일정(목업 HOME-01) */
+  .home[data-cols='3'] [data-cell='today'] {
+    grid-column: 1;
+  }
+
+  .home[data-cols='3'] [data-cell='tasks'] {
+    grid-column: 2;
+  }
+
+  .home[data-cols='3'] [data-cell='close'],
+  .home[data-cols='3'] [data-cell='upcoming'] {
+    grid-column: 3;
+  }
+
+  .home [data-cell='week'] {
+    grid-column: 1 / -1;
+  }
+
+  /* 패널 안쪽 여백: 3열 24, 2열·1열 20 */
+  .home:not([data-cols='3']) .panel {
+    padding: 20px;
+  }
 }
 
 .emptyColumn > * {
@@ -238,7 +300,8 @@ button.card[aria-disabled='true'] {
   display: flex;
   align-items: center;
   border-radius: var(--radius-input);
-  background: var(--color-accent-faint);
+  /* 회백 면: 연보라는 누를 것에만 남긴다(홈PC 재디자인 v2 ④) */
+  background: color-mix(in srgb, var(--color-ground) 50%, var(--color-surface));
 }
 
 .rowLate {
@@ -604,6 +667,112 @@ button.card[aria-disabled='true'] {
   outline-offset: 2px;
 }
 
+/* ② 요약 타일(768 이상, 홈PC 재디자인 v2 ②): 4개 한 줄, 본문 600 미만이면 2×2. 형제 타일은 틀이 같고 면·숫자색만 다르다 */
+@media (min-width: 768px) {
+  .summary {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--space-3);
+    padding: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  .home[data-tiles='narrow'] .summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .summary > li + li::before {
+    content: none;
+  }
+
+  .summary > li {
+    position: relative;
+    display: block;
+    min-width: 0;
+  }
+
+  .summaryItem {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0;
+    width: 100%;
+    height: 100%;
+    padding: var(--space-4);
+    border-radius: var(--radius-card);
+    background: var(--color-surface);
+    text-align: left;
+  }
+
+  /* 셋째 줄(보조)은 비어 있어도 자리를 차지해 타일 높이가 같다 */
+  .summaryItem:not(:has(.summaryOver, .summarySub))::after {
+    content: '';
+    min-height: 1.5em;
+    font-size: var(--text-sm);
+  }
+
+  .summaryValue {
+    font-size: var(--text-3xl);
+    letter-spacing: -0.5px;
+    line-height: 1.25;
+  }
+
+  .summaryOver,
+  .summarySub {
+    min-height: 1.5em;
+  }
+
+  /* 남은 업무: 이 화면의 '할 일' 대표 타일, 키 색 채움(사용자 결정 2, X-02 예외) */
+  .tileFill,
+  .tileFill .summaryLabel,
+  .tileFill .summaryOver {
+    color: var(--color-on-accent);
+  }
+
+  .tileFill {
+    background: var(--color-accent);
+  }
+
+  .tilePending {
+    background: var(--status-pending-card-bg);
+    box-shadow: inset 0 0 0 1px var(--status-pending-card-border);
+  }
+
+  .tileWeek .summaryValue {
+    color: var(--color-success-text);
+  }
+
+  /* 숫자 하나가 실패하면 [다시]는 타일 오른쪽 아래 */
+  .summaryRetry {
+    position: absolute;
+    right: var(--space-3);
+    bottom: var(--space-3);
+  }
+}
+
+@media (min-width: 768px) and (hover: hover) and (pointer: fine) {
+  .tileFill:hover {
+    background: var(--color-accent-ink);
+  }
+
+  .tilePending:hover {
+    background: var(--status-pending-card-bg);
+    box-shadow: inset 0 0 0 1px var(--color-accent);
+  }
+}
+
+/* 고대비 모드는 면을 지운다: 모든 타일에 테두리, 채운 타일만 3px */
+@media (min-width: 768px) and (forced-colors: active) {
+  .summaryItem {
+    border: 1px solid CanvasText;
+  }
+
+  .tileFill {
+    border-width: 3px;
+  }
+}
+
 @media (max-width: 767px) {
   .summaryItem {
     gap: var(--space-1);
@@ -620,7 +789,7 @@ button.card[aria-disabled='true'] {
   justify-content: space-between;
   gap: var(--space-2) var(--space-4);
   padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4);
-  border-radius: var(--radius-input);
+  border-radius: var(--radius-card);
   background: var(--color-accent-soft);
   box-shadow: inset 0 0 0 1px var(--color-accent);
 }

@@ -254,16 +254,23 @@ function PlanRow(props: {
   const { entry, color, statusKnown, disabled, offline, onDecide, onEdit } = props
   const { occurrence: o, record, phase } = entry
   const status = record?.status
-  const rowClass = [
-    styles.row,
-    status === 'PENDING' && styles.rowPending,
-    status === 'DISMISSED' && styles.rowSkipped,
-    status === 'CONFIRMED' && styles.rowDone,
-    phase === 'now' && styles.rowNow,
-  ]
-    .filter(Boolean)
-    .join(' ')
-  const style = color ? ({ '--plan-base': color.base, '--plan-tint': color.tint } as CSSProperties) : undefined
+  // 면·테두리는 기록 상태가 먼저, 기록이 없으면 때(예정 점선 / 진행 중 진한 채움 / 끝남 실선). 홈PC 재디자인 v2 ③
+  const rowClass = `${styles.row} ${
+    status === 'PENDING'
+      ? styles.rowPending
+      : status === 'DISMISSED'
+        ? styles.rowSkipped
+        : status === 'CONFIRMED'
+          ? styles.rowDone
+          : phase === 'now'
+            ? styles.rowNow
+            : phase === 'ended'
+              ? styles.rowEnded
+              : styles.rowPlan
+  }`
+  const style = color
+    ? ({ '--plan-base': color.base, '--plan-tint': color.tint, '--plan-ink': color.ink } as CSSProperties)
+    : undefined
 
   return (
     <li className={rowClass} style={style}>

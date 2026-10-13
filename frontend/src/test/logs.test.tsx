@@ -853,7 +853,8 @@ describe('홈 마감 카드 (SCR-HOME-01 ⑤⑦, 업무일지 숨김 문안 표 
     expect(screen.queryByText(/확정 기록 0건/)).not.toBeInTheDocument()
 
     expect(await screen.findByText('확정 기록 1건 · 내일 계획 0건 · 이슈 없음')).toBeInTheDocument()
-    expect(screen.queryByText(/칸 채웠어요/)).not.toBeInTheDocument()
+    // 진행 막대는 홈PC 재디자인 v2 ⑤로 되돌림(확정 기록 1건이라 한 칸)
+    expect(screen.getByText('1/3칸 채웠어요')).toBeInTheDocument()
     expect(screen.queryByRole('link')).not.toBeInTheDocument()
 
     const open = screen.getByRole('button', { name: '하루 마감' })

@@ -1,6 +1,6 @@
 // SCR-HOME-01 홈 대시보드 (P1-11): ② 요약 카드 · ④ 남은 업무 · ⑥ 다가오는 일정.
 // 확인 대기(P2-03): 요약 카드와 2건 이상일 때 띠, 누르면 SCR-HOME-02 패널. ③ 오늘 일정(P2-08)은 TodayTimeline.
-// ⑤ 오늘 마감·⑦ 이번 주 마감(P3-04, 업무일지 숨김 2026-10-12로 이름만 바뀜)은 오른쪽 열에 ⑥ 다가오는 일정과 함께 쌓는다(⑤ ⑥ ⑦ 순).
+// ⑤ 오늘 마감·⑦ 이번 주 마감(P3-04, 업무일지 숨김 2026-10-12로 이름만 바뀜). 배치는 홈PC 재디자인 v2 ②a(useHomeLayout).
 // 다가오는 일정은 내일부터 7일 뒤까지 보여 준다(UX-HOME-10, 오늘은 ③에서만).
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link } from 'react-router'
@@ -28,6 +28,7 @@ import styles from './home.module.css'
 import { TodayTimeline } from './TodayTimeline'
 import { CloseBand } from './CloseBand'
 import { useCloseBand } from './closeBandState'
+import { useHomeLayout } from './useHomeLayout'
 
 const UPCOMING_DAYS = 7
 const UPCOMING_LIMIT = 8
@@ -88,14 +89,17 @@ export function HomeDashboard({ empty }: { empty: ReactNode }) {
   }, [])
 
   const band = useCloseBand(today, now, timeZone)
+  const { rootRef, boardRef, cols, narrowTiles } = useHomeLayout()
 
   return (
-    <>
+    <div ref={rootRef} className={styles.home} data-cols={cols} data-tiles={narrowTiles ? 'narrow' : undefined}>
       <CloseBand state={band} today={today} timeZone={timeZone} pendingCount={pendingCount} />
-      {/* ② 요약 한 줄(UX-HOME-02, X-02): 큰 숫자 타일 대신 줄 하나. 항목마다 목록으로 가는 링크, 상태는 숫자 색으로만 */}
+      {/* ② 요약(홈PC 재디자인 v2): 768 이상은 숫자 타일 4개(남은 업무는 키 색 채움, 확인 대기는 1건 이상이면 노란 옅은 면),
+          휴대폰은 한 줄(UX-M-HOME-04). 항목마다 목록으로 가는 링크 */}
       <ul className={styles.summary} aria-label="요약">
         <SummaryItem
           to="/tasks"
+          tone={styles.tileFill}
           label="남은 업무"
           value={cardValue(remaining, `${remaining.items.length}${more(remaining)}`)}
         >
@@ -116,7 +120,7 @@ export function HomeDashboard({ empty }: { empty: ReactNode }) {
           <button
             ref={pendingCard}
             type="button"
-            className={styles.summaryItem}
+            className={pendingCount > 0 ? `${styles.summaryItem} ${styles.tilePending}` : styles.summaryItem}
             aria-haspopup="dialog"
             onClick={openPending}
           >
@@ -131,6 +135,7 @@ export function HomeDashboard({ empty }: { empty: ReactNode }) {
         {/* 이 숫자만 따로 실패하면 다른 곳에 알림이 없다. "—" 대신 말하고 다시 부를 길을 둔다(UX-HOME-150) */}
         <SummaryItem
           to="/tasks?status=DONE&completed=week"
+          tone={doneThisWeek.isSuccess && doneThisWeek.items.length > 0 ? styles.tileWeek : undefined}
           label="이번 주 완료"
           value={
             doneThisWeek.isError ? (
@@ -157,35 +162,42 @@ export function HomeDashboard({ empty }: { empty: ReactNode }) {
       {/* 노란 "확인해 주세요" 띠는 두지 않는다. 확인 대기로 가는 길은 요약 줄과 타임라인 블록(UX-HOME-140, 목업 F1·F2) */}
       {pendingOpen && <PendingPanel today={today} timeZone={timeZone} onClose={closePending} />}
 
-      <TodayTimeline
-        occurrences={todayList}
-        loading={occurrences.isPending}
-        failed={occurrences.isError}
-        onRetry={() => void occurrences.refetch()}
-        today={today}
-        timeZone={timeZone}
-        now={now}
-        onOpenPending={openPending}
-      />
-
-      <div className={styles.columns}>
-        {noTasks ? (
-          <div className={styles.emptyColumn}>{empty}</div>
-        ) : (
-          <RemainingTasks
-            tasks={remaining.items}
-            loading={remaining.isPending}
-            failed={remaining.isError}
-            onRetry={() => void remaining.refetch()}
+      {/* ②a 본문 카드: 3열(오늘 일정 | 남은 업무 | 오늘 마감+다가오는 일정)·2열·1열, 이번 주는 맨 아래 전체 폭.
+          DOM 순서(=Tab 순서)는 1열 순서 그대로, 열 배치는 data-cols와 칸마다 잰 높이(useHomeLayout)로 */}
+      <div ref={boardRef} className={styles.board}>
+        <div data-cell="today" className={styles.cell}>
+          <TodayTimeline
+            occurrences={todayList}
+            loading={occurrences.isPending}
+            failed={occurrences.isError}
+            onRetry={() => void occurrences.refetch()}
             today={today}
-            weekStart={weekStart}
-            projects={projects.data ?? []}
-            scheduledDate={scheduledDate}
+            timeZone={timeZone}
+            now={now}
+            onOpenPending={openPending}
           />
-        )}
-        <div className={styles.stack}>
+        </div>
+        <div data-cell="tasks" className={styles.cell}>
+          {noTasks ? (
+            <div className={styles.emptyColumn}>{empty}</div>
+          ) : (
+            <RemainingTasks
+              tasks={remaining.items}
+              loading={remaining.isPending}
+              failed={remaining.isError}
+              onRetry={() => void remaining.refetch()}
+              today={today}
+              weekStart={weekStart}
+              projects={projects.data ?? []}
+              scheduledDate={scheduledDate}
+            />
+          )}
+        </div>
+        <div data-cell="close" className={styles.cell}>
           {/* 마감 띠가 떠 있으면 카드의 [하루 마감]은 숨긴다(띠와 중복) */}
           <TodayLogCard today={today} timeZone={timeZone} hideClose={band === 'open'} />
+        </div>
+        <div data-cell="upcoming" className={styles.cell}>
           <Upcoming
             days={days}
             byDate={byDate}
@@ -195,10 +207,12 @@ export function HomeDashboard({ empty }: { empty: ReactNode }) {
             failed={occurrences.isError}
             onRetry={() => void occurrences.refetch()}
           />
+        </div>
+        <div data-cell="week" className={styles.cell}>
           <WeekLogStatus today={today} weekFirst={weekFirst} />
         </div>
       </div>
-    </>
+    </div>
   )
 }
 
@@ -208,10 +222,18 @@ function cardValue(query: { isPending: boolean; isError: boolean }, value: strin
   return query.isPending ? <Skeleton shape="line" /> : value
 }
 
-function SummaryItem(props: { to: string; label: string; value: ReactNode; children?: ReactNode; after?: ReactNode }) {
+function SummaryItem(props: {
+  to: string
+  label: string
+  value: ReactNode
+  /** 768 이상 타일의 면·숫자색(휴대폰 한 줄에는 쓰지 않음) */
+  tone?: string
+  children?: ReactNode
+  after?: ReactNode
+}) {
   return (
     <li>
-      <Link to={props.to} className={styles.summaryItem}>
+      <Link to={props.to} className={props.tone ? `${styles.summaryItem} ${props.tone}` : styles.summaryItem}>
         <span className={styles.summaryLabel}>{props.label}</span>
         <span className={styles.summaryValue}>{props.value}</span>
         {props.children}

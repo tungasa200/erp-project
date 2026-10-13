@@ -1,6 +1,7 @@
-/* SCR-HOME-01 ③ 오늘 일정 (P2-08). 기록 상태 색은 화면정의서 2.3: 계획·확정은 프로젝트 색, 확인 대기 노랑, 하지 않음 회색 */
+/* SCR-HOME-01 ③ 오늘 일정 (P2-08). 행 상태(홈PC 재디자인 v2 ③): 예정 흰 면+점선, 진행 중 프로젝트 색 진한 채움+흰 글자,
+   했어요 옅은 면+진한 글자+✓, 확인 대기 노랑, 안 했어요 회색+취소선 */
 .panel {
-  margin-bottom: var(--space-4);
+  min-width: 0;
 }
 
 @media (max-width: 767px) {
@@ -40,25 +41,48 @@
 .row {
   --plan-base: var(--color-accent);
   --plan-tint: var(--color-accent-softer);
+  --plan-ink: var(--color-accent-ink);
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-1) var(--space-2);
   min-height: var(--size-touch);
   box-sizing: border-box;
   padding: var(--space-2) var(--space-3);
-  border: 1px solid transparent;
+  border: 1.5px solid transparent;
   border-radius: var(--radius-input);
-  background: var(--plan-tint);
+  background: var(--color-surface);
   color: var(--color-text);
 }
 
+/* 점선은 아직 실제가 아닌 것(계획) */
+.rowPlan {
+  border-style: dashed;
+  border-color: var(--plan-base);
+}
+
+/* 지금 하는 일이 가장 먼저 보이게. 흰 글자 대 프로젝트 색 4.5:1 이상(주황이 하한 4.66), 그래서 시간 칸도 흐리지 않는다 */
 .rowNow {
-  box-shadow: inset 0 0 0 2px var(--plan-base);
+  border-color: var(--plan-base);
+  background: var(--plan-base);
+  color: var(--color-on-accent);
+}
+
+.rowNow .time,
+.rowSkipped .time {
+  opacity: 1;
+}
+
+.rowEnded {
+  border-color: var(--color-divider);
 }
 
 .rowDone {
   background: var(--plan-tint);
+}
+
+.rowDone .title {
+  color: var(--plan-ink);
 }
 
 .rowPending {
@@ -67,14 +91,32 @@
   color: var(--status-pending-text);
 }
 
+/* 회색 면 위 글자는 muted(5.1:1). skipped-text는 2.8:1이라 쓰지 않는다 */
 .rowSkipped {
   border-color: var(--color-divider);
   background: var(--status-skipped-bg);
-  color: var(--status-skipped-text);
+  color: var(--color-text-muted);
 }
 
 .rowSkipped .title {
   text-decoration: line-through;
+}
+
+/* 고대비 모드는 면을 지운다: 예정 점선, 진행 중 3px 실선, 했어요·안 했어요 실선, 확인 대기 이중선 */
+@media (forced-colors: active) {
+  .rowNow {
+    border-width: 3px;
+  }
+
+  .rowDone,
+  .rowSkipped,
+  .rowEnded {
+    border-color: CanvasText;
+  }
+
+  .rowPending {
+    border: 4px double CanvasText;
+  }
 }
 
 /* 배지 칸(폭 56): 배지 없는 행도 비워 두어 시간 열이 모든 행에서 같은 줄에 선다 */
@@ -95,7 +137,7 @@
 }
 
 .title {
-  flex: 1 1 140px;
+  flex: 1 1 96px;
   min-width: 0;
   overflow: hidden;
   font-weight: 600;
@@ -103,7 +145,7 @@
   white-space: nowrap;
 }
 
-/* 좁으면 이름 칸(140)을 지키고 버튼 묶음이 다음 줄 오른쪽으로 간다 */
+/* 좁으면 이름 칸(96)을 지키고 버튼 묶음이 다음 줄 오른쪽으로 간다 */
 .actions {
   display: flex;
   flex: none;
@@ -130,9 +172,10 @@
   white-space: nowrap;
 }
 
+/* 진한 행 위 배지는 흰 면 + 프로젝트 ink */
 .tagNow {
-  background: var(--plan-base);
-  color: var(--color-on-accent);
+  background: var(--color-surface);
+  color: var(--plan-ink);
 }
 
 .tagDone {

@@ -75,6 +75,8 @@ describe('홈 마감 카드 (SCR-HOME-01 ⑤⑦)', () => {
 
     const today = await screen.findByRole('region', { name: '오늘 마감' })
     expect(await within(today).findByText('확정 기록 0건 · 다음 근무일 계획 0건 · 이슈 없음')).toBeInTheDocument()
+    // 진행 막대 세 칸(홈PC 재디자인 v2 ⑤): 막대는 읽지 않고 같은 뜻을 글로
+    expect(within(today).getByText('0/3칸 채웠어요')).toBeInTheDocument()
     expect(within(today).queryByRole('link')).not.toBeInTheDocument()
     const week = screen.getByRole('region', { name: '이번 주 마감' })
     expect(within(week).queryByRole('link')).not.toBeInTheDocument()
@@ -85,6 +87,13 @@ describe('홈 마감 카드 (SCR-HOME-01 ⑤⑦)', () => {
       .filter((id) => id === 'home-log-today' || id === 'home-log-week' || id === 'home-upcoming')
     expect(order[0]).toBe('home-log-today')
     expect(order.at(-1)).toBe('home-log-week')
+    // 2·3열에서 보이는 자리가 달라도 DOM(Tab) 순서는 1열 순서 그대로(홈PC 재디자인 v2 ②a). 업무가 없어 남은 업무 자리에 첫 실행 안내
+    expect(
+      screen
+        .getAllByRole('region')
+        .map((r) => r.getAttribute('aria-labelledby'))
+        .filter((id) => id?.startsWith('home-')),
+    ).toEqual(['home-today', 'home-empty-title', 'home-log-today', 'home-upcoming', 'home-log-week'])
   })
 })
 

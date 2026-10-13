@@ -1003,6 +1003,67 @@
   font-weight: 600;
   color: var(--color-text);
   overflow-wrap: anywhere;
+  /* 좁은 열(3열 282)에서 낱말 가운데를 꺾지 않는다 */
+  word-break: keep-all;
+}
+
+/* 홈 오늘 마감 진행 막대(홈PC 재디자인 v2 ⑤): 28×8 칸 셋, 휴대폰에는 두지 않는다 */
+.closeProgress {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+  margin: var(--space-1) 0;
+}
+
+.closeBars {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.closeBar {
+  width: 28px;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--color-ground);
+  box-shadow: inset 0 0 0 1px var(--color-border);
+}
+
+.closeBarOn {
+  background: var(--color-accent);
+  box-shadow: none;
+}
+
+.closeProgressText {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+@media (max-width: 767px) {
+  .closeProgress {
+    display: none;
+  }
+}
+
+/* 고대비 모드는 면을 지우므로 채운 칸은 글자색으로 칠한다 */
+@media (forced-colors: active) {
+  .closeBar {
+    border: 1px solid CanvasText;
+  }
+
+  .closeBarOn {
+    background: CanvasText;
+    forced-color-adjust: none;
+  }
+}
+
+/* 홈 이번 주: 마감 전과 예정을 글자색으로 가른다(홈PC 재디자인 v2 ⑦) */
+.weekDue .cellStatus {
+  color: var(--status-pending-text);
+}
+
+.weekPlanned .cellStatus {
+  color: var(--color-text-body);
 }
 
 .cardActions {

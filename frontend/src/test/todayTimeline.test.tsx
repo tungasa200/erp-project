@@ -178,6 +178,23 @@ describe('SCR-HOME-01 ③ 오늘 일정 (P2-08)', () => {
     expect(within(today).queryByRole('list', { name: '실제' })).not.toBeInTheDocument()
   })
 
+  it('행 모양은 기록 상태가 먼저, 없으면 때로 정한다: 했어요 옅은 면, 확인 대기 노랑, 진행 중 진한 채움, 앞으로는 점선(홈PC 재디자인 v2 ③)', async () => {
+    server()
+    renderApp('/')
+    const today = await section()
+    await waitFor(() => expect(within(today).getByRole('button', { name: '코드 리뷰 했어요' })).toBeInTheDocument())
+    const rows = within(today)
+      .getAllByRole('listitem')
+      .filter((li) => li.classList.contains('row'))
+    expect(rows.map((li) => [...li.classList].filter((c) => c.startsWith('row') && c !== 'row'))).toEqual([
+      ['rowDone'],
+      ['rowPending'],
+      ['rowPending'],
+      ['rowNow'],
+      ['rowPlan'],
+    ])
+  })
+
   it('했어요는 PATCH CONFIRMED, 버튼이 사라지면 다음 확인 대기의 했어요로 포커스, 마지막이면 제목으로', async () => {
     const { calls } = server()
     renderApp('/')
