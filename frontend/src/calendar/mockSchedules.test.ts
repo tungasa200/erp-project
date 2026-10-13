@@ -40,6 +40,21 @@ describe('가짜 일정 서버', () => {
     expect(res.body.items.map((o: Occurrence) => o.title)).toEqual(['연결', '연결', '연결'])
   })
 
+  it('영구 삭제한 업무(업무 저장본에 없음)의 일정은 업무 연결이 끊긴다(purgeTask)', async () => {
+    localStorage.setItem(
+      'worklog.mock.worklog',
+      JSON.stringify({ tasks: [{ id: 'task-a', projectId: 'project-dev' }] }),
+    )
+    await call('POST', '/api/worklog/schedules', { ...daily, title: '남은 업무', taskId: 'task-a' })
+    await call('POST', '/api/worklog/schedules', { ...daily, title: '지운 업무', taskId: 'task-gone' })
+    const items = await list('2026-10-05T00:00:00Z', '2026-10-06T00:00:00Z')
+    expect(Object.fromEntries(items.map((o) => [o.title, [o.taskId, o.projectId]]))).toEqual({
+      '남은 업무': ['task-a', 'project-dev'],
+      '지운 업무': [null, null],
+    })
+    localStorage.removeItem('worklog.mock.worklog')
+  })
+
   it('회차의 projectId는 연결된 업무의 프로젝트, 업무가 없으면 null (D-73)', async () => {
     localStorage.setItem(
       'worklog.mock.worklog',

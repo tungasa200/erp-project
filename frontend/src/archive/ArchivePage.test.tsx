@@ -1,9 +1,22 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { useRef } from 'react'
 import { describe, expect, it } from 'vitest'
+import { useFocusRescue } from '../components/focusRescue'
 import { json, ME, problem, renderApp, stubFetch } from '../test/renderApp'
 import type { Task } from '../tasks/api'
 import { ArchivePage } from './ArchivePage'
+
+// 앱 셸의 포커스 안전망(AppShell의 useFocusRescue)과 같은 자리에서 보관함을 띄운다
+function Shell() {
+  const ref = useRef<HTMLDivElement>(null)
+  useFocusRescue(ref)
+  return (
+    <div ref={ref}>
+      <ArchivePage />
+    </div>
+  )
+}
 
 const project = (id: string, name: string, extra: Record<string, unknown> = {}) => ({
   id,
@@ -38,7 +51,9 @@ const task = (id: string, title: string, deletedAt: string, extra: Partial<Task>
   ...extra,
 })
 
-function setup(options: { tasks?: Task[]; projects?: ReturnType<typeof project>[]; conflict?: boolean } = {}) {
+function setup(
+  options: { tasks?: Task[]; projects?: ReturnType<typeof project>[]; conflict?: boolean; purgeStatus?: number } = {},
+) {
   let tasks = options.tasks ?? [
     task('t-old', '사내 세미나 자료', '2026-09-28T00:12:00Z'),
     task('t-new', '구 결제 모듈 정리', '2026-10-06T08:40:00Z', { projectId: 'p-dev' }),
@@ -56,13 +71,23 @@ function setup(options: { tasks?: Task[]; projects?: ReturnType<typeof project>[
       return json(200, task('t-new', '구 결제 모듈 정리', ''))
     },
     'DELETE /api/worklog/tasks/t-new': () => new Response(null, { status: 204 }),
+    'DELETE /api/worklog/tasks/t-new/permanent': () => {
+      if (options.purgeStatus)
+        return problem(options.purgeStatus, options.purgeStatus === 409 ? 'TASK_NOT_ARCHIVED' : 'NOT_FOUND')
+      tasks = tasks.filter((t) => t.id !== 't-new')
+      return new Response(null, { status: 204 })
+    },
+    'DELETE /api/worklog/projects/p-old/permanent': () => {
+      projects = projects.filter((p) => p.id !== 'p-old')
+      return new Response(null, { status: 204 })
+    },
     'PATCH /api/worklog/projects/p-old': () => {
       if (options.conflict) return problem(409, 'VERSION_CONFLICT')
       projects = projects.map((p) => (p.id === 'p-old' ? { ...p, archived: false, archivedAt: null } : p))
       return json(200, projects[1])
     },
   })
-  const result = renderApp('/tasks/archive', [{ path: '/tasks/archive', element: <ArchivePage /> }])
+  const result = renderApp('/tasks/archive', [{ path: '/tasks/archive', element: <Shell /> }])
   return { fetchMock, ...result }
 }
 
@@ -143,5 +168,58 @@ describe('SCR-TASK-04 보관함', () => {
       ).toBeGreaterThan(before),
     )
     expect(screen.getByRole('button', { name: '레거시 복원' })).toBeEnabled()
+  })
+
+  it('업무 영구 삭제: 확인 창([취소]가 먼저) → DELETE …/permanent, 되돌리기 없이 알리고 포커스는 다음 줄로', async () => {
+    const { fetchMock } = setup()
+    await userEvent.click(await screen.findByRole('button', { name: '구 결제 모듈 정리 영구 삭제' }))
+    const dialog = screen.getByRole('alertdialog', { name: "'구 결제 모듈 정리'를 영구 삭제할까요?" })
+    expect(dialog).toHaveTextContent('삭제하면 되돌릴 수 없어요. 이 업무로 남긴 기록과 일정은 그대로 남고')
+    expect(within(dialog).getByRole('button', { name: '취소' })).toHaveFocus()
+    await userEvent.click(within(dialog).getByRole('button', { name: '영구 삭제' }))
+    expect(await screen.findByText("'구 결제 모듈 정리'를 영구 삭제했어요")).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '되돌리기' })).not.toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByText('구 결제 모듈 정리')).not.toBeInTheDocument())
+    expect(
+      fetchMock.mock.calls.some(([u, init]) => u === '/api/worklog/tasks/t-new/permanent' && init?.method === 'DELETE'),
+    ).toBe(true)
+    await waitFor(() => expect(screen.getByRole('button', { name: '사내 세미나 자료 영구 삭제' })).toHaveFocus())
+  })
+
+  it('영구 삭제 취소: 보내지 않고 누른 버튼으로 돌아간다', async () => {
+    const { fetchMock } = setup()
+    const button = await screen.findByRole('button', { name: '사내 세미나 자료 영구 삭제' })
+    await userEvent.click(button)
+    await userEvent.keyboard('{Escape}')
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+    expect(button).toHaveFocus()
+    expect(fetchMock.mock.calls.some(([u]) => String(u).endsWith('/permanent'))).toBe(false)
+  })
+
+  it.each([
+    [404, '이미 삭제된 항목이에요'],
+    [409, '보관함에 있는 항목만 삭제할 수 있어요'],
+  ])('영구 삭제 %i: 알리고 목록을 다시 받는다', async (status, message) => {
+    const { fetchMock } = setup({ purgeStatus: status })
+    await userEvent.click(await screen.findByRole('button', { name: '구 결제 모듈 정리 영구 삭제' }))
+    const before = fetchMock.mock.calls.filter(([u]) => String(u).startsWith('/api/worklog/tasks?')).length
+    await userEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: '영구 삭제' }))
+    expect(await screen.findByText(message)).toBeInTheDocument()
+    await waitFor(() =>
+      expect(fetchMock.mock.calls.filter(([u]) => String(u).startsWith('/api/worklog/tasks?')).length).toBeGreaterThan(
+        before,
+      ),
+    )
+  })
+
+  it('프로젝트 영구 삭제: 옮겨질 업무 수를 알리고, 마지막 줄이면 포커스는 빈 상태 제목', async () => {
+    setup()
+    await userEvent.click(await screen.findByRole('tab', { name: '프로젝트 1' }))
+    await userEvent.click(screen.getByRole('button', { name: '레거시 영구 삭제' }))
+    const dialog = screen.getByRole('alertdialog', { name: "'레거시'를 영구 삭제할까요?" })
+    expect(dialog).toHaveTextContent("이 프로젝트의 업무 2개는 지워지지 않고 '프로젝트 없음'으로 옮겨져요.")
+    await userEvent.click(within(dialog).getByRole('button', { name: '영구 삭제' }))
+    expect(await screen.findByText("'레거시'를 영구 삭제했어요")).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByText('보관한 프로젝트가 없어요')).toHaveFocus())
   })
 })

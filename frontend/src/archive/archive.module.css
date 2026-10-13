@@ -37,6 +37,11 @@
   color: var(--color-text-muted);
 }
 
+/* 좁은 화면에서 낱말 가운데서 꺾이지 않게('영 / 구 삭제') */
+.lead {
+  word-break: keep-all;
+}
+
 .tabs {
   display: flex;
   flex-wrap: wrap;
@@ -213,6 +218,63 @@
   margin: 0;
   font-size: var(--text-md);
   font-weight: var(--weight-title);
+}
+
+/* 영구 삭제: 줄에서는 위험색 글자 보조 버튼(면 없음), 확인 창의 마지막 버튼만 위험색 채움(D-212 X-03) */
+.purge {
+  min-height: var(--size-touch);
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--color-danger);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-title);
+  cursor: pointer;
+}
+
+.purge:disabled,
+.purge[aria-disabled='true'] {
+  color: var(--color-disabled);
+  cursor: default;
+}
+
+.dangerFill {
+  font: inherit;
+  font-size: var(--text-md);
+  font-weight: var(--weight-title);
+  height: 44px;
+  padding: 0 var(--space-4);
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--color-danger);
+  color: var(--color-on-danger);
+  cursor: pointer;
+}
+
+.dangerFill[aria-disabled='true'] {
+  background: var(--color-danger-text);
+  cursor: progress;
+}
+
+.dangerFill:disabled {
+  background: var(--color-disabled);
+  cursor: default;
+}
+
+.dialogTitle {
+  margin: 0;
+  font-size: var(--text-xl);
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.dialogBody {
+  margin: 0;
+  font-size: var(--text-md);
+  line-height: 1.55;
+  color: var(--color-text-body);
 }
 
 @media (max-width: 767px) {

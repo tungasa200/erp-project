@@ -167,18 +167,22 @@ function baseOccurrence(s: MockSchedule, date: string): Occurrence {
 }
 
 /** 업무 id → 프로젝트 id. 회차의 projectId는 연결된 업무의 프로젝트다(D-73) */
-function taskProjects(): Map<string, string | null> {
+/** 업무 id → projectId. 업무 저장본이 아직 없으면 null(연결을 끊지 않는다) */
+function taskProjects(): Map<string, string | null> | null {
   try {
-    const tasks: { id: string; projectId?: string | null }[] =
-      JSON.parse(localStorage.getItem(WORKLOG_STORE_KEY) ?? '{}').tasks ?? []
+    const raw = localStorage.getItem(WORKLOG_STORE_KEY)
+    if (!raw) return null
+    const tasks: { id: string; projectId?: string | null }[] = JSON.parse(raw).tasks ?? []
     return new Map(tasks.map((t) => [t.id, t.projectId ?? null]))
   } catch {
-    return new Map()
+    return null
   }
 }
 
-function withProject(o: Occurrence, projects: Map<string, string | null>): Occurrence {
-  return { ...o, projectId: o.taskId ? (projects.get(o.taskId) ?? null) : null }
+/** 영구 삭제한 업무(저장본에 없음)의 일정은 업무 연결이 끊긴 것으로 보인다(purgeTask, 서버는 ON DELETE SET NULL) */
+function withProject(o: Occurrence, projects: Map<string, string | null> | null): Occurrence {
+  const taskId = o.taskId && projects && !projects.has(o.taskId) ? null : o.taskId
+  return { ...o, taskId, projectId: taskId ? (projects?.get(taskId) ?? null) : null }
 }
 
 function applyOverride(o: Occurrence, override: Override | undefined): Occurrence | null {
