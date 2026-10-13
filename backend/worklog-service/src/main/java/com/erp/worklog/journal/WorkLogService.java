@@ -43,7 +43,7 @@ class WorkLogService {
 
 	private static final Set<String> OUTCOMES = Set.of("DONE", "REVIEW_REQUESTED", "IN_PROGRESS");
 	private static final Set<String> SOURCES = Set.of("RECORD", "TASK", "MANUAL");
-	/** 저장된 확정본에만 두는 표시: 확정할 때 실적이 자동이었다. 응답(Content)에는 없다. 해제하면 실적을 다시 자동으로 (UX-M-LOG-55). */
+	/** 저장된 확정본에만 두는 표시: 확정할 때 실적이 자동이었다. 응답(Content)에는 없다. 해제하면 실적을 다시 자동으로 (UX-M-LOG-55). 표시 없는 확정본(0.7.1 전에 확정한 것 포함)은 실적을 고정한다. */
 	private static final String AUTO_AT_CONFIRM = "autoAtConfirm";
 
 	/** null은 보내지 않은 칸. issues는 issuesSent로 비우기를 가린다. */
