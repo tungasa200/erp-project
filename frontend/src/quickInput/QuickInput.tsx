@@ -173,6 +173,8 @@ interface Props {
   saveButton?: boolean
   /** 좁은 패널(캘린더 할 일 상자)에서 칸 안의 'Enter 저장'·단축키 안내를 숨겨 쓰는 글 자리를 넓힌다. 단축키 동작과 스크린 리더 안내는 그대로 */
   hideKeyHints?: boolean
+  /** 화면의 주 입력(홈·업무 탭): 칸을 키우고 평상시 키 컬러 테두리로 강조한다(사용자 결정 2026-10-13 B안) */
+  emphasis?: boolean
 }
 
 export function QuickInput({
@@ -183,6 +185,7 @@ export function QuickInput({
   placeholder = '무엇을 하셨나요? 한 줄로 적어 보세요',
   saveButton = false,
   hideKeyHints = false,
+  emphasis = false,
 }: Props) {
   const { user } = useAuth()
   const inputRef = useRef<HTMLInputElement>(null)
@@ -509,7 +512,9 @@ export function QuickInput({
         {label}
       </label>
       <div
-        className={hideKeyHints ? `${styles.field} ${styles.fieldCompact}` : styles.field}
+        className={[styles.field, hideKeyHints && styles.fieldCompact, emphasis && styles.fieldStrong]
+          .filter(Boolean)
+          .join(' ')}
         // 알약의 빈 곳(여백·N 안내)을 눌러도 입력칸으로 포커스. 버튼·입력칸을 누른 것은 그대로 둔다
         onMouseDown={(e) => {
           if ((e.target as Element).closest('button, input')) return

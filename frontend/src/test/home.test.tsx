@@ -180,6 +180,13 @@ describe('SCR-HOME-01 홈 대시보드 1차', () => {
     expect(card).not.toHaveTextContent(/\d/)
   })
 
+  it('빠른 입력은 화면의 주 입력이라 강조 칸이다(2026-10-13 B안)', async () => {
+    server()
+    renderApp('/')
+    const input = await screen.findByRole('textbox', { name: '빠른 기록' })
+    expect(input.closest('.field')).toHaveClass('fieldStrong')
+  })
+
   it('지난해 마감 초과는 연도를 붙인 빨강 칩이다(D-236 ③)', async () => {
     server({ remaining: [task('old', '작년 정산', { dueDate: '2025-10-06' })] })
     renderApp('/')

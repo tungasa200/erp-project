@@ -336,6 +336,7 @@ export function TaskListPage() {
           aria-describedby={addBlocked ? 'task-add-blocked' : undefined}
         >
           <QuickInput
+            emphasis
             value={quickText}
             onChange={setQuickText}
             onSubmit={async (draft) => {

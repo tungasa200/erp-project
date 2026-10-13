@@ -507,6 +507,8 @@ describe('디자인 개선 묶음 3a (X-04 [×], X-11 COM-29·COM-06)', () => {
   it('기본 칸은 N 안내와 Enter 저장 표시를 그대로 보인다', async () => {
     const { container } = renderQuick()
     const input = await screen.findByRole('textbox', { name: '빠른 입력' })
+    // 강조(emphasis)는 홈·업무 탭에서만 켠다. 기본·좁은 칸은 강조 없음
+    expect(input.closest('.field')).not.toHaveClass('fieldStrong')
     await waitFor(() => expect(container.querySelector('kbd')).toHaveTextContent('N'))
     await userEvent.type(input, '긴 업무 이름')
     expect(screen.getByText('Enter 저장')).not.toHaveClass('visually-hidden')

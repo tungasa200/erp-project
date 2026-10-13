@@ -162,6 +162,13 @@ describe('SCR-TASK-01 업무 목록', () => {
     expect(within(screen.getByRole('list', { name: '다음 · 1' })).getByText(/^10\/20\(/)).not.toHaveClass('dueToday')
   })
 
+  it('업무 추가 입력은 화면의 주 입력이라 강조 칸이다(2026-10-13 B안)', async () => {
+    server(SAMPLE)
+    renderApp('/tasks')
+    const input = await screen.findByRole('textbox', { name: '업무 추가' })
+    expect(input.closest('.field')).toHaveClass('fieldStrong')
+  })
+
   it('지난해 마감 초과도 연도를 붙인 빨강 칩이다(칸 폭 104px에 맞춤)', async () => {
     server([task('old', '작년 정산', { dueDate: '2025-10-06' })])
     renderApp('/tasks')

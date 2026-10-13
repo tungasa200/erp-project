@@ -85,6 +85,7 @@ export function HomePage() {
         <fieldset className={styles.quick} disabled={!online}>
           {/* 끊긴 이유를 입력칸에서도 알린다(시트와 같은 문구, UX-COM-13) */}
           <QuickInput
+            emphasis
             value={text}
             onChange={setText}
             onSubmit={quickSave}

@@ -30,6 +30,29 @@
   outline-offset: 2px;
 }
 
+/* 화면의 주 입력(홈·업무 탭): 높이 60, 글자 한 단계 위, 평상시 키 컬러 테두리(키 컬러는 바탕·흰 면과 3:1 이상, SET-77).
+   포커스 때는 테두리를 더 진한 키 컬러로 바꾸고 바깥 윤곽선을 더한다. 그림자는 더하지 않는다(D-236 ②) */
+.fieldStrong {
+  height: 60px;
+  border-color: var(--color-accent);
+}
+
+.fieldStrong .input {
+  font-size: var(--text-xl);
+}
+
+.fieldStrong:has(.input:focus-visible) {
+  border-color: var(--color-accent-ink);
+  outline-width: 3px;
+}
+
+/* 휴대폰 폭은 global.css가 입력을 16px로 고정한다(iOS 확대 방지). 18px도 16px 이상이라 강조 칸은 그대로 둔다 */
+@media (max-width: 767px) {
+  .fieldStrong .input {
+    font-size: var(--text-xl) !important;
+  }
+}
+
 /* 입력이 칸 높이를 다 채워 칸 가장자리를 눌러도 포커스가 간다(UX-HOME-13) */
 .input {
   flex: 1;
