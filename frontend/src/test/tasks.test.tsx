@@ -204,6 +204,49 @@ describe('SCR-TASK-01 업무 목록', () => {
     )
   })
 
+  it('줄의 [⋯] 메뉴: 열면 [보관]에 포커스, Esc면 [⋯]로 돌아오고, [보관]은 Delete와 같이 보관하고 이웃 행으로 간다', async () => {
+    const { calls } = server(SAMPLE)
+    renderApp('/tasks')
+    const menuButton = await screen.findByRole('button', { name: '결제 API 문서화 메뉴' })
+    expect(menuButton).toHaveAttribute('aria-expanded', 'false')
+    menuButton.focus()
+    await userEvent.keyboard('{Enter}')
+    expect(menuButton).toHaveAttribute('aria-expanded', 'true')
+    const menu = screen.getByRole('list', { name: '결제 API 문서화 메뉴' })
+    expect(menuButton).toHaveAttribute('aria-controls', menu.id)
+    expect(within(menu).getByRole('button', { name: '보관' })).toHaveFocus()
+
+    await userEvent.keyboard('{Escape}')
+    expect(screen.queryByRole('list', { name: '결제 API 문서화 메뉴' })).not.toBeInTheDocument()
+    expect(menuButton).toHaveFocus()
+    // Esc는 메뉴만 닫고 화면의 다른 것(상세 열기 등)은 건드리지 않는다
+    expect(calls.some((c) => c.method !== 'GET')).toBe(false)
+
+    await userEvent.keyboard('{Enter}')
+    await userEvent.keyboard('{Enter}')
+    expect(await screen.findByText('업무 1개를 보관했어요')).toBeInTheDocument()
+    expect(calls.filter((c) => c.method !== 'GET').map((c) => `${c.method} ${c.url}`)).toEqual([
+      'DELETE /api/worklog/tasks/later',
+    ])
+    await waitFor(() => expect(screen.queryByRole('link', { name: '결제 API 문서화' })).not.toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole('checkbox', { name: '팀 회고 정리 완료' })).toHaveFocus())
+  })
+
+  it('[⋯] 메뉴는 바깥을 누르면 닫히고, 끊긴 동안에는 열 수 없다', async () => {
+    server(SAMPLE)
+    renderApp('/tasks')
+    await userEvent.click(await screen.findByRole('button', { name: '결제 API 문서화 메뉴' }))
+    expect(screen.getByRole('list', { name: '결제 API 문서화 메뉴' })).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('heading', { level: 1 }))
+    expect(screen.queryByRole('list', { name: '결제 API 문서화 메뉴' })).not.toBeInTheDocument()
+
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    act(() => {
+      window.dispatchEvent(new Event('offline'))
+    })
+    expect(screen.getByRole('button', { name: '결제 API 문서화 메뉴' })).toBeDisabled()
+  })
+
   it('완료·보관으로 행이 빠지면 포커스를 이웃 행의 완료 체크로, 마지막이면 목록 제목으로 옮긴다', async () => {
     server(SAMPLE)
     renderApp('/tasks')

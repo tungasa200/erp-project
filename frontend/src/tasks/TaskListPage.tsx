@@ -796,6 +796,7 @@ function TaskRow({ task, today, weekStart, projects, tagNames, selected, onLeave
     }
   }
 
+  /** 보관(Delete 키·[⋯] 메뉴). 실패하면 false */
   const archive = async () => {
     onLeave()
     try {
@@ -810,8 +811,10 @@ function TaskRow({ task, today, weekStart, projects, tagNames, selected, onLeave
           refresh()
         },
       })
+      return true
     } catch (error) {
       failed(error)
+      return false
     }
   }
 
@@ -889,7 +892,75 @@ function TaskRow({ task, today, weekStart, projects, tagNames, selected, onLeave
         <span className={styles.schedule} />
       )}
       {timed && <TimerStartCell task={task} />}
+      <RowMenu title={task.title} online={online} onArchive={archive} />
     </li>
+  )
+}
+
+// 줄 오른쪽 [⋯] 메뉴(사용자 결정 2026-10-13, 데스크톱·휴대폰 같음). 지금은 [보관] 하나: Delete 키·상세 패널 [보관]과 같은 동작.
+// 타이머 시작은 줄의 ▶를 그대로 둔다. 열면 첫 항목으로, Esc·바깥 누르기로 닫히면 [⋯]로 포커스. 보관하면 행이 빠져 이웃 행으로 간다
+function RowMenu({ title, online, onArchive }: { title: string; online: boolean; onArchive: () => Promise<boolean> }) {
+  const [open, setOpen] = useState(false)
+  const id = useId()
+  const wrap = useRef<HTMLDivElement>(null)
+  const button = useRef<HTMLButtonElement>(null)
+  // 끊기면 열린 메뉴도 닫는다(보관은 끊긴 동안 막는다)
+  if (open && !online) setOpen(false)
+
+  useEffect(() => {
+    if (!open) return
+    // ':scope >': 행 자체가 목록(ul) 안이라 'ul button'은 [⋯]도 잡는다
+    wrap.current?.querySelector<HTMLElement>(':scope > ul button')?.focus()
+    const onPointerDown = (e: PointerEvent) => {
+      if (!wrap.current?.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    return () => document.removeEventListener('pointerdown', onPointerDown)
+  }, [open])
+
+  return (
+    <div
+      ref={wrap}
+      className={styles.rowMenu}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape' && open) {
+          e.stopPropagation()
+          setOpen(false)
+          button.current?.focus()
+        }
+      }}
+    >
+      <button
+        ref={button}
+        type="button"
+        className={styles.rowMenuButton}
+        aria-label={`${title} 메뉴`}
+        aria-expanded={open}
+        aria-controls={open ? id : undefined}
+        title={online ? '메뉴' : '연결되면 쓸 수 있어요'}
+        disabled={!online}
+        onClick={() => setOpen((o) => !o)}
+      >
+        <span aria-hidden="true">⋯</span>
+      </button>
+      {open && (
+        <ul id={id} className={styles.rowMenuList} aria-label={`${title} 메뉴`}>
+          <li>
+            <button
+              type="button"
+              className={styles.rowMenuItem}
+              onClick={async () => {
+                setOpen(false)
+                // 실패하면 행이 남으므로 [⋯]로 돌아온다
+                if (!(await onArchive())) button.current?.focus()
+              }}
+            >
+              보관
+            </button>
+          </li>
+        </ul>
+      )}
+    </div>
   )
 }
 

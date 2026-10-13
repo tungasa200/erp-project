@@ -225,7 +225,7 @@
   list-style: none;
 }
 
-/* 넓은 화면: 완료·제목·우선순위·프로젝트·태그·마감·진행률·일정 */
+/* 넓은 화면: 완료·제목·우선순위·프로젝트·태그·마감·진행률·일정(·타이머)·[⋯] */
 /* 방금 만든 업무 줄을 3초 동안 표시(UX-TASK-60) */
 .row[data-just-added] {
   background: var(--color-accent-soft);
@@ -233,7 +233,7 @@
 
 .row {
   display: grid;
-  grid-template-columns: 44px minmax(0, 1fr) 48px 96px 110px 76px 70px 24px;
+  grid-template-columns: 44px minmax(0, 1fr) 48px 96px 110px 76px 70px 24px var(--size-touch);
   align-items: center;
   gap: var(--space-2);
   padding: var(--space-1) var(--space-1);
@@ -243,7 +243,7 @@
 
 /* 시간 기록 옵션이 켜지면 끝에 타이머 시작 칸(44px)을 더한다. 창·목록 폭 규칙마다 같은 칸을 붙인다 */
 .rowTimed {
-  grid-template-columns: 44px minmax(0, 1fr) 48px 96px 110px 76px 70px 24px var(--size-touch);
+  grid-template-columns: 44px minmax(0, 1fr) 48px 96px 110px 76px 70px 24px var(--size-touch) var(--size-touch);
 }
 
 .timerStart {
@@ -278,6 +278,88 @@
 .timerStart.timerRunning {
   color: var(--color-accent);
   cursor: default;
+}
+
+/* 줄 오른쪽 [⋯] 메뉴(44px, 모든 폭) */
+.rowMenu {
+  position: relative;
+}
+
+.rowMenuButton {
+  width: var(--size-touch);
+  height: var(--size-touch);
+  border: 0;
+  border-radius: var(--radius-input);
+  background: transparent;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: var(--text-xl);
+  line-height: 1;
+  cursor: pointer;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .rowMenuButton:not(:disabled):hover {
+    background: var(--color-accent-faint);
+    color: var(--color-text);
+  }
+}
+
+.rowMenuButton[aria-expanded='true'] {
+  background: var(--color-accent-faint);
+  color: var(--color-text);
+}
+
+.rowMenuButton:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+}
+
+.rowMenuButton:disabled {
+  color: var(--color-disabled);
+  cursor: not-allowed;
+}
+
+.rowMenuList {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 30;
+  min-width: 140px;
+  margin: 0;
+  padding: var(--space-1);
+  list-style: none;
+  border-radius: var(--radius-input);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-2);
+}
+
+.rowMenuItem {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: var(--size-touch);
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: var(--radius-input);
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--text-md);
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .rowMenuItem:hover {
+    background: var(--color-accent-faint);
+  }
+}
+
+.rowMenuItem:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
 }
 
 .rowSelected {
@@ -733,11 +815,11 @@
 @media (max-width: 1023px) {
   /* 완료·제목·프로젝트·마감만 남긴다 */
   .row {
-    grid-template-columns: 44px minmax(0, 1fr) auto auto;
+    grid-template-columns: 44px minmax(0, 1fr) auto auto var(--size-touch);
   }
 
   .rowTimed {
-    grid-template-columns: 44px minmax(0, 1fr) auto auto var(--size-touch);
+    grid-template-columns: 44px minmax(0, 1fr) auto auto var(--size-touch) var(--size-touch);
   }
 
   .priority,
@@ -797,11 +879,11 @@
    창 폭 규칙과 같은 칸을 목록 폭으로도 숨긴다. 패널을 연 1280px ≈ 510px, 1024px ≈ 260px */
 @container tasklist (max-width: 740px) {
   .row {
-    grid-template-columns: 44px minmax(0, 1fr) auto auto;
+    grid-template-columns: 44px minmax(0, 1fr) auto auto var(--size-touch);
   }
 
   .rowTimed {
-    grid-template-columns: 44px minmax(0, 1fr) auto auto var(--size-touch);
+    grid-template-columns: 44px minmax(0, 1fr) auto auto var(--size-touch) var(--size-touch);
   }
 
   .priority,
@@ -819,11 +901,11 @@
 /* 아주 좁으면 프로젝트 칩도 숨기고 완료·제목·마감만 */
 @container tasklist (max-width: 480px) {
   .row {
-    grid-template-columns: 44px minmax(0, 1fr) auto;
+    grid-template-columns: 44px minmax(0, 1fr) auto var(--size-touch);
   }
 
   .rowTimed {
-    grid-template-columns: 44px minmax(0, 1fr) auto var(--size-touch);
+    grid-template-columns: 44px minmax(0, 1fr) auto var(--size-touch) var(--size-touch);
   }
 
   .projectCell {
