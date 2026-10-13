@@ -36,11 +36,10 @@ export function CloseBand({
           type="button"
           className={styles.closeBandButton}
           aria-haspopup="dialog"
-          // 오늘 마감 카드의 [하루 마감]과 이름이 겹치지 않게 날짜를 붙인다(UX-M-HOME-101)
-          aria-label={`${shortDate(missed, today)} 하루 마감`}
           onClick={() => openDayClose({ date: missed })}
         >
-          하루 마감
+          {/* 오늘 마감 카드의 [하루 마감]과 보이는 이름·낭독 이름 모두 겹치지 않게 날짜를 붙인다(UX-M-HOME-101, HOME2) */}
+          {shortDate(missed, today)} 마감하기
         </button>
       </section>
     )

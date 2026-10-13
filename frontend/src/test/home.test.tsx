@@ -318,7 +318,7 @@ describe('하루 마감 띠 (X-02 C, UX-HOME-04·12)', () => {
     expect(band).toHaveTextContent('10/6(화) 하루 마감을 아직 하지 않았어요')
     // 오늘 마감 카드의 [하루 마감]과 이름이 겹치지 않는다(UX-M-HOME-101)
     expect(screen.getAllByRole('button', { name: '하루 마감' })).toHaveLength(1)
-    await userEvent.click(within(band).getByRole('button', { name: '10/6(화) 하루 마감' }))
+    await userEvent.click(within(band).getByRole('button', { name: '10/6(화) 마감하기' }))
     // 그날(10/6) 마감 창이 그날 계획을 받는다
     await waitFor(() =>
       expect(vi.mocked(fetch).mock.calls.some(([url]) => String(url).includes('/logs/daily/2026-10-06/close'))).toBe(
