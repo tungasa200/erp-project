@@ -180,6 +180,14 @@ describe('SCR-HOME-01 홈 대시보드 1차', () => {
     expect(card).not.toHaveTextContent(/\d/)
   })
 
+  it('지난해 마감 초과는 연도를 붙인 빨강 칩이다(D-236 ③)', async () => {
+    server({ remaining: [task('old', '작년 정산', { dueDate: '2025-10-06' })] })
+    renderApp('/')
+    const section = await screen.findByRole('region', { name: '남은 업무' })
+    const late = await within(section).findByRole('list', { name: '마감 초과 1' })
+    expect(within(late).getByText('2025/10/6(월)')).toHaveClass('dueLate')
+  })
+
   it('남은 업무는 마감 초과 → 오늘 → 이번 주로 묶고, 날짜 없는 업무는 접어 둔다', async () => {
     server()
     renderApp('/')
@@ -192,6 +200,7 @@ describe('SCR-HOME-01 홈 대시보드 1차', () => {
     expect(chipOf('마감 초과 1')).toHaveClass('dueLate')
     expect(chipOf('오늘 1')).toHaveClass('dueToday')
     expect(chipOf('이번 주 1')).not.toHaveClass('dueToday')
+    expect(chipOf('마감 초과 1')).toHaveTextContent('10/6(화)')
     expect(within(section).queryByText('온보딩 자료 정리')).not.toBeInTheDocument()
 
     const toggle = within(section).getByRole('button', { name: '날짜 없는 업무 1개' })

@@ -162,6 +162,13 @@ describe('SCR-TASK-01 업무 목록', () => {
     expect(within(screen.getByRole('list', { name: '다음 · 1' })).getByText(/^10\/20\(/)).not.toHaveClass('dueToday')
   })
 
+  it('지난해 마감 초과도 연도를 붙인 빨강 칩이다(칸 폭 104px에 맞춤)', async () => {
+    server([task('old', '작년 정산', { dueDate: '2025-10-06' })])
+    renderApp('/tasks')
+    const late = await screen.findByRole('list', { name: '마감 초과 · 1' })
+    expect(within(late).getByText('2025/10/6(월)')).toHaveClass('dueLate')
+  })
+
   it('필터는 URL에 남고 API 조건으로 보낸다 (사이드바 프로젝트 → /tasks?project=)', async () => {
     const { calls } = server(SAMPLE)
     const { router } = renderApp('/')
