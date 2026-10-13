@@ -25,7 +25,7 @@ describe('SCR-COM-01 ⑤ 모바일 하단 탭 (P1-X-01)', () => {
       within(menu)
         .getAllByRole('link')
         .map((a) => a.textContent),
-    ).toEqual(['알림', '통계', '보관함', '설정'])
+    ).toEqual(['알림', '통계', '보관함', '설정', '사용 설명서↗'])
     expect(within(menu).getByRole('link', { name: '알림' })).toHaveFocus()
 
     await userEvent.keyboard('{Escape}')
@@ -42,6 +42,22 @@ describe('SCR-COM-01 ⑤ 모바일 하단 탭 (P1-X-01)', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe('/stats'))
     expect(within(tabs).queryByRole('list', { name: '더보기 메뉴' })).not.toBeInTheDocument()
     expect(within(tabs).getByRole('button', { name: '더보기' })).toHaveFocus()
+  })
+  it('맨 아래 사용 설명서는 새 탭 링크이고, 누르면 메뉴를 닫고 더보기로 돌아온다', async () => {
+    stubFetch({ 'GET /api/users/me': () => json(200, ME) })
+    const { router } = renderApp('/')
+    const tabs = await screen.findByRole('navigation', { name: '하단 탭' })
+    await userEvent.click(within(tabs).getByRole('button', { name: '더보기' }))
+    const manual = within(tabs).getByRole('link', { name: '사용 설명서, 새 탭에서 열림' })
+    expect(manual).toHaveAttribute('href', '/manual/index.html')
+    expect(manual).toHaveAttribute('target', '_blank')
+    expect(manual).toHaveAttribute('rel', 'noopener')
+    // jsdom은 새 탭을 열지 않으므로 기본 동작만 막고 메뉴 쪽 동작을 본다
+    manual.addEventListener('click', (e) => e.preventDefault())
+    await userEvent.click(manual)
+    expect(within(tabs).queryByRole('list', { name: '더보기 메뉴' })).not.toBeInTheDocument()
+    expect(within(tabs).getByRole('button', { name: '더보기' })).toHaveFocus()
+    expect(router.state.location.pathname).toBe('/')
   })
   it('UX-M-COM-12 안 읽은 알림이 있으면 더보기의 알림 항목에 수를 붙인다', async () => {
     stubFetch({
@@ -153,6 +169,22 @@ describe('P4 화면 경로 연결 (통계·보관함)', () => {
     await userEvent.click(await screen.findByRole('link', { name: '보관함' }))
     await waitFor(() => expect(router.state.location.pathname).toBe('/tasks/archive'))
     expect(await screen.findByRole('heading', { level: 1, name: '보관함' })).toBeInTheDocument()
+  })
+})
+
+describe('SCR-COM-01 사이드바 사용 설명서 (사용자 결정 2026-10-13)', () => {
+  it('[설정] 바로 위에 새 탭으로 여는 사용 설명서 링크가 있다', async () => {
+    stubFetch({ 'GET /api/users/me': () => json(200, ME) })
+    renderApp('/')
+    const sidebar = await screen.findByRole('navigation', { name: '주 메뉴' })
+    const links = within(sidebar).getAllByRole('link')
+    const manual = within(sidebar).getByRole('link', { name: '사용 설명서, 새 탭에서 열림' })
+    expect(links.indexOf(manual)).toBe(links.indexOf(within(sidebar).getByRole('link', { name: '설정' })) - 1)
+    expect(manual).toHaveAttribute('href', '/manual/index.html')
+    expect(manual).toHaveAttribute('target', '_blank')
+    expect(manual).toHaveAttribute('rel', 'noopener')
+    // 접힌 레일(태블릿)에서는 글자가 숨으므로 마우스 툴팁도 둔다
+    expect(manual).toHaveAttribute('title', '사용 설명서 (새 탭)')
   })
 })
 

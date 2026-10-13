@@ -182,6 +182,13 @@
   }
 }
 
+/* 새 탭으로 열리는 항목(사용 설명서)의 ↗ 표시 */
+.external {
+  margin-left: auto;
+  color: var(--color-text-muted);
+  font-weight: 400;
+}
+
 .spacer {
   flex-grow: 1;
   min-height: 24px;
@@ -235,7 +242,8 @@
   .brandName,
   .profile,
   .projects,
-  .navLabel {
+  .navLabel,
+  .navItem .external {
     display: none;
   }
   .navItem {

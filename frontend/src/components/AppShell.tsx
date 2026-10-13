@@ -25,6 +25,7 @@ import { NOTIFICATIONS_PATH } from '../notifications/format'
 import { NotificationBell } from '../notifications/NotificationBell'
 import styles from './AppShell.module.css'
 import { useFocusRescue } from './focusRescue'
+import { MANUAL_LINK_LABEL, MANUAL_URL } from './manual'
 import { QuickSheet } from './QuickSheet'
 import { useBackClose } from './useBackClose'
 import { useOnline } from './useOnline'
@@ -55,6 +56,7 @@ const ICON = {
 }
 const SETTINGS_ICON =
   'M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM12 2v3M12 19v3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1 7 17M17 7l2.1-2.1'
+const MANUAL_ICON = 'M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2zM22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z'
 
 function Icon({ d, size = 18 }: { d: string; size?: number }) {
   return (
@@ -217,6 +219,21 @@ export function AppShell() {
         <div className={styles.timerSide}>
           <TimerMiniPlayer />
         </div>
+        {/* 사용 설명서 고정 진입점(사용자 결정 2026-10-13). 정적 페이지라 라우터가 아닌 a로 새 탭(D-218) */}
+        <a
+          href={MANUAL_URL}
+          target="_blank"
+          rel="noopener"
+          className={styles.navItem}
+          title="사용 설명서 (새 탭)"
+          aria-label={MANUAL_LINK_LABEL}
+        >
+          <Icon d={MANUAL_ICON} />
+          <span className={styles.navLabel}>사용 설명서</span>
+          <span className={styles.external} aria-hidden="true">
+            ↗
+          </span>
+        </a>
         <NavLink to="/settings" className={navClass} title="설정">
           <Icon d={SETTINGS_ICON} />
           <span className={styles.navLabel}>설정</span>
@@ -327,7 +344,7 @@ function usePaletteTimer() {
 }
 
 // SCR-COM-01 ⑤ 하단 탭 '더보기' (P1-X-01, P4-03 아이콘·통계·보관함, UX-M-COM-12 알림(n): 모바일 종은 홈 머리에만 있어 다른 화면의 길).
-// 열면 첫 항목으로, Esc·바깥 누르기·항목 선택으로 닫히면 더보기 버튼으로 포커스를 돌려준다.
+// 열면 첫 항목으로, Esc·바깥 누르기·항목 선택으로 닫히면 더보기 버튼으로 포커스를 돌려준다. 맨 아래는 사용 설명서(새 탭).
 const MORE = [
   { to: NOTIFICATIONS_PATH, label: '알림', icon: ICON.bell },
   { to: '/stats', label: '통계', icon: ICON.stats },
@@ -394,6 +411,22 @@ function MoreMenu() {
               </Link>
             </li>
           ))}
+          <li>
+            <a
+              href={MANUAL_URL}
+              target="_blank"
+              rel="noopener"
+              className={styles.moreItem}
+              aria-label={MANUAL_LINK_LABEL}
+              onClick={() => close()}
+            >
+              <Icon d={MANUAL_ICON} />
+              사용 설명서
+              <span className={styles.external} aria-hidden="true">
+                ↗
+              </span>
+            </a>
+          </li>
         </ul>
       )}
     </div>
