@@ -141,6 +141,47 @@ describe('SCR-MOB-01 빠른 기록 바텀시트 (P4-03)', () => {
     expect(within(sheet).getByText('고객사 미팅')).toBeInTheDocument()
   })
 
+  it('CAL-ST-01 다른 날 확인 대기는 날짜를 붙인다: 시간 일정(계획 startDate 없음)·종일 일정', async () => {
+    const base = pending('a', '주간 회고')
+    // 계약상 시간 일정은 startDate·endDate가 null. 서울 10/5 23:30 = UTC 10/5 14:30(날이 갈리는 시각)
+    const timed: PendingRecord = {
+      ...base,
+      workDate: '2026-10-05',
+      plan: {
+        ...base.plan,
+        startAt: '2026-10-05T14:30:00Z',
+        endAt: '2026-10-05T14:50:00Z',
+        startDate: null,
+        endDate: null,
+      },
+    }
+    const allDay: PendingRecord = {
+      ...pending('b', '워크숍'),
+      workDate: '2026-10-06',
+      plan: {
+        title: '워크숍',
+        allDay: true,
+        startAt: null,
+        endAt: null,
+        startDate: '2026-10-06',
+        endDate: '2026-10-06',
+      },
+    }
+    const items = [timed]
+    stubFetch({
+      'GET /api/users/me': () => json(200, ME),
+      'GET /api/worklog/records/pending': () => json(200, { items }),
+    })
+    const first = await openSheet()
+    expect(await within(first.sheet).findByText('확인 대기 · 10/5(월) 23:30 – 23:50')).toBeInTheDocument()
+    await userEvent.keyboard('{Escape}')
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: '빠른 기록' })).not.toBeInTheDocument())
+
+    items.splice(0, 1, allDay)
+    const second = await openSheet()
+    expect(await within(second.sheet).findByText('확인 대기 · 10/6(화) 종일')).toBeInTheDocument()
+  })
+
   it('확인 대기 1건을 했어요로 바꾸고, n건 더 보기는 확인 대기 패널을 연다', async () => {
     const fetchMock = stubFetch({
       'GET /api/users/me': () => json(200, ME),

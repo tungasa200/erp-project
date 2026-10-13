@@ -220,11 +220,8 @@ function PendingCard({
   if (!first) return null
 
   const today = todayIn(timeZone)
-  const day = first.plan.startDate
-    ? first.plan.startDate === today
-      ? '오늘'
-      : shortDate(first.plan.startDate, today)
-    : ''
+  // 시간 일정은 plan.startDate가 비어 있으므로 기록 날(workDate)로 센다. 확인 대기 패널의 날짜 묶음과 같은 값
+  const day = first.workDate === today ? '오늘' : shortDate(first.workDate, today)
   const when = [day, planTime(first.plan, timeZone)].filter(Boolean).join(' ')
   return (
     <div className={styles.pending}>
