@@ -10,7 +10,7 @@ afterEach(() => {
 
 // 모바일 하단 탭은 CSS로만 숨겨 jsdom에서는 늘 있다
 describe('SCR-COM-01 ⑤ 모바일 하단 탭 (P1-X-01)', () => {
-  it('더보기를 누르면 업무·통계·보관함·설정 메뉴가 열려 첫 항목으로 포커스가 가고, Esc로 닫으면 더보기로 돌아온다', async () => {
+  it('더보기를 누르면 알림·통계·보관함·설정 메뉴가 열려 첫 항목으로 포커스가 가고, Esc로 닫으면 더보기로 돌아온다', async () => {
     stubFetch({ 'GET /api/users/me': () => json(200, ME) })
     renderApp('/')
     const tabs = await screen.findByRole('navigation', { name: '하단 탭' })
@@ -25,8 +25,8 @@ describe('SCR-COM-01 ⑤ 모바일 하단 탭 (P1-X-01)', () => {
       within(menu)
         .getAllByRole('link')
         .map((a) => a.textContent),
-    ).toEqual(['통계', '보관함', '설정'])
-    expect(within(menu).getByRole('link', { name: '통계' })).toHaveFocus()
+    ).toEqual(['알림', '통계', '보관함', '설정'])
+    expect(within(menu).getByRole('link', { name: '알림' })).toHaveFocus()
 
     await userEvent.keyboard('{Escape}')
     expect(within(tabs).queryByRole('list', { name: '더보기 메뉴' })).not.toBeInTheDocument()
@@ -42,6 +42,16 @@ describe('SCR-COM-01 ⑤ 모바일 하단 탭 (P1-X-01)', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe('/stats'))
     expect(within(tabs).queryByRole('list', { name: '더보기 메뉴' })).not.toBeInTheDocument()
     expect(within(tabs).getByRole('button', { name: '더보기' })).toHaveFocus()
+  })
+  it('UX-M-COM-12 안 읽은 알림이 있으면 더보기의 알림 항목에 수를 붙인다', async () => {
+    stubFetch({
+      'GET /api/users/me': () => json(200, ME),
+      'GET /api/worklog/notifications': () => json(200, { items: [], nextCursor: null, unreadCount: 3 }),
+    })
+    renderApp('/')
+    const tabs = await screen.findByRole('navigation', { name: '하단 탭' })
+    await userEvent.click(within(tabs).getByRole('button', { name: '더보기' }))
+    expect(await within(tabs).findByRole('link', { name: '알림 (3)' })).toHaveAttribute('href', '/notifications')
   })
   // 가운데 +(빠른 기록 시트, 끊긴 동안 입력 막힘)는 quickSheet.test.tsx (P4-03)
 })

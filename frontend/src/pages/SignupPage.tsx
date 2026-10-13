@@ -1,12 +1,13 @@
 // SCR-AUTH-03 회원가입. 말투는 "~합니다" (D-36)
 // 가입은 인증 뒤 계정 생성(D-220): 폼을 내면 코드만 받고, 같은 화면의 코드 단계에서 맞히면 계정이 생기고 로그인된다(GuestOnly가 홈으로)
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import { toastForError } from '../api/errorToast'
 import { ApiError } from '../api/problem'
 import type { SignupRequest } from '../api/types'
 import { useAuth } from '../auth/useAuth'
 import { EMAIL_PATTERN, passwordViolations, type PasswordRuleCode } from '../auth/passwordRules'
+import { useMediaQuery } from '../components/useMediaQuery'
 import { useToast } from '../components/useToast'
 import { sendLimitMessage, timesOf, type CodeTimes } from '../verification/api'
 import { CodeStep } from '../verification/CodeStep'
@@ -74,6 +75,11 @@ export function SignupPage() {
   const [submitted, setSubmitted] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const { ref: formRef, focusFirstError } = useFocusFirstError<HTMLFormElement>()
+  // 767px 이하(D-223 ④): 동의는 한 줄로 접고, 비밀번호 두 칸에 [보기]. 768 이상은 그대로
+  const mobile = useMediaQuery('(max-width: 767px)')
+  const [consentOpen, setConsentOpen] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirm, setShowConfirm] = useState(false)
 
   // [이메일 고치기]로 폼에 돌아오면 이메일 칸으로(누른 버튼이 사라지므로). 오류가 있으면 focusFirstError가 옮긴다
   const backToForm = useRef(false)
@@ -109,6 +115,8 @@ export function SignupPage() {
     next.password = password ? passwordMessage(violations) : MESSAGES.REQUIRED
     if (password && passwordConfirm !== password) next.passwordConfirm = MESSAGES.PASSWORD_MISMATCH
     if (!agreeAge || !agreeTerms || !agreePrivacy) next.agreements = MESSAGES.AGREEMENT_REQUIRED
+    // 접힌 동의에서 빠진 항목이 있으면 펼쳐서 그 항목으로 포커스가 가게 한다
+    if (next.agreements) setConsentOpen(true)
     setErrors(next)
     if (Object.values(next).some(Boolean)) {
       focusFirstError()
@@ -132,6 +140,7 @@ export function SignupPage() {
       } else if (error instanceof ApiError && error.code === 'VALIDATION_FAILED') {
         const mapped = mapServerErrors(error.problem?.errors ?? [])
         setErrors(mapped.errors)
+        if (mapped.errors.agreements) setConsentOpen(true)
         focusFirstError()
         if (mapped.unknown) showToast('입력 내용을 다시 확인해 주세요', { traceId: error.traceId })
       } else {
@@ -249,16 +258,18 @@ export function SignupPage() {
           <label className={styles.label} htmlFor="signup-password">
             비밀번호
           </label>
-          <input
-            id="signup-password"
-            className={styles.input}
-            type="password"
-            autoComplete="new-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            aria-invalid={passwordError ? true : undefined}
-            aria-describedby={passwordError ? 'signup-password-rules signup-password-error' : 'signup-password-rules'}
-          />
+          <PasswordBox reveal={mobile} shown={showPassword} onToggle={() => setShowPassword((v) => !v)}>
+            <input
+              id="signup-password"
+              className={mobile ? undefined : styles.input}
+              type={mobile && showPassword ? 'text' : 'password'}
+              autoComplete="new-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              aria-invalid={passwordError ? true : undefined}
+              aria-describedby={passwordError ? 'signup-password-rules signup-password-error' : 'signup-password-rules'}
+            />
+          </PasswordBox>
         </div>
         <ul id="signup-password-rules" className={styles.rules} aria-label="비밀번호 규칙">
           {RULES.map((rule) => {
@@ -281,17 +292,19 @@ export function SignupPage() {
           <label className={styles.label} htmlFor="signup-password-confirm">
             비밀번호 확인
           </label>
-          <input
-            id="signup-password-confirm"
-            className={styles.input}
-            type="password"
-            autoComplete="new-password"
-            placeholder="비밀번호 재입력"
-            value={passwordConfirm}
-            onChange={(e) => setPasswordConfirm(e.target.value)}
-            aria-invalid={errors.passwordConfirm ? true : undefined}
-            aria-describedby={errors.passwordConfirm ? 'signup-password-confirm-error' : undefined}
-          />
+          <PasswordBox reveal={mobile} shown={showConfirm} onToggle={() => setShowConfirm((v) => !v)}>
+            <input
+              id="signup-password-confirm"
+              className={mobile ? undefined : styles.input}
+              type={mobile && showConfirm ? 'text' : 'password'}
+              autoComplete="new-password"
+              placeholder="비밀번호 재입력"
+              value={passwordConfirm}
+              onChange={(e) => setPasswordConfirm(e.target.value)}
+              aria-invalid={errors.passwordConfirm ? true : undefined}
+              aria-describedby={errors.passwordConfirm ? 'signup-password-confirm-error' : undefined}
+            />
+          </PasswordBox>
           {errors.passwordConfirm && (
             <p id="signup-password-confirm-error" className={styles.fieldError}>
               {errors.passwordConfirm}
@@ -304,58 +317,127 @@ export function SignupPage() {
           aria-describedby={errors.agreements ? 'signup-agreements-error' : undefined}
         >
           <legend className="visually-hidden">약관 동의</legend>
-          <label className={`${styles.check} ${styles.checkAll}`}>
-            <input
-              type="checkbox"
-              checked={allAgreed}
-              onChange={(e) => {
-                setAgreeAge(e.target.checked)
-                setAgreeTerms(e.target.checked)
-                setAgreePrivacy(e.target.checked)
-              }}
-            />
-            전체 동의
-          </label>
-          <label className={styles.check}>
-            <input
-              type="checkbox"
-              checked={agreeAge}
-              onChange={(e) => setAgreeAge(e.target.checked)}
-              {...requiredCheck(agreeAge)}
-            />
-            <span className={styles.checkText}>[필수] 만 14세 이상입니다</span>
-          </label>
-          <label className={styles.check}>
-            <input
-              type="checkbox"
-              checked={agreeTerms}
-              onChange={(e) => setAgreeTerms(e.target.checked)}
-              {...requiredCheck(agreeTerms)}
-            />
-            <span className={styles.checkText}>[필수] 이용약관 동의</span>
-            <Link className={styles.checkLink} to="/terms" target="_blank">
-              내용 보기
-            </Link>
-          </label>
-          <label className={styles.check}>
-            <input
-              type="checkbox"
-              checked={agreePrivacy}
-              onChange={(e) => setAgreePrivacy(e.target.checked)}
-              {...requiredCheck(agreePrivacy)}
-            />
-            <span className={styles.checkText}>[필수] 개인정보 수집·이용 동의</span>
-            <Link className={styles.checkLink} to="/privacy" target="_blank">
-              내용 보기
-            </Link>
-          </label>
-          <p className={styles.overseas}>
-            회원 정보와 서비스 이용 기록은 싱가포르 소재 서버(Railway)에 보관되며, 메일 발송 등 일부 업무는 국외 업체에
-            위탁하여 처리합니다.{' '}
-            <Link to="/privacy#legal-3" target="_blank">
-              자세히 보기
-            </Link>
-          </p>
+          {mobile ? (
+            <>
+              <div className={styles.consentLine}>
+                <label className={`${styles.check} ${styles.checkAll}`}>
+                  <input
+                    type="checkbox"
+                    checked={allAgreed}
+                    onChange={(e) => {
+                      setAgreeAge(e.target.checked)
+                      setAgreeTerms(e.target.checked)
+                      setAgreePrivacy(e.target.checked)
+                    }}
+                  />
+                  <span className={styles.checkText}>
+                    [필수] 만 14세 이상이며, 이용약관·개인정보 수집·이용에 모두 동의합니다
+                  </span>
+                </label>
+                <button
+                  type="button"
+                  className={styles.consentToggle}
+                  aria-expanded={consentOpen}
+                  aria-controls="signup-consent-items"
+                  onClick={() => setConsentOpen((v) => !v)}
+                >
+                  {consentOpen ? '접기' : '펼치기'}
+                </button>
+              </div>
+              {consentOpen && (
+                <div id="signup-consent-items" className={styles.consentItems}>
+                  <label className={styles.check}>
+                    <input
+                      type="checkbox"
+                      checked={agreeAge}
+                      onChange={(e) => setAgreeAge(e.target.checked)}
+                      {...requiredCheck(agreeAge)}
+                    />
+                    <span className={styles.checkText}>[필수] 만 14세 이상입니다</span>
+                  </label>
+                  <label className={styles.check}>
+                    <input
+                      type="checkbox"
+                      checked={agreeTerms}
+                      onChange={(e) => setAgreeTerms(e.target.checked)}
+                      {...requiredCheck(agreeTerms)}
+                    />
+                    <span className={styles.checkText}>[필수] 이용약관 동의</span>
+                    <Link className={styles.checkLink} to="/terms" target="_blank">
+                      내용 보기
+                    </Link>
+                  </label>
+                  <label className={styles.check}>
+                    <input
+                      type="checkbox"
+                      checked={agreePrivacy}
+                      onChange={(e) => setAgreePrivacy(e.target.checked)}
+                      {...requiredCheck(agreePrivacy)}
+                    />
+                    <span className={styles.checkText}>[필수] 개인정보 수집·이용 동의</span>
+                    <Link className={styles.checkLink} to="/privacy" target="_blank">
+                      내용 보기
+                    </Link>
+                  </label>
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              <label className={`${styles.check} ${styles.checkAll}`}>
+                <input
+                  type="checkbox"
+                  checked={allAgreed}
+                  onChange={(e) => {
+                    setAgreeAge(e.target.checked)
+                    setAgreeTerms(e.target.checked)
+                    setAgreePrivacy(e.target.checked)
+                  }}
+                />
+                전체 동의
+              </label>
+              <label className={styles.check}>
+                <input
+                  type="checkbox"
+                  checked={agreeAge}
+                  onChange={(e) => setAgreeAge(e.target.checked)}
+                  {...requiredCheck(agreeAge)}
+                />
+                <span className={styles.checkText}>[필수] 만 14세 이상입니다</span>
+              </label>
+              <label className={styles.check}>
+                <input
+                  type="checkbox"
+                  checked={agreeTerms}
+                  onChange={(e) => setAgreeTerms(e.target.checked)}
+                  {...requiredCheck(agreeTerms)}
+                />
+                <span className={styles.checkText}>[필수] 이용약관 동의</span>
+                <Link className={styles.checkLink} to="/terms" target="_blank">
+                  내용 보기
+                </Link>
+              </label>
+              <label className={styles.check}>
+                <input
+                  type="checkbox"
+                  checked={agreePrivacy}
+                  onChange={(e) => setAgreePrivacy(e.target.checked)}
+                  {...requiredCheck(agreePrivacy)}
+                />
+                <span className={styles.checkText}>[필수] 개인정보 수집·이용 동의</span>
+                <Link className={styles.checkLink} to="/privacy" target="_blank">
+                  내용 보기
+                </Link>
+              </label>
+              <p className={styles.overseas}>
+                회원 정보와 서비스 이용 기록은 싱가포르 소재 서버(Railway)에 보관되며, 메일 발송 등 일부 업무는 국외
+                업체에 위탁하여 처리합니다.{' '}
+                <Link to="/privacy#legal-3" target="_blank">
+                  자세히 보기
+                </Link>
+              </p>
+            </>
+          )}
         </fieldset>
         {errors.agreements && (
           <p id="signup-agreements-error" className={`${styles.fieldError} ${styles.tight}`}>
@@ -372,6 +454,16 @@ export function SignupPage() {
           </p>
         )}
         <p className={styles.note}>입력한 이메일로 인증번호가 발송되며, 인증을 마치면 가입이 완료됩니다.</p>
+        {/* 휴대폰: 국외 이전 안내는 [회원가입] 아래로 옮기되 가입 폼 화면 안에 처리방침 링크와 함께 둔다(D-33, D-223 ④) */}
+        {mobile && (
+          <p className={styles.overseas}>
+            회원 정보와 서비스 이용 기록은 싱가포르 소재 서버(Railway)에 보관되며, 메일 발송 등 일부 업무는 국외 업체에
+            위탁하여 처리합니다.{' '}
+            <Link to="/privacy#legal-3" target="_blank">
+              자세히 보기
+            </Link>
+          </p>
+        )}
         <p className={styles.center}>
           이미 계정이 있으신 경우{' '}
           <Link className={styles.strong} to="/login">
@@ -380,5 +472,46 @@ export function SignupPage() {
         </p>
       </form>
     </AuthLayout>
+  )
+}
+
+// 비밀번호 칸. reveal이면 [보기] 버튼을 붙인다(AUTH-73, 로그인 화면과 같은 모양)
+function PasswordBox({
+  reveal,
+  shown,
+  onToggle,
+  children,
+}: {
+  reveal: boolean
+  shown: boolean
+  onToggle: () => void
+  children: ReactNode
+}) {
+  if (!reveal) return children
+  return (
+    <span className={styles.inputGroup}>
+      {children}
+      <button
+        type="button"
+        className={styles.iconButton}
+        aria-label={shown ? '비밀번호 숨기기' : '비밀번호 보기'}
+        aria-pressed={shown}
+        onClick={onToggle}
+      >
+        <svg
+          aria-hidden="true"
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+        >
+          <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z" />
+          {shown && <path d="M4 4l16 16" />}
+        </svg>
+      </button>
+    </span>
   )
 }

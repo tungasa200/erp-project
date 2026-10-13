@@ -1,6 +1,6 @@
 import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { api } from '../api'
 import { RequireAuth } from '../app/guards'
 import { useAuth } from '../auth/useAuth'
@@ -502,6 +502,49 @@ describe('SCR-AUTH-03 회원가입', () => {
 
     expect(await screen.findByText('이메일 형식이 올바르지 않습니다.')).toBeInTheDocument()
     expect(screen.getByText('비밀번호 규칙을 확인해 주십시오.')).toBeInTheDocument()
+  })
+
+  describe('휴대폰 폭(D-223 ④, UX-M-AUTH-70·72·73)', () => {
+    beforeEach(() => {
+      vi.stubGlobal('matchMedia', (query: string) => ({
+        matches: query === '(max-width: 767px)',
+        addEventListener: () => {},
+        removeEventListener: () => {},
+      }))
+    })
+
+    it('동의는 만 14세를 담은 한 줄로 접히고, 빠진 항목이 있으면 펼쳐서 첫 빠진 항목으로 포커스한다', async () => {
+      stubFetch({})
+      renderApp('/signup')
+      const user = userEvent.setup()
+      const all = await screen.findByRole('checkbox', {
+        name: '[필수] 만 14세 이상이며, 이용약관·개인정보 수집·이용에 모두 동의합니다',
+      })
+      expect(screen.queryByRole('checkbox', { name: '[필수] 이용약관 동의' })).not.toBeInTheDocument()
+      // 국외 이전 안내와 처리방침 링크는 접혀도 가입 폼 화면에 있다(D-33)
+      expect(screen.getByText(/싱가포르 소재 서버\(Railway\)/)).toBeInTheDocument()
+      expect(screen.getByRole('link', { name: '자세히 보기' })).toHaveAttribute('href', '/privacy#legal-3')
+
+      await user.type(screen.getByLabelText('이메일'), 'a@b.com')
+      await user.type(screen.getByLabelText('비밀번호'), 'worklog20')
+      await user.type(screen.getByLabelText('비밀번호 확인'), 'worklog20')
+      await user.click(screen.getByRole('button', { name: '회원가입' }))
+      expect(screen.getByRole('button', { name: '접기' })).toHaveAttribute('aria-expanded', 'true')
+      await waitFor(() => expect(screen.getByRole('checkbox', { name: '[필수] 만 14세 이상입니다' })).toHaveFocus())
+      expect(all).not.toBeChecked()
+    })
+
+    it('비밀번호 두 칸에 [보기]가 있다', async () => {
+      stubFetch({})
+      renderApp('/signup')
+      const user = userEvent.setup()
+      const password = await screen.findByLabelText('비밀번호')
+      const [show, showConfirm] = screen.getAllByRole('button', { name: '비밀번호 보기' })
+      expect(showConfirm).toBeInTheDocument()
+      await user.click(show)
+      expect(password).toHaveAttribute('type', 'text')
+      expect(screen.getByLabelText('비밀번호 확인')).toHaveAttribute('type', 'password')
+    })
   })
 })
 

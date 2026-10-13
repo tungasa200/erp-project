@@ -411,6 +411,33 @@ describe('SCR-TASK-02 업무 상세', () => {
     expect(document.querySelectorAll('[inert]')).toHaveLength(0)
   })
 
+  it('휴대폰 폭에서는 필터·묶기를 [필터 (n)] 시트로 접고, 고른 조건 수를 붙이며 Esc로 닫으면 버튼으로 돌아온다(UX-M-TASK-43·46)', async () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query === '(max-width: 767px)',
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }))
+    server(SAMPLE)
+    const { router } = renderApp('/tasks')
+    const button = await screen.findByRole('button', { name: '필터' })
+    expect(screen.queryByRole('button', { name: /^상태/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: '묶기' })).not.toBeInTheDocument()
+
+    await userEvent.click(button)
+    const sheet = await screen.findByRole('dialog', { name: '필터' })
+    expect(within(sheet).getByRole('heading', { name: '필터' })).toHaveFocus()
+    expect(within(sheet).getByRole('group', { name: '묶기' })).toBeInTheDocument()
+    await userEvent.click(
+      within(within(sheet).getByRole('group', { name: '상태' })).getByRole('checkbox', { name: '완료' }),
+    )
+    await waitFor(() => expect(router.state.location.search).toContain('status=DONE'))
+
+    await userEvent.keyboard('{Escape}')
+    expect(screen.queryByRole('dialog', { name: '필터' })).not.toBeInTheDocument()
+    const applied = screen.getByRole('button', { name: '필터 (1)' })
+    await waitFor(() => expect(applied).toHaveFocus())
+  })
+
   it('제목을 비우면 저장하지 않고 원래 제목으로 돌린다', async () => {
     const { calls } = server(SAMPLE)
     renderApp('/tasks/none')

@@ -5,6 +5,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
 import { Skeleton } from '../components/Skeleton'
 import { useOnline } from '../components/useOnline'
+import { useBackClose } from '../components/useBackClose'
 import { useToast } from '../components/useToast'
 import { addDays, shortDate } from '../quickInput/dates'
 import { useTask } from '../tasks/api'
@@ -31,6 +32,8 @@ export function PendingPanel({ today, timeZone, onClose }: Props) {
   const online = useOnline()
   const [busy, setBusy] = useState<Set<string>>(() => new Set())
   const items = pending.data ?? NONE
+  // 휴대폰 뒤로 가기는 이 시트만 닫는다(UX-M-COM-02, D-223 ①). 위에 뜬 기록 수정 창이 있으면 그것부터
+  useBackClose(true, () => onClose(false))
 
   const headingRef = useRef<HTMLHeadingElement>(null)
   // 열면 제목으로 포커스(입력 칸이 없는 목록이라 무엇을 열었는지 먼저 읽히게)

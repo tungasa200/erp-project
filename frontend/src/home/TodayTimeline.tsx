@@ -66,8 +66,15 @@ export function TodayTimeline(props: Props) {
   const showGrid =
     timeTracking && !loading && !failed && (occurrences.length > 0 || actual.timed.length > 0 || gaps.length > 0)
 
+  const showEmpty = empty && !showGrid && !(timeTracking && gapsQuery.isPending)
+  // 휴대폰에서는 '없어요'뿐인 카드를 숨긴다. 요약 줄의 '오늘 일정 0'이 대신 알린다(UX-M-HOME-04, D-223 ③)
+  const bare = showEmpty && entries.length === 0 && !records.isError
+
   return (
-    <section aria-labelledby="home-today" className={`${homeStyles.panel} ${styles.panel}`}>
+    <section
+      aria-labelledby="home-today"
+      className={`${homeStyles.panel} ${styles.panel}${bare ? ` ${styles.bareOnMobile}` : ''}`}
+    >
       <div className={homeStyles.panelHead}>
         <h2 id="home-today" ref={headingRef} tabIndex={-1} className={homeStyles.panelTitle}>
           오늘 일정
@@ -108,9 +115,7 @@ export function TodayTimeline(props: Props) {
         </p>
       )}
       {/* 켜짐이면 빈 시간이 격자를 띄울 수 있어 받을 때까지 '없어요'를 미룬다 */}
-      {empty && !showGrid && !(timeTracking && gapsQuery.isPending) && (
-        <p className={homeStyles.muted}>오늘 잡힌 일정이 없어요</p>
-      )}
+      {showEmpty && <p className={homeStyles.muted}>오늘 잡힌 일정이 없어요</p>}
       {showGrid ? (
         <PlanActualGrid
           entries={entries}

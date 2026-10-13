@@ -54,19 +54,18 @@
   opacity: 0.88;
 }
 
-/* 모바일: 소개 영역을 위쪽 띠로 줄인다 */
+/* 모바일: 소개 영역을 로고 한 줄(64px)로 줄이고 화면 제목은 폼의 h1 하나만(UX-M-AUTH-72, D-223 ④) */
 @media (max-width: 767px) {
   .intro {
     flex-basis: 100%;
-    padding: var(--space-4) var(--space-4);
-    gap: var(--space-2);
+    box-sizing: border-box;
+    height: 64px;
+    padding: 0 var(--space-4);
+    justify-content: center;
   }
-  .introHeading {
-    margin: var(--space-3) 0 0;
-    font-size: var(--text-2xl);
-  }
+  .introHeading,
   .introText {
-    font-size: var(--text-md);
+    display: none;
   }
 }
 
@@ -446,4 +445,44 @@
   .legal a:hover {
     color: var(--color-accent-ink);
   }
+}
+
+/* 휴대폰 가입 동의: 한 줄로 접고 [펼치기]로 세 항목(UX-M-AUTH-70, D-223 ④) */
+.consentLine {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.consentLine .check {
+  flex: 1;
+  align-items: flex-start;
+  padding-block: 12px;
+}
+
+.consentLine .check input {
+  flex: none;
+  margin-top: 1px;
+}
+
+.consentToggle {
+  flex: none;
+  min-width: var(--size-touch);
+  min-height: var(--size-touch);
+  padding: 0 var(--space-2);
+  border: 0;
+  background: transparent;
+  color: var(--color-accent-ink);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.consentItems {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding-left: var(--space-2);
+  border-left: 2px solid var(--color-border);
 }

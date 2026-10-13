@@ -167,7 +167,7 @@
 
 /* 끌다 놓았을 때 제자리로 돌아가는 동안만(X-12 5번) */
 .settling {
-  transition: transform var(--duration-sheet) var(--ease-sheet);
+  transition: transform var(--duration-settle) var(--ease-sheet);
 }
 
 @media (prefers-reduced-motion: reduce) {

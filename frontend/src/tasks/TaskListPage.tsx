@@ -6,7 +6,10 @@ import { Link, Outlet, useNavigate, useParams, useSearchParams } from 'react-rou
 import { toastForError } from '../api/errorToast'
 import { ApiError } from '../api/problem'
 import { useAuth } from '../auth/useAuth'
+import { inertOutside } from '../components/inertOutside'
 import { Skeleton } from '../components/Skeleton'
+import { useBackClose } from '../components/useBackClose'
+import { useMediaQuery } from '../components/useMediaQuery'
 import { useOnline } from '../components/useOnline'
 import { useToast } from '../components/useToast'
 import { useProjects, useTags, type Project } from '../projects/api'
@@ -92,6 +95,19 @@ export function TaskListPage() {
   const projects = useProjects()
   const tags = useTags()
   const filter = toFilter(params, today, weekStart, timeZone)
+  const mobile = useMediaQuery('(max-width: 767px)')
+  const [filterSheet, setFilterSheet] = useState(false)
+  const filterButton = useRef<HTMLButtonElement>(null)
+  // [필터 (n)]의 n: 기본(할 일·진행 중)과 다른 조건 수. 묶기는 조건이 아니라 세지 않는다
+  const defaultStatus =
+    params.status.length === DEFAULT_STATUSES.length && DEFAULT_STATUSES.every((x) => params.status.includes(x))
+  const applied = [
+    !defaultStatus,
+    params.project.length > 0,
+    params.tag.length > 0,
+    params.due !== '',
+    params.completed !== '',
+  ].filter(Boolean).length
   const mainEnabled = (filter.status?.length ?? 0) > 0
   const main = useTasks(filter, { enabled: mainEnabled })
   // 완료 업무 접기(최근 7일) — 상태 필터에 완료가 없을 때만. 완료를 골랐으면 본문에 바로 보인다 (P1-11-02)
@@ -185,6 +201,113 @@ export function TaskListPage() {
     },
   }
 
+  // 필터 조건과 묶기. 데스크톱은 도구 줄에 펼치고, 휴대폰은 [필터 (n)] 시트 안에 같은 것을 둔다
+  const conditions = (
+    <>
+      <FilterMenu
+        inline={mobile}
+        label="상태"
+        summary={params.status.map((s) => STATUS_LABEL[s]).join('·')}
+        active={params.status.length > 0}
+      >
+        {STATUSES.map((s) => (
+          <Check
+            key={s}
+            label={STATUS_LABEL[s]}
+            checked={params.status.includes(s)}
+            onChange={(on) => update({ status: on ? [...params.status, s] : params.status.filter((x) => x !== s) })}
+          />
+        ))}
+      </FilterMenu>
+      <FilterMenu
+        inline={mobile}
+        label="프로젝트"
+        summary={(projects.data ?? [])
+          .filter((p) => params.project.includes(p.id))
+          .map((p) => p.name)
+          .join('·')}
+        active={params.project.length > 0}
+      >
+        {(projects.data ?? []).map((p) => (
+          <Check
+            key={p.id}
+            label={p.archived ? `${p.name} (보관)` : p.name}
+            checked={params.project.includes(p.id)}
+            onChange={(on) =>
+              update({ project: on ? [...params.project, p.id] : params.project.filter((x) => x !== p.id) })
+            }
+          />
+        ))}
+      </FilterMenu>
+      <FilterMenu
+        inline={mobile}
+        label="태그"
+        summary={(tags.data ?? [])
+          .filter((t) => params.tag.includes(t.id))
+          .map((t) => `#${t.name}`)
+          .join(' ')}
+        active={params.tag.length > 0}
+      >
+        {(tags.data ?? []).map((t) => (
+          <Check
+            key={t.id}
+            label={`#${t.name}`}
+            checked={params.tag.includes(t.id)}
+            onChange={(on) => update({ tag: on ? [...params.tag, t.id] : params.tag.filter((x) => x !== t.id) })}
+          />
+        ))}
+      </FilterMenu>
+      <FilterMenu
+        inline={mobile}
+        label="마감 기간"
+        summary={DUE_PRESETS.find((d) => d.value === params.due)?.label ?? ''}
+        active={params.due !== ''}
+      >
+        {DUE_PRESETS.map((d) => (
+          <Check
+            key={d.value}
+            type="radio"
+            label={d.label}
+            checked={params.due === d.value}
+            onChange={() => update({ due: params.due === d.value ? '' : d.value })}
+          />
+        ))}
+      </FilterMenu>
+      {params.completed === 'week' && (
+        // 홈 '이번 주 완료' 카드에서 온 기간 조건. 눌러서 지운다
+        <button
+          type="button"
+          className={`${styles.filterButton} ${styles.filterActive}`}
+          aria-label="완료 기간 조건 지우기: 이번 주부터"
+          onClick={() => update({ completed: '' })}
+        >
+          완료: 이번 주부터 ×
+        </button>
+      )}
+    </>
+  )
+  const grouping = (
+    <div role="group" aria-label="묶기" className={styles.segment}>
+      {(
+        [
+          ['due', '마감순'],
+          ['project', '프로젝트'],
+          ['status', '상태'],
+        ] as [GroupBy, string][]
+      ).map(([value, label]) => (
+        <button
+          key={value}
+          type="button"
+          aria-pressed={params.group === value}
+          className={styles.segmentButton}
+          onClick={() => update({ group: value })}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  )
+
   return (
     <div className={styles.layout}>
       <div className={styles.page}>
@@ -224,105 +347,43 @@ export function TaskListPage() {
           </p>
         )}
 
-        <div className={styles.toolbar}>
-          <SearchBox value={params.q} onChange={(q) => update({ q })} />
-          <FilterMenu
-            label="상태"
-            summary={params.status.map((s) => STATUS_LABEL[s]).join('·')}
-            active={params.status.length > 0}
-          >
-            {STATUSES.map((s) => (
-              <Check
-                key={s}
-                label={STATUS_LABEL[s]}
-                checked={params.status.includes(s)}
-                onChange={(on) => update({ status: on ? [...params.status, s] : params.status.filter((x) => x !== s) })}
-              />
-            ))}
-          </FilterMenu>
-          <FilterMenu
-            label="프로젝트"
-            summary={(projects.data ?? [])
-              .filter((p) => params.project.includes(p.id))
-              .map((p) => p.name)
-              .join('·')}
-            active={params.project.length > 0}
-          >
-            {(projects.data ?? []).map((p) => (
-              <Check
-                key={p.id}
-                label={p.archived ? `${p.name} (보관)` : p.name}
-                checked={params.project.includes(p.id)}
-                onChange={(on) =>
-                  update({ project: on ? [...params.project, p.id] : params.project.filter((x) => x !== p.id) })
-                }
-              />
-            ))}
-          </FilterMenu>
-          <FilterMenu
-            label="태그"
-            summary={(tags.data ?? [])
-              .filter((t) => params.tag.includes(t.id))
-              .map((t) => `#${t.name}`)
-              .join(' ')}
-            active={params.tag.length > 0}
-          >
-            {(tags.data ?? []).map((t) => (
-              <Check
-                key={t.id}
-                label={`#${t.name}`}
-                checked={params.tag.includes(t.id)}
-                onChange={(on) => update({ tag: on ? [...params.tag, t.id] : params.tag.filter((x) => x !== t.id) })}
-              />
-            ))}
-          </FilterMenu>
-          <FilterMenu
-            label="마감 기간"
-            summary={DUE_PRESETS.find((d) => d.value === params.due)?.label ?? ''}
-            active={params.due !== ''}
-          >
-            {DUE_PRESETS.map((d) => (
-              <Check
-                key={d.value}
-                type="radio"
-                label={d.label}
-                checked={params.due === d.value}
-                onChange={() => update({ due: params.due === d.value ? '' : d.value })}
-              />
-            ))}
-          </FilterMenu>
-          {params.completed === 'week' && (
-            // 홈 '이번 주 완료' 카드에서 온 기간 조건. 눌러서 지운다
+        {mobile ? (
+          // 휴대폰: 검색과 [필터 (n)] 한 줄, 조건·묶기는 하단 시트로 접는다(UX-M-TASK-43·46, D-223 ③)
+          <div className={styles.toolbar}>
+            <SearchBox value={params.q} onChange={(q) => update({ q })} />
             <button
+              ref={filterButton}
               type="button"
-              className={`${styles.filterButton} ${styles.filterActive}`}
-              aria-label="완료 기간 조건 지우기: 이번 주부터"
-              onClick={() => update({ completed: '' })}
+              className={applied > 0 ? `${styles.filterButton} ${styles.filterActive}` : styles.filterButton}
+              aria-haspopup="dialog"
+              onClick={() => setFilterSheet(true)}
             >
-              완료: 이번 주부터 ×
+              {applied > 0 ? `필터 (${applied})` : '필터'}
             </button>
-          )}
-          <div className={styles.spacer} />
-          <div role="group" aria-label="묶기" className={styles.segment}>
-            {(
-              [
-                ['due', '마감순'],
-                ['project', '프로젝트'],
-                ['status', '상태'],
-              ] as [GroupBy, string][]
-            ).map(([value, label]) => (
-              <button
-                key={value}
-                type="button"
-                aria-pressed={params.group === value}
-                className={styles.segmentButton}
-                onClick={() => update({ group: value })}
-              >
-                {label}
-              </button>
-            ))}
           </div>
-        </div>
+        ) : (
+          <div className={styles.toolbar}>
+            <SearchBox value={params.q} onChange={(q) => update({ q })} />
+            {conditions}
+            <div className={styles.spacer} />
+            {grouping}
+          </div>
+        )}
+        {mobile && filterSheet && (
+          <FilterSheet
+            onClose={() => {
+              setFilterSheet(false)
+              // 시트가 사라져 뒤 화면의 inert가 풀린 뒤에 옮긴다(그 전에는 버튼이 포커스를 받지 못한다)
+              setTimeout(() => filterButton.current?.focus())
+            }}
+          >
+            {conditions}
+            <p className={styles.sheetLegend} aria-hidden="true">
+              묶기
+            </p>
+            {grouping}
+          </FilterSheet>
+        )}
 
         <section aria-label="업무 목록" className={styles.listCard}>
           {main.isPending && mainEnabled && <Skeleton count={5} offlineText="연결되면 업무를 불러올게요" />}
@@ -501,6 +562,34 @@ function FilterMenu({
   label,
   summary,
   active,
+  inline = false,
+  children,
+}: {
+  label: string
+  summary: string
+  active: boolean
+  /** 필터 시트 안: 펼친 선택지 묶음으로 */
+  inline?: boolean
+  children: ReactNode
+}) {
+  if (inline)
+    return (
+      <fieldset className={styles.sheetGroup}>
+        <legend className={styles.sheetLegend}>{label}</legend>
+        {children}
+      </fieldset>
+    )
+  return (
+    <FilterDropdown label={label} summary={summary} active={active}>
+      {children}
+    </FilterDropdown>
+  )
+}
+
+function FilterDropdown({
+  label,
+  summary,
+  active,
   children,
 }: {
   label: string
@@ -553,6 +642,43 @@ function FilterMenu({
           {children}
         </fieldset>
       )}
+    </div>
+  )
+}
+
+// 휴대폰 필터 시트(UX-M-TASK-43, D-223 ③). 고르는 즉시 목록에 걸리고 [완료]·바깥·Esc·뒤로 가기로 닫는다
+function FilterSheet({ onClose, children }: { onClose: () => void; children: ReactNode }) {
+  const sheet = useRef<HTMLElement>(null)
+  const titleId = useId()
+  useBackClose(true, onClose)
+  useEffect(() => {
+    if (!sheet.current) return
+    sheet.current.querySelector<HTMLElement>('h2')?.focus()
+    return inertOutside(sheet.current)
+  }, [])
+  return (
+    <div className={`${styles.sheetScrim} wy-scrim`} onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
+      <section
+        ref={sheet}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className={`${styles.sheet} wy-sheet`}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') {
+            e.stopPropagation()
+            onClose()
+          }
+        }}
+      >
+        <h2 id={titleId} tabIndex={-1} className={styles.sheetTitle}>
+          필터
+        </h2>
+        {children}
+        <button type="button" className={styles.sheetDone} onClick={onClose}>
+          완료
+        </button>
+      </section>
     </div>
   )
 }

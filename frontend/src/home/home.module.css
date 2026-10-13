@@ -484,10 +484,12 @@ button.card[aria-disabled='true'] {
   gap: var(--space-1);
 }
 
-/* 좁은 폭에서도 요약은 한 줄 흐름(D-212 Q4, 2×2 타일 아님, UX-M-HOME-04). 넘치면 줄바꿈하되 줄 앞에 '·'가 남지 않게 구분점은 빼고
-   항목 좌우 여백을 줄여 가능한 한 한 줄에 들게 한다(가로 스크롤 없음) */
+/* 좁은 폭에서도 요약은 한 줄(D-212 Q4, 2×2 타일 아님, UX-M-HOME-04). 네 항목이 390에서 옆으로 다 들지 않아(약 411px)
+   한 줄 네 칸으로 나누고 칸마다 이름 위·숫자 아래로 쌓는다. 구분점은 칸 사이에 필요 없어 뺀다 */
 @media (max-width: 767px) {
   .summary {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 0;
   }
 
@@ -495,8 +497,24 @@ button.card[aria-disabled='true'] {
     content: none;
   }
 
+  .summary > li {
+    flex-direction: column;
+    min-width: 0;
+  }
+
   .summary .summaryItem {
-    padding-inline: var(--space-2);
+    flex-wrap: wrap;
+    justify-content: center;
+    column-gap: var(--space-1);
+    row-gap: 0;
+    width: 100%;
+    padding: var(--space-1);
+    text-align: center;
+  }
+
+  .summary .summaryLabel {
+    flex-basis: 100%;
+    font-size: var(--text-sm);
   }
 }
 

@@ -20,10 +20,13 @@ import { CompletionResultHost } from '../tasks/CompletionResult'
 import { stoppedMessage, useRunningTimer, useTimerCommands } from '../timer/api'
 import { TimerMiniPlayer } from '../timer/TimerMiniPlayer'
 import { TimerStartDialog } from '../timer/TimerStartDialog'
+import { useUnreadCount } from '../notifications/api'
+import { NOTIFICATIONS_PATH } from '../notifications/format'
 import { NotificationBell } from '../notifications/NotificationBell'
 import styles from './AppShell.module.css'
 import { useFocusRescue } from './focusRescue'
 import { QuickSheet } from './QuickSheet'
+import { useBackClose } from './useBackClose'
 import { useOnline } from './useOnline'
 import { useToast } from './useToast'
 
@@ -48,6 +51,7 @@ const ICON = {
   stats: MENU[3].icon,
   archive: 'M3 4h18v4H3zM5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8M10 12h4',
   more: 'M5 12h.01M12 12h.01M19 12h.01',
+  bell: 'M6 16V11a6 6 0 1 1 12 0v5l2 2H4zM10 21h4',
 }
 const SETTINGS_ICON =
   'M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM12 2v3M12 19v3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1 7 17M17 7l2.1-2.1'
@@ -322,9 +326,10 @@ function usePaletteTimer() {
   return { commands, dialog }
 }
 
-// SCR-COM-01 ⑤ 하단 탭 '더보기' (P1-X-01, P4-03 아이콘·통계·보관함).
+// SCR-COM-01 ⑤ 하단 탭 '더보기' (P1-X-01, P4-03 아이콘·통계·보관함, UX-M-COM-12 알림(n): 모바일 종은 홈 머리에만 있어 다른 화면의 길).
 // 열면 첫 항목으로, Esc·바깥 누르기·항목 선택으로 닫히면 더보기 버튼으로 포커스를 돌려준다.
 const MORE = [
+  { to: NOTIFICATIONS_PATH, label: '알림', icon: ICON.bell },
   { to: '/stats', label: '통계', icon: ICON.stats },
   { to: '/tasks/archive', label: '보관함', icon: ICON.archive },
   { to: '/settings', label: '설정', icon: SETTINGS_ICON },
@@ -337,11 +342,14 @@ function MoreMenu() {
   const button = useRef<HTMLButtonElement>(null)
   const { pathname } = useLocation()
   const here = MORE.some((m) => pathname.startsWith(m.to))
+  const unread = useUnreadCount().data ?? 0
 
   const close = (refocus = true) => {
     setOpen(false)
     if (refocus) button.current?.focus()
   }
+  // 휴대폰 뒤로 가기는 열린 메뉴만 닫는다(UX-M-COM-02, D-223 ①)
+  useBackClose(open, () => close())
 
   useEffect(() => {
     if (!open) return
@@ -382,7 +390,7 @@ function MoreMenu() {
             <li key={m.to}>
               <Link to={m.to} className={styles.moreItem} onClick={() => close()}>
                 <Icon d={m.icon} />
-                {m.label}
+                {m.to === NOTIFICATIONS_PATH && unread > 0 ? `${m.label} (${unread > 99 ? '99+' : unread})` : m.label}
               </Link>
             </li>
           ))}

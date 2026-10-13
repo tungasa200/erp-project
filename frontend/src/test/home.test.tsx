@@ -87,6 +87,7 @@ function server(
     occurrences?: Occurrence[]
     holdTasks?: boolean
     log?: Record<string, unknown>
+    periods?: Record<string, unknown>[]
     failDone?: () => boolean
   } = {},
 ) {
@@ -98,6 +99,9 @@ function server(
     'GET /api/worklog/projects': () => json(200, { items: PROJECTS }),
     'GET /api/worklog/schedules': () => json(200, { items: options.occurrences ?? OCCURRENCES }),
     ...(options.log && { 'GET /api/worklog/logs/daily/2026-10-07': () => json(200, options.log) }),
+    ...(options.periods && {
+      'GET /api/worklog/logs': () => json(200, { items: options.periods, unconfirmedDays: 0 }),
+    }),
   })
   const base = fetchMock.getMockImplementation()!
   fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -261,6 +265,52 @@ describe('SCR-HOME-01 홈 대시보드 1차', () => {
 })
 
 describe('하루 마감 띠 (X-02 C, UX-HOME-04·12)', () => {
+  // 지난 일간 일지 목록(GET /logs?type=DAILY). 오늘은 2026-10-07(수)
+  const day = (periodStart: string, status: string, workday = true) => ({
+    type: 'DAILY',
+    periodStart,
+    periodEnd: periodStart,
+    logId: status === 'NO_RECORDS' ? null : `log-${periodStart}`,
+    status,
+    workday,
+    holiday: null,
+  })
+
+  it('UX-M-HOME-03 마감 시각 전에는 미확정인 가장 최근 근무일을 띠로 알리고, [하루 마감]은 그날 마감 창을 연다', async () => {
+    server({ periods: [day('2026-10-05', 'CONFIRMED'), day('2026-10-06', 'DRAFT')] })
+    renderApp('/')
+    const band = await screen.findByRole('region', { name: '하루 마감' })
+    expect(band).toHaveTextContent('10/6(화) 하루 마감을 아직 하지 않았어요')
+    await userEvent.click(within(band).getByRole('button', { name: '하루 마감' }))
+    // 그날(10/6) 마감 창이 그날 계획을 받는다
+    await waitFor(() =>
+      expect(vi.mocked(fetch).mock.calls.some(([url]) => String(url).includes('/logs/daily/2026-10-06/close'))).toBe(
+        true,
+      ),
+    )
+  })
+
+  it('UX-M-HOME-03 가장 최근 근무일을 마감했으면 그 앞의 미확정은 알리지 않고, 기록 없는 비근무일은 건너뛴다', async () => {
+    server({
+      periods: [day('2026-10-02', 'DRAFT'), day('2026-10-05', 'CONFIRMED'), day('2026-10-06', 'NO_RECORDS', false)],
+    })
+    renderApp('/')
+    await screen.findByRole('list', { name: '요약' })
+    await waitFor(() =>
+      expect(vi.mocked(fetch).mock.calls.some(([url]) => String(url).startsWith('/api/worklog/logs?'))).toBe(true),
+    )
+    expect(screen.queryByRole('region', { name: '하루 마감' })).not.toBeInTheDocument()
+  })
+
+  it('UX-M-HOME-03 오늘 마감 시각부터는 오늘 띠가 넘겨받는다(띠는 하나)', async () => {
+    vi.setSystemTime(new Date('2026-10-07T10:00:00Z')) // 서울 19:00
+    server({ periods: [day('2026-10-06', 'DRAFT')] })
+    renderApp('/')
+    const band = await screen.findByRole('region', { name: '하루 마감' })
+    expect(band).toHaveTextContent('오늘 기록을 정리할 시간이에요')
+    expect(screen.getAllByRole('region', { name: '하루 마감' })).toHaveLength(1)
+  })
+
   it('업무일지 숨김: 하루 마감 알림·푸시의 옛 주소(/logs/daily/{날짜}?close=1)는 홈으로 바꾸고 그날 마감 창을 연다', async () => {
     server()
     const { router } = renderApp('/logs/daily/2026-10-06?close=1')

@@ -3,6 +3,12 @@
   margin-bottom: var(--space-4);
 }
 
+@media (max-width: 767px) {
+  .bareOnMobile {
+    display: none;
+  }
+}
+
 .dayLink {
   display: inline-flex;
   align-items: center;

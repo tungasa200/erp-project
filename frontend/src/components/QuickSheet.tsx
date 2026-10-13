@@ -12,6 +12,7 @@ import { usePendingDecision } from '../records/usePendingDecision'
 import { useQuickSave } from '../tasks/useQuickSave'
 import { markFocus, restoreFocus } from './focusRescue'
 import styles from './QuickSheet.module.css'
+import { useBackClose } from './useBackClose'
 import { useOnline } from './useOnline'
 
 const TABBABLE =
@@ -36,6 +37,8 @@ export function QuickSheet({ text, onTextChange, onClose, onOpenPending, onStart
   const online = useOnline()
   const quickSave = useQuickSave()
   const typing = text.trim() !== ''
+  // 휴대폰 뒤로 가기는 이 시트만 닫는다. 쓰던 글(text)은 바깥이 들고 있어 남는다(UX-M-COM-02, D-223 ①)
+  useBackClose(true, onClose)
 
   // 입력칸으로, 끊겨서 막혀 있으면 손잡이(닫기)로
   const focusStart = () =>
