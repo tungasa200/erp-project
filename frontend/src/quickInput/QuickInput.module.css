@@ -19,6 +19,11 @@
   box-shadow: var(--shadow-1);
 }
 
+/* 안내를 숨긴 좁은 칸(캘린더 할 일 상자): 양옆 여백을 줄여 글이 칸 끝까지 쓰이게 */
+.fieldCompact {
+  padding: 0 var(--space-1) 0 var(--space-3);
+}
+
 /* 포커스는 바깥 둥근 상자에 전역과 같은 윤곽선(COM-34) */
 .field:has(.input:focus-visible) {
   outline: 2px solid var(--color-accent);

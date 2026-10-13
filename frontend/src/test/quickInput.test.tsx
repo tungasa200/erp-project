@@ -476,13 +476,13 @@ describe('SCR-COM-04 되돌리기 토스트', () => {
 })
 
 describe('디자인 개선 묶음 3a (X-04 [×], X-11 COM-29·COM-06)', () => {
-  function renderQuick(onSubmit = vi.fn()) {
+  function renderQuick(onSubmit = vi.fn(), hideKeyHints = false) {
     stubFetch({ 'GET /api/users/me': () => json(200, ME), ...WORKLOG })
     function Wrapper() {
       const [value, setValue] = useState('')
-      return <QuickInput value={value} onChange={setValue} onSubmit={onSubmit} />
+      return <QuickInput value={value} onChange={setValue} onSubmit={onSubmit} hideKeyHints={hideKeyHints} />
     }
-    render(
+    const { container } = render(
       <QueryClientProvider client={new QueryClient()}>
         <AuthProvider>
           <ToastProvider>
@@ -491,8 +491,26 @@ describe('디자인 개선 묶음 3a (X-04 [×], X-11 COM-29·COM-06)', () => {
         </AuthProvider>
       </QueryClientProvider>,
     )
-    return { onSubmit }
+    return { onSubmit, container }
   }
+
+  it('좁은 칸(hideKeyHints)은 N 안내와 Enter 저장 표시를 숨겨 글 자리를 넓히되, Enter 저장과 스크린 리더 안내는 남긴다', async () => {
+    const { onSubmit, container } = renderQuick(vi.fn(), true)
+    const input = await screen.findByRole('textbox', { name: '빠른 입력' })
+    expect(container.querySelector('kbd')).toBeNull()
+    await userEvent.type(input, '긴 업무 이름')
+    expect(screen.getByText('Enter 저장')).toHaveClass('visually-hidden')
+    await userEvent.keyboard('{Enter}')
+    expect(onSubmit).toHaveBeenCalledTimes(1)
+  })
+
+  it('기본 칸은 N 안내와 Enter 저장 표시를 그대로 보인다', async () => {
+    const { container } = renderQuick()
+    const input = await screen.findByRole('textbox', { name: '빠른 입력' })
+    await waitFor(() => expect(container.querySelector('kbd')).toHaveTextContent('N'))
+    await userEvent.type(input, '긴 업무 이름')
+    expect(screen.getByText('Enter 저장')).not.toHaveClass('visually-hidden')
+  })
 
   it('[입력 지우기]는 글이 있을 때만 보이고, 누르면 비우고 입력칸에 포커스를 둔다. Esc는 글을 남긴다', async () => {
     renderQuick()

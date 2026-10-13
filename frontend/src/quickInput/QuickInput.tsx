@@ -171,6 +171,8 @@ interface Props {
   placeholder?: string
   /** 누르는 [저장] 버튼을 입력칸 안에 둔다(모바일 시트, UX-MOB-01). 터치에서는 Enter 안내가 뜻이 없다 */
   saveButton?: boolean
+  /** 좁은 패널(캘린더 할 일 상자)에서 칸 안의 'Enter 저장'·단축키 안내를 숨겨 쓰는 글 자리를 넓힌다. 단축키 동작과 스크린 리더 안내는 그대로 */
+  hideKeyHints?: boolean
 }
 
 export function QuickInput({
@@ -180,6 +182,7 @@ export function QuickInput({
   label = '빠른 입력',
   placeholder = '무엇을 하셨나요? 한 줄로 적어 보세요',
   saveButton = false,
+  hideKeyHints = false,
 }: Props) {
   const { user } = useAuth()
   const inputRef = useRef<HTMLInputElement>(null)
@@ -506,7 +509,7 @@ export function QuickInput({
         {label}
       </label>
       <div
-        className={styles.field}
+        className={hideKeyHints ? `${styles.field} ${styles.fieldCompact}` : styles.field}
         // 알약의 빈 곳(여백·N 안내)을 눌러도 입력칸으로 포커스. 버튼·입력칸을 누른 것은 그대로 둔다
         onMouseDown={(e) => {
           if ((e.target as Element).closest('button, input')) return
@@ -552,10 +555,12 @@ export function QuickInput({
             저장
           </button>
         ) : typing && onSubmit ? (
-          <span className={`${styles.enter} keyboard-only`}>Enter 저장</span>
+          // 숨길 때도 키보드 쓰는 스크린 리더에는 읽힌다(터치에서는 전처럼 빠짐)
+          <span className={`${hideKeyHints ? 'visually-hidden' : styles.enter} keyboard-only`}>Enter 저장</span>
         ) : (
           // 단축키를 끄면 N 안내도 숨긴다 (qa P1-01-11)
-          shortcutsEnabled && (
+          shortcutsEnabled &&
+          !hideKeyHints && (
             <kbd className={`${styles.kbd} keyboard-only`} aria-hidden="true">
               N
             </kbd>
