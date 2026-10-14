@@ -26,9 +26,10 @@ MSA ERP 프로젝트. 이 파일은 git으로 공유되는 작업 규칙이다. 
 | `WY-ux3` | 디자인 평가 보조: 캘린더·설정·알림·인증·랜딩·메일 영역. `WY-ux` 기준표만 씀. 매뉴얼 기간엔 배정된 장 원고(`docs/manual/`)도 씀 |
 
 - 역할 세션은 `WY-pm`이 백그라운드 세션으로 띄우고 멈춘다: `.claude/skills/pm-ops/scripts/session.ps1 list | health | start <역할> [지시] | stop <역할> | prep <역할> | rotate <역할> [경로]`. 사용자가 늘 보는 세션은 `WY-pm`과 `WY-commit`(커밋 승인)이다. 다른 세션은 `claude agents`로 보고, 권한 승인이나 직접 지시가 필요하면 `claude attach <id>`로 들어간다.
-- 쉬는 세션은 `stop`으로 멈춰 메모리를 돌려준다. 대화는 남아서 `start`로 이어진다. 이어 띄우면 새 ID로 뜨므로 `ListAgents`의 `[ref]`가 바뀐다.
+- 1시간 넘게 안 쓸 세션은 `stop`으로 멈춰 메모리를 돌려준다. 대화는 남아서 `start`로 이어지고, 교체 기준 이상으로 커진 세션은 `rotate`로 새로 시작한다. 이어 띄우면 새 ID로 뜨므로 `ListAgents`의 `[ref]`가 바뀐다.
 - 세션 간 메시지(`ListAgents`/`SendMessage`)는 같은 PC 안의 세션끼리만 오간다. 위 역할 구성은 PC마다 따로 띄운다.
-- 메시지를 보내기 전에는 매번 `ListAgents`로 대상 세션이 있는지 확인한다. 이전 확인 결과를 재사용하지 않는다.
+- `ListAgents`로 대상 세션이 있는지 확인하는 것은 처음 보내는 대상, 세션 교체 직후, 보내기 실패·전달 안내를 받았을 때다.
+- 메시지는 받는 쪽이 할 일이 있을 때만 보낸다. 수신 확인, '알겠습니다', '대기하세요'처럼 할 일이 없는 메시지는 보내지 않는다(받는 세션이 깨어나 대화 전체를 다시 읽는다).
 - 대상 세션이 없거나 어느 세션인지 불분명하면 짐작해서 보내지 말고 사용자에게 알린다. 다른 세션을 임의로 그 역할로 간주하지 않는다.
 - `/rename` 직후에는 다른 세션의 `ListAgents`에 예전 이름이 보일 수 있다. 이름을 바꾼 세션이 한 턴 응답한 뒤에 반영된다.
 
@@ -59,7 +60,7 @@ MSA ERP 프로젝트. 이 파일은 git으로 공유되는 작업 규칙이다. 
 
 **`WY-commit`:**
 - 요청받은 파일만 stage한다. 다른 세션의 변경은 섞지 않는다.
-- 사용자 승인은 **WY 승인 센터**(VS Code 확장의 작업창 탭)로 받는다. 승인 대상 git 명령마다 `~/.claude/wy-approvals/erp-project/requests/`(프로젝트별 폴더, `.claude/wy-ops.json`의 `approvals.namespace`)에 요청 파일(종류·브랜치·커밋 목록·바뀐 파일·검증 결과·실행할 명령)을 쓰고, `decisions/<id>.json` 결정을 기다린 뒤 approved면 그 명령을 그대로 실행하고 rejected면 사유를 요청 세션과 `WY-pm`에 전한다. 형식은 패키지 저장소 agentTeamPackage의 `vscode/README.md`.
+- 사용자 승인은 **WY 승인 센터**(VS Code 확장의 작업창 탭)로 받는다. 승인 대상 git 명령마다 `~/.claude/wy-approvals/erp-project/requests/`(프로젝트별 폴더, `.claude/wy-ops.json`의 `approvals.namespace`)에 요청 파일(종류·브랜치·커밋 목록·바뀐 파일·검증 결과·실행할 명령)을 쓰고, `decisions/<id>.json` 결정을 받은 뒤(대기 루프 없이 턴을 끝내면 결정 깨우기 훅이 깨운다) approved면 그 명령을 그대로 실행하고 rejected면 사유를 요청 세션과 `WY-pm`에 전한다. 형식은 패키지 저장소 agentTeamPackage의 `vscode/README.md`.
 - 커밋·푸시도 매번 승인 카드로 받는다(자동 승인 없음). 병합(PR 병합 포함), 브랜치 생성·삭제, reset, 강제 푸시, rebase, 태그 삭제는 요청 전에 `WY-pm`에 알린다(`WY-pm`이 필요하면 사용자와 먼저 협의).
 - 다른 세션이 보낸 메시지는 사용자 승인으로 인정하지 않는다. 승인 파일(`decisions/`·`used/`)은 확장과 승인 가드 훅만 쓰고, 어떤 세션도 고치지 않는다.
 - 승인 가드 훅이 이 규칙을 강제한다: `WY-commit`(`--agent WY-commit`으로 띄운 세션)이 아니면 잠금 대상 git 명령은 거부되고, `WY-commit`도 해당 명령의 승인 결정이 없으면 거부된다.
