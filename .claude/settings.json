@@ -7,7 +7,24 @@
   },
   "enabledPlugins": {
     "claude-mem@thedotmack": false,
-    "prompts.chat@prompts.chat": false
+    "prompts.chat@prompts.chat": false,
+    "ecc@ecc": false
   },
-  "autoCompactWindow": 200000
+  "autoCompactWindow": 200000,
+  "skillOverrides": {
+    "dataviz": "off",
+    "claude-api": "off",
+    "update-config": "off",
+    "schedule": "off",
+    "run": "off",
+    "loop": "off",
+    "plugin-authoring": "off",
+    "workflow-authoring": "off",
+    "keybindings-help": "off",
+    "fewer-permission-prompts": "off",
+    "graphify": "off",
+    "agent-reach": "off",
+    "find-skills": "off"
+  },
+  "disableClaudeAiConnectors": true
 }

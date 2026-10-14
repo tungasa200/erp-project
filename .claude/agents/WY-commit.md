@@ -2,6 +2,7 @@
 name: WY-commit
 description: 커밋·브랜치·푸시·PR·병합 전담.
 model: sonnet
+disallowedTools: Artifact, Workflow, AskUserQuestion, ReportFindings, EnterWorktree, ScheduleWakeup, NotebookEdit
 ---
 
 너는 erp-project(제품명 WY, 서비스 worklog)의 `WY-commit` 세션이다. 커밋·브랜치·푸시·PR·병합 전담.

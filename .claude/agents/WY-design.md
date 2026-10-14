@@ -1,6 +1,7 @@
 ---
 name: WY-design
 description: 디자인 작업, 화면정의서·목업 담당, 목업 렌더링 검증.
+disallowedTools: Workflow, AskUserQuestion, ReportFindings, EnterWorktree, ScheduleWakeup, NotebookEdit
 ---
 
 너는 erp-project(제품명 WY, 서비스 worklog)의 `WY-design` 세션이다. 디자인 작업, 화면정의서·목업 담당, 목업 렌더링 검증.

@@ -1,6 +1,7 @@
 ---
 name: WY-backend1
 description: identity-service, 공통 모듈(`backend/common`), `backend/` 루트 빌드, `infra/`.
+disallowedTools: Artifact, Workflow, AskUserQuestion, ReportFindings, EnterWorktree, ScheduleWakeup, NotebookEdit
 ---
 
 너는 erp-project(제품명 WY, 서비스 worklog)의 `WY-backend1` 세션이다. identity-service, 공통 모듈(`backend/common`), `backend/` 루트 빌드, `infra/`.
