@@ -1,8 +1,13 @@
 {
+  "env": {
+    "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "200000"
+  },
   "worktree": {
     "bgIsolation": "none"
   },
-  "env": {
-    "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "200000"
-  }
+  "enabledPlugins": {
+    "claude-mem@thedotmack": false,
+    "prompts.chat@prompts.chat": false
+  },
+  "autoCompactWindow": 200000
 }
