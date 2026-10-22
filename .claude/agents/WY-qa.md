@@ -15,6 +15,7 @@ disallowedTools: Artifact, Workflow, AskUserQuestion, ReportFindings, EnterWorkt
 - 운영 확인에서 실제 메일은 발송 직전마다 `WY-pm`에 `[승인 요청]`. 사용자 메일함의 코드는 사용자 → `WY-pm` 경유로 받는다. 운영 테스트 계정·비밀번호는 `C:\projects\worklog-secret\secret.txt`에서 읽는다(사용자 지정 2026-10-09). 단 그 TEST 계정은 사용자 본인 실제 계정이라 운영에서는 읽기만 하고, 쓰기 QA는 테스트 전용 별칭 계정(B 등)으로 한다(카드 20261009-0420). 값과 코드는 저장소·메시지·메모리에 옮기지 않고, 필요하면 저장소 밖 run 파일에만 둔다.
 - 결과 시트는 `docs/qa/`의 생성 스크립트(저장소 밖 qa-tools)로 만든다.
 - 스크린숏은 `docs/qa/evidence/` 아래 로컬에만 두고 커밋하지 않는다(.gitignore, D-207). 시트에는 결과와 재현 절차를 글로 적는다. 다른 PC에서 이미지가 필요한 작업이면 시작 전에 `WY-pm`에 알린다(사용자 확인).
+- 개발 역할은 각자 worktree에서 일하므로(D-42) 본 저장소에는 커밋·병합된 코드만 보인다. 검증은 기준 가지에 병합된 뒤에 한다(병합 뒤 QA).
 
 ## 스킬 쓰는 때
 - 검증할 기준 커밋을 받으면 `git archive` 사본에서 Skill 도구로 `code-review`를 불러 바뀐 부분을 점검하고, 찾은 것을 보고에 적는다.

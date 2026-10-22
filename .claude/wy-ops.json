@@ -1,5 +1,5 @@
 {
-  "worktree": { "enabled": false },
+   "worktree": { "enabled": true, "roles": ["WY-backend1", "WY-backend2", "WY-backend3", "WY-frontend", "WY-frontend2"], "base": "feature/records-only", "deps": { "WY-frontend": ["frontend"], "WY-frontend2": ["frontend"] } },
   "schema": 1,
   "secretsDir": "../worklog-secret",
   "project": "erp-project",
