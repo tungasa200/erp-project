@@ -37,3 +37,6 @@ docs/ux/**/*.gif
 # 사용 설명서 생성물(D-216 보완): 웹 결과는 발행 때 frontend/public/manual/에 복사, 인쇄용 중간 HTML
 docs/manual/web/
 docs/manual/print/worklog-manual.html
+
+# 역할 worktree(S5, wy-ops D-42)
+.claude/worktrees/
