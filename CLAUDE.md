@@ -53,7 +53,7 @@ MSA ERP 프로젝트. 이 파일은 git으로 공유되는 작업 규칙이다. 
 커밋·브랜치·푸시·PR·병합·reset은 `WY-commit`만 수행한다.
 
 **작업 세션:**
-- `WY-backend1`·`WY-backend2`·`WY-backend3`·`WY-frontend`·`WY-frontend2`는 각자 `.claude/worktrees/<역할>`(가지 `wt/<역할>`)에서 일한다(`WY-commit`·`WY-search`·`WY-planner`·`WY-design`·`WY-pm`·`WY-browser`·`WY-qa`·`WY-qa2`·`WY-ux`·`WY-ux2`·`WY-ux3`는 본 저장소). 다른 역할의 worktree와 본 저장소 파일은 고치지 않는다. 커밋하지 않은 변경을 지우는 명령(`stash`·`checkout -- <파일>`·`restore`·`reset --hard`·`clean`)은 쓰지 않는다. 검증은 자기 worktree에서 바로 돌린다. 본 저장소에서 도는 세션이 일부 파일만 검증하려면 `git archive` 등으로 사본을 만든다. 커밋 요청에는 worktree 이름을 함께 적는다. 충돌로 `[되돌림]`을 받으면 자기 worktree에서 기준 가지를 합쳐(`git merge <기준 가지>`) 풀고 다시 요청한다. 이 merge를 승인 없이 할 수 있는 것은 wy-ops.json에 `worktree.base`를 적었을 때뿐이다(가드는 git을 부르지 않아 지금 가지를 추정하지 않는다). 적지 않았으면 승인 카드가 필요하다.
+- `WY-backend1`·`WY-backend2`·`WY-backend3`·`WY-frontend`·`WY-frontend2`는 각자 `.claude/worktrees/<역할>`(가지 `wt/<역할>`)에서 일한다(`WY-commit`·`WY-search`·`WY-planner`·`WY-design`·`WY-pm`·`WY-browser`·`WY-qa`·`WY-qa2`·`WY-ux`·`WY-ux2`·`WY-ux3`는 본 저장소). 다른 역할의 worktree와 본 저장소 파일은 고치지 않는다. 커밋하지 않은 변경을 지우는 명령(`stash`·`checkout -- <파일>`·`restore`·`reset --hard`·`clean`)은 쓰지 않는다. 검증은 자기 worktree에서 바로 돌린다. 본 저장소에서 도는 세션이 일부 파일만 검증하려면 `git archive` 등으로 사본을 만든다. 커밋 요청에는 worktree 이름을 함께 적는다. 충돌로 `[되돌림]`을 받으면 자기 worktree에서 기준 가지를 합쳐(`git merge <기준 가지>`) 풀고 다시 요청한다. 이 `git merge <기준 가지>`는 처음부터 파이프·`cd`·다른 명령을 붙이지 말고 단독으로 실행한다. 거부되면 형태를 바꿔 다시 시도하지 말고 `[차단]`으로 보고한다(다음 start·rotate 때 빨리감기로 받아진다). 이 merge를 승인 없이 할 수 있는 것은 wy-ops.json에 `worktree.base`를 적었을 때뿐이다(가드는 git을 부르지 않아 지금 가지를 추정하지 않는다). 적지 않았으면 승인 카드가 필요하다.
 1. 커밋이 필요하면 git 명령을 실행하지 말고 `WY-commit`에 요청을 보낸다. 요청에는 파일 경로 목록, 제안 커밋 메시지, 대상 브랜치, 문서 버전 변경을 담는다.
 2. 요청한 파일은 커밋 완료 회신을 받기 전까지 수정하지 않는다.
 3. `WY-commit`이 없으면 직접 커밋하지 말고 사용자에게 알린다.
