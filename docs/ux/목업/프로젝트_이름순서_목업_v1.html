@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>프로젝트 이름·순서 목업 v1 (SCR-SET-08)</title>
+<style>
+@font-face{font-family:'Pretendard Variable';font-weight:45 920;src:url('../../../frontend/node_modules/pretendard/dist/web/variable/woff2/PretendardVariable.woff2') format('woff2')}
+/* 토큰: frontend/src/theme/tokens.css 값 */
+:root{
+  --color-accent:#4b3fd6;--color-on-accent:#fff;--color-ground:#f2f4fa;
+  --color-accent-soft:#dbd9f7;--color-accent-softer:#e9e8fa;--color-accent-faint:#f6f5fd;--color-accent-ink:#3c32ab;
+  --color-surface:#fff;--color-surface-sunken:#eef0f6;--color-text:#1a1c2b;--color-text-muted:#5e6377;--color-text-body:#4a4f63;--color-text-strong:#3b3f52;
+  --color-border:#d5d8e5;--color-divider:#e1e4ee;--color-divider-soft:#eceef4;
+  --color-danger:#b3261e;--color-danger-text:#7a1c0e;--color-danger-soft:#fbe9e6;
+  --p1:#2d5bd8;--p2:#bc5711;--p3:#0e7f6c;--p4:#8a3fd1;--p5:#c2347a;
+  --shadow-2:0 6px 20px rgba(26,28,43,.16),0 1px 3px rgba(26,28,43,.10);
+  --t-xs:12px;--t-sm:13px;--t-md:14px;--t-lg:16px;--t-xl:18px;--t-2xl:22px;
+  --s1:4px;--s2:8px;--s3:12px;--s4:16px;--s5:24px;--s6:32px;
+  --r-sm:8px;--r-input:12px;--r-card:20px;--r-pill:999px;
+  --font:'Pretendard Variable',Pretendard,-apple-system,system-ui,'Apple SD Gothic Neo','Noto Sans KR','Malgun Gothic',sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#dfe2ec;font-family:var(--font);color:var(--color-text);font-size:var(--t-md)}
+.sheet{padding:32px 24px 64px;min-width:1328px}
+.note{max-width:1280px;margin:0 auto 12px;font-size:var(--t-sm);color:var(--color-text-body);line-height:1.6}
+.note h1{font-size:var(--t-xl);margin:0 0 4px;color:var(--color-text)}
+.note b{color:var(--color-text)}
+.note ul{margin:4px 0;padding-left:20px}
+.frameTitle{max-width:1280px;margin:40px auto 8px;font-size:var(--t-lg);font-weight:800}
+.frameTitle small{font-weight:400;color:var(--color-text-body);font-size:var(--t-sm);margin-left:8px}
+.new{display:inline-block;padding:0 5px;border-radius:4px;background:#1a1c2b;color:#fff;font-size:11px;font-weight:800;margin-left:4px;vertical-align:1px}
+.row2{max-width:1280px;margin:0 auto;display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap}
+.cap{font-size:var(--t-sm);color:var(--color-text-body);margin:8px 0 0;line-height:1.5;max-width:600px}
+.cap b{color:var(--color-text)}
+
+/* 화면 틀 */
+.screen{margin:0 auto;display:flex;background:var(--color-ground);border-radius:12px;overflow:hidden;box-shadow:0 8px 24px rgba(26,28,43,.14)}
+.w1280{width:1280px}
+.side{width:248px;flex:none;background:var(--color-surface);border-right:1px solid var(--color-divider);padding:20px 12px}
+.logo{display:flex;align-items:center;gap:8px;font-weight:800;font-size:var(--t-lg);padding:0 8px 16px}
+.logo i{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:8px;background:var(--color-accent);color:#fff;font-style:normal}
+.nav a{display:flex;align-items:center;min-height:44px;padding:0 12px;border-radius:var(--r-input);color:var(--color-text-strong);text-decoration:none;font-weight:600}
+.nav a.on{background:var(--color-accent-soft);color:var(--color-accent-ink)}
+.sideHead{display:flex;justify-content:space-between;align-items:center;margin:20px 12px 6px;font-size:var(--t-xs);font-weight:700;color:var(--color-text-muted)}
+.projectItem{display:flex;align-items:center;gap:10px;min-height:40px;padding:0 12px;border-radius:var(--r-pill);font-weight:600;color:var(--color-text-strong)}
+.projectItem i{width:10px;height:10px;border-radius:3px;flex:none}
+.projectItem em{margin-left:auto;font-style:normal;font-size:var(--t-xs);color:var(--color-text-muted);font-weight:600}
+.projectItem.moved{background:var(--color-accent-softer)}
+.sideLink{display:block;margin:6px 12px;font-size:var(--t-sm);color:var(--color-accent-ink);font-weight:600}
+.main{flex:1;min-width:0;padding:var(--s5) var(--s6) var(--s6) var(--s2)}
+.pageTitle{font-size:var(--t-2xl);font-weight:800;margin:0 0 16px 16px}
+.panel{background:var(--color-surface);border-radius:var(--r-card);padding:var(--s5);max-width:760px}
+.panel + .panel{margin-top:16px}
+.panel h2{font-size:var(--t-lg);margin:0 0 4px}
+.panel .desc{font-size:var(--t-sm);color:var(--color-text-muted);margin:0 0 8px}
+
+/* 프로젝트 줄 (projects.module.css 기준 + 새 요소) */
+ul.list{list-style:none;margin:0;padding:0;position:relative}
+.item{display:flex;flex-wrap:wrap;align-items:center;gap:var(--s3);padding:var(--s3) 0;border-top:1px solid var(--color-divider-soft);position:relative;background:var(--color-surface)}
+.handle{position:relative;width:24px;height:36px;border-radius:var(--r-sm);display:grid;place-items:center;color:var(--color-text-muted);flex:none;cursor:grab;border:0;background:transparent;padding:0}
+.handle::after{content:'';position:absolute;inset:50% auto auto 50%;width:44px;height:44px;transform:translate(-50%,-50%)}
+.handle svg{width:16px;height:16px}
+.handle.hover{background:var(--color-accent-faint);color:var(--color-accent-ink)}
+.handle.open{background:var(--color-accent-faint);color:var(--color-accent-ink);box-shadow:inset 0 0 0 2px var(--color-accent)}
+.handle.focus{outline:2px solid var(--color-accent);outline-offset:2px}
+.handle.off{color:#b6bacb;cursor:default}
+.swatch{width:18px;height:18px;border-radius:6px;flex:none}
+.name{flex:1 1 6em;font-weight:600;word-break:keep-all;min-width:0}
+.count{font-size:var(--t-sm);color:var(--color-text-muted)}
+.iconButton{position:relative;width:32px;height:32px;border-radius:50%;border:0;background:var(--color-surface-sunken);color:var(--color-text-strong);display:grid;place-items:center;font-size:15px;flex:none}
+.iconButton::after{content:'';position:absolute;inset:50% auto auto 50%;width:44px;height:44px;transform:translate(-50%,-50%)}
+.iconButton.focus{outline:2px solid var(--color-accent);outline-offset:2px}
+.smallButton{position:relative;min-height:36px;padding:0 14px;border-radius:var(--r-sm);border:0;background:var(--color-surface);box-shadow:inset 0 0 0 1px var(--color-border);font:inherit;font-size:var(--t-sm);font-weight:600;color:var(--color-text-strong)}
+.smallButton::after{content:'';position:absolute;inset:50% auto auto 50%;width:100%;min-width:44px;height:44px;transform:translate(-50%,-50%)}
+.newTag{display:inline-block;padding:0 5px;border-radius:4px;background:var(--color-accent);color:#fff;font-size:10px;font-weight:800;margin-left:2px;vertical-align:1px}
+
+/* 편집 */
+.editInput{flex:1 1 6em;min-width:0;height:36px;border:0;border-radius:var(--r-sm);box-shadow:inset 0 0 0 2px var(--color-accent);padding:0 10px;font:inherit;font-weight:600;color:var(--color-text);background:var(--color-surface)}
+.editInput.sel span{background:#b9c7f5}
+.editInput.bad{box-shadow:inset 0 0 0 2px var(--color-danger)}
+.editInput{display:flex;align-items:center;white-space:nowrap;overflow:hidden}
+.caret{display:inline-block;width:1.5px;height:18px;background:var(--color-text);margin-left:1px;vertical-align:-3px}
+.err{flex-basis:100%;margin:-4px 0 0 66px;font-size:var(--t-sm);font-weight:600;color:var(--color-danger)}
+.spin{width:14px;height:14px;border-radius:50%;border:2px solid var(--color-accent-soft);border-top-color:var(--color-accent);margin-left:-40px;margin-right:22px}
+
+/* 태그 칩 (지금) */
+.tags{display:flex;flex-wrap:wrap;gap:8px;list-style:none;margin:0;padding:0}
+.tag{display:flex;align-items:center;gap:8px;min-height:40px;padding:4px 4px 4px 12px;border-radius:var(--r-pill);background:var(--color-surface-sunken);font-weight:600}
+.tag .count{font-weight:400}
+.tag .iconButton{background:var(--color-surface)}
+.tag.editing{box-shadow:inset 0 0 0 2px var(--color-accent);background:var(--color-surface)}
+.tag .tin{min-width:110px;height:32px;display:flex;align-items:center;padding:0 6px;font-weight:600}
+.tagDelete{min-height:32px;padding:0 12px;border-radius:var(--r-pill);border:0;background:var(--color-surface-sunken);font:inherit;font-size:var(--t-sm);font-weight:600}
+
+/* 메뉴 (tasks .rowMenuList 기준) */
+.menuWrap{position:relative}
+.menu{position:absolute;z-index:3;min-width:160px;padding:var(--s1);border-radius:var(--r-input);background:var(--color-surface);box-shadow:var(--shadow-2);list-style:none;margin:0}
+.menu li{display:flex;align-items:center;gap:10px;min-height:44px;padding:0 var(--s3);border-radius:var(--r-sm);font-weight:600;color:var(--color-text-strong);font-size:var(--t-md)}
+.menu li.on{background:var(--color-accent-faint);color:var(--color-accent-ink);outline:2px solid var(--color-accent);outline-offset:-2px}
+.menu li.dis{color:#a7abbd}
+.menu li kbd{margin-left:auto;font:inherit;font-size:var(--t-xs);color:var(--color-text-muted);font-weight:500}
+
+/* 끌기 */
+.item.lifted{z-index:2;box-shadow:var(--shadow-2);border-radius:var(--r-input);border-top-color:transparent;padding-left:8px;padding-right:8px;margin:0 -8px;cursor:grabbing}
+.slot{height:61px;border:1.5px dashed var(--color-border);border-radius:var(--r-input);margin:4px 0}
+.dropLine{position:relative;height:0;border-top:2px solid var(--color-accent);margin:-1px 0}
+.dropLine::before{content:'';position:absolute;left:-3px;top:-4px;width:6px;height:6px;border-radius:50%;background:var(--color-accent);box-shadow:0 0 0 2px #fff}
+.item.flash{background:var(--color-accent-softer);border-radius:var(--r-sm)}
+
+/* 토스트 (Toast.module.css 기준) */
+.toast{display:flex;align-items:center;gap:12px;min-height:52px;padding:0 20px;border-radius:var(--r-input);background:#1a1c2b;color:#fff;font-weight:600;font-size:var(--t-md);box-shadow:var(--shadow-2)}
+.toast small{color:#aeb3c7;font-weight:500;font-size:var(--t-xs)}
+.live{display:inline-block;margin-top:8px;padding:6px 10px;border-radius:var(--r-sm);background:#fff;border:1px dashed var(--color-border);font-size:var(--t-sm);color:var(--color-text-body)}
+.live b{color:var(--color-text)}
+
+/* 390 */
+.phone{width:390px;flex:none;background:var(--color-ground);border-radius:28px;overflow:hidden;box-shadow:0 8px 24px rgba(26,28,43,.14);padding:16px}
+.phone .pageTitle{margin:4px 0 12px 4px;font-size:var(--t-xl)}
+.phone .panel{padding:var(--s4);border-radius:16px}
+.phone .err{margin-left:66px}
+
+/* 비교 표 */
+.cmp{display:grid;grid-template-columns:110px 1fr;gap:8px 16px;align-items:center;background:#fff;border-radius:var(--r-card);padding:20px 24px;width:620px}
+.cmp > b{font-size:var(--t-sm);color:var(--color-text-muted)}
+.mark{outline:2px dashed #e0a100;outline-offset:3px;border-radius:50%}
+</style>
+</head>
+<body>
+<div class="sheet">
+
+<div class="note">
+  <h1>설정 › 프로젝트: 이름 바꾸기·순서 바꾸기 목업 v1 (SCR-SET-08)</h1>
+  사양: <b>docs/ux/프로젝트_이름순서_사양_v1.md</b> · 사용자 결정 카드 20261028-0030 · 작성 WY-design 2026-10-28. <b>승인됨: 카드 20261028-0130(모두 추천안).</b><br>
+  바뀌는 것 <span class="new">새</span>: 줄 맨 앞 <b>손잡이 ⠿</b>(끌기 + 누르면 옮기기 메뉴), 업무 수 뒤 <b>✎</b>(태그 칩과 같은 그 자리 편집). 나머지(색·이름·업무 수·[보관]·추가 칸·태그 목록)는 지금과 같다.
+  <ul>
+    <li>정할 것(사양 4장): Q1 ✎ 위치 · Q2 위·아래를 손잡이 메뉴로 둘지 · Q3 되돌린 프로젝트 자리 · Q4 옮긴 뒤 알림 · Q5 휴대폰 끌기. 이 목업은 모두 <b>추천안</b>으로 그렸고 그대로 확정됐다.</li>
+  </ul>
+</div>
+
+<!-- ───────── A. 1280 보통 ───────── -->
+<div class="frameTitle">A. 1280 보통 <small>‘디자인’을 맨 위로 옮긴 직후. 사이드바도 같은 순서로 바로 바뀐다(옅은 면은 0.8초 뒤 사라짐). 손잡이에 마우스를 올린 모습은 둘째 줄.</small></div>
+<div class="screen w1280">
+  <aside class="side">
+    <div class="logo"><i>W</i>WY</div>
+    <nav class="nav"><a>홈</a><a>업무</a><a>캘린더</a><a>일지</a><a>통계</a><a class="on">설정</a></nav>
+    <div class="sideHead"><span>프로젝트</span><span>＋</span></div>
+    <div class="projectItem moved"><i style="background:var(--p4)"></i>디자인<em>3</em></div>
+    <div class="projectItem"><i style="background:var(--p1)"></i>영업<em>5</em></div>
+    <div class="projectItem"><i style="background:var(--p3)"></i>개발<em>12</em></div>
+    <div class="projectItem"><i style="background:var(--p2)"></i>운영<em>2</em></div>
+    <a class="sideLink">프로젝트 관리</a>
+  </aside>
+  <main class="main">
+    <h1 class="pageTitle">설정</h1>
+    <section class="panel">
+      <h2>프로젝트</h2>
+      <p class="desc">손잡이 ⠿를 끌거나 눌러서 순서를 바꿔요. 사이드바와 필터가 이 순서를 따라요.</p>
+      <ul class="list" aria-label="프로젝트 목록">
+        <li class="item flash"><button class="handle"><svg viewBox="0 0 16 16" fill="currentColor"><circle cx="5.5" cy="3.5" r="1.4"/><circle cx="10.5" cy="3.5" r="1.4"/><circle cx="5.5" cy="8" r="1.4"/><circle cx="10.5" cy="8" r="1.4"/><circle cx="5.5" cy="12.5" r="1.4"/><circle cx="10.5" cy="12.5" r="1.4"/></svg></button><span class="swatch" style="background:var(--p4)"></span><span class="name">디자인</span><span class="count">업무 4</span><button class="iconButton">✎</button><button class="smallButton">보관</button></li>
+        <li class="item"><button class="handle hover"><svg viewBox="0 0 16 16" fill="currentColor"><circle cx="5.5" cy="3.5" r="1.4"/><circle cx="10.5" cy="3.5" r="1.4"/><circle cx="5.5" cy="8" r="1.4"/><circle cx="10.5" cy="8" r="1.4"/><circle cx="5.5" cy="12.5" r="1.4"/><circle cx="10.5" cy="12.5" r="1.4"/></svg></button><span class="swatch" style="background:var(--p1)"></span><span class="name">영업</span><span class="count">업무 9</span><button class="iconButton">✎</button><button class="smallButton">보관</button></li>
+        <li class="item"><button class="handle"><svg viewBox="0 0 16 16" fill="currentColor"><circle cx="5.5" cy="3.5" r="1.4"/><circle cx="10.5" cy="3.5" r="1.4"/><circle cx="5.5" cy="8" r="1.4"/><circle cx="10.5" cy="8" r="1.4"/><circle cx="5.5" cy="12.5" r="1.4"/><circle cx="10.5" cy="12.5" r="1.4"/></svg></button><span class="swatch" style="background:var(--p3)"></span><span class="name">개발</span><span class="count">업무 21</span><button class="iconButton">✎</button><button class="smallButton">보관</button></li>
+        <li class="item"><button class="handle"><svg viewBox="0 0 16 16" fill="currentColor"><circle cx="5.5" cy="3.5" r="1.4"/><circle cx="10.5" cy="3.5" r="1.4"/><circle cx="5.5" cy="8" r="1.4"/><circle cx="10.5" cy="8" r="1.4"/><circle cx="5.5" cy="12.5" r="1.4"/><circle cx="10.5" cy="12.5" r="1.4"/></svg></button><span class="swatch" style="background:var(--p2)"></span><span class="name">운영</span><span class="count">업무 3</span><button class="iconButton">✎</button><button class="smallButton">보관</button></li>
+      </ul>
+      <p class="cap" style="margin-top:12px">＋ 새 프로젝트 칸(지금 그대로) …</p>
+      <span class="live">낭독기만(polite): <b>“디자인을 4개 중 1번째로 옮겼어요”</b> — 화면에는 토스트 없음(Q4)</span>
+    </section>
+  </main>
+</div>
+
+<!-- ───────── B. 이름 바꾸기 상태 ───────── -->
+<div class="frameTitle">B. 이름 바꾸기 <small>✎를 누르면 이름 자리가 입력칸(키 색 2px)이 되고 글자가 전체 선택된다. 업무 수·[보관]은 남고, 손잡이는 꺼진다.</small></div>
+<div class="row2">
+  <section class="panel" style="width:760px">
+    <ul class="list">
+      <li class="item"><button class="handle off"><svg viewBox="0 0 16 16" fill="currentColor"><circle cx="5.5" cy="3.5" r="1.4"/><circle cx="10.5" cy="3.5" r="1.4"/><circle cx="5.5" cy="8" r="1.4"/><circle cx="10.5" cy="8" r="1.4"/><circle cx="5.5" cy="12.5" r="1.4"/><circle cx="10.5" cy="12.5" r="1.4"/></svg></button><span class="swatch" style="background:var(--p1)"></span><span class="editInput sel"><span>영업</span></span><span class="count">업무 9</span><button class="smallButton">보관</button></li>
+    </ul>
+    <p class="cap"><b>① 편집 시작.</b> Enter 저장 · Esc 취소 · 줄 밖을 누르면 저장 → 모두 포커스는 ✎로. 저장해도 토스트 없음.</p>
+    <ul class="list" style="margin-top:16px">
+      <li class="item"><button class="handle off"><svg viewBox="0 0 16 16" fill="currentColor"><circle cx="5.5" cy="3.5" r="1.4"/><circle cx="10.5" cy="3.5" r="1.4"/><circle cx="5.5" cy="8" r="1.4"/><circle cx="10.5" cy="8" r="1.4"/><circle cx="5.5" cy="12.5" r="1.4"/><circle cx="10.5" cy="12.5" r="1.4"/></svg></button><span class="swatch" style="background:var(--p1)"></span><span class="editInput bad"><span class="caret"></span></span><span class="count">업무 9</span><button class="smallButton">보관</button><span class="err" role="alert">프로젝트 이름을 적어 주세요</span></li>
+    </ul>
+    <p class="cap"><b>② 빈 이름.</b> 요청을 보내지 않는다. 오류가 있으면 줄 밖을 눌러도 닫지 않는다.</p>
+    <ul class="list" style="margin-top:16px">
+      <li class="item"><button class="handle off"><svg viewBox="0 0 16 16" fill="currentColor"><circle cx="5.5" cy="3.5" r="1.4"/><circle cx="10.5" cy="3.5" r="1.4"/><circle cx="5.5" cy="8" r="1.4"/><circle cx="10.5" cy="8" r="1.4"/><circle cx="5.5" cy="12.5" r="1.4"/><circle cx="10.5" cy="12.5" r="1.4"/></svg></button><span class="swatch" style="background:var(--p1)"></span><span class="editInput bad">개발<span class="caret"></span></span><span class="count">업무 9</span><button class="smallButton">보관</button><span class="err" role="alert">같은 이름의 프로젝트가 있어요</span></li>
+    </ul>
+    <p class="cap"><b>③ 이름 겹침</b>(DUPLICATE_NAME). 보관한 프로젝트와 겹치면 “보관함에 같은 이름의 프로젝트가 있어요”(서버 규칙 확인 뒤).</p>
+    <ul class="list" style="margin-top:16px">
+      <li class="item"><button class="handle off"><svg viewBox="0 0 16 16" fill="currentColor"><circle cx="5.5" cy="3.5" r="1.4"/><circle cx="10.5" cy="3.5" r="1.4"/><circle cx="5.5" cy="8" r="1.4"/><circle cx="10.5" cy="8" r="1.4"/><circle cx="5.5" cy="12.5" r="1.4"/><circle cx="10.5" cy="12.5" r="1.4"/></svg></button><span class="swatch" style="background:var(--p1)"></span><span class="editInput">영업 2팀 하반기 신규 거래처 발굴<span class="caret"></span></span><span class="spin"></span><span class="count">업무 9</span><button class="smallButton">보관</button></li>
+      <li class="item"><button class="handle"><svg viewBox="0 0 16 16" fill="currentColor"><circle cx="5.5" cy="3.5" r="1.4"/><circle cx="10.5" cy="3.5" r="1.4"/><circle cx="5.5" cy="8" r="1.4"/><circle cx="10.5" cy="8" r="1.4"/><circle cx="5.5" cy="12.5" r="1.4"/><circle cx="10.5" cy="12.5" r="1.4"/></svg></button><span class="swatch" style="background:var(--p1)"></span><span class="name">영업 2팀 하반기 신규 거래처 발굴</span><span class="count">업무 9</span><button class="iconButton focus">✎</button><button class="smallButton">보관</button></li>
+    </ul>
+    <p class="cap"><b>④ 저장 중(0.4초 넘으면 진행 표시) → 저장됨.</b> 포커스는 ✎. 이름이 길면 줄 안에서 줄바꿈(keep-all), 50자에서 입력이 멈춘다.</p>
+  </section>
+
+  <div>
+    <div class="cmp">
+      <b></b><b style="color:var(--color-text)">형제 비교: 같은 차례 <span style="font-weight:400">이름 · 수 · ✎</span></b>
+      <b>프로젝트 보통</b>
+      <ul class="list" style="width:460px"><li class="item" style="border:0"><button class="handle"><svg viewBox="0 0 16 16" fill="currentColor"><circle cx="5.5" cy="3.5" r="1.4"/><circle cx="10.5" cy="3.5" r="1.4"/><circle cx="5.5" cy="8" r="1.4"/><circle cx="10.5" cy="8" r="1.4"/><circle cx="5.5" cy="12.5" r="1.4"/><circle cx="10.5" cy="12.5" r="1.4"/></svg></button><span class="swatch" style="background:var(--p1)"></span><span class="name">영업</span><span class="count">업무 9</span><button class="iconButton mark">✎</button><button class="smallButton">보관</button></li></ul>
+      <b>태그 보통(지금)</b>
+      <ul class="tags"><li class="tag">#견적<span class="count">7</span><button class="iconButton mark">✎</button></li></ul>
+      <b>프로젝트 편집</b>
+      <ul class="list" style="width:460px"><li class="item" style="border:0"><button class="handle off"><svg viewBox="0 0 16 16" fill="currentColor"><circle cx="5.5" cy="3.5" r="1.4"/><circle cx="10.5" cy="3.5" r="1.4"/><circle cx="5.5" cy="8" r="1.4"/><circle cx="10.5" cy="8" r="1.4"/><circle cx="5.5" cy="12.5" r="1.4"/><circle cx="10.5" cy="12.5" r="1.4"/></svg></button><span class="swatch" style="background:var(--p1)"></span><span class="editInput sel"><span>영업</span></span><span class="count">업무 9</span><button class="smallButton">보관</button></li></ul>
+      <b>태그 편집(지금)</b>
+      <ul class="tags"><li class="tag editing">#<span class="tin">견적<span class="caret"></span></span><button class="tagDelete">삭제</button></li></ul>
+    </div>
+    <p class="cap" style="max-width:620px">✎ 모양·크기(32 원, 누르는 영역 ::after 44)·차례·키 동작이 같다. 차이 두 가지: ① 프로젝트 줄은 흰 바탕이라 ✎ 원을 <b>옅은 회색 면</b>으로(태그는 회색 칩 위 흰 원) ② 편집 때 프로젝트는 업무 수·[보관]을, 태그는 [삭제]를 남긴다. <b>편집을 열면 글자 전체 선택</b>은 태그에도 같이 맞춘다(지금 태그는 커서만 끝).</p>
+  </div>
+</div>
+
+<!-- ───────── C. 옮기기 메뉴 ───────── -->
+<div class="frameTitle">C. 옮기기 메뉴(키보드·낭독기·클릭) <small>손잡이를 Enter·Space·클릭하면 업무 줄 [⋯]와 같은 팝오버. 화살표로 고르고 Enter. 끝 줄이면 아래쪽 항목이 꺼진다.</small></div>
+<div class="row2">
+  <section class="panel" style="width:760px;padding-bottom:200px">
+    <ul class="list">
+      <li class="item"><button class="handle"><svg viewBox="0 0 16 16" fill="currentColor"><circle cx="5.5" cy="3.5" r="1.4"/><circle cx="10.5" cy="3.5" r="1.4"/><circle cx="5.5" cy="8" r="1.4"/><circle cx="10.5" cy="8" r="1.4"/><circle cx="5.5" cy="12.5" r="1.4"/><circle cx="10.5" cy="12.5" r="1.4"/></svg></button><span class="swatch" style="background:var(--p4)"></span><span class="name">디자인</span><span class="count">업무 4</span><button class="iconButton">✎</button><button class="smallButton">보관</button></li>
+      <li class="item"><button class="handle"><svg viewBox="0 0 16 16" fill="currentColor"><circle cx="5.5" cy="3.5" r="1.4"/><circle cx="10.5" cy="3.5" r="1.4"/><circle cx="5.5" cy="8" r="1.4"/><circle cx="10.5" cy="8" r="1.4"/><circle cx="5.5" cy="12.5" r="1.4"/><circle cx="10.5" cy="12.5" r="1.4"/></svg></button><span class="swatch" style="background:var(--p1)"></span><span class="name">영업</span><span class="count">업무 9</span><button class="iconButton">✎</button><button class="smallButton">보관</button></li>
+      <li class="item"><div class="menuWrap"><button class="handle open"><svg viewBox="0 0 16 16" fill="currentColor"><circle cx="5.5" cy="3.5" r="1.4"/><circle cx="10.5" cy="3.5" r="1.4"/><circle cx="5.5" cy="8" r="1.4"/><circle cx="10.5" cy="8" r="1.4"/><circle cx="5.5" cy="12.5" r="1.4"/><circle cx="10.5" cy="12.5" r="1.4"/></svg></button>
+        <ul class="menu" style="top:42px;left:0" role="menu" aria-label="개발 옮기기">
+          <li class="on">위로 옮기기</li><li>아래로 옮기기</li><li>맨 위로</li><li>맨 아래로</li>
+        </ul></div><span class="swatch" style="background:var(--p3)"></span><span class="name">개발</span><span class="count">업무 21</span><button class="iconButton">✎</button><button class="smallButton">보관</button></li>
+      <li class="item"><button class="handle"><svg viewBox="0 0 16 16" fill="currentColor"><circle cx="5.5" cy="3.5" r="1.4"/><circle cx="10.5" cy="3.5" r="1.4"/><circle cx="5.5" cy="8" r="1.4"/><circle cx="10.5" cy="8" r="1.4"/><circle cx="5.5" cy="12.5" r="1.4"/><circle cx="10.5" cy="12.5" r="1.4"/></svg></button><span class="swatch" style="background:var(--p2)"></span><span class="name">운영</span><span class="count">업무 3</span><button class="iconButton">✎</button><button class="smallButton">보관</button></li>
+    </ul>
+  </section>
+  <div style="width:480px">
+    <p class="cap"><b>가운데 줄(개발).</b> 네 항목 모두 켜짐. 손잡이 낭독: “개발 순서 바꾸기, 4개 중 3번째, 메뉴”.</p>
+    <div style="position:relative;height:200px;margin-top:12px">
+      <ul class="menu" style="top:0;left:0"><li class="on">위로 옮기기</li><li class="dis">아래로 옮기기</li><li>맨 위로</li><li class="dis">맨 아래로</li></ul>
+      <p class="cap" style="position:absolute;left:184px;top:0;width:280px"><b>끝 줄(운영).</b> 아래쪽 두 항목이 흐려지고(aria-disabled) 화살표가 건너뛴다. 첫 줄이면 위쪽 두 항목이 꺼진다.</p>
+    </div>
+    <p class="cap">실행 → 메뉴가 닫히고 <b>옮겨진 줄의 손잡이에 포커스</b>(계속 옮길 수 있게) + 옅은 면 0.8초 + 낭독 “개발을 4개 중 2번째로 옮겼어요”. Esc → 닫고 손잡이로.</p>
+  </div>
+</div>
+
+<!-- ───────── D. 끄는 중 ───────── -->
+<div class="frameTitle">D. 끄는 중(마우스·터치) <small>손잡이를 누르고 6px 넘게 움직이면 시작. ‘운영’을 영업과 개발 사이로 끄는 중.</small></div>
+<div class="row2">
+  <section class="panel" style="width:760px">
+    <ul class="list">
+      <li class="item"><button class="handle"><svg viewBox="0 0 16 16" fill="currentColor"><circle cx="5.5" cy="3.5" r="1.4"/><circle cx="10.5" cy="3.5" r="1.4"/><circle cx="5.5" cy="8" r="1.4"/><circle cx="10.5" cy="8" r="1.4"/><circle cx="5.5" cy="12.5" r="1.4"/><circle cx="10.5" cy="12.5" r="1.4"/></svg></button><span class="swatch" style="background:var(--p4)"></span><span class="name">디자인</span><span class="count">업무 4</span><button class="iconButton">✎</button><button class="smallButton">보관</button></li>
+      <li class="item"><button class="handle"><svg viewBox="0 0 16 16" fill="currentColor"><circle cx="5.5" cy="3.5" r="1.4"/><circle cx="10.5" cy="3.5" r="1.4"/><circle cx="5.5" cy="8" r="1.4"/><circle cx="10.5" cy="8" r="1.4"/><circle cx="5.5" cy="12.5" r="1.4"/><circle cx="10.5" cy="12.5" r="1.4"/></svg></button><span class="swatch" style="background:var(--p1)"></span><span class="name">영업</span><span class="count">업무 9</span><button class="iconButton">✎</button><button class="smallButton">보관</button></li>
+      <div class="dropLine"></div>
+      <li class="item lifted" style="transform:translateY(-6px)"><button class="handle" style="cursor:grabbing;color:var(--color-accent-ink)"><svg viewBox="0 0 16 16" fill="currentColor"><circle cx="5.5" cy="3.5" r="1.4"/><circle cx="10.5" cy="3.5" r="1.4"/><circle cx="5.5" cy="8" r="1.4"/><circle cx="10.5" cy="8" r="1.4"/><circle cx="5.5" cy="12.5" r="1.4"/><circle cx="10.5" cy="12.5" r="1.4"/></svg></button><span class="swatch" style="background:var(--p2)"></span><span class="name">운영</span><span class="count">업무 3</span><button class="iconButton">✎</button><button class="smallButton">보관</button></li>
+      <li class="item"><button class="handle"><svg viewBox="0 0 16 16" fill="currentColor"><circle cx="5.5" cy="3.5" r="1.4"/><circle cx="10.5" cy="3.5" r="1.4"/><circle cx="5.5" cy="8" r="1.4"/><circle cx="10.5" cy="8" r="1.4"/><circle cx="5.5" cy="12.5" r="1.4"/><circle cx="10.5" cy="12.5" r="1.4"/></svg></button><span class="swatch" style="background:var(--p3)"></span><span class="name">개발</span><span class="count">업무 21</span><button class="iconButton">✎</button><button class="smallButton">보관</button></li>
+      <li class="slot" aria-hidden="true"></li>
+    </ul>
+  </section>
+  <div style="width:480px">
+    <p class="cap"><b>떠오른 줄</b>: 흰 면 + 그림자(shadow-2), 기울이지 않음. <b>원래 자리</b>: 점선 빈 칸(줄 높이 그대로). <b>놓을 자리</b>: 키 색 2px 선 + 왼쪽 끝 점. 다른 줄은 150ms로 비켜선다(움직임 줄이기면 선만 이동).</p>
+    <p class="cap">놓기 → 그 자리에 들어가고 바로 저장. 목록 밖에서 놓거나 Esc → 원래 자리로.</p>
+    <p class="cap"><b>고대비</b>: 그림자 대신 2px CanvasText 테두리, 선은 Highlight, 빈 칸은 GrayText 점선.</p>
+  </div>
+</div>
+
+<!-- ───────── E. 저장 실패 ───────── -->
+<div class="frameTitle">E. 순서 저장 실패 <small>놓은 뒤 서버가 실패 → 마지막으로 저장된 순서로 되돌리고(150ms) 토스트. 포커스는 옮기려던 줄의 손잡이.</small></div>
+<div class="screen w1280">
+  <aside class="side">
+    <div class="logo"><i>W</i>WY</div>
+    <nav class="nav"><a>홈</a><a>업무</a><a>캘린더</a><a>일지</a><a>통계</a><a class="on">설정</a></nav>
+    <div class="sideHead"><span>프로젝트</span><span>＋</span></div>
+    <div class="projectItem"><i style="background:var(--p4)"></i>디자인<em>3</em></div>
+    <div class="projectItem"><i style="background:var(--p1)"></i>영업<em>5</em></div>
+    <div class="projectItem"><i style="background:var(--p3)"></i>개발<em>12</em></div>
+    <div class="projectItem"><i style="background:var(--p2)"></i>운영<em>2</em></div>
+    <a class="sideLink">프로젝트 관리</a>
+  </aside>
+  <main class="main" style="position:relative;min-height:470px">
+    <h1 class="pageTitle">설정</h1>
+    <section class="panel">
+      <h2>프로젝트</h2>
+      <p class="desc">손잡이 ⠿를 끌거나 눌러서 순서를 바꿔요. 사이드바와 필터가 이 순서를 따라요.</p>
+      <ul class="list">
+        <li class="item"><button class="handle"><svg viewBox="0 0 16 16" fill="currentColor"><circle cx="5.5" cy="3.5" r="1.4"/><circle cx="10.5" cy="3.5" r="1.4"/><circle cx="5.5" cy="8" r="1.4"/><circle cx="10.5" cy="8" r="1.4"/><circle cx="5.5" cy="12.5" r="1.4"/><circle cx="10.5" cy="12.5" r="1.4"/></svg></button><span class="swatch" style="background:var(--p4)"></span><span class="name">디자인</span><span class="count">업무 4</span><button class="iconButton">✎</button><button class="smallButton">보관</button></li>
+        <li class="item"><button class="handle"><svg viewBox="0 0 16 16" fill="currentColor"><circle cx="5.5" cy="3.5" r="1.4"/><circle cx="10.5" cy="3.5" r="1.4"/><circle cx="5.5" cy="8" r="1.4"/><circle cx="10.5" cy="8" r="1.4"/><circle cx="5.5" cy="12.5" r="1.4"/><circle cx="10.5" cy="12.5" r="1.4"/></svg></button><span class="swatch" style="background:var(--p1)"></span><span class="name">영업</span><span class="count">업무 9</span><button class="iconButton">✎</button><button class="smallButton">보관</button></li>
+        <li class="item"><button class="handle"><svg viewBox="0 0 16 16" fill="currentColor"><circle cx="5.5" cy="3.5" r="1.4"/><circle cx="10.5" cy="3.5" r="1.4"/><circle cx="5.5" cy="8" r="1.4"/><circle cx="10.5" cy="8" r="1.4"/><circle cx="5.5" cy="12.5" r="1.4"/><circle cx="10.5" cy="12.5" r="1.4"/></svg></button><span class="swatch" style="background:var(--p3)"></span><span class="name">개발</span><span class="count">업무 21</span><button class="iconButton">✎</button><button class="smallButton">보관</button></li>
+        <li class="item"><button class="handle focus"><svg viewBox="0 0 16 16" fill="currentColor"><circle cx="5.5" cy="3.5" r="1.4"/><circle cx="10.5" cy="3.5" r="1.4"/><circle cx="5.5" cy="8" r="1.4"/><circle cx="10.5" cy="8" r="1.4"/><circle cx="5.5" cy="12.5" r="1.4"/><circle cx="10.5" cy="12.5" r="1.4"/></svg></button><span class="swatch" style="background:var(--p2)"></span><span class="name">운영</span><span class="count">업무 3</span><button class="iconButton">✎</button><button class="smallButton">보관</button></li>
+      </ul>
+    </section>
+    <div class="toast" style="position:absolute;left:24px;bottom:24px">순서를 저장하지 못했어요. 다시 해 주세요 <small>문의 코드 7f3a…</small></div>
+  </main>
+</div>
+<div class="note" style="margin-top:8px">사이드바도 같은 쿼리라 함께 원래 순서로 돌아간다. 문의 코드는 5xx일 때만. 다른 기기에서 목록이 바뀌었으면(409 PROJECT_ORDER_STALE) 서버 순서로 새로 불러오고 “프로젝트 목록이 바뀌었어요. 목록을 새로 불러왔어요”. <b>끊긴 동안</b>: 손잡이·✎ 꺼짐, title “연결되면 바꿀 수 있어요”.</div>
+
+<!-- ───────── F. 390 ───────── -->
+<div class="frameTitle">F. 390 휴대폰 <small>손잡이와 색은 첫 줄 왼쪽, 넘치면 업무 수·✎·[보관]이 다음 줄 오른쪽으로. 손잡이는 누르는 즉시 끌기, 탭하면 메뉴(Q5).</small></div>
+<div class="row2">
+  <div class="phone">
+    <h1 class="pageTitle">설정</h1>
+    <section class="panel">
+      <h2>프로젝트</h2>
+      <ul class="list">
+        <li class="item"><button class="handle"><svg viewBox="0 0 16 16" fill="currentColor"><circle cx="5.5" cy="3.5" r="1.4"/><circle cx="10.5" cy="3.5" r="1.4"/><circle cx="5.5" cy="8" r="1.4"/><circle cx="10.5" cy="8" r="1.4"/><circle cx="5.5" cy="12.5" r="1.4"/><circle cx="10.5" cy="12.5" r="1.4"/></svg></button><span class="swatch" style="background:var(--p4)"></span><span class="name">디자인</span><span class="count">업무 4</span><button class="iconButton">✎</button><button class="smallButton">보관</button></li>
+        <li class="item"><button class="handle"><svg viewBox="0 0 16 16" fill="currentColor"><circle cx="5.5" cy="3.5" r="1.4"/><circle cx="10.5" cy="3.5" r="1.4"/><circle cx="5.5" cy="8" r="1.4"/><circle cx="10.5" cy="8" r="1.4"/><circle cx="5.5" cy="12.5" r="1.4"/><circle cx="10.5" cy="12.5" r="1.4"/></svg></button><span class="swatch" style="background:var(--p1)"></span><span class="name">영업 2팀 하반기 신규 거래처 발굴</span><span class="count">업무 9</span><button class="iconButton">✎</button><button class="smallButton">보관</button></li>
+        <li class="item"><button class="handle"><svg viewBox="0 0 16 16" fill="currentColor"><circle cx="5.5" cy="3.5" r="1.4"/><circle cx="10.5" cy="3.5" r="1.4"/><circle cx="5.5" cy="8" r="1.4"/><circle cx="10.5" cy="8" r="1.4"/><circle cx="5.5" cy="12.5" r="1.4"/><circle cx="10.5" cy="12.5" r="1.4"/></svg></button><span class="swatch" style="background:var(--p3)"></span><span class="name">개발</span><span class="count">업무 21</span><button class="iconButton">✎</button><button class="smallButton">보관</button></li>
+      </ul>
+    </section>
+    <p class="cap">보통. 긴 이름은 이름 칸에서 줄바꿈되고, 남는 폭이 없으면 업무 수부터 다음 줄로.</p>
+  </div>
+  <div class="phone" style="padding-bottom:40px">
+    <h1 class="pageTitle">설정</h1>
+    <section class="panel" style="padding-bottom:150px">
+      <h2>프로젝트</h2>
+      <ul class="list">
+        <li class="item"><button class="handle"><svg viewBox="0 0 16 16" fill="currentColor"><circle cx="5.5" cy="3.5" r="1.4"/><circle cx="10.5" cy="3.5" r="1.4"/><circle cx="5.5" cy="8" r="1.4"/><circle cx="10.5" cy="8" r="1.4"/><circle cx="5.5" cy="12.5" r="1.4"/><circle cx="10.5" cy="12.5" r="1.4"/></svg></button><span class="swatch" style="background:var(--p4)"></span><span class="name">디자인</span><span class="count">업무 4</span><button class="iconButton">✎</button><button class="smallButton">보관</button></li>
+        <li class="item"><div class="menuWrap"><button class="handle open"><svg viewBox="0 0 16 16" fill="currentColor"><circle cx="5.5" cy="3.5" r="1.4"/><circle cx="10.5" cy="3.5" r="1.4"/><circle cx="5.5" cy="8" r="1.4"/><circle cx="10.5" cy="8" r="1.4"/><circle cx="5.5" cy="12.5" r="1.4"/><circle cx="10.5" cy="12.5" r="1.4"/></svg></button>
+          <ul class="menu" style="top:42px;left:0"><li>위로 옮기기</li><li>아래로 옮기기</li><li>맨 위로</li><li>맨 아래로</li></ul></div><span class="swatch" style="background:var(--p3)"></span><span class="name">개발</span><span class="count">업무 21</span><button class="iconButton">✎</button><button class="smallButton">보관</button></li>
+        <li class="item"><button class="handle"><svg viewBox="0 0 16 16" fill="currentColor"><circle cx="5.5" cy="3.5" r="1.4"/><circle cx="10.5" cy="3.5" r="1.4"/><circle cx="5.5" cy="8" r="1.4"/><circle cx="10.5" cy="8" r="1.4"/><circle cx="5.5" cy="12.5" r="1.4"/><circle cx="10.5" cy="12.5" r="1.4"/></svg></button><span class="swatch" style="background:var(--p2)"></span><span class="name">운영</span><span class="count">업무 3</span><button class="iconButton">✎</button><button class="smallButton">보관</button></li>
+      </ul>
+    </section>
+    <p class="cap">손잡이를 탭 → 같은 팝오버. 화면 아래 끝 가까우면 위로 연다.</p>
+  </div>
+  <div class="phone">
+    <h1 class="pageTitle">설정</h1>
+    <section class="panel">
+      <h2>프로젝트</h2>
+      <ul class="list">
+        <li class="item"><button class="handle off"><svg viewBox="0 0 16 16" fill="currentColor"><circle cx="5.5" cy="3.5" r="1.4"/><circle cx="10.5" cy="3.5" r="1.4"/><circle cx="5.5" cy="8" r="1.4"/><circle cx="10.5" cy="8" r="1.4"/><circle cx="5.5" cy="12.5" r="1.4"/><circle cx="10.5" cy="12.5" r="1.4"/></svg></button><span class="swatch" style="background:var(--p4)"></span><span class="editInput bad">개발<span class="caret"></span></span><span class="count">업무 4</span><button class="smallButton">보관</button><span class="err">같은 이름의 프로젝트가 있어요</span></li>
+        <li class="item"><button class="handle"><svg viewBox="0 0 16 16" fill="currentColor"><circle cx="5.5" cy="3.5" r="1.4"/><circle cx="10.5" cy="3.5" r="1.4"/><circle cx="5.5" cy="8" r="1.4"/><circle cx="10.5" cy="8" r="1.4"/><circle cx="5.5" cy="12.5" r="1.4"/><circle cx="10.5" cy="12.5" r="1.4"/></svg></button><span class="swatch" style="background:var(--p3)"></span><span class="name">개발</span><span class="count">업무 21</span><button class="iconButton">✎</button><button class="smallButton">보관</button></li>
+      </ul>
+    </section>
+    <p class="cap">편집 + 오류. 입력칸이 이름 자리를 차지하고, 넘치면 업무 수·[보관]이 둘째 줄로. 오류 글은 입력칸 바로 아래.</p>
+  </div>
+</div>
+
+<!-- ───────── G. 대안 ───────── -->
+<div class="frameTitle">G. 대안 비교(Q2) <small>추천은 손잡이 메뉴. 아래는 대안 ‘줄마다 [↑][↓] 상시’를 390에 넣은 모습.</small></div>
+<div class="row2">
+  <div class="phone">
+    <section class="panel">
+      <ul class="list">
+        <li class="item"><span class="swatch" style="background:var(--p1)"></span><span class="name">영업 2팀 하반기…</span><button class="iconButton">↑</button><button class="iconButton">↓</button><span class="count">업무 9</span><button class="iconButton">✎</button><button class="smallButton">보관</button></li>
+        <li class="item"><span class="swatch" style="background:var(--p3)"></span><span class="name">개발</span><button class="iconButton">↑</button><button class="iconButton">↓</button><span class="count">업무 21</span><button class="iconButton">✎</button><button class="smallButton">보관</button></li>
+      </ul>
+    </section>
+    <p class="cap">줄마다 둥근 버튼이 4개(↑·↓·✎) + [보관]. 자주 안 쓰는 순서 버튼이 늘 자리를 차지하고 이름 칸이 좁아진다.</p>
+  </div>
+</div>
+
+</div>
+</body>
+</html>
