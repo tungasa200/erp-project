@@ -877,7 +877,7 @@ function Block({
       data-held={held || undefined}
       style={blockStyle(color, top, height, segment.column, segment.columns, segment.reserve)}
       onClick={(e) => (e.detail === 0 || readOnly) && onOpen(o)}
-      // 낭독 접두는 모양과 같다: 점선은 계획, 실선은 진행 중, 노란 면은 확인 대기, 채움은 했어요, 취소선은 안 했어요(2.3, X-11, CAL-93, UX-CAL-144)
+      // 낭독 접두는 모양과 같다: 색 테두리는 계획, 진한 채움은 진행 중, 노란 면은 확인 대기, 채움은 했어요, 취소선은 안 했어요(2.3, X-11, CAL-93, UX-CAL-144)
       aria-label={`${BLOCK_STATE_LABEL[state]} · ${o.title}, ${timeLabel(o, timeZone)}${o.recurring ? ', 반복' : ''}`}
     >
       {content}
@@ -919,7 +919,7 @@ function MoveGhost({
 
 /**
  * 칩·종일 막대 앞 상태 글자(2.3, 색만으로 구분하지 않게). 했어요는 ✓, 확인 대기는 "!"를 보이고 이름은 낭독용 글자로 준다.
- * 계획·진행 중은 테두리(점선·실선)가 알리므로 글자를 붙이지 않는다. 안 했어요는 취소선
+ * 계획·진행 중은 테두리·채움이 알리므로 글자를 붙이지 않는다. 안 했어요는 취소선
  */
 export function StateText({ state }: { state: BlockState }) {
   if (state === 'plan' || state === 'now') return null
