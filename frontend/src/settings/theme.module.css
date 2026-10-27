@@ -400,7 +400,7 @@
 }
 
 .pvPlanned {
-  border: 2px dashed var(--project-p2);
+  border: 2px solid var(--project-p2);
   background: var(--project-p2-tint);
   color: var(--project-p2-ink);
 }
