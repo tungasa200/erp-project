@@ -56,10 +56,10 @@
   gap: var(--space-2);
   padding: 0 var(--space-3);
   box-sizing: border-box;
-  /* 예정(기본): 홈 오늘 일정 행처럼 흰 면 + 프로젝트 색 점선(아직 실제가 아닌 것) */
-  border: 1.5px dashed var(--block-base, var(--color-accent));
+  /* 예정(기본): 프로젝트 옅은 면 + 프로젝트 색 실선 테두리. 했어요는 테두리가 면색이라 안 보이고 ✓가 붙어 구별된다 */
+  border: 1.5px solid var(--block-base, var(--color-accent));
   border-radius: var(--radius-input);
-  background: var(--color-surface);
+  background: var(--block-tint, var(--color-accent-softer));
   color: var(--color-text);
   text-align: left;
   cursor: pointer;
@@ -171,7 +171,7 @@
   text-decoration: line-through;
 }
 
-/* 고대비: 면이 지워지므로 홈 행처럼 모양으로 남긴다. 예정 점선, 진행 중 3px 실선("채운 행"), 했어요·안 했어요 실선, 확인 대기 이중선.
+/* 고대비: 면이 지워지므로 홈 행처럼 모양으로 남긴다. 예정 실선, 진행 중 3px 실선("채운 행"), 했어요·안 했어요 실선, 확인 대기 이중선.
    글자 표시(진행 중 배지·✓·!·취소선)가 상태를 말한다 */
 @media (forced-colors: active) {
   .agendaItem,
