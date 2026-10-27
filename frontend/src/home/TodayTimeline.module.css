@@ -1,4 +1,4 @@
-/* SCR-HOME-01 ③ 오늘 일정 (P2-08). 행 상태(홈PC 재디자인 v2 ③): 예정 흰 면+점선, 진행 중 프로젝트 색 진한 채움+흰 글자,
+/* SCR-HOME-01 ③ 오늘 일정 (P2-08). 행 상태(홈PC 재디자인 v2 ③, 달력과 같음): 예정 프로젝트 옅은 면+프로젝트 색 실선+ink 글자, 진행 중 프로젝트 색 진한 채움+흰 글자,
    했어요 옅은 면+진한 글자+✓, 확인 대기 노랑, 안 했어요 회색+취소선 */
 .panel {
   min-width: 0;
@@ -40,7 +40,8 @@
 
 .row {
   --plan-base: var(--color-accent);
-  --plan-tint: var(--color-accent-softer);
+  /* 프로젝트가 없을 때 옅은 면은 달력 블록(--block-tint 기본값)과 같은 accent-soft */
+  --plan-tint: var(--color-accent-soft);
   --plan-ink: var(--color-accent-ink);
   display: flex;
   flex-wrap: wrap;
@@ -55,10 +56,11 @@
   color: var(--color-text);
 }
 
-/* 점선은 아직 실제가 아닌 것(계획) */
+/* 예정(계획): 달력 블록처럼 옅은 면 + 프로젝트 색 실선 테두리 + ink 글자. 했어요는 같은 면이지만 테두리가 면색이고 ✓ 태그가 붙어 구별된다 */
 .rowPlan {
-  border-style: dashed;
   border-color: var(--plan-base);
+  background: var(--plan-tint);
+  color: var(--plan-ink);
 }
 
 /* 지금 하는 일이 가장 먼저 보이게. 흰 글자 대 프로젝트 색 4.5:1 이상(주황이 하한 4.66), 그래서 시간 칸도 흐리지 않는다 */
@@ -102,7 +104,7 @@
   text-decoration: line-through;
 }
 
-/* 고대비 모드는 면을 지운다: 예정 점선, 진행 중 3px 실선, 했어요·안 했어요 실선, 확인 대기 이중선 */
+/* 고대비 모드는 면을 지운다: 예정 실선(색 테두리), 진행 중 3px 실선, 했어요·안 했어요 실선, 확인 대기 이중선 */
 @media (forced-colors: active) {
   .rowNow {
     border-width: 3px;

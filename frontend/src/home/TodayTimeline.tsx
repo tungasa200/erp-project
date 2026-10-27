@@ -254,7 +254,7 @@ function PlanRow(props: {
   const { entry, color, statusKnown, disabled, offline, onDecide, onEdit } = props
   const { occurrence: o, record, phase } = entry
   const status = record?.status
-  // 면·테두리는 기록 상태가 먼저, 기록이 없으면 때(예정 점선 / 진행 중 진한 채움 / 끝남 실선). 홈PC 재디자인 v2 ③
+  // 면·테두리는 기록 상태가 먼저, 기록이 없으면 때(예정 옅은 면+색 실선 / 진행 중 진한 채움 / 끝남 실선). 홈PC 재디자인 v2 ③
   const rowClass = `${styles.row} ${
     status === 'PENDING'
       ? styles.rowPending

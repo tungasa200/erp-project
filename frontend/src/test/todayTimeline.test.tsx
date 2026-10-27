@@ -178,7 +178,7 @@ describe('SCR-HOME-01 ③ 오늘 일정 (P2-08)', () => {
     expect(within(today).queryByRole('list', { name: '실제' })).not.toBeInTheDocument()
   })
 
-  it('행 모양은 기록 상태가 먼저, 없으면 때로 정한다: 했어요 옅은 면, 확인 대기 노랑, 진행 중 진한 채움, 앞으로는 점선(홈PC 재디자인 v2 ③)', async () => {
+  it('행 모양은 기록 상태가 먼저, 없으면 때로 정한다: 했어요 옅은 면, 확인 대기 노랑, 진행 중 진한 채움, 앞으로는 옅은 면+색 실선(홈PC 재디자인 v2 ③, 달력과 같음)', async () => {
     server()
     renderApp('/')
     const today = await section()
