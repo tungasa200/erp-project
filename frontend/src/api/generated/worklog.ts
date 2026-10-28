@@ -372,12 +372,35 @@ export interface paths {
         };
         /**
          * 프로젝트 목록
-         * @description 페이지 없이 전체를 돌려준다. 만든 순서.
+         * @description 페이지 없이 전체를 돌려준다. 정렬: position → id(만든 순서). includeArchived=true면 보관하지 않은 것 먼저, 그 뒤 보관한 것.
          */
         get: operations["listProjects"];
         put?: never;
-        /** 프로젝트 추가 */
+        /**
+         * 프로젝트 추가
+         * @description 새 프로젝트는 맨 아래에 놓인다.
+         */
         post: operations["createProject"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/worklog/projects/order": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * 프로젝트 순서 저장
+         * @description 보관하지 않은 프로젝트 전체를 새 순서대로 보낸다. position을 1부터 다시 매기고 version·updatedAt은 올리지 않는다. 보낸 id 집합이 지금 보관하지 않은 프로젝트 집합과 다르면 409.
+         */
+        put: operations["reorderProjects"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -400,7 +423,7 @@ export interface paths {
         head?: never;
         /**
          * 프로젝트 수정·보관·보관 해제
-         * @description 보낸 칸만 바꾼다. 보관한 프로젝트의 업무는 업무 목록 기본 조회에서 빠진다.
+         * @description 보낸 칸만 바꾼다. 보관한 프로젝트의 업무는 업무 목록 기본 조회에서 빠진다. 보관 해제하면 맨 아래로 간다.
          */
         patch: operations["updateProject"];
         trace?: never;
@@ -1660,6 +1683,11 @@ export interface components {
              */
             openTaskCount: number;
             /**
+             * Format: int32
+             * @description 사용자가 정한 목록 순서, 작을수록 위. 정렬에만 쓴다(보관한 것이 섞이면 연속이 아닐 수 있다)
+             */
+            position: number;
+            /**
              * Format: int64
              * @description 보관(소프트 삭제)하지 않은 업무 수 (상태 무관)
              */
@@ -1675,6 +1703,10 @@ export interface components {
         };
         ProjectList: {
             items: components["schemas"]["Project"][];
+        };
+        ProjectOrder: {
+            /** @description 보관하지 않은 프로젝트 id 전체, 위에서 아래 순서. 한 번씩만. */
+            projectIds: string[];
         };
         ProjectPatch: {
             archived?: boolean;
@@ -3085,6 +3117,49 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             /** @description 같은 이름이 이미 있음 (code=DUPLICATE_NAME) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    reorderProjects: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProjectOrder"];
+            };
+        };
+        responses: {
+            /** @description 저장 후 보관하지 않은 프로젝트 목록 (listProjects 기본 조회와 같음) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectList"];
+                };
+            };
+            /** @description 입력 오류 (code=VALIDATION_FAILED, projectIds: REQUIRED·DUPLICATE·NOT_FOUND) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description 다른 곳에서 목록이 바뀜 (code=PROJECT_ORDER_STALE). 새로 불러와 다시 정한다 */
             409: {
                 headers: {
                     [name: string]: unknown;
