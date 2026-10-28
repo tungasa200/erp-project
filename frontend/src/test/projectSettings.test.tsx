@@ -33,7 +33,9 @@ const tag = (id: string, name: string, usageCount: number): Tag => ({
   version: 0,
 })
 
-function setup(options: { createProblem?: string; orderStatus?: number; orderProblem?: string } = {}) {
+function setup(
+  options: { createProblem?: string; orderStatus?: number; orderProblem?: string; holdTagRename?: Promise<void> } = {},
+) {
   const projects = [
     project('p1', '개발', 'P1'),
     project('p2', '영업', 'P2'),
@@ -70,8 +72,9 @@ function setup(options: { createProblem?: string; orderStatus?: number; orderPro
       return json(200, { items: projectIds.map((pid) => projects.find((p) => p.id === pid)) })
     },
     'GET /api/worklog/tags': () => json(200, { items: tags }),
-    'PATCH /api/worklog/tags/t1': (init) => {
+    'PATCH /api/worklog/tags/t1': async (init) => {
       record('PATCH', '/api/worklog/tags/t1', init)
+      await options.holdTagRename
       const body = JSON.parse(String(init?.body)) as { name: string }
       if (body.name === '견적') return problem(409, 'DUPLICATE_NAME')
       return json(200, { ...tag('t1', body.name, 4), version: 1 })
@@ -325,14 +328,15 @@ describe('SCR-SET-08 프로젝트 순서 바꾸기(D-240)', () => {
     expect(calls).toEqual([])
   })
 
-  it('끊기면 손잡이와 ✎를 끈다', async () => {
+  it('끊기면 손잡이·✎·[보관]과 태그 ✎를 끈다', async () => {
     vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
     setup()
     expect(await screen.findByRole('button', { name: '개발 순서 바꾸기, 3개 중 1번째' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: '개발 프로젝트 이름 바꾸기' })).toHaveAttribute(
-      'title',
-      '연결되면 바꿀 수 있어요',
-    )
+    for (const name of ['개발 프로젝트 이름 바꾸기', '개발 보관', '결제 태그 이름 바꾸기']) {
+      const button = await screen.findByRole('button', { name })
+      expect(button).toBeDisabled()
+      expect(button).toHaveAttribute('title', '연결되면 바꿀 수 있어요')
+    }
   })
 })
 
@@ -359,6 +363,21 @@ describe('SCR-SET-08 태그', () => {
     await userEvent.type(input, '정산{Enter}')
     expect(await screen.findByText('#정산')).toBeInTheDocument()
     expect(calls.at(-1)?.body).toEqual({ version: 0, name: '정산' })
+  })
+
+  it('저장 중에 Enter·blur가 겹쳐도 한 번만 보내고, 오래 걸리면 저장 중으로 알린다', async () => {
+    let release = () => {}
+    const { calls } = setup({ holdTagRename: new Promise<void>((r) => (release = r)) })
+    await userEvent.click(await screen.findByRole('button', { name: '결제 태그 이름 바꾸기' }))
+    const input = screen.getByRole('textbox', { name: '태그 이름' })
+    await userEvent.clear(input)
+    await userEvent.type(input, '정산{Enter}')
+    await userEvent.keyboard('{Enter}')
+    await userEvent.click(screen.getByRole('heading', { name: '태그' }))
+    await waitFor(() => expect(input).toHaveAttribute('aria-busy', 'true'))
+    release()
+    expect(await screen.findByText('#정산')).toBeInTheDocument()
+    expect(calls.filter((c) => c.method === 'PATCH')).toHaveLength(1)
   })
 
   it('공백이나 #이 든 이름은 보내지 않는다', async () => {

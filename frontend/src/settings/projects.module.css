@@ -140,7 +140,7 @@
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .smallButton:hover {
+  .smallButton:not(:disabled):hover {
     background: var(--color-surface-sunken);
   }
 }
@@ -291,7 +291,7 @@
 .tagError {
   flex-basis: 100%;
   padding-bottom: var(--space-1);
-  font-size: var(--text-xs);
+  font-size: var(--text-sm);
   font-weight: 600;
   color: var(--color-danger);
 }
@@ -341,7 +341,8 @@
   outline-offset: 2px;
 }
 
-.iconButton:disabled {
+.iconButton:disabled,
+.smallButton:disabled {
   color: var(--color-disabled);
   cursor: not-allowed;
 }
@@ -380,6 +381,11 @@
   border-top-color: var(--color-accent);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
+}
+
+/* 태그 칩은 입력칸 바탕이 투명해 칸 안에 겹치지 않고 [삭제] 앞에 둔다 */
+.tagSpinner {
+  margin-inline: 0;
 }
 
 @keyframes spin {
