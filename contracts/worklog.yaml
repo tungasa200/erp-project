@@ -1,8 +1,9 @@
 openapi: 3.1.0
 info:
   title: worklog-service API
-  version: 0.7.1
+  version: 0.8.0
   description: |
+    프로젝트 순서(Project.position, PUT /api/worklog/projects/order)는 2026-10-28 확정(사용자 카드 20261028-0030 기능 결정, 20261028-0100 계약 확정).
     구현 전 합의용 계약. P0 범위(GET /api/worklog/me)는 구현 완료, P1-01~03 범위는 2026-10-05 확정(구현 전).
     P3 업무일지(logs)·기간 기록 내보내기(records/export)는 2026-10-08 확정(사용자 카드 20261008-1130·1131 추천안). 파일 생성 라이브러리는 P3-01 뒤 정한다.
     P1-05·06 일정 범위(schedules)는 2026-10-06 확정.
@@ -163,7 +164,9 @@ paths:
       operationId: listProjects
       summary: 프로젝트 목록
       description: |
-        페이지 없이 전체를 돌려준다 (사용자별 개수가 작고 사이드바·필터·설정 화면이 전체를 쓴다). 만든 순서.
+        페이지 없이 전체를 돌려준다 (사용자별 개수가 작고 사이드바·필터·설정 화면이 전체를 쓴다).
+        정렬: position 오름차순 → id(만든 순서). 사이드바·업무 필터·빠른 입력·설정 목록이 모두 이 순서를 쓴다.
+        includeArchived=true면 보관하지 않은 것을 먼저(위 순서), 그 뒤에 보관한 것을 position → id로 놓는다.
       parameters:
         - name: includeArchived
           in: query
@@ -190,6 +193,7 @@ paths:
       tags: [projects]
       operationId: createProject
       summary: 프로젝트 추가
+      description: 새 프로젝트는 맨 아래에 놓인다(position = 그 사용자의 프로젝트 중 가장 큰 position + 1, 보관한 것 포함).
       requestBody:
         required: true
         content:
@@ -209,6 +213,56 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '409':
           $ref: '#/components/responses/DuplicateName'
+  /api/worklog/projects/order:
+    put:
+      tags: [projects]
+      operationId: reorderProjects
+      summary: 프로젝트 순서 저장
+      description: |
+        설정 > 프로젝트 목록에서 끌어 옮기거나 위·아래 버튼으로 바꾼 순서를 한 번에 저장한다(카드 20261028-0030).
+        projectIds는 보관하지 않은 프로젝트 전체를 새 순서대로 한 번씩 담는다. 서버는 그 순서로 position을 1, 2, 3…으로 다시 매긴다.
+        보관한 프로젝트의 position은 그대로 둔다(목록에 안 보이고, 꺼내면 맨 아래로 간다).
+        잠금: 프로젝트별 version을 받지 않는다. 대신 보낸 id 집합이 지금 보관하지 않은 프로젝트 집합과 다르면
+        (다른 곳에서 추가·보관·보관 해제·영구 삭제됨) 409 PROJECT_ORDER_STALE이며 아무것도 바꾸지 않는다. 화면은 목록을 새로 불러온다.
+        집합이 같은 두 요청이 겹치면 나중 요청이 이긴다.
+        순서만 바꾸므로 프로젝트의 version·updatedAt은 올리지 않는다(다른 탭의 이름·색 PATCH가 순서 변경 때문에 409가 되지 않게).
+        같은 순서를 다시 보내도 결과가 같다(멱등).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectOrder'
+      responses:
+        '200':
+          description: 저장 후 보관하지 않은 프로젝트 목록(listProjects 기본 조회와 같은 모양·순서)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Project'
+        '400':
+          description: |
+            입력 오류 (code=VALIDATION_FAILED). errors[] field=projectIds:
+            REQUIRED(빈 배열·없음), DUPLICATE(같은 id가 두 번), NOT_FOUND(없거나 다른 사용자의 id).
+            보관한 프로젝트 id는 STALE이 아니라 집합 불일치로 409다.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: 보낸 id 집합이 지금 보관하지 않은 프로젝트 집합과 다름 (code=PROJECT_ORDER_STALE). 목록을 새로 불러와 다시 정한다.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
   /api/worklog/projects/{projectId}:
     parameters:
       - $ref: '#/components/parameters/ProjectId'
@@ -234,6 +288,8 @@ paths:
       description: |
         삭제는 보관(archived=true)이다. 보관한 프로젝트는 보관함에서 영구 삭제할 수 있다(DELETE ./permanent, 카드 20261013-1010).
         보관한 프로젝트의 업무는 업무 목록 기본 조회에서 빠진다(목록의 projectId 필터로는 조회 가능).
+        보관 해제(archived=false)한 프로젝트는 맨 아래로 간다(position = 가장 큰 position + 1).
+        순서(position)는 이 PATCH로 바꾸지 않는다 → PUT /api/worklog/projects/order.
       requestBody:
         required: true
         content:
@@ -2236,7 +2292,7 @@ components:
       enum: [P1, P2, P3, P4, P5, P6, P7, P8]
     Project:
       type: object
-      required: [id, name, color, archived, taskCount, openTaskCount, createdAt, version]
+      required: [id, name, color, position, archived, taskCount, openTaskCount, createdAt, version]
       properties:
         id:
           type: string
@@ -2247,6 +2303,12 @@ components:
           maxLength: 50
         color:
           $ref: '#/components/schemas/ProjectColor'
+        position:
+          type: integer
+          minimum: 1
+          description: |
+            사용자가 정한 목록 순서. 작을수록 위. 목록은 position → id로 정렬한다.
+            값 자체는 화면에 쓰지 않고 정렬에만 쓴다(보관한 프로젝트가 섞이면 연속이 아닐 수 있다). 바꾸기는 PUT /api/worklog/projects/order.
         archived:
           type: boolean
         archivedAt:
@@ -2292,6 +2354,17 @@ components:
           $ref: '#/components/schemas/ProjectColor'
         archived:
           type: boolean
+    ProjectOrder:
+      type: object
+      required: [projectIds]
+      properties:
+        projectIds:
+          type: array
+          minItems: 1
+          description: 보관하지 않은 프로젝트 id 전체, 위에서 아래 순서. 한 번씩만.
+          items:
+            type: string
+            format: uuid
 
     Tag:
       type: object
