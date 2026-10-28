@@ -48,6 +48,9 @@ export const projectApi = {
   create: (body: ProjectCreate) => api.request<Project>('/api/worklog/projects', { method: 'POST', body }),
   update: (id: string, body: ProjectPatch) =>
     api.request<Project>(`/api/worklog/projects/${id}`, { method: 'PATCH', body }),
+  /** 보관하지 않은 프로젝트 전체 순서(위→아래, D-240). id 묶음이 서버와 다르면 409 PROJECT_ORDER_STALE */
+  order: (projectIds: string[]) =>
+    api.request<{ items: Project[] }>('/api/worklog/projects/order', { method: 'PUT', body: { projectIds } }),
 }
 
 export const tagApi = {

@@ -319,3 +319,289 @@
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
 }
+
+/* ─── 프로젝트 이름 바꾸기·순서 바꾸기 (D-240, 사양 docs/ux/프로젝트_이름순서_사양_v1.md) ─── */
+
+/* 끄는 중 빈 칸·놓을 자리 선을 얹는 틀 */
+.listWrap {
+  position: relative;
+}
+
+/* 프로젝트 줄은 흰 면이라 ✎ 원을 옅은 회색 면으로(태그는 회색 칩 위 흰 원) */
+.rowIconButton {
+  flex: none;
+  background: var(--color-surface-sunken);
+  color: var(--color-text-strong);
+  font-size: 15px;
+}
+
+.iconButton:focus-visible,
+.handle:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.iconButton:disabled {
+  color: var(--color-disabled);
+  cursor: not-allowed;
+}
+
+/* 편집: 이름 칸 폭을 그대로 써서 줄이 출렁이지 않는다 */
+.nameInput {
+  flex: 1 1 6em;
+  min-width: 0;
+  height: 36px;
+  box-sizing: border-box;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  box-shadow: inset 0 0 0 2px var(--color-accent);
+  outline: none;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--text-md);
+  font-weight: 600;
+}
+
+.nameInput[aria-invalid='true'] {
+  box-shadow: inset 0 0 0 2px var(--color-danger);
+}
+
+/* 0.4초 넘게 저장 중: 입력칸 오른쪽 안 */
+.spinner {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  box-sizing: border-box;
+  margin-inline-start: -38px;
+  margin-inline-end: 12px;
+  border: 2px solid var(--color-accent-soft);
+  border-top-color: var(--color-accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation-duration: 2.4s;
+  }
+}
+
+/* 오류는 입력칸 아래 줄 전체 폭. 손잡이·색 칸(24+18+간격) 뒤에서 시작해 입력칸 글자와 줄을 맞춘다 */
+.rowError {
+  flex-basis: 100%;
+  margin: calc(-1 * var(--space-2)) 0 0 66px;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-danger);
+}
+
+/* 프로젝트가 하나라 손잡이가 없으면 색 칸(18) + 간격만큼만 민다 */
+.item:not(:has(.handleWrap)) > .rowError {
+  margin-left: 30px;
+}
+
+/* 손잡이 ⠿: 보이는 크기 24×36, 누르는 영역 44(::after). 손잡이에서만 화면 굴리기를 막아 누르는 즉시 끈다(390) */
+.handleWrap {
+  position: relative;
+  flex: none;
+  display: flex;
+}
+
+.handle {
+  position: relative;
+  width: 24px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: grab;
+  touch-action: none;
+}
+
+.handle svg {
+  width: 16px;
+  height: 16px;
+}
+
+.handle::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 44px;
+  height: 44px;
+  transform: translate(-50%, -50%);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .handle:not(:disabled):hover {
+    background: var(--color-accent-faint);
+  }
+}
+
+.handle[aria-expanded='true'] {
+  background: var(--color-accent-faint);
+  color: var(--color-accent-ink);
+  box-shadow: inset 0 0 0 2px var(--color-accent);
+}
+
+.handle:disabled {
+  color: var(--color-disabled);
+  cursor: not-allowed;
+}
+
+/* 옮기기 메뉴: 업무 줄 [⋯] 메뉴(tasks .rowMenuList)와 같은 모양 */
+.moveMenu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 30;
+  min-width: 160px;
+  margin: 0;
+  padding: var(--space-1);
+  list-style: none;
+  border-radius: var(--radius-input);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-2);
+}
+
+.moveMenuAbove {
+  top: auto;
+  bottom: calc(100% + 4px);
+}
+
+.moveMenuItem {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: var(--size-touch);
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: var(--radius-input);
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--text-md);
+  font-weight: 600;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .moveMenuItem:not([aria-disabled='true']):hover {
+    background: var(--color-accent-faint);
+  }
+}
+
+.moveMenuItem:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+}
+
+.moveMenuItem[aria-disabled='true'] {
+  color: var(--color-disabled);
+  cursor: default;
+}
+
+/* 끄는 중: 떠오른 줄은 흰 면·그림자, 원래 자리는 점선 빈 칸, 놓을 자리는 키 색 2px 선과 왼쪽 끝 점 */
+.lifted {
+  position: relative;
+  z-index: 2;
+  margin: 0 -8px;
+  padding-inline: 8px;
+  border-top-color: transparent;
+  border-radius: var(--radius-input);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-2);
+  cursor: grabbing;
+}
+
+.lifted .handle {
+  cursor: grabbing;
+}
+
+.slot {
+  position: absolute;
+  left: 0;
+  right: 0;
+  box-sizing: border-box;
+  border: 1.5px dashed var(--color-border);
+  border-radius: var(--radius-input);
+  pointer-events: none;
+}
+
+.dropLine {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 3;
+  height: 0;
+  margin-top: -1px;
+  border-top: 2px solid var(--color-accent);
+  pointer-events: none;
+}
+
+.dropLine::before {
+  content: '';
+  position: absolute;
+  left: -3px;
+  top: -4px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  box-shadow: 0 0 0 2px var(--color-surface);
+}
+
+/* 놓거나 메뉴로 옮긴 줄: 0.8초 옅은 키 색 면 */
+.flash {
+  border-radius: var(--radius-sm);
+  background: var(--color-accent-softer);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .item {
+    transition: background-color 150ms ease-out;
+  }
+
+  .lifted {
+    transition: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .lifted {
+    border: 2px solid CanvasText;
+  }
+
+  .slot {
+    border-color: GrayText;
+  }
+
+  .dropLine,
+  .dropLine::before {
+    border-color: Highlight;
+    background: Highlight;
+  }
+
+  .nameInput {
+    border: 2px solid Highlight;
+  }
+
+  .handle[aria-expanded='true'] {
+    border: 2px solid Highlight;
+  }
+}
