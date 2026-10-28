@@ -254,7 +254,9 @@ describe('SCR-COM-01 사이드바 프로젝트 만들기·관리 (D-226)', () =>
     await userEvent.click(add)
     const input = within(sidebar).getByRole('textbox', { name: '새 프로젝트 이름' })
     await userEvent.type(input, '영업{Enter}')
-    expect(await within(sidebar).findByRole('alert')).toHaveTextContent('같은 이름의 프로젝트가 있어요')
+    expect(await within(sidebar).findByRole('alert')).toHaveTextContent(
+      '같은 이름의 프로젝트가 있어요. 보관함도 확인해 주세요',
+    )
     expect(input).toHaveAttribute('aria-invalid', 'true')
     expect(input).toHaveFocus()
 

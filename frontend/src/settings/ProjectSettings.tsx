@@ -512,6 +512,8 @@ function ProjectRow({
         aria-label={`${project.name} 보관`}
         aria-describedby="settings-projects-archive-note"
         data-project-archive={project.id}
+        title={online ? undefined : OFFLINE_TITLE}
+        disabled={!online}
         onClick={onArchive}
       >
         보관
@@ -825,9 +827,13 @@ function TagSection() {
 function TagChip({ tag, onRemove }: { tag: Tag; onRemove: () => void }) {
   const queryClient = useQueryClient()
   const { showToast } = useToast()
+  const online = useOnline()
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState(tag.name)
   const [error, setError] = useState<string | null>(null)
+  // 저장 중 Enter·blur가 겹쳐도 한 번만 보낸다. 0.4초 넘으면 스피너(프로젝트 이름과 같게)
+  const [slow, setSlow] = useState(false)
+  const saving = useRef(false)
   const id = useId()
   const editButton = useRef<HTMLButtonElement>(null)
   // 편집을 열면 글자를 전체 선택한다(프로젝트 이름과 같게, 사양 1.2)
@@ -852,6 +858,7 @@ function TagChip({ tag, onRemove }: { tag: Tag; onRemove: () => void }) {
   }
 
   const save = async (refocus = false) => {
+    if (saving.current) return
     const next = name.trim()
     if (next === tag.name) return cancel(refocus)
     if (next === '') {
@@ -862,6 +869,8 @@ function TagChip({ tag, onRemove }: { tag: Tag; onRemove: () => void }) {
       setError('공백과 #은 쓸 수 없고 30자까지예요')
       return
     }
+    saving.current = true
+    const timer = window.setTimeout(() => setSlow(true), 400)
     try {
       const updated = await tagApi.rename(tag.id, { version: tag.version, name: next })
       queryClient.setQueryData<Tag[]>(TAGS_QUERY_KEY, (list) => list?.map((t) => (t.id === updated.id ? updated : t)))
@@ -875,6 +884,10 @@ function TagChip({ tag, onRemove }: { tag: Tag; onRemove: () => void }) {
         showToast('다른 곳에서 먼저 수정돼서 새로 불러왔어요. 다시 해 주세요')
         cancel(refocus)
       } else showToast(...spread(toastForError(err)))
+    } finally {
+      window.clearTimeout(timer)
+      saving.current = false
+      setSlow(false)
     }
   }
 
@@ -889,6 +902,8 @@ function TagChip({ tag, onRemove }: { tag: Tag; onRemove: () => void }) {
           className={styles.iconButton}
           data-tag-edit={tag.id}
           aria-label={`${tag.name} 태그 이름 바꾸기`}
+          title={online ? undefined : OFFLINE_TITLE}
+          disabled={!online}
           onClick={() => setEditing(true)}
         >
           ✎
@@ -929,7 +944,9 @@ function TagChip({ tag, onRemove }: { tag: Tag; onRemove: () => void }) {
         }}
         aria-invalid={error !== null}
         aria-describedby={error ? `${id}-error` : undefined}
+        aria-busy={slow || undefined}
       />
+      {slow && <span className={`${styles.spinner} ${styles.tagSpinner}`} aria-hidden="true" />}
       <button
         type="button"
         className={styles.tagDelete}

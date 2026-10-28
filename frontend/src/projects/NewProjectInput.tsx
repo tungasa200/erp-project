@@ -34,7 +34,7 @@ export function NewProjectInput({ onDone }: { onDone: (created: Project | null) 
     } catch (err) {
       setSaving(false)
       if (err instanceof ApiError && err.code === 'DUPLICATE_NAME') {
-        setError('같은 이름의 프로젝트가 있어요')
+        setError('같은 이름의 프로젝트가 있어요. 보관함도 확인해 주세요')
         void projects.refetch()
       } else if (err instanceof ApiError && err.code === 'VALIDATION_FAILED') setError('이름은 50자까지 쓸 수 있어요')
       else {
