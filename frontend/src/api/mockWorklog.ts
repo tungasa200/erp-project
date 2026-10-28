@@ -460,15 +460,41 @@ export function handleWorklog(
     return new Response(null, { status: 204 })
   }
 
+  // 순서(D-240): 보관하지 않은 프로젝트 id 전부. 묶음이 다르면 409, 순서만 바꿀 때는 version을 올리지 않는다
+  if (method === 'PUT' && path === '/api/worklog/projects/order') {
+    const ids = Array.isArray(body.projectIds) ? (body.projectIds as string[]) : []
+    const active = state.projects.filter((p) => !p.archived)
+    if (ids.length === 0 || new Set(ids).size !== ids.length)
+      return r.problem(400, 'VALIDATION_FAILED', { errors: [{ field: 'projectIds', code: 'INVALID' }] })
+    if (ids.length !== active.length || active.some((p) => !ids.includes(p.id)))
+      return r.problem(409, 'PROJECT_ORDER_STALE')
+    const ordered = ids.map((pid) => active.find((p) => p.id === pid)!)
+    state.projects = [...ordered, ...state.projects.filter((p) => p.archived)]
+    save(state)
+    return r.json(200, { items: ordered })
+  }
+
   const projectMatch = /^\/api\/worklog\/projects\/([^/]+)$/.exec(path)
   if (method === 'PATCH' && projectMatch) {
     const project = state.projects.find((p) => p.id === projectMatch[1])
     if (!project) return r.problem(404, 'NOT_FOUND')
     if (body.version !== project.version) return r.problem(409, 'VERSION_CONFLICT')
+    if (typeof body.name === 'string' && body.name.trim() !== project.name) {
+      const name = body.name.trim()
+      if (!name || name.length > 50)
+        return r.problem(400, 'VALIDATION_FAILED', { errors: [{ field: 'name', code: 'INVALID' }] })
+      // 보관한 것도 겹침에 든다. 자기 이름의 대소문자만 바꾸는 것은 된다
+      if (state.projects.some((p) => p.id !== project.id && sameName(p.name, name)))
+        return r.problem(409, 'DUPLICATE_NAME')
+      project.name = name
+      project.version += 1
+    }
     if (typeof body.archived === 'boolean' && body.archived !== project.archived) {
       project.archived = body.archived
       project.archivedAt = body.archived ? now() : null
       project.version += 1
+      // 보관 해제한 프로젝트는 맨 아래로 간다(D-240)
+      if (!body.archived) state.projects = [...state.projects.filter((p) => p !== project), project]
     }
     save(state)
     return r.json(200, project)

@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -33,7 +33,7 @@ const tag = (id: string, name: string, usageCount: number): Tag => ({
   version: 0,
 })
 
-function setup(options: { createProblem?: string } = {}) {
+function setup(options: { createProblem?: string; orderStatus?: number; orderProblem?: string } = {}) {
   const projects = [
     project('p1', '개발', 'P1'),
     project('p2', '영업', 'P2'),
@@ -56,8 +56,18 @@ function setup(options: { createProblem?: string } = {}) {
     },
     'PATCH /api/worklog/projects/p1': (init) => {
       record('PATCH', '/api/worklog/projects/p1', init)
-      const body = JSON.parse(String(init?.body)) as { version: number; archived: boolean }
-      return json(200, project('p1', '개발', 'P1', { archived: body.archived, version: body.version + 1 }))
+      const body = JSON.parse(String(init?.body)) as { version: number; archived?: boolean; name?: string }
+      if (body.name === '영업') return problem(409, 'DUPLICATE_NAME')
+      return json(
+        200,
+        project('p1', body.name ?? '개발', 'P1', { archived: body.archived ?? false, version: body.version + 1 }),
+      )
+    },
+    'PUT /api/worklog/projects/order': (init) => {
+      record('PUT', '/api/worklog/projects/order', init)
+      if (options.orderProblem) return problem(options.orderStatus ?? 409, options.orderProblem)
+      const { projectIds } = JSON.parse(String(init?.body)) as { projectIds: string[] }
+      return json(200, { items: projectIds.map((pid) => projects.find((p) => p.id === pid)) })
     },
     'GET /api/worklog/tags': () => json(200, { items: tags }),
     'PATCH /api/worklog/tags/t1': (init) => {
@@ -93,7 +103,7 @@ describe('SCR-SET-08 프로젝트', () => {
       within(list)
         .getAllByRole('listitem')
         .map((li) => li.textContent),
-    ).toEqual(['개발업무 2보관', '영업업무 2보관', '공통업무 2보관'])
+    ).toEqual(['개발업무 2✎보관', '영업업무 2✎보관', '공통업무 2✎보관'])
     expect(screen.getByRole('link', { name: '보관한 프로젝트 1' })).toHaveAttribute(
       'href',
       '/tasks/archive?type=projects',
@@ -149,7 +159,180 @@ describe('SCR-SET-08 프로젝트', () => {
 
     await userEvent.type(screen.getByRole('textbox', { name: '새 프로젝트' }), '개발')
     await userEvent.click(screen.getByRole('button', { name: '추가' }))
-    expect(await screen.findByText('같은 이름의 프로젝트가 있어요')).toBeInTheDocument()
+    expect(await screen.findByText('같은 이름의 프로젝트가 있어요. 보관함도 확인해 주세요')).toBeInTheDocument()
+  })
+})
+
+const rows = () =>
+  within(screen.getByRole('list', { name: '프로젝트 목록' }))
+    .getAllByRole('listitem')
+    .map((li) => li.querySelector('[class*="name"]')?.textContent)
+
+describe('SCR-SET-08 프로젝트 이름 바꾸기(D-240)', () => {
+  it('✎를 누르면 글자를 전체 선택하고, Enter로 저장하면 ✎로 포커스가 간다(토스트 없음)', async () => {
+    const { calls } = setup()
+    const user = userEvent.setup()
+    ;(await screen.findByRole('button', { name: '개발 프로젝트 이름 바꾸기' })).focus()
+    await user.keyboard('{Enter}')
+    const input = screen.getByRole('textbox', { name: '프로젝트 이름' })
+    expect(input).toHaveFocus()
+    expect([(input as HTMLInputElement).selectionStart, (input as HTMLInputElement).selectionEnd]).toEqual([0, 2])
+    // 전체 선택이라 바로 치면 이름이 통째로 바뀐다
+    await user.keyboard('개발팀{Enter}')
+    expect(await screen.findByRole('button', { name: '개발팀 프로젝트 이름 바꾸기' })).toHaveFocus()
+    expect(calls).toEqual([{ method: 'PATCH', url: '/api/worklog/projects/p1', body: { version: 0, name: '개발팀' } }])
+    expect(screen.queryByRole('status')).not.toHaveTextContent(/바꿨어요/)
+  })
+
+  it('Esc는 요청 없이 원래 이름으로 닫고 ✎로, 그대로 Enter도 요청 없이 닫는다', async () => {
+    const { calls } = setup()
+    const user = userEvent.setup()
+    await user.click(await screen.findByRole('button', { name: '개발 프로젝트 이름 바꾸기' }))
+    await user.keyboard('딴이름{Escape}')
+    expect(screen.getByRole('button', { name: '개발 프로젝트 이름 바꾸기' })).toHaveFocus()
+    await user.keyboard('{Enter}{Enter}')
+    expect(screen.getByRole('button', { name: '개발 프로젝트 이름 바꾸기' })).toHaveFocus()
+    expect(calls).toEqual([])
+  })
+
+  it('편집 중 Tab으로 [보관]에 가도 편집은 열려 있고, 손잡이는 꺼진다', async () => {
+    setup()
+    const user = userEvent.setup()
+    await user.click(await screen.findByRole('button', { name: '개발 프로젝트 이름 바꾸기' }))
+    expect(screen.getByRole('button', { name: '개발 순서 바꾸기, 3개 중 1번째' })).toBeDisabled()
+    await user.tab()
+    expect(screen.getByRole('button', { name: '개발 보관' })).toHaveFocus()
+    expect(screen.getByRole('textbox', { name: '프로젝트 이름' })).toBeInTheDocument()
+  })
+
+  it('빈 이름은 보내지 않고, 겹치면 보관함도 보라고 알린다. 오류가 있으면 줄 밖을 눌러도 닫지 않는다', async () => {
+    const { calls } = setup()
+    const user = userEvent.setup()
+    await user.click(await screen.findByRole('button', { name: '개발 프로젝트 이름 바꾸기' }))
+    const input = screen.getByRole('textbox', { name: '프로젝트 이름' })
+    await user.clear(input)
+    await user.keyboard('{Enter}')
+    expect(screen.getByRole('alert')).toHaveTextContent('프로젝트 이름을 적어 주세요')
+    expect(input).toHaveAttribute('aria-invalid', 'true')
+    expect(calls).toEqual([])
+
+    await user.type(input, '영업{Enter}')
+    expect(await screen.findByRole('alert')).toHaveTextContent('같은 이름의 프로젝트가 있어요. 보관함도 확인해 주세요')
+    await user.click(screen.getByRole('heading', { name: '프로젝트' }))
+    expect(screen.getByRole('textbox', { name: '프로젝트 이름' })).toBeInTheDocument()
+    expect(calls).toHaveLength(1)
+  })
+})
+
+describe('SCR-SET-08 프로젝트 순서 바꾸기(D-240)', () => {
+  it('손잡이 메뉴: 첫 켜진 항목에 포커스, 화살표는 꺼진 항목을 건너뛰고, 실행하면 옮긴 줄 손잡이로 간다', async () => {
+    const { calls } = setup()
+    const user = userEvent.setup()
+    ;(await screen.findByRole('button', { name: '공통 순서 바꾸기, 3개 중 3번째' })).focus()
+    await user.keyboard('{Enter}')
+    const menu = screen.getByRole('menu', { name: '공통 순서 바꾸기' })
+    expect(within(menu).getByRole('menuitem', { name: '위로 옮기기' })).toHaveFocus()
+    expect(within(menu).getByRole('menuitem', { name: '아래로 옮기기' })).toHaveAttribute('aria-disabled', 'true')
+    await user.keyboard('{ArrowDown}')
+    expect(within(menu).getByRole('menuitem', { name: '맨 위로' })).toHaveFocus()
+    await user.keyboard('{Enter}')
+
+    expect(rows()).toEqual(['공통', '개발', '영업'])
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    await waitFor(() => expect(screen.getByRole('button', { name: '공통 순서 바꾸기, 3개 중 1번째' })).toHaveFocus())
+    await waitFor(() =>
+      expect(calls).toEqual([
+        { method: 'PUT', url: '/api/worklog/projects/order', body: { projectIds: ['p3', 'p1', 'p2'] } },
+      ]),
+    )
+  })
+
+  it('Esc는 메뉴를 닫고 손잡이로 돌아간다', async () => {
+    setup()
+    const user = userEvent.setup()
+    await user.click(await screen.findByRole('button', { name: '개발 순서 바꾸기, 3개 중 1번째' }))
+    expect(screen.getByRole('menuitem', { name: '아래로 옮기기' })).toHaveFocus()
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '개발 순서 바꾸기, 3개 중 1번째' })).toHaveFocus()
+  })
+
+  it('저장에 실패하면 원래 순서로 되돌리고 알린다', async () => {
+    setup({ orderStatus: 500, orderProblem: 'INTERNAL' })
+    const user = userEvent.setup()
+    await user.click(await screen.findByRole('button', { name: '개발 순서 바꾸기, 3개 중 1번째' }))
+    await user.click(screen.getByRole('menuitem', { name: '맨 아래로' }))
+    expect(await screen.findByText('순서를 저장하지 못했어요. 다시 해 주세요')).toBeInTheDocument()
+    expect(rows()).toEqual(['개발', '영업', '공통'])
+    await waitFor(() => expect(screen.getByRole('button', { name: '개발 순서 바꾸기, 3개 중 1번째' })).toHaveFocus())
+  })
+
+  it('409 PROJECT_ORDER_STALE이면 목록을 새로 불러오고 알린다', async () => {
+    setup({ orderProblem: 'PROJECT_ORDER_STALE' })
+    const fetchMock = vi.mocked(fetch)
+    const user = userEvent.setup()
+    await user.click(await screen.findByRole('button', { name: '개발 순서 바꾸기, 3개 중 1번째' }))
+    await user.click(screen.getByRole('menuitem', { name: '아래로 옮기기' }))
+    expect(await screen.findByText('프로젝트 목록이 바뀌었어요. 목록을 새로 불러왔어요')).toBeInTheDocument()
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.filter(([url]) => String(url) === '/api/worklog/projects?includeArchived=true'),
+      ).toHaveLength(2),
+    )
+    await waitFor(() => expect(rows()).toEqual(['개발', '영업', '공통']))
+  })
+
+  it('손잡이를 누른 채 끌어 놓으면 그 자리로 옮기고, 끈 뒤에는 메뉴를 열지 않는다', async () => {
+    const { calls } = setup()
+    const first = await screen.findByRole('button', { name: '개발 순서 바꾸기, 3개 중 1번째' })
+    // jsdom은 배치가 없어 줄 높이 60px로 둔다
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+      const li = this.closest('li')
+      const index = li?.dataset.projectRow ? [...li.parentElement!.children].indexOf(li) : 0
+      const top = this.dataset.projectRow ? index * 60 : 0
+      const height = this.dataset.projectRow ? 60 : 180
+      return { top, bottom: top + height, height, left: 0, right: 500, width: 500, x: 0, y: top } as DOMRect
+    })
+    fireEvent.pointerDown(first, { button: 0, pointerId: 1, clientX: 10, clientY: 30 })
+    fireEvent.pointerMove(first, { pointerId: 1, clientX: 10, clientY: 33 })
+    expect(document.querySelector('[class*="dropLine"]')).toBeNull()
+    fireEvent.pointerMove(first, { pointerId: 1, clientX: 10, clientY: 160 })
+    expect(document.querySelector('[class*="dropLine"]')).not.toBeNull()
+    fireEvent.pointerUp(first, { pointerId: 1, clientX: 10, clientY: 160 })
+    fireEvent.click(first, { detail: 1 })
+
+    expect(rows()).toEqual(['영업', '공통', '개발'])
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    await waitFor(() =>
+      expect(calls).toEqual([
+        { method: 'PUT', url: '/api/worklog/projects/order', body: { projectIds: ['p2', 'p3', 'p1'] } },
+      ]),
+    )
+  })
+
+  it('끄는 중 Esc면 취소한다', async () => {
+    const { calls } = setup()
+    const first = await screen.findByRole('button', { name: '개발 순서 바꾸기, 3개 중 1번째' })
+    fireEvent.pointerDown(first, { button: 0, pointerId: 1, clientX: 10, clientY: 0 })
+    fireEvent.pointerMove(first, { pointerId: 1, clientX: 10, clientY: 100 })
+    fireEvent.keyDown(document, { key: 'Escape' })
+    fireEvent.pointerMove(first, { pointerId: 1, clientX: 10, clientY: 120 })
+    expect(document.querySelector('[class*="dropLine"]')).toBeNull()
+    fireEvent.pointerUp(first, { pointerId: 1, clientX: 10, clientY: 120 })
+    fireEvent.click(first, { detail: 1 })
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    expect(rows()).toEqual(['개발', '영업', '공통'])
+    expect(calls).toEqual([])
+  })
+
+  it('끊기면 손잡이와 ✎를 끈다', async () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    setup()
+    expect(await screen.findByRole('button', { name: '개발 순서 바꾸기, 3개 중 1번째' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: '개발 프로젝트 이름 바꾸기' })).toHaveAttribute(
+      'title',
+      '연결되면 바꿀 수 있어요',
+    )
   })
 })
 
