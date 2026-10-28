@@ -20,11 +20,13 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.contains;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -82,6 +84,61 @@ class ProjectTagApiTest {
 				.andExpect(jsonPath("$.archived").value(false))
 				.andExpect(jsonPath("$.archivedAt").isEmpty())
 				.andExpect(jsonPath("$.color").value("P8"));
+	}
+
+	@Test
+	void projectOrderSavesWholeListWithoutVersionBump() throws Exception {
+		String a = id(send(ALICE, post("/api/worklog/projects"), "{\"name\":\"a\",\"color\":\"P1\"}")
+				.andExpect(jsonPath("$.position").value(1)));
+		String b = id(send(ALICE, post("/api/worklog/projects"), "{\"name\":\"b\",\"color\":\"P1\"}")
+				.andExpect(jsonPath("$.position").value(2)));
+		String c = id(send(ALICE, post("/api/worklog/projects"), "{\"name\":\"c\",\"color\":\"P1\"}"));
+
+		send(ALICE, put("/api/worklog/projects/order"), order(c, a, b))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.items[*].id").value(contains(c, a, b)))
+				.andExpect(jsonPath("$.items[*].position").value(contains(1, 2, 3)))
+				.andExpect(jsonPath("$.items[*].version").value(contains(0, 0, 0)));
+		mvc.perform(get("/api/worklog/projects").with(user(ALICE)))
+				.andExpect(jsonPath("$.items[*].id").value(contains(c, a, b)));
+		// 순서만 바꿨으니 이름 PATCH는 예전 version으로 된다
+		send(ALICE, patch("/api/worklog/projects/" + a), "{\"version\":0,\"name\":\"a2\"}").andExpect(status().isOk());
+
+		// 새 프로젝트는 맨 아래
+		String d = id(send(ALICE, post("/api/worklog/projects"), "{\"name\":\"d\",\"color\":\"P1\"}")
+				.andExpect(jsonPath("$.position").value(4)));
+		// 목록이 바뀐 뒤 옛 집합으로 보내면 409, 아무것도 안 바뀜
+		send(ALICE, put("/api/worklog/projects/order"), order(a, b, c))
+				.andExpect(status().isConflict())
+				.andExpect(jsonPath("$.code").value("PROJECT_ORDER_STALE"));
+		mvc.perform(get("/api/worklog/projects").with(user(ALICE)))
+				.andExpect(jsonPath("$.items[*].id").value(contains(c, a, b, d)));
+
+		// 보관한 프로젝트를 넣으면 409, 보관 해제하면 맨 아래
+		send(ALICE, patch("/api/worklog/projects/" + c), "{\"version\":0,\"archived\":true}").andExpect(status().isOk());
+		send(ALICE, put("/api/worklog/projects/order"), order(d, a, b, c))
+				.andExpect(status().isConflict())
+				.andExpect(jsonPath("$.code").value("PROJECT_ORDER_STALE"));
+		send(ALICE, put("/api/worklog/projects/order"), order(d, a, b)).andExpect(status().isOk());
+		// 보관한 c(position 1)는 보관 포함 목록에서 맨 뒤
+		mvc.perform(get("/api/worklog/projects?includeArchived=true").with(user(ALICE)))
+				.andExpect(jsonPath("$.items[*].id").value(contains(d, a, b, c)));
+		send(ALICE, patch("/api/worklog/projects/" + c), "{\"version\":1,\"archived\":false}")
+				.andExpect(jsonPath("$.position").value(4)); // 보관 중 c의 옛 position(1)이 아니라 가장 큰 값(3) + 1
+		mvc.perform(get("/api/worklog/projects").with(user(ALICE)))
+				.andExpect(jsonPath("$.items[*].id").value(contains(d, a, b, c)));
+
+		// 입력 오류: 빈 배열·중복·다른 사용자의 id
+		String bobs = id(send(BOB, post("/api/worklog/projects"), "{\"name\":\"z\",\"color\":\"P1\"}"));
+		send(ALICE, put("/api/worklog/projects/order"), "{\"projectIds\":[]}")
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.errors[0].code").value("REQUIRED"));
+		send(ALICE, put("/api/worklog/projects/order"), order(d, a, a, c))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.errors[0].code").value("DUPLICATE"));
+		send(ALICE, put("/api/worklog/projects/order"), order(d, a, b, c, bobs))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.errors[0].code").value("NOT_FOUND"));
 	}
 
 	@Test
@@ -214,6 +271,10 @@ class ProjectTagApiTest {
 
 	private ResultActions send(UUID owner, MockHttpServletRequestBuilder request, String body) throws Exception {
 		return mvc.perform(request.with(user(owner)).contentType(MediaType.APPLICATION_JSON).content(body));
+	}
+
+	private static String order(String... ids) {
+		return "{\"projectIds\":[\"" + String.join("\",\"", ids) + "\"]}";
 	}
 
 	private static String id(ResultActions result) throws Exception {

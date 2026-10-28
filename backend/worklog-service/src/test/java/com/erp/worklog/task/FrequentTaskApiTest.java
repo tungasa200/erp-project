@@ -196,8 +196,8 @@ class FrequentTaskApiTest {
 	private UUID project(String name, boolean archived) {
 		UUID id = UUID.randomUUID();
 		jdbc.sql("""
-				INSERT INTO project (id, owner_id, name, color, archived_at, version, created_at, updated_at)
-				VALUES (?, ?, ?, 'P1', CASE WHEN ? THEN now() END, 0, now(), now())""")
+				INSERT INTO project (id, owner_id, name, color, position, archived_at, version, created_at, updated_at)
+				VALUES (?, ?, ?, 'P1', 1, CASE WHEN ? THEN now() END, 0, now(), now())""")
 				.params(id, ALICE, name, archived).update();
 		return id;
 	}
